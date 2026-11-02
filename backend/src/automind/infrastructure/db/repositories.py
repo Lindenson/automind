@@ -9,18 +9,22 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import Any
 
-from sqlalchemy import func, select, text, update
+from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.exc import IntegrityError
 
 from .models import (
     CaseFileRow,
     Chat,
     ChatMessage,
+    DeletedChat,
+    FeasibilityCheck,
     LLMCall,
     ResearchJob,
     ResearchRun,
     SearchCall,
+    Simulation,
     SiteReaderStat,
+    TcoEstimateRow,
     Turn,
     TurnEvent,
     now,
@@ -30,6 +34,33 @@ from .session import sessionmaker
 
 
 class ChatRepo:
+    CHAT_SCOPED = (ChatMessage, CaseFileRow, TurnEvent, ResearchJob, LLMCall, SearchCall, FeasibilityCheck)
+
+    async def is_deleted(self, chat_id: str) -> bool:
+        async with sessionmaker()() as s:
+            return await s.get(DeletedChat, chat_id) is not None
+
+    async def delete(self, chat_id: str) -> dict[str, int]:
+        """Hard-delete everything scoped to the chat in one transaction and leave a tombstone (FR-028, FR-030).
+        Shared knowledge (catalog, documents, evidence, claims, selected values, research runs) stays (FR-029)."""
+        counts: dict[str, int] = {}
+        async with sessionmaker()() as s:
+            turn_ids = select(Turn.id).where(Turn.chat_id == chat_id).scalar_subquery()
+            for model in (TcoEstimateRow, Simulation):
+                res = await s.execute(delete(model).where(model.turn_id.in_(turn_ids)))
+                counts[model.__tablename__] = res.rowcount or 0
+            for model in self.CHAT_SCOPED:
+                res = await s.execute(delete(model).where(model.chat_id == chat_id))
+                counts[model.__tablename__] = res.rowcount or 0
+            for model, col in ((Turn, Turn.chat_id), (Chat, Chat.id)):
+                res = await s.execute(delete(model).where(col == chat_id))
+                counts[model.__tablename__] = res.rowcount or 0
+            existed = counts["chats"] > 0 or any(counts.values())
+            if existed and await s.get(DeletedChat, chat_id) is None:
+                s.add(DeletedChat(chat_id=chat_id, counts=counts))
+            await s.commit()
+        return counts if existed else {}
+
     async def ensure(self, chat_id: str, title: str | None = None) -> Chat:
         async with sessionmaker()() as s:
             chat = await s.get(Chat, chat_id)

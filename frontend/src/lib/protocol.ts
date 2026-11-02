@@ -422,7 +422,12 @@ export const UserAckSchema = z.object({
   created_at: z.string(),
 });
 
-export const ErrorMsgSchema = z.object({ ...Envelope, type: z.literal("error"), text: z.string() });
+export const ErrorMsgSchema = z.object({
+  ...Envelope,
+  type: z.literal("error"),
+  text: z.string(),
+  code: z.string().nullish(), // e.g. "chat_deleted"
+});
 
 /** The case file is rendered by the case panel; its inner shape is validated loosely (data-model §2). */
 export const CaseCarSchema = z.object({

@@ -29,6 +29,11 @@ class ChatSocket:
 
     async def serve(self) -> None:
         await self.ws.accept()
+        is_deleted = getattr(self.chats, "is_deleted", None)
+        if is_deleted is not None and await is_deleted(self.chat_id):  # FR-030: never recreate a deleted chat
+            await self.ws.send_json({"type": "error", "code": "chat_deleted", "text": "This chat was deleted."})
+            await self.ws.close(code=4410)
+            return
         await self.chats.ensure(self.chat_id)
         self.queue = self.bus.subscribe(self.chat_id)  # subscribe before replay: nothing falls in between
         pumper = asyncio.create_task(self._pump())

@@ -7,7 +7,7 @@ from typing import Any, Literal
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from automind.config import settings
 from automind.domain.casefile import Budget, CaseDelta, CaseFile, PersonaChange, Rates, apply, set_weights
@@ -57,9 +57,37 @@ async def health(request: Request) -> dict[str, Any]:
     return health_payload(request)
 
 
-@router.get("/api/v1/chats/{chat_id}/messages")
-async def messages(chat_id: str, request: Request) -> dict[str, Any]:
+@router.get("/api/v1/chats/{chat_id}/messages", response_model=None)
+async def messages(chat_id: str, request: Request) -> dict[str, Any] | JSONResponse:
+    if await request.app.state.chats.is_deleted(chat_id):
+        return _error(410, "chat_deleted", "This chat was deleted.")
     return {"messages": [_msg(m) for m in await request.app.state.messages.history(chat_id)]}
+
+
+# --- chat deletion (spec 003 US4) -------------------------------------------------------------------
+
+
+class DeleteChats(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    ids: list[str] = Field(min_length=1, max_length=100)
+
+
+async def _delete(request: Request, ids: list[str]) -> dict[str, Any]:
+    from automind.application.chats import delete_chats  # noqa: PLC0415
+
+    st = request.app.state
+    deleted, counts = await delete_chats(ids, st.runner, st.chats, st.delete_thread)
+    return {"deleted": deleted, "counts": counts}
+
+
+@router.delete("/api/v1/chats/{chat_id}")
+async def delete_chat(chat_id: str, request: Request) -> dict[str, Any]:
+    return await _delete(request, [chat_id])
+
+
+@router.post("/api/v1/chats/delete")
+async def delete_many(body: DeleteChats, request: Request) -> dict[str, Any]:
+    return await _delete(request, body.ids)
 
 
 # Demo aliases (kept until the frontend uses v2 everywhere).
@@ -95,8 +123,10 @@ def _error(status: int, code: str, message: str) -> JSONResponse:
     return JSONResponse(status_code=status, content={"code": code, "message": message})
 
 
-@router.get("/api/v1/chats/{chat_id}/case")
-async def get_case(chat_id: str, request: Request) -> dict[str, Any]:
+@router.get("/api/v1/chats/{chat_id}/case", response_model=None)
+async def get_case(chat_id: str, request: Request) -> dict[str, Any] | JSONResponse:
+    if await request.app.state.chats.is_deleted(chat_id):
+        return _error(410, "chat_deleted", "This chat was deleted.")
     version, data, changed_by = await request.app.state.cases.latest(chat_id)
     case = CaseFile.model_validate(data) if data else CaseFile()
     return {"version": version, "case": case.model_dump(mode="json"), "changed_by": changed_by}

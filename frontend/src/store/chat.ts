@@ -177,6 +177,14 @@ export const useChat = create<ChatState>((set, get) => ({
         });
         break;
       case "error":
+        if (msg.code === "chat_deleted") {
+          set({
+            pending: null,
+            confirm: null,
+            messages: [{ role: "error", message_id: uuid(), created_at: now(), text: "This chat was deleted." }],
+          });
+          break;
+        }
         set((s) => ({
           pending: null,
           messages: [

@@ -315,7 +315,7 @@ SC-007a).
 
 **Independent Test**: quickstart.md §5 (SC-008).
 
-- [ ] T048 [P] [US4] Test `tests/graph/test_delete_chat.py`:
+- [X] T048 [P] [US4] Test `tests/graph/test_delete_chat.py`:
   - deleting a chat with a finished research removes all rows with its `chat_id` from `chat_messages`, `case_files`, `turn_events`, `turns`, `research_jobs`, `llm_calls`, `search_calls`, `feasibility_checks`, `chats`, and the checkpoint thread;
   - `vehicle_variants`, `documents`, `evidence`, `claims`, `spec_values` and `research_runs` counts are unchanged;
   - deleting during a running turn cancels it first;
@@ -323,19 +323,19 @@ SC-007a).
   - idempotent;
   - a tombstone row exists;
   - a new chat about the same car → no searches (cache and freshness).
-- [ ] T049 [US4] `src/automind/application/chats.py::delete_chats(ids)`:
+- [X] T049 [US4] `src/automind/application/chats.py::delete_chats(ids)`:
   - `runner.cancel` and wait ≤ 5 s;
   - one transaction deleting the chat-scoped tables;
   - `AsyncPostgresSaver.adelete_thread(chat_id)` through a port method `Checkpoints.delete_thread`;
   - insert `deleted_chats {chat_id, deleted_at, counts}`.
 
   Passes T048.
-- [ ] T050 [US4] API:
+- [X] T050 [US4] API:
   - `DELETE /api/v1/chats/{id}` and `POST /api/v1/chats/delete {ids: 1..100}`;
   - `410 {code: "chat_deleted"}` from messages/case for tombstoned chats;
   - WebSocket `hello` on a tombstoned chat → `error {code: "chat_deleted"}` and close (`api/ws.py`);
   - contract tests in `tests/api/test_chats_delete.py`.
-- [ ] T051 [US4] Frontend `src/components/ChatList.tsx`:
+- [X] T051 [US4] Frontend `src/components/ChatList.tsx`:
   - delete button per chat;
   - multi-select mode with "Delete selected (n)";
   - confirm dialog naming the count;

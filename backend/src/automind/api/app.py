@@ -69,6 +69,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.bus = bus
         app.state.messages = messages
         app.state.chats = ChatRepo()
+        app.state.delete_thread = saver.adelete_thread  # chat deletion removes the saved conversation state
         app.state.cases = CaseRepo()
         app.state.turns = TurnRepo()
         app.state.runner = ChatRunner(
