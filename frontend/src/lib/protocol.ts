@@ -618,7 +618,8 @@ export const ConfirmRequestSchema = z.object({
   ...Envelope,
   type: z.literal("confirm_request"),
   request_id: z.string().optional(),
-  kind: z.enum(["variants", "cost", "limit", "feasibility"]),
+  // known: variants | cost | limit | feasibility; unknown kinds are shown with their option buttons
+  kind: z.string(),
   text: z.string(),
   options: z
     .array(

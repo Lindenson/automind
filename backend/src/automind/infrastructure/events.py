@@ -34,6 +34,14 @@ class EventBus:
     def unsubscribe(self, chat_id: str, q: asyncio.Queue[dict[str, Any]]) -> None:
         self._subs.get(chat_id, set()).discard(q)
 
+    async def current(self, chat_id: str, turn_id: str, type_: str) -> dict[str, Any] | None:
+        """The turn's latest event of a type, without its seq: re-sent after a reconnect so a client that
+        already saw it (and reloaded) gets the open question or the current status again."""
+        from automind.infrastructure.db.repositories import latest_event  # noqa: PLC0415
+
+        e = await latest_event(chat_id, turn_id, type_)
+        return None if e is None else {"type": e.type, "turn_id": e.turn_id, "resent": True, **e.payload}
+
     async def replay(self, chat_id: str, after_seq: int) -> list[dict[str, Any]]:
         return [
             {"type": e.type, "seq": e.seq, "turn_id": e.turn_id, **e.payload}

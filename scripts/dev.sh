@@ -25,6 +25,14 @@ else
   done
   export DATABASE_URL="postgresql+asyncpg://automind:${POSTGRES_PASSWORD}@127.0.0.1:${port}/automind"
 fi
+# The API serves frontend/dist: rebuild it when the sources are newer (a stale build silently drops new
+# message kinds, e.g. the "continue?" question had no buttons).
+if [[ -d frontend/node_modules ]]; then
+  if [[ ! -f frontend/dist/index.html ]] || [[ -n "$(find frontend/src frontend/index.html -newer frontend/dist/index.html -print -quit)" ]]; then
+    say "Building the frontend (sources changed)"
+    (cd frontend && npm run -s build >/dev/null)
+  fi
+fi
 cd backend
 uv run python -m automind.infrastructure.db.migrate
 exec uv run automind-api

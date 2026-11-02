@@ -52,6 +52,7 @@ class ChatSocket:
         if kind == "hello":
             for ev in await self.bus.replay(self.chat_id, int(msg.get("last_seq") or 0)):
                 await self._send(ev)
+            await self._resend_open_turn()
             self.ready.set()
             return
         self.ready.set()  # a v1 client that never says hello still gets live events
@@ -65,6 +66,21 @@ class ChatSocket:
             self._background(self.runner.resume(self.chat_id, payload))
         elif kind == "cancel":
             await self.runner.cancel(self.chat_id)
+
+    async def _resend_open_turn(self) -> None:
+        """After a reload the client may have seen everything already but lost its state: re-send the open
+        question of a waiting turn, or the latest status of a running one (never lose the dialogue)."""
+        turns = getattr(getattr(self.runner, "ports", None), "turns", None)
+        current = getattr(self.bus, "current", None)
+        if turns is None or current is None:
+            return
+        active = await turns.active(self.chat_id)
+        if active is None:
+            return
+        kind = "confirm_request" if active.status == "WAITING_CONFIRMATION" else "status"
+        ev = await current(self.chat_id, active.id, kind)
+        if ev is not None:
+            await self.ws.send_json(ev)
 
     async def _send(self, msg: dict[str, Any]) -> None:
         seq = msg.get("seq")

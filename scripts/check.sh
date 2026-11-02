@@ -4,8 +4,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 export PATH="$HOME/.local/bin:$PATH"
 # Test database: the Docker Postgres when it runs (scripts/dev.sh starts it), else the embedded one.
+if [[ -z "${TEST_DATABASE_URL:-}" && -f .env.docker ]]; then set -a; . ./.env.docker; set +a; fi
 if [[ -z "${TEST_DATABASE_URL:-}" && -f .env.docker ]] && docker compose ps --status running postgres 2>/dev/null | grep -q postgres; then
-  set -a; . ./.env.docker; set +a
   for db in automind_test automind_mig; do
     docker compose exec -T postgres psql -U automind -d automind -tAc "SELECT 1 FROM pg_database WHERE datname='$db'" \
       | grep -q 1 || docker compose exec -T postgres createdb -U automind "$db"

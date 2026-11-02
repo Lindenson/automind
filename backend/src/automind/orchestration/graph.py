@@ -95,7 +95,7 @@ def build_graph(checkpointer: Any = None, tools: list[Any] | None = None) -> Any
     g.add_conditional_edges("collect_round", research.route_round, ["next_round", "after_research", "prepare_limit"])
     g.add_edge("prepare_limit", "wait_limit")
     g.add_edge("wait_limit", "apply_limit")
-    g.add_conditional_edges("apply_limit", research.route_after_limit, ["next_round", "after_research"])
+    g.add_conditional_edges("apply_limit", research.route_after_limit, ["next_round", "after_research", "interpret"])
     g.add_conditional_edges("next_round", research.fan_out, ["research_job", "after_research"])
     g.add_edge("after_research", "assess")
     for terminal in ("general", "ask", "answer", "report", "alternatives"):

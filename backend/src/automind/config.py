@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     cost_hard_cap_eur: float = 1.00
     max_concurrency: int = 4
     job_timeout_s: float = 180.0  # one car × area; a slow source no longer cuts a job short
-    turn_timeout_s: float = 300.0
+    turn_timeout_s: float = 900.0  # research pauses (and asks) at 85% of it; 300 s paused 3-car research
     max_docs_per_car: int = 8
     max_doc_chars: int = 14000
     request_timeout_s: int = 30

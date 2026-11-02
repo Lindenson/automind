@@ -9,7 +9,8 @@ import { useChat } from "../store/chat";
 export function ConfirmCard({ req }: { req: ConfirmRequest }) {
   const answer = useChat((s) => s.answerConfirm);
   const isCost = req.kind === "cost";
-  const isChoice = req.kind === "limit" || req.kind === "feasibility"; // the options are the answers
+  // every kind except variants/cost: the options are the answers (also kinds added later)
+  const isChoice = req.kind !== "cost" && req.kind !== "variants";
   return (
     <div
       className="card animate-fadeUp space-y-3 border-accent/40 p-3 sm:p-4"

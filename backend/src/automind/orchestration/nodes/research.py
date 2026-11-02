@@ -21,7 +21,7 @@ from automind.application import research
 from automind.application.research import JobSpec
 from automind.application.usage import BudgetExceeded
 from automind.domain import research_plan as rp
-from automind.orchestration.phrases import t
+from automind.orchestration.phrases import t, yes_or_no
 from automind.orchestration.runner import TurnContext
 from automind.orchestration.state import RESET, TurnState
 
@@ -171,19 +171,28 @@ async def apply_limit(state: TurnState, runtime: Runtime[TurnContext]) -> dict[s
     answer = state.get("resume") or {}
     choice = str(answer.get("choice") or "")
     hit = state.get("limit_hit") or {}
+    if choice in ("text", "edit", "") and answer.get("text"):
+        typed = yes_or_no(answer.get("text"))  # "Continue", "да", "продолжай" … or a new request
+        if typed is None:
+            c.budget.allow_answer()
+            return {"jobs": [], "limit_hit": None, "confirm_payload": None, "resume": None,
+                    "user_text": answer.get("text") or "", "route": "interpret"}  # fmt: skip
+        choice = "continue" if typed == "yes" else "stop"
     if choice in ("continue", "run", "yes", "confirm"):
         n = int(state.get("limit_extensions") or 0) + 1
         c.budget.extend(n)
         await c.status("researching", f"Continuing: {len(hit.get('jobs', []))} research task(s) left")
         jobs = [rp.Job(j["car_key"], j["variant_id"], j["area"], int(j["round"])) for j in hit.get("jobs", [])]
         return {"jobs": await _create(c, jobs), "limit_hit": None, "limit_extensions": n, "confirm_payload": None,
-                "resume": None}  # fmt: skip
+                "resume": None, "route": None}  # fmt: skip
     # "stop", a typed reply or anything else: answer with what was collected (nothing is lost)
     c.budget.allow_answer()
-    return {"jobs": [], "limit_hit": None, "confirm_payload": None, "resume": None}
+    return {"jobs": [], "limit_hit": None, "confirm_payload": None, "resume": None, "route": None}
 
 
 def route_after_limit(state: TurnState) -> str:
+    if state.get("route") == "interpret":
+        return "interpret"
     return "next_round" if state.get("jobs") else "after_research"
 
 

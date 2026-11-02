@@ -211,6 +211,17 @@ class EventRepo:
             return list(rows.scalars())
 
 
+async def latest_event(chat_id: str, turn_id: str, type_: str) -> TurnEvent | None:
+    async with sessionmaker()() as s:
+        rows = await s.execute(
+            select(TurnEvent)
+            .where(TurnEvent.chat_id == chat_id, TurnEvent.turn_id == turn_id, TurnEvent.type == type_)
+            .order_by(TurnEvent.seq.desc())
+            .limit(1)
+        )
+        return rows.scalar_one_or_none()
+
+
 class JobRepo:
     async def create(self, chat_id: str, turn_id: str, variant_id: str, area: str, round_: int) -> ResearchJob:
         async with sessionmaker()() as s:

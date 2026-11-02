@@ -81,3 +81,23 @@ def t(key: str, language: str | None, **kw: object) -> str:
     table = PHRASES[key]
     text = table.get((language or "en")[:2].lower(), table["en"])
     return text.format(**kw) if kw else text
+
+
+_YES = ("continue", "go on", "go ahead", "keep going", "yes", "ok", "okay", "sure", "proceed", "run",
+        "да", "давай", "продолж", "дальше", "ок", "поехали", "запуск", "sí", "si", "sigue", "continúa", "continua",
+        "adelante", "vale")  # fmt: skip
+_NO = ("stop", "no", "enough", "answer", "nein", "нет", "стоп", "хватит", "достаточно", "отвечай", "ответь",
+       "basta", "para", "responde")  # fmt: skip
+
+
+def yes_or_no(text: str | None) -> str | None:
+    """A short typed answer to a confirmation: "yes", "no", or None (not a plain yes/no: a new message)."""
+    t = " ".join((text or "").lower().replace("!", " ").replace(".", " ").replace(",", " ").split())
+    if not t or len(t) > 40:
+        return None
+    words = t.split()
+    if any(t == n or words[0] == n for n in _NO):
+        return "no"
+    if any(t.startswith(y) or words[0].startswith(y) for y in _YES):
+        return "yes"
+    return None
