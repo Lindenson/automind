@@ -73,7 +73,8 @@ scripts/deploy.sh down         # stop (data kept);  destroy = stop and delete th
   address: `AUTOMIND_PORT` (default 8080, so it does not clash with `scripts/dev.sh` on 8000) and `AUTOMIND_BIND`
   (default 127.0.0.1; put a reverse proxy with TLS in front before exposing it).
 - The container runs the Alembic migrations before uvicorn, runs as a non-root user and has a health check
-  (`/api/v1/health`). Postgres is not published to the host.
+  (`/api/v1/health`). Postgres is published on 127.0.0.1 only (port `AUTOMIND_DB_PORT`, default 5433) and
+  is the same database `scripts/dev.sh` and the tests use.
 
 ## Tests and quality gates
 

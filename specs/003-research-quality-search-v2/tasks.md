@@ -360,7 +360,7 @@ entries.
 **Prerequisite**: this session can reach the Docker daemon (re-login after joining the `docker`
 group).
 
-- [ ] T052 [P] [US5] `docker-compose.dev.yml` override: publishes `postgres` on `127.0.0.1:${AUTOMIND_DB_PORT:-5433}:5432` and reads `POSTGRES_PASSWORD` from `.env.docker`. Rewrite `scripts/dev.sh`:
+- [X] T052 [P] [US5] `docker-compose.dev.yml` override: publishes `postgres` on `127.0.0.1:${AUTOMIND_DB_PORT:-5433}:5432` and reads `POSTGRES_PASSWORD` from `.env.docker`. Rewrite `scripts/dev.sh`:
   - `docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d postgres`;
   - wait for health;
   - export `DATABASE_URL=postgresql+asyncpg://automind:…@127.0.0.1:5433/automind`;
@@ -368,7 +368,7 @@ group).
   - start the API on :8000.
 
   Share the `.env.docker` creation with `scripts/deploy.sh` through `scripts/lib/env.sh`.
-- [ ] T053 [US5] `scripts/migrate-embedded.sh`:
+- [X] T053 [US5] `scripts/migrate-embedded.sh`:
   - start the embedded server (`.pgdata/pg`);
   - `pg_dump --format=custom` of `automind` with pgserver's pg_dump;
   - stop the API if running (refuse otherwise);
@@ -380,7 +380,7 @@ group).
   - keep `.pgdata/` untouched (the operator deletes it later).
 
   Dry-run flag `--check`.
-- [ ] T054 [US5] Retention `src/automind/infrastructure/retention.py`:
+- [X] T054 [US5] Retention `src/automind/infrastructure/retention.py`:
   - delete `search_cache` rows with `expires_at < now()`;
   - delete `documents` with `expires_at < now()` and no `evidence.document_id` reference;
   - delete `page_relevance` rows of deleted documents;
@@ -388,8 +388,8 @@ group).
   - runs in the API lifespan at start and every 24 h as an asyncio task, logging counts.
 
   Test `tests/integration/test_retention.py`.
-- [ ] T055 [US5] Tests run against the compose Postgres: the test settings read `TEST_DATABASE_URL` (default `…:5433/automind_test`), created by `scripts/dev.sh`. `scripts/check.sh` starts Postgres via compose when not running. Retire `scripts/db.sh` and pgserver from the dev dependencies after T053 succeeds. Update the README
-- [ ] T056 [US5] Run the migration on this machine (`scripts/migrate-embedded.sh`), open old chats in the UI, run `scripts/deploy.sh` (build, health), and record the results in `checklists/validation.md`
+- [X] T055 [US5] Tests run against the compose Postgres: the test settings read `TEST_DATABASE_URL` (default `…:5433/automind_test`), created by `scripts/dev.sh`. `scripts/check.sh` starts Postgres via compose when not running. Keep `scripts/db.sh` as a fallback (`AUTOMIND_EMBEDDED_DB=1 scripts/dev.sh`); pgserver is not a project dependency (used only via `uv run --with`). Update the README
+- [X] T056 [US5] Run the migration on this machine (`scripts/migrate-embedded.sh`), open old chats in the UI, run `scripts/deploy.sh` (build, health), and record the results in `checklists/validation.md`
 
 **Checkpoint**: one database setup everywhere.
 

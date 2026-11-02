@@ -41,6 +41,16 @@ share) need the full benchmark run.
 5. **Event seq collisions** under parallel research jobs ("could not allocate event seq"): allocation is
    serialised per chat with an advisory lock.
 
+## One database (US5)
+
+- `scripts/migrate-embedded.sh`: 32 tables copied from the embedded database into the Docker Postgres 16;
+  row counts match exactly (9 chats, 68 messages, 75 case versions, 22 variants, 729 claims, 405 pages,
+  checkpoint tables included). `.pgdata/` is untouched (fallback: `AUTOMIND_EMBEDDED_DB=1 scripts/dev.sh`).
+- `scripts/deploy.sh`: image built, app healthy on http://127.0.0.1:8080 with the migrated chats; the dev
+  server (`scripts/dev.sh`, :8000, `API_HOST=0.0.0.0`) and the test suite (`automind_test`) use the same
+  Postgres service (published on 127.0.0.1:5433 only).
+- Retention task runs at start and every 24 h (expired search results, unreferenced expired pages).
+
 ## Note on spend
 
 Live runs in this session: one-car evals ≈ €0.42 + €0.43 + €0.36 (old code), golden dialogues run twice by

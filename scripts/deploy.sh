@@ -15,44 +15,21 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-say() { printf '\033[1m==>\033[0m %s\n' "$*"; }
-die() { printf '\033[31merror:\033[0m %s\n' "$*" >&2; exit 1; }
+. scripts/lib/env.sh
 
 # --- docker access ------------------------------------------------------------------------------
-command -v docker >/dev/null || die "Docker is not installed (https://docs.docker.com/engine/install/)."
-DOCKER=(docker)
-if ! docker info >/dev/null 2>&1; then
-  if docker info 2>&1 | grep -q "permission denied"; then
-    if id -nG "$USER" | grep -qw docker || getent group docker | grep -qw "$USER"; then
-      echo "Your user is in the 'docker' group, but this session started before that: log out and in again." >&2
-    else
-      echo "Add your user to the 'docker' group: sudo usermod -aG docker \$USER (then log out and in)." >&2
-    fi
-    echo "Falling back to sudo for now." >&2
-    DOCKER=(sudo docker)
-    "${DOCKER[@]}" info >/dev/null || die "cannot reach the Docker daemon"
-  else
-    die "the Docker daemon is not running (sudo systemctl start docker)"
-  fi
-fi
-"${DOCKER[@]}" compose version >/dev/null 2>&1 || die "Docker Compose v2 plugin is missing (docker compose)."
+docker_cmd
 compose() { "${DOCKER[@]}" compose "$@"; }
 
 # --- configuration ------------------------------------------------------------------------------
 ensure_env() {
-  [[ -f .env ]] || die ".env is missing: copy .env.example to .env and set OPENAI_API_KEY and TAVILY_API_KEY."
-  for k in OPENAI_API_KEY TAVILY_API_KEY; do
-    grep -Eq "^${k}=.+" .env || die "$k is not set in .env"
-  done
+  [[ -f .env ]] || die ".env is missing: copy .env.example to .env and set OPENAI_API_KEY and SERPER_API_KEY."
+  grep -Eq "^OPENAI_API_KEY=.+" .env || die "OPENAI_API_KEY is not set in .env"
+  grep -Eq "^(SERPER|SERPAPI|TAVILY)_API_KEY=.+" .env || die "no search key in .env (SERPER_API_KEY recommended)"
   if grep -Eq '^DATABASE_URL=' .env; then
     echo "note: DATABASE_URL in .env is ignored by the containers (compose sets it)." >&2
   fi
-  if [[ ! -f .env.docker ]]; then
-    say "Creating .env.docker with a generated database password"
-    umask 077
-    printf 'POSTGRES_PASSWORD=%s\n' "$(head -c 24 /dev/urandom | od -An -tx1 | tr -d ' \n')" > .env.docker
-  fi
-  set -a; . ./.env.docker; set +a  # POSTGRES_PASSWORD and optional AUTOMIND_PORT / AUTOMIND_BIND
+  ensure_db_secret  # POSTGRES_PASSWORD and optional AUTOMIND_PORT / AUTOMIND_BIND
   export AUTOMIND_PORT="${AUTOMIND_PORT:-8080}" AUTOMIND_BIND="${AUTOMIND_BIND:-127.0.0.1}"
 }
 

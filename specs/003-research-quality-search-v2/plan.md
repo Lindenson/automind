@@ -180,7 +180,7 @@ scripts/
 ├── dev.sh                          # compose Postgres (dev override) + migrations + API
 ├── migrate-embedded.sh             # one-time embedded → Docker copy with count check
 └── deploy.sh                       # unchanged interface
-docker-compose.dev.yml              # publishes Postgres on 127.0.0.1:5433
+docker-compose.yml                  # Postgres also published on 127.0.0.1:5433 for dev and tests
 ```
 
 **Structure Decision**: the existing layered monolith (002). New capabilities are added as ports and

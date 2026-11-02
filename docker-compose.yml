@@ -11,6 +11,8 @@ services:
       POSTGRES_USER: automind
       POSTGRES_DB: automind
     volumes: [pgdata:/var/lib/postgresql/data]
+    # published on localhost only, so scripts/dev.sh and the tests can use the same database
+    ports: ["127.0.0.1:${AUTOMIND_DB_PORT:-5433}:5432"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U automind -d automind"]
       interval: 5s
