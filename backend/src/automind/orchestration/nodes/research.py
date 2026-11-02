@@ -30,7 +30,7 @@ from .common import ctx, load_case, notice
 
 def _plan(state: TurnState) -> rp.ResearchPlan:
     p = state.get("research_plan") or {}
-    jobs = [rp.Job(k, v, a) for k, v, a in p.get("jobs", [])]
+    jobs = [rp.Job(j[0], j[1], j[2], fresh=bool(j[3]) if len(j) > 3 else False) for j in p.get("jobs", [])]
     return rp.ResearchPlan(jobs=jobs, rounds=int(p.get("rounds", 0)))
 
 
@@ -39,8 +39,9 @@ async def _create(c: TurnContext, jobs: list[rp.Job]) -> list[dict[str, Any]]:
     for j in jobs:
         row = await c.ports.jobs.create(c.chat_id, c.turn_id, j.variant_id, j.area, j.round)
         out.append(
-            {"job_id": row.id, "car_key": j.car_key, "variant_id": j.variant_id, "area": j.area, "round": j.round}
-        )
+            {"job_id": row.id, "car_key": j.car_key, "variant_id": j.variant_id, "area": j.area, "round": j.round,
+             "fresh": j.fresh}
+        )  # fmt: skip
     return out
 
 
@@ -127,7 +128,7 @@ async def collect_round(state: TurnState, runtime: Runtime[TurnContext]) -> dict
     stopped = [r for r in results if r.get("limit") and r.get("job_id") in current]
     if stopped:  # a limit was reached in this round: ask the user (continue or answer with what exists)
         reasons = sorted({str(r["limit"]) for r in stopped if r["limit"] is not True} or {"calls"})
-        todo = [{k: r[k] for k in ("car_key", "variant_id", "area", "round")} for r in stopped]
+        todo = [{k: r.get(k) for k in ("car_key", "variant_id", "area", "round", "fresh")} for r in stopped]
         return {"jobs": [], "limit_hit": {"reasons": reasons, "jobs": todo}}
     gaps = rp.gaps(_plan(state), _met(results), round_done=int(state.get("round", 0)))
     if not gaps:
@@ -182,7 +183,8 @@ async def apply_limit(state: TurnState, runtime: Runtime[TurnContext]) -> dict[s
         n = int(state.get("limit_extensions") or 0) + 1
         c.budget.extend(n)
         await c.status("researching", f"Continuing: {len(hit.get('jobs', []))} research task(s) left")
-        jobs = [rp.Job(j["car_key"], j["variant_id"], j["area"], int(j["round"])) for j in hit.get("jobs", [])]
+        jobs = [rp.Job(j["car_key"], j["variant_id"], j["area"], int(j["round"]), bool(j.get("fresh")))
+                for j in hit.get("jobs", [])]  # fmt: skip
         return {"jobs": await _create(c, jobs), "limit_hit": None, "limit_extensions": n, "confirm_payload": None,
                 "resume": None, "route": None}  # fmt: skip
     # "stop", a typed reply or anything else: answer with what was collected (nothing is lost)

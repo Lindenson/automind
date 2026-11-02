@@ -82,7 +82,9 @@ class Searcher(Protocol):
     Records usage (cost 0 for cache hits), drops deny-listed URLs, and raises only when every
     provider failed."""
 
-    async def search(self, query: str, *, market: str = "ES", area: str | None = None) -> list[SearchHit]: ...
+    async def search(
+        self, query: str, *, market: str = "ES", area: str | None = None, fresh: bool = False
+    ) -> list[SearchHit]: ...
 
 
 @dataclass(frozen=True)

@@ -66,8 +66,8 @@ async def test_turn_usage_matches_recorded_rows_including_agent(saver, chat_id):
     calls = []
 
     class CountingSearch(FixtureSearch):
-        async def search(self, query, *, market="ES", area=None):  # noqa: ANN001
-            out = await super().search(query, market=market, area=area)
+        async def search(self, query, *, market="ES", area=None, fresh=False):  # noqa: ANN001
+            out = await super().search(query, market=market, area=area, fresh=fresh)
             from automind.application.usage import current_budget
 
             b = current_budget.get()

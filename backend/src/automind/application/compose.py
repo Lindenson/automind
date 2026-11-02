@@ -526,6 +526,8 @@ def criteria_block(sc: CriteriaScore, model: CriteriaModel, unmapped: list[str])
         ],
         "winner_car_id": sc.winner_car_id,
         "unmapped_wishes": list(unmapped),
+        "compared_on": list(sc.common),
+        "tie": sc.tie,
     }
 
 
@@ -595,9 +597,13 @@ def _criteria_facts(sc: CriteriaScore | None) -> dict | None:
     if sc is None:
         return None
     return {
-        "note": "0–100 indices (scores), not measurements",
+        "note": "0–100 indices (scores), not measurements. Totals use only `compared_on` (criteria every car has "
+        "data for). `tie`: no winner — say the cars are close. Differences under 5 points in one criterion are not "
+        "a win; never present a few litres or a few tenths as an advantage.",
         "weights": {k: round(w, 1) for k, w in sc.weights.items()},
         "winner": next((c.label for c in sc.cars if c.car_id == sc.winner_car_id), None),
+        "compared_on": list(sc.common),
+        "tie": sc.tie,
         "cars": [
             {
                 "label": c.label,

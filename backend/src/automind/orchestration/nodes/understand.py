@@ -90,6 +90,9 @@ async def assess_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[s
     assessments: dict[str, dict[str, Any]] = {}
     changed: list[str] = []
     for car in case.cars:
+        reason = await resolve.revalidate(car, c.ports.ref, year)
+        if reason:
+            changed.append(reason)
         a = await resolve.assess_car(car, c.ports.ref, year)
         if resolve.auto_resolve(car, a):
             changed.append(f"{car.key} → {car.label}")
@@ -106,7 +109,7 @@ async def assess_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[s
         a["state"]["data_fresh"] = bool(car.variant_id) and not any(j.car_key == key for j in plan.jobs)
     out["assessments"] = assessments
     out["research_plan"] = {
-        "jobs": [[j.car_key, j.variant_id, j.area] for j in plan.jobs],
+        "jobs": [[j.car_key, j.variant_id, j.area, j.fresh] for j in plan.jobs],
         "rounds": plan.rounds,
     }
     out["cost_estimate"] = await c.ports.estimator.estimate([(j.variant_id, j.area) for j in plan.jobs], plan.rounds)

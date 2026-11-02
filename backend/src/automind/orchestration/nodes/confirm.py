@@ -184,4 +184,4 @@ def route_after_apply(state: TurnState) -> str:
 
 
 def _areas(state: TurnState) -> list[str]:
-    return sorted({a for _, _, a in (state.get("research_plan") or {}).get("jobs", [])})
+    return sorted({j[2] for j in (state.get("research_plan") or {}).get("jobs", [])})

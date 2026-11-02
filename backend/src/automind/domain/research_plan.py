@@ -74,6 +74,7 @@ class Job:
     variant_id: str
     area: str
     round: int = 0
+    fresh: bool = False  # the user asked to search again: skip the search cache, wider queries
 
 
 @dataclass(frozen=True)
@@ -138,7 +139,7 @@ def plan(
                 done.get(area) is None or now - done[area] >= timedelta(hours=RETRY_UNMET_HOURS)
             )
             if area in wanted and (forced or retry or not is_fresh(area, done.get(area), now)):
-                jobs.append(Job(car.key, car.variant_id, area))
+                jobs.append(Job(car.key, car.variant_id, area, fresh=forced))
         if car.age_years is not None and car.age_years > OLD_CAR_YEARS:
             warnings.append(Warning("OLD_CAR", car.key))
         if car.sold_in_es is False:
@@ -190,5 +191,5 @@ def gaps(p: ResearchPlan, met: Mapping[tuple[str, str], bool], round_done: int) 
         k = (j.car_key, j.area)
         if k not in seen and not met.get(k, False):
             seen.add(k)
-            out.append(Job(j.car_key, j.variant_id, j.area, round_done + 1))
+            out.append(Job(j.car_key, j.variant_id, j.area, round_done + 1, j.fresh))
     return out

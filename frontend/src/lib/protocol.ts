@@ -245,6 +245,8 @@ export const CriteriaScoresBlockSchema = z.object({
   ),
   winner_car_id: z.string().nullable(),
   unmapped_wishes: z.array(z.string()),
+  compared_on: z.array(z.string()).nullish(), // criteria every car has data for (the ranking basis)
+  tie: z.boolean().nullish(),
 });
 
 export const TcoBlockSchema = z.object({

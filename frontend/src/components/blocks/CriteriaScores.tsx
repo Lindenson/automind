@@ -131,6 +131,20 @@ export function CriteriaScores({ b }: { b: BlockOf<"criteria_scores"> }) {
           </span>
         ))}
       </div>
+      {(b.tie ||
+        (b.compared_on && b.compared_on.length < b.criteria.length)) && (
+        <p className="mt-2 text-xs text-muted">
+          {b.tie ? "Too close to call: no winner. " : ""}
+          {b.compared_on && b.compared_on.length < b.criteria.length
+            ? `Totals compare only what every car has data for: ${
+                b.criteria
+                  .filter((c) => b.compared_on?.includes(c.key))
+                  .map((c) => c.label)
+                  .join(", ") || "—"
+              }.`
+            : ""}
+        </p>
+      )}
       {b.unmapped_wishes.length > 0 && (
         <p className="mt-2 text-xs text-muted">
           Not assessable with data: {b.unmapped_wishes.join(", ")}

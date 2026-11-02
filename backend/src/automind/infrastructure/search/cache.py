@@ -66,14 +66,16 @@ class CachedSearcher:
             area=area or (job[1] if job else None), provider=provider, cached=cached,
         )  # fmt: skip
 
-    async def search(self, query: str, *, market: str = "ES", area: str | None = None) -> list[SearchHit]:
+    async def search(
+        self, query: str, *, market: str = "ES", area: str | None = None, fresh: bool = False
+    ) -> list[SearchHit]:
         gl, hl = self._locale(market)
         num = int(self.config.get("num", 10))
         key = cache_key(query, gl, hl, num)
         now = datetime.now(UTC)
         async with sessionmaker()() as s:
             row = await s.get(SearchCache, key)
-            if row is not None and row.expires_at > now:
+            if row is not None and row.expires_at > now and not fresh:
                 await self._record(row.provider, 0.0, True, area)
                 return [h for h in _hits(row.hits) if not is_denied(h.url)]
         errors = []

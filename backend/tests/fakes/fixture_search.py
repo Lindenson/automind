@@ -61,7 +61,9 @@ class FixtureSearch:
                 return list(by_call[min(calls, len(by_call) - 1)] if by_call else entry["results"])
         return list(self.spec.get("default", []))
 
-    async def search(self, query: str, *, market: str = "ES", area: str | None = None) -> list[SearchHit]:
+    async def search(
+        self, query: str, *, market: str = "ES", area: str | None = None, fresh: bool = False
+    ) -> list[SearchHit]:
         self._charge()
         self.queries.append(query)
         self.markets.append(market)

@@ -24,10 +24,10 @@ class GatedSearch(FixtureSearch):
         super().__init__(scenario)
         self.gate = gate
 
-    async def search(self, query: str, *, market: str = "ES", area: str | None = None):
+    async def search(self, query: str, *, market: str = "ES", area: str | None = None, fresh: bool = False):
         if (area or "") == "reviews" or "review" in query.lower():
             await self.gate.wait()
-        return await super().search(query, market=market, area=area)
+        return await super().search(query, market=market, area=area, fresh=fresh)
 
 
 pytestmark = pytest.mark.usefixtures("fresh_variant")

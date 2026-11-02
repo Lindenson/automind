@@ -42,6 +42,7 @@ class JobSpec:
     area: str
     round: int = 0
     car_year: int | None = None  # the user's car year (validator compares claims with the case, FR-016)
+    fresh: bool = False  # the user asked to search again: bypass the search cache and widen the queries
 
 
 @dataclass
@@ -276,13 +277,20 @@ def favourite_priority(ports: Ports, v: db.Variant | None, url: str) -> int | No
 
 
 async def _collect(
-    ports: Ports, planned: list[search_plan.PlannedQuery], seen: set[str], area: str, v: db.Variant | None = None
+    ports: Ports,
+    planned: list[search_plan.PlannedQuery],
+    seen: set[str],
+    area: str,
+    v: db.Variant | None = None,
+    *,
+    fresh: bool = False,
 ) -> tuple[list[Page], dict[str, Any]]:
     """Search (cache-first) → rank favourites first → fetch pages through the page store (R2–R4)."""
     from automind.application.usage import BudgetExceeded as _BE  # noqa: PLC0415
 
     results = await asyncio.gather(
-        *(ports.search.search(q.text, market=q.market, area=area) for q in planned), return_exceptions=True
+        *(ports.search.search(q.text, market=q.market, area=area, fresh=fresh) for q in planned),
+        return_exceptions=True,
     )
     ranked: dict[str, tuple[int, int, int]] = {}
     failures = 0
@@ -329,8 +337,10 @@ async def _search_pages(
     ports: Ports, v: db.Variant, job: JobSpec, missing: list[str], seen: set[str], emit: Emit
 ) -> tuple[list[search_plan.PlannedQuery], list[Page], dict[str, Any]]:
     planned = queries_for(ports, v, job.area, job.round, missing)
+    if job.fresh and job.round == 0:  # search again: favourites and the open web together, past the cache
+        planned += [q for q in queries_for(ports, v, job.area, 1, missing) if q.text not in {p.text for p in planned}]
     await emit("searching", f"{job.area}: {len(planned)} searches" + (" (follow-up)" if job.round else ""))
-    pages, stats = await _collect(ports, planned, seen, job.area, v)
+    pages, stats = await _collect(ports, planned, seen, job.area, v, fresh=job.fresh)
     if job.round > 0 and len(pages) < 2:  # open web found too little: bounded AI-proposed queries (FR-004)
         extra = await _ai_queries(ports, v, job.area, missing, [q.text for q in planned])
         if extra:
@@ -641,14 +651,30 @@ def _maintenance(s: Any, v: db.Variant, e: db.Evidence, out: Any, k: _Counter) -
                 db.MaintenanceItem(
                     variant_id=v.id,
                     item=it.item[:200],
-                    interval_km=_int(it.interval_km),
-                    interval_months=_int(it.interval_months),
+                    interval_km=interval_km(it.interval_km),
+                    interval_months=interval_months(it.interval_months),
                     cost_eur=_num(it.cost_eur),
                     cost_basis="SOURCED",
                     evidence_ids=[e.id],
                     excerpt=it.excerpt,
                 )
             )
+
+
+def interval_km(raw: str | None) -> int | None:
+    """Service interval in km. "16" next to "thousand km" is often extracted as 16: values 3–300 are read as
+    thousands; anything else below 1,000 km or above 300,000 km is not a service interval (dropped)."""
+    v = _int(raw)
+    if v is None:
+        return None
+    if v < 1000:
+        v = v * 1000 if 3 <= v <= 300 else 0
+    return v if 1000 <= v <= 300_000 else None
+
+
+def interval_months(raw: str | None) -> int | None:
+    v = _int(raw)
+    return v if v is not None and 1 <= v <= 120 else None
 
 
 def _reviews(s: Any, v: db.Variant, e: db.Evidence, out: Any, k: _Counter) -> None:

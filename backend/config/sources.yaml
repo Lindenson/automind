@@ -48,6 +48,28 @@ favourites:
   - {domain: auto-motor-und-sport.de, source_type: INSTRUMENTED_TEST, areas: [measured, reviews], markets: [DE], priority: 1, reader: null, tos_checked: null}
   - {domain: autobild.de, source_type: INSTRUMENTED_TEST, areas: [measured, reviews, reliability, used_issues, used_price], markets: [DE], priority: 1, reader: null, tos_checked: null}
   - {domain: adac.de, source_type: PUBLICATION, areas: [specs, maintenance, reliability, used_issues, used_price], markets: [DE], priority: 1, reader: null, tos_checked: null}
+  # --- automotive press (reviews, tests, long-term reports) — added 2026-11-02 ---
+  - {domain: autofacil.es, source_type: PUBLICATION, areas: [reviews, measured, maintenance, used_issues], markets: [ES], priority: 2, reader: null, tos_checked: null}
+  - {domain: motorpasion.com, source_type: PUBLICATION, areas: [reviews, engineering, manufacturer], markets: [ES], priority: 2, reader: null, tos_checked: null}
+  - {domain: diariomotor.com, source_type: PUBLICATION, areas: [reviews, price, engineering, manufacturer], markets: [ES], priority: 2, reader: null, tos_checked: null}
+  - {domain: ocu.org, source_type: PUBLICATION, areas: [reliability, maintenance], markets: [ES], priority: 1, reader: null, tos_checked: null}
+  - {domain: autocar.co.uk, source_type: INSTRUMENTED_TEST, areas: [measured, reviews, engineering], markets: [EN], priority: 1, reader: null, tos_checked: null}
+  - {domain: topgear.com, source_type: PUBLICATION, areas: [reviews], markets: [EN], priority: 2, reader: null, tos_checked: null}
+  - {domain: edmunds.com, source_type: INSTRUMENTED_TEST, areas: [measured, reviews, maintenance], markets: [EN], priority: 2, reader: null, tos_checked: null}
+  - {domain: motortrend.com, source_type: INSTRUMENTED_TEST, areas: [measured, reviews], markets: [EN], priority: 2, reader: null, tos_checked: null}
+  - {domain: autozeitung.de, source_type: INSTRUMENTED_TEST, areas: [measured, reviews], markets: [DE], priority: 2, reader: null, tos_checked: null}
+  # --- reliability statistics ---
+  - {domain: jdpower.com, source_type: PUBLICATION, areas: [reliability], markets: [EN], priority: 1, reader: null, tos_checked: null}
+  - {domain: dekra.de, source_type: PUBLICATION, areas: [reliability, used_issues], markets: [DE], priority: 1, reader: null, tos_checked: null}
+  - {domain: consumerreports.org, source_type: PUBLICATION, areas: [reliability], markets: [EN], priority: 2, reader: null, tos_checked: null}
+  # --- analysts: residual values, depreciation, market and manufacturer health ---
+  - {domain: autovista24.autovistagroup.com, source_type: PUBLICATION, areas: [used_price, manufacturer], markets: [ANY], priority: 1, reader: null, tos_checked: null}
+  - {domain: cap-hpi.com, source_type: PUBLICATION, areas: [used_price], markets: [EN], priority: 2, reader: null, tos_checked: null}
+  - {domain: iseecars.com, source_type: PUBLICATION, areas: [used_price, reliability], markets: [EN], priority: 2, reader: null, tos_checked: null}
+  - {domain: kbb.com, source_type: PUBLICATION, areas: [used_price, maintenance], markets: [EN], priority: 3, reader: null, tos_checked: null}
+  - {domain: jato.com, source_type: PUBLICATION, areas: [manufacturer], markets: [ANY], priority: 1, reader: null, tos_checked: null}
+  - {domain: focus2move.com, source_type: PUBLICATION, areas: [manufacturer], markets: [ANY], priority: 2, reader: null, tos_checked: null}
+  - {domain: europe.autonews.com, source_type: PUBLICATION, areas: [manufacturer], markets: [ANY], priority: 2, reader: null, tos_checked: null}
   # --- any market ---
   - {domain: wikipedia.org, source_type: ENCYCLOPEDIA, areas: [engineering, manufacturer], markets: [ANY], priority: 2, reader: null, tos_checked: null}
 

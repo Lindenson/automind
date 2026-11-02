@@ -8,7 +8,7 @@ Wishes add points to persona default weights; weights are normalized to 100.
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from .casefile import CRITERION_KEYS, CaseFile
@@ -91,6 +91,8 @@ class CriteriaScore:
     cars: list[CarScore]
     winner_car_id: str | None
     weights: dict[str, float] = field(default_factory=dict)
+    common: list[str] = field(default_factory=list)  # criteria every compared car has data for (the ranking basis)
+    tie: bool = False  # the best totals are within TIE_MARGIN: no winner is declared
 
 
 Result = tuple[float | None, list[str]]
@@ -110,11 +112,15 @@ def _reliability(c: CarFacts, sc: Mapping[str, Any]) -> Result:
     r = c.reliability
     if r is None or not r.minimum_met:
         return None, ["reliability sources below minimum"]
+
+    def capped(per: str, n: int, cap: str) -> float:
+        return float(max(float(sc.get(cap, -1e9)), float(sc[per]) * n))
+
     s = (
         float(sc["base_none_found"])
-        + sc["per_recurring"] * r.recurring
-        + sc["per_high"] * r.high
-        + sc["per_isolated"] * r.isolated
+        + capped("per_recurring", r.recurring, "recurring_cap")
+        + capped("per_high", r.high, "high_cap")
+        + capped("per_isolated", r.isolated, "isolated_cap")
     )
     inputs = [f"{r.recurring} recurring, {r.isolated} isolated issue(s), {r.high} severe"]
     if c.condition == "USED" and c.age_years is not None and c.age_years > sc["age_free_years"]:
@@ -300,13 +306,34 @@ def _car_score(c: CarFacts, weights: Mapping[str, float], model: CriteriaModel, 
     )
 
 
+TIE_MARGIN = 3.0  # points: closer totals are reported as a tie, not as a win
+
+
 def score(cars: list[CarFacts], weights: Mapping[str, float], model: CriteriaModel) -> CriteriaScore:
-    """Deterministic criteria scores. A single car is a profile: absolute scores, no ranking (FR-012)."""
+    """Deterministic criteria scores. A single car is a profile: absolute scores, no ranking (FR-012).
+
+    Ranking uses only the criteria every compared car has data for: a missing criterion must neither help
+    a car (its weight would move to its strong points) nor hurt it. Close totals are a tie."""
     unknown = [k for k in weights if k not in SCORERS]
     if unknown:
         raise ValueError(f"unknown criteria: {unknown}")
     ranking = len(cars) > 1
     scored = [_car_score(c, weights, model, ranking) for c in cars]
-    ranked = sorted((s for s in scored if s.ranked and s.total is not None), key=lambda s: (-(s.total or 0), s.car_id))
-    winner = ranked[0].car_id if ranking and ranked else None
-    return CriteriaScore(model.version, scored, winner, dict(weights))
+    if not ranking:
+        return CriteriaScore(model.version, scored, None, dict(weights))
+    common = [k for k in weights if all(sc.parts[k].score is not None for sc in scored)]
+    total_w = sum(weights.values()) or 1.0
+    cw = sum(weights[k] for k in common)
+    enough = cw / total_w >= model.min_coverage
+    rescored = [
+        replace(
+            sc,
+            total=round(sum(weights[k] * (sc.parts[k].score or 0) for k in common) / cw, 1) if enough and cw else None,
+            ranked=enough,
+        )
+        for sc in scored
+    ]
+    ranked = sorted((s for s in rescored if s.total is not None), key=lambda s: (-(s.total or 0), s.car_id))
+    tie = len(ranked) > 1 and (ranked[0].total or 0) - (ranked[1].total or 0) < TIE_MARGIN
+    winner = ranked[0].car_id if ranked and not tie else None
+    return CriteriaScore(model.version, rescored, winner, dict(weights), common, tie)

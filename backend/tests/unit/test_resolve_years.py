@@ -34,3 +34,23 @@ def test_catalog_row_without_generation_is_not_reused_when_config_knows_generati
     bare = db.Variant(make="Mazda", model="CX-5", generation=None, variant_name="Homura (2025+)", powertrain="ICE")
     new = CaseCar(key="car#1", request_text="new CX-5", make="Mazda", model="CX-5", condition="NEW")
     assert not _fits(bare, new, None, 2026, ref)
+
+
+async def test_revalidate_resets_a_new_car_on_a_finished_generation(monkeypatch):
+    from automind.application import resolve
+
+    ref = reference(load_all())
+    xa50 = db.Variant(id="v-xa50", make="Toyota", model="RAV4", generation="XA50", variant_name="2.5 Hybrid",
+                      powertrain="HEV", generation_years_from=2019)  # fmt: skip
+
+    async def fake_get(vid):
+        return xa50
+
+    monkeypatch.setattr(resolve, "get_variant", fake_get)
+    car = CaseCar(key="car#1", request_text="new RAV4", make="Toyota", model="RAV4", condition="NEW",
+                  variant_id="v-xa50", label="Toyota RAV4 XA50", resolution="CONFIRMED")  # fmt: skip
+    reason = await resolve.revalidate(car, ref, 2026)
+    assert reason and "XA50" in reason and car.variant_id is None and car.resolution == "UNRESOLVED"
+    used = CaseCar(key="car#2", request_text="RAV4 2021", make="Toyota", model="RAV4", condition="USED", year=2021,
+                   variant_id="v-xa50", resolution="CONFIRMED")  # fmt: skip
+    assert await resolve.revalidate(used, ref, 2026) is None and used.variant_id == "v-xa50"

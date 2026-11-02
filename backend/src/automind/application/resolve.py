@@ -297,6 +297,20 @@ async def upsert_variant(ident: VariantIdentity, ref: Reference) -> db.Variant:
         return v
 
 
+async def revalidate(car: CaseCar, ref: Reference, current_year: int) -> str | None:
+    """A car resolved earlier by older rules may be the wrong generation now (a new car on a finished
+    generation, a catalog row without a generation). Reset it so it is identified again; returns the reason."""
+    if not car.variant_id or car.condition == "USED" or car.year is not None:
+        return None
+    v = await get_variant(car.variant_id)
+    if v is None or _fits(v, car, None, current_year, ref):
+        return None
+    old = car.label or v.label
+    car.variant_id, car.label, car.resolution = None, None, "UNRESOLVED"
+    reason = "no generation recorded" if not v.generation else f"{v.generation} is not the generation sold new now"
+    return f"{car.key}: {old} re-identified ({reason})"
+
+
 async def get_variant(variant_id: str) -> db.Variant | None:
     async with db.sessionmaker()() as s:
         return await s.get(db.Variant, variant_id)

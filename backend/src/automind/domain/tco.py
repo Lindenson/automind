@@ -137,8 +137,11 @@ def _cls(car: TcoCar) -> tuple[str, list[str]]:
     return "compact", ["class unknown → compact (assumption)"]
 
 
+MIN_INTERVAL_KM = 1000  # shorter "intervals" are extraction errors (e.g. 16 for 16,000 km), never a schedule
+
+
 def _services_per_year(interval_km: float | None, interval_months: float | None, km: int) -> float:
-    by_km = km / interval_km if interval_km else 0.0
+    by_km = km / interval_km if interval_km and interval_km >= MIN_INTERVAL_KM else 0.0
     by_time = 12 / interval_months if interval_months else 0.0
     return max(by_km, by_time)
 
