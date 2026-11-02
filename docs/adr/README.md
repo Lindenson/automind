@@ -16,3 +16,7 @@
 - [ADR-014](ADR-014.md) — Deterministic action policy (Accepted)
 - [ADR-015](ADR-015.md) — Criteria dictionary (Accepted)
 - [ADR-016](ADR-016.md) — Deferred: TanStack Query, React Router, LangSmith (Accepted)
+- [ADR-017](ADR-017.md) — Web search behind a provider port; Serper by default (Accepted)
+- [ADR-018](ADR-018.md) — Own page store, relevance gate, deterministic site readers (Accepted)
+- [ADR-019](ADR-019.md) — Feasibility engine and the used-price estimate (Accepted)
+- [ADR-020](ADR-020.md) — One Docker Postgres for development, tests and deployment (Accepted)

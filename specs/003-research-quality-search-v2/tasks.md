@@ -397,17 +397,17 @@ group).
 
 ## Phase 8: Polish & Cross-Cutting
 
-- [ ] T057 [P] ADRs in `docs/adr/`:
+- [X] T057 [P] ADRs in `docs/adr/`:
   - ADR-017: search provider port and Serper;
   - ADR-018: own page store, readers and the relevance gate;
   - ADR-019: feasibility engine and the used-price estimate (Q1 = C);
   - ADR-020: one Docker Postgres for development.
 
   Update `docs/adr/README.md`.
-- [ ] T058 [P] README: the search provider and keys, favourites and `tos_checked`, the metrics endpoint, chat deletion, the new dev flow, eval commands
-- [ ] T059 [P] Cost estimator calibration: per-area averages in `LiveEstimator` from the new `research_jobs` and `search_calls` (Serper price, cache share), so cost confirmations match reality (±30% on the eval run)
+- [X] T058 [P] README: the search provider and keys, favourites and `tos_checked`, the metrics endpoint, chat deletion, the new dev flow, eval commands
+- [X] T059 [P] Cost estimator calibration: per-area averages in `LiveEstimator` from the new `research_jobs` and `search_calls` (Serper price, cache share), so cost confirmations match reality (±30% on the eval run)
 - [ ] T060 Full quickstart run (§0–§6) and `scripts/check.sh` green. Update `checklists/validation.md` with each SC result (met / not met with numbers) and the open items
-- [ ] T061 Memory update (`automind-project.md`): 003 state, provider choice, open items
+- [X] T061 Memory update (`automind-project.md`): 003 state, provider choice, open items
 
 ---
 

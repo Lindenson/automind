@@ -350,7 +350,11 @@ class UsageRepo:
                 .group_by(LLMCall.area)
             )
             srch = await s.execute(
-                select(SearchCall.area, func.count(func.distinct(SearchCall.job_id)), func.count(SearchCall.id))
+                select(
+                    SearchCall.area,
+                    func.count(func.distinct(SearchCall.job_id)),
+                    func.count(SearchCall.id).filter(SearchCall.cached.is_(False)),  # cache hits cost nothing
+                )
                 .where(SearchCall.job_id.is_not(None))
                 .group_by(SearchCall.area)
             )
