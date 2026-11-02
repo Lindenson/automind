@@ -87,8 +87,8 @@ class FixtureSearch:
             return None
         for r in self._all_rows():
             if r["url"] == url:
-                return Page(url=url, title=r.get("title", url), text=self._text(r), reader="main_content",
-                            html=r.get("html"))  # fmt: skip
+                html = (self.dir / "docs" / r["html_doc"]).read_text(encoding="utf-8") if r.get("html_doc") else None
+                return Page(url=url, title=r.get("title", url), text=self._text(r), reader="main_content", html=html)
         self._reasons[url] = "not in fixture"
         return None
 

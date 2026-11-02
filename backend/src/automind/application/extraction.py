@@ -159,12 +159,31 @@ async def extract(llm: LLM, prompts: dict[str, str], area: str, target: str, doc
     )
 
 
+# --- relevance role (spec 003 FR-013): only for pages the rules cannot decide -------------------
+
+
+class RelevanceOut(BaseModel):
+    verdict: Literal["RELEVANT", "MULTI_VARIANT", "OTHER_VARIANT", "NOT_ABOUT_CAR"]
+    other: str | None = None
+    reason: str = ""
+
+
+async def judge_relevance(llm: LLM, prompt: str, target: str, doc: WebDoc) -> RelevanceOut:
+    return await llm.structured(
+        "relevance",
+        RelevanceOut,
+        prompt,
+        f"Target: {target}\n\n"
+        f'<untrusted_document url="{doc.url}">\n{doc.title}\n{doc.text[:3000]}\n</untrusted_document>',
+    )
+
+
 # --- validator role (constitution XI) -----------------------------------------------------------
 
 
 class Verdict(BaseModel):
     index: int
-    verdict: Literal["SAME_VARIANT", "GENERATION_WIDE", "OTHER_VARIANT", "UNCLEAR"]
+    verdict: Literal["SAME_VARIANT", "GENERATION_WIDE", "OTHER_VARIANT", "OTHER_MARKET", "OTHER_YEAR", "UNCLEAR"]
     reason: str = ""
 
 

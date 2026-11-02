@@ -25,6 +25,12 @@ export const SourceRefSchema = z.object({
   type: z.enum(["MANUFACTURER", "INSTRUMENTED_TEST", "PUBLICATION", "ENCYCLOPEDIA", "SPEC_DATABASE"]),
   retrieved_at: z.string(),
   excerpt: z.string().nullish(),
+  // spec 003 (FR-012): favourite source, values read from the site's table, or rejected for another variant
+  favourite: z.boolean().nullish(),
+  extracted_by: z.enum(["READER", "LLM"]).nullish(),
+  rejected: z
+    .object({ reason: z.string(), other: z.string().nullish() })
+    .nullish(),
 });
 export type SourceRef = z.infer<typeof SourceRefSchema>;
 
@@ -359,8 +365,12 @@ export const StageSchema = z.enum([
   "resolving",
   "cache",
   "researching",
+  "searching",
+  "reading",
+  "relevance",
   "validating",
   "followup",
+  "feasibility",
   "estimating",
   "computing",
   "analyzing",

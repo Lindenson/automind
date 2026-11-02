@@ -60,7 +60,7 @@ def open_web_reference(**overrides):
     fixtures match on (favourite planning has its own tests). Overrides replace fields, e.g. favourites=[...]."""
     from dataclasses import replace
 
-    return replace(reference(load_all()), favourites=[], favourite_queries={}, **overrides)
+    return replace(reference(load_all()), **{"favourites": [], "favourite_queries": {}, **overrides})
 
 
 def budget_factory(**limits):

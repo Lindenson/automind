@@ -6,6 +6,7 @@ session, so callers never hold a transaction across LLM or web calls.
 
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import Any
 
 from sqlalchemy import func, select, text, update
@@ -17,7 +18,9 @@ from .models import (
     ChatMessage,
     LLMCall,
     ResearchJob,
+    ResearchRun,
     SearchCall,
+    SiteReaderStat,
     Turn,
     TurnEvent,
     now,
@@ -354,4 +357,51 @@ class UsageRepo:
             "output_tokens": int(llm[2]),
             "search_calls": int(srch[0]),
             "cost_eur": round(float(llm[3]) + float(srch[1]), 5),
+        }
+
+
+class MetricsRepo:
+    """Operator metrics for research quality (spec 003 FR-017, FR-031)."""
+
+    async def research(self, days: int = 7) -> dict[str, Any]:
+        since = now() - timedelta(days=days)
+        async with sessionmaker()() as s:
+            jobs = (await s.execute(select(ResearchJob).where(ResearchJob.started_at >= since))).scalars().all()
+            runs = (await s.execute(select(ResearchRun).where(ResearchRun.completed_at >= since))).scalars().all()
+            calls = (await s.execute(select(SearchCall).where(SearchCall.created_at >= since))).scalars().all()
+            sites = (await s.execute(select(SiteReaderStat).where(SiteReaderStat.day >= since.date()))).scalars().all()
+        areas: dict[str, dict[str, Any]] = {}
+        for j in jobs:
+            a = areas.setdefault(j.area, {"jobs": 0, "accepted": 0, "rejected": 0, "pages_found": 0, "pages_cached": 0,
+                                          "pages_rejected": {}, "values_rejected": {}, "reader_values": 0,
+                                          "search_cost_eur": 0.0})  # fmt: skip
+            a["jobs"] += 1
+            a["accepted"] += j.accepted or 0
+            a["rejected"] += j.rejected or 0
+            a["pages_found"] += j.pages_found or 0
+            a["pages_cached"] += j.pages_cached or 0
+            a["reader_values"] += j.reader_values or 0
+            a["search_cost_eur"] += float(j.search_cost_eur or 0)
+            for key in ("pages_rejected", "values_rejected"):
+                for k, n in (getattr(j, key) or {}).items():
+                    a[key][k] = a[key].get(k, 0) + int(n)
+        met: dict[str, list[bool]] = {}
+        for r in runs:
+            met.setdefault(r.area, []).append(bool(r.minimum_met))
+        for area, flags in met.items():
+            areas.setdefault(area, {})["minimum_met_share"] = round(sum(flags) / len(flags), 3)
+        paid = [c for c in calls if not c.cached]
+        return {
+            "days": days,
+            "areas": areas,
+            "sites": [
+                {"domain": x.domain, "day": x.day.isoformat(), "ok": x.ok, "failed": x.failed, "ambiguous": x.ambiguous}
+                for x in sites
+            ],  # fmt: skip
+            "search": {
+                "paid_calls": len(paid),
+                "cache_hits": len(calls) - len(paid),
+                "cost_eur": round(sum(float(c.cost_eur or 0) for c in paid), 4),
+                "by_provider": {p: sum(1 for c in paid if c.provider == p) for p in {c.provider for c in paid}},
+            },
         }

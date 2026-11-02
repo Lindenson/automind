@@ -61,7 +61,8 @@ async def research_job(job: dict[str, Any], runtime: Runtime[TurnContext]) -> di
     if row is not None and row.status == "DONE":  # resumed after a restart: never redo finished work
         return {"research_results": [{**job, "ok": True, "reused": True, "minimum_met": None}]}
     _, case = await load_case(c)
-    label = next((x.label or x.request_text for x in case.cars if x.key == job["car_key"]), job["car_key"])
+    car = next((x for x in case.cars if x.key == job["car_key"]), None)
+    label = (car.label or car.request_text) if car else job["car_key"]
 
     async def emit(stage: str, text: str) -> None:
         await c.status(stage, text, car=label, area=job["area"])
@@ -70,7 +71,11 @@ async def research_job(job: dict[str, Any], runtime: Runtime[TurnContext]) -> di
     try:
         async with asyncio.timeout(c.budget.limits.job_timeout_s):
             res = await research.run_job(
-                c.ports, JobSpec(job["job_id"], job["variant_id"], job["area"], job["round"]), emit
+                c.ports,
+                JobSpec(
+                    job["job_id"], job["variant_id"], job["area"], job["round"], car_year=car.year if car else None
+                ),
+                emit,
             )
     except BudgetExceeded as e:
         await c.ports.jobs.mark(job["job_id"], "FAILED", error=str(e))

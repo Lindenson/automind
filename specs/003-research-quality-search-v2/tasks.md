@@ -178,7 +178,7 @@ read without AI.
 
 ### Tests first (US1)
 
-- [ ] T025 [P] [US1] `tests/unit/domain/test_relevance.py` covers `domain/relevance.judge`:
+- [X] T025 [P] [US1] `tests/unit/domain/test_relevance.py` covers `domain/relevance.judge`:
   - generation traps: a J250 page for a J150 target → `OTHER_VARIANT("J250 …")`; Mk8 for Mk7; G20 for F30; W213 for W212; G60 for G30;
   - years outside the generation → `OTHER_VARIANT`;
   - engine signature mismatch (power ±5%, displacement, fuel) → `OTHER_VARIANT`;
@@ -186,13 +186,13 @@ read without AI.
   - no make/model → `NOT_ABOUT_CAR`;
   - conflicting or absent signals → `UNCERTAIN`;
   - property test (hypothesis): verdicts are deterministic.
-- [ ] T026 [P] [US1] `tests/unit/domain/test_plausibility.py` covers `domain/plausibility.check` with the ranges from `config/plausibility.yaml`:
+- [X] T026 [P] [US1] `tests/unit/domain/test_plausibility.py` covers `domain/plausibility.check` with the ranges from `config/plausibility.yaml`:
   - 0–100 of 1.9 s for an ICE diesel saloon → rejected (`measured_0_100.ICE`);
   - curb mass of 150 kg → rejected;
   - power-to-weight > 1 kW/kg → rejected (`pw_ratio`);
   - normal values pass;
   - units are normalised before checking.
-- [ ] T027 [P] [US1] Site reader fixtures:
+- [X] T027 [P] [US1] Site reader fixtures:
   - save trimmed table fragments of real pages in `tests/fixtures/html/` (`km77_bmw_520d_g30.html`, `ultimatespecs_bmw_g30_520d.html`, `auto_data_bmw_g30_520d.html`, and a multi-engine page for each). Fetch them once with our fetcher; keep only the spec tables and the title.
   - tests in `tests/unit/infrastructure/test_site_readers.py`:
     - expected rows (attribute, raw value, unit, excerpt = row text) for power, torque, curb mass, length/width/height, wheelbase, boot, claimed 0–100, top speed, consumption;
@@ -201,30 +201,30 @@ read without AI.
 
 ### Implementation (US1)
 
-- [ ] T028 [P] [US1] Pure `src/automind/domain/relevance.py` (`PageFacts`, `Relevance {verdict, other, reason}`), using the generation info from `config/generations.yaml` and the existing `_mentions` / `_sibling_code` helpers moved from `domain/evidence.py`. Passes T025
-- [ ] T029 [P] [US1] Pure `src/automind/domain/plausibility.py` (`PlausibilityResult {ok, rule_id, message}`; rules injected), passing T026
-- [ ] T030 [US1] LLM relevance for `UNCERTAIN` pages:
+- [X] T028 [P] [US1] Pure `src/automind/domain/relevance.py` (`PageFacts`, `Relevance {verdict, other, reason}`), using the generation info from `config/generations.yaml` and the existing `_mentions` / `_sibling_code` helpers moved from `domain/evidence.py`. Passes T025
+- [X] T029 [P] [US1] Pure `src/automind/domain/plausibility.py` (`PlausibilityResult {ok, rule_id, message}`; rules injected), passing T026
+- [X] T030 [US1] LLM relevance for `UNCERTAIN` pages:
   - role `relevance` (web reader, no tools);
   - prompt `orchestration/prompts/relevance.md`;
   - input: case identity + ≤ 3,000 chars of the page;
   - structured `{verdict, other, reason}`.
 
   Persist every verdict in `page_relevance` (method `RULES|LLM`). In `application/research.py`, only `RELEVANT` pages and the isolated parts of `MULTI_VARIANT` pages go on to reading. Rejections are counted by reason into `research_jobs.pages_rejected`
-- [ ] T031 [US1] Site readers in `src/automind/infrastructure/site_readers/`: `km77.py`, `ultimatespecs.py`, `auto_data.py`, a registry in `__init__.py` keyed by domain, and label maps in `config/site_readers.yaml`. A reader runs only when the favourite's `tos_checked` is set. Count `ok/failed/ambiguous` per domain per day in `site_reader_stats`. Passes T027
-- [ ] T032 [US1] Reading path in `application/research.py`:
+- [X] T031 [US1] Site readers in `src/automind/infrastructure/site_readers/`: `km77.py`, `ultimatespecs.py`, `auto_data.py`, a registry in `__init__.py` keyed by domain, and label maps in `config/site_readers.yaml`. A reader runs only when the favourite's `tos_checked` is set. Count `ok/failed/ambiguous` per domain per day in `site_reader_stats`. Passes T027
+- [X] T032 [US1] Reading path in `application/research.py`:
   - `SiteReaders.read(page, target)`, falling back to `extraction.extract` (LLM) when it returns `None`;
   - reader rows become claims with `extracted_by=READER`, the excerpt being the row text;
   - then unit normalisation, `plausibility.check` (reject → `REJECTED_IMPLAUSIBLE` with `reject_rule`), the excerpt check and selection (002 rules);
   - mark `evidence.favourite` and `favourite_priority`.
-- [ ] T033 [US1] Case-aware validator:
+- [X] T033 [US1] Case-aware validator:
   - `extraction.validate_claims` gets the case identity (make, model, generation, years, engine/trim, body, market, condition, user's year);
   - verdicts `SAME_VARIANT | OTHER_VARIANT | OTHER_MARKET | OTHER_YEAR | UNSUPPORTED` map to the claim statuses `REJECTED_OTHER_VARIANT | REJECTED_OTHER_MARKET | REJECTED_OTHER_YEAR`;
   - it runs for `MULTI_VARIANT`/`UNCERTAIN` pages and for claims that disagree with an already selected value beyond tolerance;
   - update `orchestration/prompts/validator.md`.
 
   Graph test: a page whose power is true for another market is rejected.
-- [ ] T034 [US1] Per-area metrics on `research_jobs` (`pages_rejected`, `values_rejected` by reason, `reader_values`) and the REST endpoint `GET /api/v1/research/metrics?days=7` in `src/automind/api/rest.py`, as in contracts/rest-and-protocol.md. Add a test
-- [ ] T035 [US1] Sources with reasons:
+- [X] T034 [US1] Per-area metrics on `research_jobs` (`pages_rejected`, `values_rejected` by reason, `reader_values`) and the REST endpoint `GET /api/v1/research/metrics?days=7` in `src/automind/api/rest.py`, as in contracts/rest-and-protocol.md. Add a test
+- [X] T035 [US1] Sources with reasons:
   - `compose.py` builds `SourceRef` with `favourite`, `extracted_by` and `rejected {reason, other}`; the sources block lists accepted sources first, then rejected pages for this turn's cars;
   - frontend: extend `SourceRefSchema` in `src/lib/protocol.ts`; in `src/components/blocks/Sources.tsx` mark favourites, show "read from table" for READER, and a collapsed "Rejected pages (n)" list with reasons;
   - vitest for the schema.

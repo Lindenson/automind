@@ -148,6 +148,15 @@ def apply_patch(case: CaseFile, patch: CasePatch, *, current_year: int) -> tuple
     return new, changes
 
 
+@router.get("/api/v1/research/metrics")
+async def research_metrics(days: int = 7) -> dict[str, Any]:
+    """Research quality for the operator (spec 003 FR-017, FR-031): minimums met, rejections by reason,
+    site reader success, search cost and cache hits."""
+    from automind.infrastructure.db.repositories import MetricsRepo  # noqa: PLC0415
+
+    return await MetricsRepo().research(max(1, min(days, 365)))
+
+
 @router.get("/api/v1/criteria")
 async def criteria() -> dict[str, Any]:
     """The criteria dictionary (labels, definitions, persona default weights)."""

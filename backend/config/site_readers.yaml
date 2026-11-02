@@ -1,0 +1,61 @@
+# Deterministic table readers (spec 003 FR-009, research R6): site label → canonical attribute.
+# pairs: how label/value pairs are laid out (table = <tr><th|td>label</td><td>value</td></tr>,
+#        divrow = <div class="row"><div class="par">label</div><div class="val">value</div></div>).
+# Labels are matched after lowercasing and stripping ":" and spaces; `prefix: true` matches the start.
+# unit: force a unit for the number (auto-data writes metric horsepower as "Hp" → PS);
+# prefer_unit: when a value lists several units ("190 CV / 140 kW"), use the number before this unit.
+version: 1
+km77:
+  domains: [km77.com]
+  pairs: table
+  labels:
+    "potencia máxima": {attribute: max_power, prefer_unit: kW}
+    "par máximo": {attribute: max_torque}
+    "peso": {attribute: curb_mass}
+    "aceleración 0-100 km/h": {attribute: claimed_0_100}
+    "velocidad máxima": {attribute: top_speed}
+    "cilindrada": {attribute: displacement}
+    "volumen mínimo con dos filas de asientos": {attribute: boot_volume, prefix: true}
+    "número de plazas": {attribute: seats}
+    "tracción": {attribute: drivetrain, text: true}
+    "número de cilindros": {attribute: cylinders}
+    "diámetro": {attribute: bore}
+    "carrera": {attribute: stroke}
+    "relación de compresión": {attribute: compression_ratio, unit: ":1"}
+    "coeficiente cx": {attribute: drag_coefficient}
+    "número de velocidades": {attribute: gear_count}
+    "medio": {attribute: consumption}
+ultimatespecs:
+  domains: [ultimatespecs.com]
+  pairs: table
+  labels:
+    "horsepower": {attribute: max_power, prefer_unit: kW}
+    "maximum torque": {attribute: max_torque, prefer_unit: Nm}
+    "curb weight": {attribute: curb_mass, prefer_unit: kg}
+    "acceleration 0 to 100 km/h": {attribute: claimed_0_100, prefix: true}
+    "top speed": {attribute: top_speed, prefer_unit: km/h}
+    "engine displacement": {attribute: displacement, prefer_unit: cm3}
+    "compression ratio": {attribute: compression_ratio, unit: ":1"}
+    "drive wheels - traction - drivetrain": {attribute: drivetrain, text: true}
+    "fuel consumption - economy - combined": {attribute: consumption, prefix: true, prefer_unit: L/100 km}
+    "trunk / boot capacity": {attribute: boot_volume, prefix: true, prefer_unit: L}
+auto_data:
+  domains: [auto-data.net]
+  pairs: divrow
+  labels:
+    "power": {attribute: max_power, unit: PS}
+    "torque": {attribute: max_torque, prefer_unit: Nm}
+    "kerb weight": {attribute: curb_mass, prefer_unit: kg}
+    "acceleration 0 - 100 km/h": {attribute: claimed_0_100}
+    "maximum speed": {attribute: top_speed, prefer_unit: km/h}
+    "engine displacement": {attribute: displacement, prefer_unit: cm3}
+    "trunk (boot) space - minimum": {attribute: boot_volume, prefer_unit: l}
+    "seats": {attribute: seats}
+    "number of cylinders": {attribute: cylinders}
+    "cylinder bore": {attribute: bore, prefer_unit: mm}
+    "piston stroke": {attribute: stroke, prefer_unit: mm}
+    "compression ratio": {attribute: compression_ratio, unit: ":1"}
+    "drag coefficient (cd)": {attribute: drag_coefficient}
+    "drive wheel": {attribute: drivetrain, text: true}
+    "ride height (ground clearance)": {attribute: ground_clearance, prefer_unit: mm}
+    "fuel consumption (economy) - combined": {attribute: consumption}

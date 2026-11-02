@@ -24,7 +24,8 @@ from automind.application import extraction as ex
 from automind.application.ports import Page, Ports, WebDoc
 from automind.application.usage import BudgetExceeded, current_job
 from automind.domain import evidence as ev
-from automind.domain import identity, research_plan, search_plan, specs
+from automind.domain import identity, plausibility, research_plan, search_plan, specs
+from automind.domain import relevance as rel
 from automind.infrastructure import db
 
 Emit = Callable[[str, str], Awaitable[None]]
@@ -40,6 +41,7 @@ class JobSpec:
     variant_id: str
     area: str
     round: int = 0
+    car_year: int | None = None  # the user's car year (validator compares claims with the case, FR-016)
 
 
 @dataclass
@@ -57,9 +59,90 @@ class JobResult:
     hits: list[dict[str, Any]] = field(default_factory=list)
 
 
-def target_of(v: db.Variant) -> str:
+def target_of(v: db.Variant, car_year: int | None = None) -> str:
     years = f" ({v.generation_years_from}–{v.generation_years_to or 'now'})" if v.generation_years_from else ""
-    return f"{v.label}{years}, powertrain {v.powertrain}, market ES"
+    body = f", body {v.body_class.lower()}" if v.body_class else ""
+    year = f", the user's car is from ~{car_year}" if car_year else ""
+    return f"{v.label}{years}, powertrain {v.powertrain}{body}, market ES{year}"
+
+
+MAX_LLM_RELEVANCE_PER_JOB = 4
+
+
+async def _relevance_gate(
+    ports: Ports, v: db.Variant, pages: list[Page], target: str
+) -> tuple[list[Page], dict[str, int], set[str]]:
+    """Reject pages about another variant before any extraction (FR-013). Returns kept pages, rejection
+    counts by reason, and the URLs that stay uncertain (→ validator)."""
+    gens = [rel.GenerationInfo(g, a, b) for g, a, b in ports.ref.generations.get(f"{v.make}|{v.model}", [])]
+    if v.generation and not any(g.code == v.generation for g in gens):
+        gens.append(rel.GenerationInfo(v.generation, v.generation_years_from, v.generation_years_to))
+    tgt = rel.Target(v.make, v.model, v.generation, v.generation_years_from, v.generation_years_to,
+                     v.variant_name, fuel_of(v.variant_name, v.powertrain), v.body_class)  # fmt: skip
+    kept: list[Page] = []
+    rejected: dict[str, int] = defaultdict(int)
+    uncertain: set[str] = set()
+    llm_left = MAX_LLM_RELEVANCE_PER_JOB if "relevance" in ports.ref.prompts else 0
+    for p in pages:
+        r = rel.judge(rel.PageFacts(p.url, p.title, p.text), tgt, gens)
+        method = "RULES"
+        if r.verdict == "UNCERTAIN" and llm_left > 0:
+            llm_left -= 1
+            try:
+                out = await ex.judge_relevance(ports.llm, ports.ref.prompts["relevance"], target, p.as_doc())
+                r, method = rel.Relevance(out.verdict, out.reason or "relevance check", out.other), "LLM"
+            except BudgetExceeded:
+                raise
+            except Exception:  # noqa: BLE001 - no answer: stays uncertain, the validator decides per claim
+                pass
+        await _store_relevance(p, v.id, r, method)
+        if r.verdict in ("OTHER_VARIANT", "NOT_ABOUT_CAR"):
+            rejected[r.verdict.lower()] += 1
+            continue
+        if r.verdict in ("UNCERTAIN", "MULTI_VARIANT"):
+            uncertain.add(p.url)
+        kept.append(p)
+    return kept, dict(rejected), uncertain
+
+
+async def _store_relevance(p: Page, variant_id: str, r: rel.Relevance, method: str) -> None:
+    if p.document_id is None:
+        return
+    from sqlalchemy.dialects.postgresql import insert  # noqa: PLC0415
+
+    values = {"document_id": p.document_id, "variant_id": variant_id, "verdict": r.verdict,
+              "other": (r.other or "")[:80] or None, "reason": r.reason, "method": method}  # fmt: skip
+    async with db.sessionmaker()() as s:
+        stmt = insert(db.PageRelevance).values(**values)
+        await s.execute(stmt.on_conflict_do_update(index_elements=["document_id", "variant_id"], set_=values))
+        await s.commit()
+
+
+def fuel_of(variant_name: str, powertrain: str | None) -> str | None:
+    if (powertrain or "").upper() == "BEV":
+        return "electric"
+    n = f" {variant_name.lower()} "
+    diesel = (" d ", "tdi", "dci", "cdi", "d-4d", "hdi", "crdi", "diesel", "jtd", "multijet", "tdci", "bluehdi",
+              "skyactiv-d", "i-dtec", "ecoblue")  # fmt: skip
+    if any(k in n for k in diesel) or re_diesel_suffix(n):
+        return "diesel"
+    return "petrol"
+
+
+def re_diesel_suffix(n: str) -> bool:
+    import re  # noqa: PLC0415
+
+    return re.search(r"\b\d{3}d\b|\b\d\.\dd\b|\b\d{3} d\b", n) is not None  # 520d, 2.0d, E 220 d
+
+
+async def _known_values(variant_id: str) -> dict[str, float]:
+    async with db.sessionmaker()() as s:
+        rows = await s.execute(
+            select(db.SpecValue.attribute, db.SpecValue.value_num).where(
+                db.SpecValue.variant_id == variant_id, db.SpecValue.available, db.SpecValue.value_num.is_not(None)
+            )
+        )
+        return {a: float(n) for a, n in rows.all()}
 
 
 def identity_of(v: db.Variant) -> search_plan.Identity:
@@ -108,24 +191,23 @@ async def _run(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
     v = await _variant(job.variant_id)
     missing = await missing_critical(v.id) if job.area == "specs" else []
     seen = await _used_urls(v.id, job.area)
-    planned = queries_for(ports, v, job.area, job.round, missing)
-    await emit("searching", f"{job.area}: {len(planned)} searches" + (" (follow-up)" if job.round else ""))
-    pages, stats = await _collect(ports, planned, seen, job.area, v)
-    if job.round > 0 and len(pages) < 2:  # open web found too little: bounded AI-proposed queries (FR-004)
-        extra = await _ai_queries(ports, v, job.area, missing, [q.text for q in planned])
-        if extra:
-            await emit("searching", f"{job.area}: {len(extra)} more searches suggested by the assistant")
-            more, more_stats = await _collect(ports, extra, seen | {p.url for p in pages}, job.area, v)
-            pages += more
-            planned += extra
-            stats = _merge_stats(stats, more_stats)
+    planned, pages, stats = await _search_pages(ports, v, job, missing, seen, emit)
+    target = target_of(v, job.car_year)
+    pages, gate, uncertain = await _relevance_gate(ports, v, pages, target)
+    for k, n in gate.items():
+        stats["pages_rejected"][k] = stats["pages_rejected"].get(k, 0) + n
     docs = [p.as_doc() for p in pages]
     page_of = {p.url: p for p in pages}
+    await emit("relevance", f"{job.area}: {sum(gate.values())} of {sum(gate.values()) + len(pages)} pages "
+               "rejected (other variant)" if gate else f"{job.area}: all pages match the variant")  # fmt: skip
     await emit("reading", f"{job.area}: reading {len(docs)} sources ({stats['pages_cached']} from cache)")
-    target = target_of(v)
     sem = asyncio.Semaphore(4)
+    known = await _known_values(v.id)
+    readings = await _read_tables(ports, v, pages) if job.area in ex.SPEC_AREAS else {}
 
     async def one(d: WebDoc) -> tuple[WebDoc, BaseModel | None]:
+        if d.url in readings:
+            return d, None
         async with sem:
             try:
                 return d, await ex.extract(ports.llm, ports.ref.prompts, job.area, target, d)
@@ -136,13 +218,20 @@ async def _run(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
 
     extracted = await asyncio.gather(*(one(d) for d in docs))
     await emit("validating", f"{job.area}: validating against the sources")
-    others = [g for g, _, _ in ports.ref.generations.get(f"{v.make}|{v.model}", []) if g != v.generation]
-    accepted = rejected = 0
+    accepted = rejected = reader_values = 0
+    values_rejected: dict[str, int] = defaultdict(int)
     for d, out in extracted:
-        if out is None or not getattr(out, "is_about_variant", True):
+        page = page_of.get(d.url)
+        if d.url in readings:
+            a, r = await _persist_reading(ports, v, job.area, d, readings[d.url], known, values_rejected, page)
+            reader_values += a
+        elif out is None or not getattr(out, "is_about_variant", True):
             continue
-        a, r = await _persist(ports, v, job.area, d, out, target, others, page_of.get(d.url))
+        else:
+            a, r = await _persist(ports, v, job.area, d, out, target, d.url in uncertain, page, known, values_rejected)
         accepted, rejected = accepted + a, rejected + r
+    stats["values_rejected"] = dict(values_rejected)
+    stats["reader_values"] = reader_values
     if job.area in ex.SPEC_AREAS or job.area == "maintenance":
         await reselect(v.id)
     hits = await area_hits(v, job.area)
@@ -236,6 +325,36 @@ async def _collect(
     return pages, stats
 
 
+async def _search_pages(
+    ports: Ports, v: db.Variant, job: JobSpec, missing: list[str], seen: set[str], emit: Emit
+) -> tuple[list[search_plan.PlannedQuery], list[Page], dict[str, Any]]:
+    planned = queries_for(ports, v, job.area, job.round, missing)
+    await emit("searching", f"{job.area}: {len(planned)} searches" + (" (follow-up)" if job.round else ""))
+    pages, stats = await _collect(ports, planned, seen, job.area, v)
+    if job.round > 0 and len(pages) < 2:  # open web found too little: bounded AI-proposed queries (FR-004)
+        extra = await _ai_queries(ports, v, job.area, missing, [q.text for q in planned])
+        if extra:
+            await emit("searching", f"{job.area}: {len(extra)} more searches suggested by the assistant")
+            more, more_stats = await _collect(ports, extra, seen | {p.url for p in pages}, job.area, v)
+            pages += more
+            planned += extra
+            stats = _merge_stats(stats, more_stats)
+    return planned, pages, stats
+
+
+async def _read_tables(ports: Ports, v: db.Variant, pages: list[Page]) -> dict[str, Any]:
+    """Deterministic site readers for favourite spec sites; ambiguous or unknown layouts go to the LLM."""
+    readings: dict[str, Any] = {}
+    for p in pages:
+        r = ports.readers.read(p, {"variant_id": v.id})
+        if r is not None and not r.ambiguous:
+            readings[p.url] = r
+    flush = getattr(ports.readers, "flush_stats", None)
+    if flush is not None:
+        await flush()
+    return readings
+
+
 class QueryProposals(BaseModel):
     queries: list[str]
 
@@ -301,6 +420,8 @@ async def _job_metrics(job_id: str, planned: list[search_plan.PlannedQuery], sta
         job.pages_cached = stats["pages_cached"]
         job.pages_rejected = {**(job.pages_rejected or {}), **stats["pages_rejected"]}
         job.search_cost_eur = float(cost)
+        job.values_rejected = stats.get("values_rejected") or None
+        job.reader_values = int(stats.get("reader_values") or 0)
         await s.commit()
 
 
@@ -349,38 +470,77 @@ async def _persist(
     d: WebDoc,
     out: BaseModel,
     target: str,
-    others: list[str],
+    uncertain: bool,
     page: Page | None = None,
+    known: dict[str, float] | None = None,
+    values_rejected: dict[str, int] | None = None,
 ) -> tuple[int, int]:
-    uncertain = ev.variant_match_uncertain(
-        d.text, d.title, v.generation, others, (v.generation_years_from, v.generation_years_to)
-    )
     async with db.sessionmaker()() as s:
         e = await _evidence(s, v, d, page, favourite_priority(ports, v, d.url))
         if area in ex.SPEC_AREAS:
-            a, r = await _spec_claims(ports, s, v, area, d, e, out, target, uncertain)
+            a, r = await _spec_claims(ports, s, v, area, d, e, out, target, uncertain, known or {},
+                                      values_rejected if values_rejected is not None else defaultdict(int))  # fmt: skip
         else:
             a, r = await _items(s, v, area, d, e, out)
         await s.commit()
     return a, r
 
 
-def _check(c: Any, d: WebDoc) -> tuple[str, float | None, str | None]:
-    if specs.RANGE_RE.search(c.raw_value) is None and not ev.validate_excerpt(c.excerpt, c.raw_value, d.text):
-        return "REJECTED_UNSUPPORTED", None, None
+def _plausibility_ctx(v: db.Variant, known: dict[str, float]) -> plausibility.Context:
+    return plausibility.Context(powertrain=v.powertrain, fuel=fuel_of(v.variant_name, v.powertrain), known=known)
+
+
+def _check(
+    c: Any,
+    d: WebDoc,
+    ctx: plausibility.Context | None = None,
+    rules: dict[str, Any] | None = None,
+    *,
+    excerpt_checked: bool = False,
+) -> tuple[str, float | None, str | None, str | None]:
+    """(status, number, text, reject_rule): excerpt → unit → plausibility (FR-014)."""
+    if (
+        not excerpt_checked
+        and specs.RANGE_RE.search(c.raw_value) is None
+        and not ev.validate_excerpt(c.excerpt, c.raw_value, d.text)
+    ):
+        return "REJECTED_UNSUPPORTED", None, None, None
     try:
         val = specs.normalize(specs.ATTRS[c.attribute], c.raw_value, c.unit)
     except Exception:
-        return "REJECTED_UNIT", None, None
-    return ("ACCEPTED", val, None) if isinstance(val, float) else ("ACCEPTED", None, str(val))
+        return "REJECTED_UNIT", None, None, None
+    if ctx is not None and rules:
+        p = plausibility.check(c.attribute, val, ctx, rules)
+        if not p.ok:
+            return "REJECTED_IMPLAUSIBLE", None, None, p.rule_id
+    return ("ACCEPTED", val, None, None) if isinstance(val, float) else ("ACCEPTED", None, str(val), None)
+
+
+VALIDATOR_REJECTS = ("OTHER_VARIANT", "OTHER_MARKET", "OTHER_YEAR", "UNCLEAR")
 
 
 async def _spec_claims(
-    ports: Ports, s: Any, v: db.Variant, area: str, d: WebDoc, e: db.Evidence, out: Any, target: str, uncertain: bool
+    ports: Ports,
+    s: Any,
+    v: db.Variant,
+    area: str,
+    d: WebDoc,
+    e: db.Evidence,
+    out: Any,
+    target: str,
+    uncertain: bool,
+    known: dict[str, float],
+    values_rejected: dict[str, int],
 ) -> tuple[int, int]:
-    checked = [(c, *_check(c, d)) for c in out.claims]
+    ctx = _plausibility_ctx(v, known)
+    checked = [(c, *_check(c, d, ctx, ports.ref.plausibility)) for c in out.claims]
+    conflicting = {
+        i for i, (c, st, num, _, _) in enumerate(checked)
+        if st == "ACCEPTED" and num is not None and c.attribute in known
+        and abs(num - known[c.attribute]) > max(abs(known[c.attribute]) * 0.06, 1e-9)
+    }  # fmt: skip
     verdicts: dict[int, str] = {}
-    if uncertain and any(st == "ACCEPTED" for _, st, _, _ in checked):
+    if (uncertain or conflicting) and any(st == "ACCEPTED" for _, st, *_ in checked):
         verdicts = await ex.validate_claims(
             ports.llm,
             ports.ref.prompts["validator"],
@@ -388,32 +548,75 @@ async def _spec_claims(
             d,
             [{"label": c.attribute, "value": c.raw_value, "excerpt": c.excerpt} for c, *_ in checked],
         )
+        if not uncertain:  # only the conflicting claims were in question
+            verdicts = {i: verdicts[i] for i in conflicting if i in verdicts}
     accepted = rejected = 0
-    for i, (c, status, num, txt) in enumerate(checked):
+    for i, (c, status, num, txt, rule) in enumerate(checked):
         scope = "GENERATION" if d.snippet_only and c.scope == "VARIANT" else c.scope
         verdict = verdicts.get(i)
-        if status == "ACCEPTED" and verdict in ("OTHER_VARIANT", "UNCLEAR"):
+        if status == "ACCEPTED" and verdict in VALIDATOR_REJECTS:
             status = f"REJECTED_{verdict}"
         elif status == "ACCEPTED" and verdict == "GENERATION_WIDE":
             scope = "GENERATION"  # kept, but LOW confidence (FR-018)
-        accepted += status == "ACCEPTED"
-        rejected += status != "ACCEPTED"
+        if status == "ACCEPTED":
+            accepted += 1
+        else:
+            rejected += 1
+            values_rejected[status.removeprefix("REJECTED_").lower()] += 1
         s.add(
             db.Claim(
-                variant_id=v.id,
-                evidence_id=e.id,
-                attribute=c.attribute,
-                area=area,
-                raw_value=c.raw_value,
-                raw_unit=c.unit,
-                value_num=num,
-                value_text=txt,
-                excerpt=c.excerpt,
-                scope=scope,
-                provenance=ev.assign_provenance(e.source_type, c.attribute),
-                status=status,
+                variant_id=v.id, evidence_id=e.id, attribute=c.attribute, area=area, raw_value=c.raw_value,
+                raw_unit=c.unit, value_num=num, value_text=txt, excerpt=c.excerpt, scope=scope,
+                provenance=ev.assign_provenance(e.source_type, c.attribute), status=status, reject_rule=rule,
+                extracted_by="LLM",
             )
-        )
+        )  # fmt: skip
+    return accepted, rejected
+
+
+@dataclass
+class _ReaderClaim:
+    attribute: str
+    raw_value: str
+    unit: str | None
+    excerpt: str
+
+
+async def _persist_reading(
+    ports: Ports,
+    v: db.Variant,
+    area: str,
+    d: WebDoc,
+    reading: Any,
+    known: dict[str, float],
+    values_rejected: dict[str, int],
+    page: Page | None,
+) -> tuple[int, int]:
+    """Values read from a favourite site's table without AI (FR-009, FR-010): same provenance and checks
+    (unit layer, plausibility); the excerpt is the table row the reader read."""
+    ctx = _plausibility_ctx(v, known)
+    accepted = rejected = 0
+    async with db.sessionmaker()() as s:
+        e = await _evidence(s, v, d, page, favourite_priority(ports, v, d.url))
+        for row in reading.rows:
+            if row.attribute not in specs.ATTRS:
+                continue
+            c = _ReaderClaim(row.attribute, row.raw_value, row.raw_unit, row.excerpt)
+            status, num, txt, rule = _check(c, d, ctx, ports.ref.plausibility, excerpt_checked=True)
+            if status == "ACCEPTED":
+                accepted += 1
+            else:
+                rejected += 1
+                values_rejected[status.removeprefix("REJECTED_").lower()] += 1
+            s.add(
+                db.Claim(
+                    variant_id=v.id, evidence_id=e.id, attribute=c.attribute, area=area, raw_value=c.raw_value,
+                    raw_unit=c.unit, value_num=num, value_text=txt, excerpt=c.excerpt, scope="VARIANT",
+                    provenance=ev.assign_provenance(e.source_type, c.attribute), status=status, reject_rule=rule,
+                    extracted_by="READER",
+                )
+            )  # fmt: skip
+        await s.commit()
     return accepted, rejected
 
 

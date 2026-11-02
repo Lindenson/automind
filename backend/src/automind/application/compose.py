@@ -11,6 +11,7 @@ from functools import lru_cache
 from sqlalchemy import select
 
 from automind.domain import dragrace, reliability, reviews, specs, tco, units
+from automind.domain import evidence as evidence_rules
 from automind.domain import metrics as scoring  # noqa: F401 (CarFacts, metrics, ownership)
 from automind.domain.criteria import CriteriaModel, CriteriaScore
 from automind.domain.metrics import ReliabilitySummary, ReviewSummary
@@ -73,6 +74,28 @@ async def load_car(variant_id: str) -> dict:
         facts_rows = list(
             (await s.execute(select(db.ManufacturerFact).where(db.ManufacturerFact.make == v.make))).scalars()
         )
+        rejected_rows = (
+            await s.execute(
+                select(db.PageRelevance, db.Document)
+                .join(db.Document, db.PageRelevance.document_id == db.Document.id)
+                .where(
+                    db.PageRelevance.variant_id == variant_id,
+                    db.PageRelevance.verdict.in_(("OTHER_VARIANT", "NOT_ABOUT_CAR")),
+                )
+                .order_by(db.PageRelevance.created_at.desc())
+                .limit(20)
+            )
+        ).all()
+    rejected_pages = [
+        {
+            "name": (d.title or d.url)[:200],
+            "url": d.final_url or d.url,
+            "type": evidence_rules.classify_source(d.final_url or d.url),
+            "retrieved_at": (d.fetched_at or d.retrieved_at).isoformat(),
+            "rejected": {"reason": r.reason, "other": r.other},
+        }
+        for r, d in rejected_rows
+    ]
     claim_src = {
         c.id: {
             "name": e.source_name,
@@ -80,6 +103,8 @@ async def load_car(variant_id: str) -> dict:
             "type": e.source_type,
             "retrieved_at": e.retrieved_at.isoformat(),
             "excerpt": c.excerpt,
+            "favourite": bool(e.favourite),
+            "extracted_by": c.extracted_by,
         }
         for c, e in rows
     }
@@ -88,6 +113,7 @@ async def load_car(variant_id: str) -> dict:
         "variant": v,
         "values": values,
         "claim_src": claim_src,
+        "rejected_pages": rejected_pages,
         "researched_at": researched.isoformat(),
         "runs": {r.area: r for r in runs},
         "issues": [(i, e) for i, e in issues],
@@ -374,13 +400,29 @@ def race_block(race: dragrace.RaceResult, predicted_car_id: str | None = None) -
 
 
 def sources_block(cars: list[dict]) -> dict:
-    seen, items = set(), []
+    """Accepted sources first (favourites marked, values read from tables flagged), then the pages rejected
+    for another variant with their reasons (FR-012)."""
+    seen: set[str] = set()
+    items: list[dict] = []
+    readers: dict[str, bool] = {}
+    for c in cars:
+        for src in c["claim_src"].values():
+            readers[src["url"]] = readers.get(src["url"], False) or src.get("extracted_by") == "READER"
     for c in cars:
         for src in c["claim_src"].values():
             if src["url"] not in seen:
                 seen.add(src["url"])
-                items.append({k: src[k] for k in ("name", "url", "type", "retrieved_at")})
-    return {"type": "sources", "title": f"Sources ({len(items)})", "items": items}
+                item = {k: src[k] for k in ("name", "url", "type", "retrieved_at")}
+                item["favourite"] = bool(src.get("favourite"))
+                item["extracted_by"] = "READER" if readers.get(src["url"]) else "LLM"
+                items.append(item)
+    accepted = len(items)
+    for c in cars:
+        for src in c.get("rejected_pages", []):
+            if src["url"] not in seen:
+                seen.add(src["url"])
+                items.append(src)
+    return {"type": "sources", "title": f"Sources ({accepted})", "items": items}
 
 
 def summary_for_llm(cars: list[dict], race: dragrace.RaceResult, criteria: CriteriaScore | None = None) -> dict:

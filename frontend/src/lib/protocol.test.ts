@@ -166,3 +166,24 @@ describe("protocol v2", () => {
     expect(blocks.map((b) => b.type)).toEqual(["criteria_scores", "tco", "case_summary"]);
   });
 });
+
+describe("sources block (spec 003)", () => {
+  it("accepts favourite, reader and rejected marks and stays compatible", () => {
+    const blocks = parseBlocks([
+      {
+        type: "sources",
+        title: "Sources (1)",
+        items: [
+          { name: "km77", url: "https://www.km77.com/x", type: "SPEC_DATABASE", retrieved_at: "2026-11-02",
+            favourite: true, extracted_by: "READER" },
+          { name: "G60 test", url: "https://x/g60", type: "PUBLICATION", retrieved_at: "2026-11-02",
+            rejected: { reason: "other generation: G60 (2023–)", other: "G60 (2023–)" } },
+          { name: "old", url: "https://y", type: "PUBLICATION", retrieved_at: "2026-11-01" },
+        ],
+      },
+    ]);
+    expect(blocks).toHaveLength(1);
+    const b = blocks[0] as { items: { rejected?: { reason: string } | null }[] };
+    expect(b.items[1]?.rejected?.reason).toContain("G60");
+  });
+});
