@@ -7,6 +7,7 @@ and recorded per turn (FR-041, FR-042).
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 import time
@@ -93,8 +94,20 @@ def quota_exhausted(error: BaseException) -> float | None:
     return 3600.0
 
 
+TRANSIENT_PAUSE_S = 120.0
+
+
+def transient(error: BaseException) -> bool:
+    """Provider overloaded or briefly down (503 UNAVAILABLE, 500, 'high demand', 'overloaded')."""
+    text = str(error)
+    return any(k in text for k in ("503", "UNAVAILABLE", "high demand", "overloaded", "Overloaded", "500 INTERNAL"))
+
+
 def mark_exhausted(name: str, error: BaseException) -> bool:
+    """Skip a model for a while: until its quota resets, or 2 minutes when it is overloaded."""
     wait = quota_exhausted(error)
+    if wait is None and transient(error):
+        wait = TRANSIENT_PAUSE_S
     if wait is None:
         return False
     _EXHAUSTED[name] = time.monotonic() + wait
@@ -130,18 +143,29 @@ def chat_model(role: str) -> BaseChatModel:
 
 
 async def _with_fallbacks(role: str, call: Any) -> Any:
+    """Try the role's model, then its fallbacks; an overloaded or used-up model is skipped for a while.
+    When every model is overloaded, wait briefly and try the first one once more."""
     last: BaseException | None = None
-    for name in candidates(role):
-        try:
-            return await call(_build(role, name))
-        except BudgetExceeded:
-            raise
-        except Exception as e:  # noqa: BLE001 - only a used-up quota moves on to the next model
-            if not mark_exhausted(name, e):
+    for attempt in range(2):
+        names = candidates(role) if attempt == 0 else [model_name(role), *cfg.model_fallbacks(model_name(role))][:1]
+        for name in names:
+            try:
+                return await call(_build(role, name))
+            except BudgetExceeded:
                 raise
-            last = e
+            except Exception as e:  # noqa: BLE001 - only quota/overload errors move on to the next model
+                if not mark_exhausted(name, e):
+                    raise
+                last = e
+        if last is not None and not transient(last):
+            break
+        await asyncio.sleep(5)
     assert last is not None
-    raise last
+    raise ProviderUnavailable(str(last)) from last
+
+
+class ProviderUnavailable(RuntimeError):
+    """Every model of a role is overloaded or out of quota (shown to the user as a plain message)."""
 
 
 async def structured(role: str, schema: type[T], system: str, user: str) -> T:

@@ -64,6 +64,20 @@ BudgetFactory = Callable[[str, str], TurnBudget]
 InputHook = Callable[[str, str, str], Awaitable[dict[str, Any]]]
 
 
+_PROVIDER_BUSY = ("503", "UNAVAILABLE", "high demand", "overloaded", "RESOURCE_EXHAUSTED", "429",
+                  "ProviderUnavailable", "RateLimit", "insufficient_quota")  # fmt: skip
+
+
+def user_error_text(e: BaseException) -> str:
+    """A plain message for the user; technical details stay in the event's `detail` and in the logs."""
+    raw = f"{type(e).__name__}: {e}"
+    if any(k in raw for k in _PROVIDER_BUSY):
+        return ("The AI service is overloaded or out of quota right now. Nothing is lost: send the message "
+                "again in a minute. / Сервис ИИ сейчас перегружен или исчерпал квоту. Ничего не потеряно — "
+                "отправьте сообщение ещё раз через минуту.")  # fmt: skip
+    return "Something went wrong on my side. Please try again. / Что-то пошло не так. Попробуйте ещё раз."
+
+
 class ChatRunner:
     def __init__(
         self,
@@ -189,7 +203,7 @@ class ChatRunner:
             return await self._done(ctx, final, started)
         except Exception as e:
             await self.ports.turns.update(turn_id, status="FAILED", usage=budget.snapshot())
-            await ctx.emit("error", {"text": f"{type(e).__name__}: {e}"[:500]})
+            await ctx.emit("error", {"text": user_error_text(e), "detail": f"{type(e).__name__}: {e}"[:500]})
             raise
         finally:
             current_budget.reset(token)
