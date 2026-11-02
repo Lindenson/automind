@@ -3,6 +3,7 @@ provider takes over, both providers down still completes the turn, AI follow-up 
 
 import uuid
 
+import pytest
 from sqlalchemy import delete, select
 
 from automind.application.ports import SearchHit
@@ -17,7 +18,8 @@ from automind.orchestration.runner import ChatRunner
 from tests.fakes.fixture_search import FixtureSearch
 
 from .conftest import budget_factory, make_ports
-from .test_research_flow import INTERPRET, fresh_variant, llm_for_research  # noqa: F401  (fixture)
+from .test_research_flow import INTERPRET, llm_for_research
+from .test_research_flow import fresh_variant as fresh_variant  # noqa: F401  (fixture)
 
 CFG = {"num": 10, "markets": {"ES": {"gl": "es", "hl": "es"}}, "cache_ttl_days": {"default": 7}}
 PRICES = Prices(llm={}, default_llm=(1, 1), eur_per_credit=0.0074, credits={}, provider_query_eur={"fx": 0.001})
@@ -64,7 +66,8 @@ def _runner(saver, llm, searcher, fx):
     return ChatRunner(build_graph(saver, tools=[]), ports, budget_factory(), messages=MessageRepo())
 
 
-async def test_repeat_research_in_a_new_chat_uses_only_the_cache(saver, fresh_variant, monkeypatch):
+@pytest.mark.usefixtures("fresh_variant")
+async def test_repeat_research_in_a_new_chat_uses_only_the_cache(saver, monkeypatch):
     monkeypatch.setattr("automind.infrastructure.search.cache.prices", lambda: PRICES)
     await _forget_research()
     fx = FixtureSearch("racer")
@@ -87,7 +90,8 @@ async def test_repeat_research_in_a_new_chat_uses_only_the_cache(saver, fresh_va
     assert r2.usage["search_calls"] == 0
 
 
-async def test_fallback_provider_and_all_down(saver, fresh_variant, monkeypatch):
+@pytest.mark.usefixtures("fresh_variant")
+async def test_fallback_provider_and_all_down(saver, monkeypatch):
     monkeypatch.setattr(
         "automind.infrastructure.search.cache.prices",
         lambda: Prices(
