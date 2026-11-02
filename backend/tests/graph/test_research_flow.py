@@ -258,3 +258,23 @@ async def test_declined_plan_does_not_block_research_for_a_newly_added_car(saver
     assert r.confirm is not None and r.confirm["kind"] == "cost", (r.status, r.action, r.reply_text)
     usage = (await make_ports().turns.get(r.turn_id)).usage
     assert usage["llm_calls"] >= 2  # interpreter + resolver before the confirmation are kept (not reset on resume)
+
+
+async def test_find_missing_data_and_update_the_report(saver, chat_id, fresh_variant):
+    """User report 2026-11-02: "почему нет данных по мазде? найди и обнови отчёт" was answered from the cache."""
+    llm = llm_for_research().queue("interpreter", INTERPRET).queue("reporter", "Report.")
+    rn = runner(saver, llm, FixtureSearch("racer"))
+    r = await rn.run_turn(chat_id, "FixtureMake Racer for a race enthusiast")
+    assert r.action == "REPORT"
+    async with sessionmaker()() as s:  # pretend one area stayed below its minimum
+        v = (await s.execute(select(m.Variant).where(m.Variant.make == MAKE))).scalar_one()
+        q = select(m.ResearchRun).where(m.ResearchRun.variant_id == v.id, m.ResearchRun.area == "measured")
+        run = (await s.execute(q)).scalar_one()
+        run.minimum_met = False
+        await s.commit()
+    llm.queue("interpreter", {"request": "research_more", "language": "ru", "focus_cars": ["car#1"], "delta": {}})
+    llm.queue("reporter", "Updated report.")
+    r2 = await rn.run_turn(chat_id, "почему нет данных по разгону? найди и обнови отчёт")
+    assert r2.status == "DONE" and r2.action == "REPORT", (r2.action, r2.reply_text)
+    jobs = await make_ports().jobs.for_turn(r2.turn_id)
+    assert {j.area for j in jobs} == {"measured"}  # only the area that was missing, researched again

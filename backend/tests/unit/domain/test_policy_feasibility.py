@@ -67,3 +67,37 @@ def test_used_price_area_is_planned_only_when_a_budget_needs_it():
     p1 = plan(cars, persona="BUYER", criteria=[], depth="STANDARD", last_done={}, budget_used=True,
               now=__import__("datetime").datetime.now())  # fmt: skip
     assert any(j.area == "used_price" for j in p1.jobs)
+
+
+def test_research_more_researches_and_always_reports():
+    c = case()
+    stale = CarState(in_catalog=True, data_fresh=False)
+    assert decide(c, "research_more", {"car#1": stale}, cost_estimate_eur=0.1, last_fingerprint=None).kind == "RESEARCH"
+    # after the research, even an unchanged case gets a fresh report (never "nothing new")
+    a = decide(c, "research_more", {"car#1": FRESH}, cost_estimate_eur=0, last_fingerprint=fingerprint(c))
+    assert a.kind == "REPORT"
+
+
+def test_forced_areas_are_planned_although_fresh():
+    from datetime import UTC, datetime
+
+    now = datetime(2026, 11, 2, tzinfo=UTC)
+    done = {"v1": {a: now for a in ("specs", "price", "maintenance", "reliability", "reviews")}}
+    cars = [CarToPlan("car#1", "v1", "NEW")]
+    assert plan(cars, persona="BUYER", criteria=[], depth="STANDARD", last_done=done, now=now).jobs == []
+    p = plan(
+        cars, persona="BUYER", criteria=[], depth="DEEP", last_done=done, now=now, force={"v1": {"specs", "price"}}
+    )
+    assert {j.area for j in p.jobs} == {"specs", "price"} and p.rounds == 2
+
+
+def test_unmet_areas_are_retried_after_12_hours():
+    from datetime import UTC, datetime, timedelta
+
+    now = datetime(2026, 11, 2, 18, tzinfo=UTC)
+    cars = [CarToPlan("car#1", "v1", "NEW")]
+    recent = {"v1": {a: now - timedelta(hours=2) for a in ("specs", "price", "maintenance", "reliability", "reviews")}}
+    older = {"v1": {a: now - timedelta(hours=13) for a in ("specs", "price", "maintenance", "reliability", "reviews")}}
+    kw = dict(persona="BUYER", criteria=[], depth="STANDARD", now=now, unmet={"v1": {"specs"}})
+    assert plan(cars, last_done=recent, **kw).jobs == []
+    assert [j.area for j in plan(cars, last_done=older, **kw).jobs] == ["specs"]

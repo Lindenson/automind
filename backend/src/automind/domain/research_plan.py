@@ -33,6 +33,7 @@ FRESHNESS_DAYS: dict[str, int] = {
     "used_price": 30,
 }
 ROUNDS: dict[str, int] = {"QUICK": 0, "STANDARD": 1, "DEEP": 2}
+RETRY_UNMET_HOURS = 12  # an area that missed its evidence minimum is tried again after this, not after months
 OLD_CAR_YEARS = 25
 
 PERSONA_AREAS: dict[str, set[str]] = {
@@ -121,7 +122,10 @@ def plan(
     last_done: Mapping[str, Mapping[str, datetime]],
     now: datetime,
     budget_used: bool = False,
+    force: Mapping[str, set[str]] | None = None,
+    unmet: Mapping[str, set[str]] | None = None,
 ) -> ResearchPlan:
+    """`force`: variant_id -> areas to research again although cached (the user asked to find missing data)."""
     crit = list(criteria)
     jobs: list[Job] = []
     warnings: list[Warning] = []
@@ -129,7 +133,11 @@ def plan(
         done = last_done.get(car.variant_id, {})
         for area in AREAS:  # stable order
             wanted = areas_for(persona, crit, car.condition, budget_used)
-            if area in wanted and not is_fresh(area, done.get(area), now):
+            forced = area in (force or {}).get(car.variant_id, set())
+            retry = area in (unmet or {}).get(car.variant_id, set()) and (
+                done.get(area) is None or now - done[area] >= timedelta(hours=RETRY_UNMET_HOURS)
+            )
+            if area in wanted and (forced or retry or not is_fresh(area, done.get(area), now)):
                 jobs.append(Job(car.key, car.variant_id, area))
         if car.age_years is not None and car.age_years > OLD_CAR_YEARS:
             warnings.append(Warning("OLD_CAR", car.key))

@@ -903,6 +903,20 @@ async def last_done(variant_ids: list[str]) -> dict[str, dict[str, Any]]:
     return out
 
 
+async def unmet_areas(variant_ids: list[str]) -> dict[str, set[str]]:
+    """variant_id -> areas researched before whose evidence minimum was not reached (worth another try)."""
+    out: dict[str, set[str]] = defaultdict(set)
+    async with db.sessionmaker()() as s:
+        rows = await s.execute(
+            select(db.ResearchRun.variant_id, db.ResearchRun.area).where(
+                db.ResearchRun.variant_id.in_(variant_ids), db.ResearchRun.minimum_met.is_not(True)
+            )
+        )
+        for vid, area in rows.all():
+            out[str(vid)].add(str(area))
+    return out
+
+
 def same_model_generations(ref_generations: dict[str, list[tuple[str, Any, Any]]], v: db.Variant) -> list[str]:
     make, model = identity.normalize_make_model(v.make, v.model)
     return [g for g, _, _ in ref_generations.get(f"{make}|{model}", [])]

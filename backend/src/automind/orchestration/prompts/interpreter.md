@@ -47,6 +47,10 @@ Rules
 - Answers to a PENDING question fill the corresponding case fields. If PENDING is a variant or
   cost confirmation and the user simply agrees, request is confirm_yes; if they refuse, confirm_no.
 - A question about the current cars without new facts → follow_up_question, empty delta.
+- The user is not satisfied with the data and asks to find it or to redo the report ("why is there no data
+  for the Mazda? find it and update the report", "search again", "look deeper", "this is incomplete") →
+  research_more, with `focus_cars` = the car keys they named (empty = all). Never answer such a request with
+  follow_up_question.
 - General automotive knowledge ("how does a turbo work?") → general_question, empty delta.
 - language: the language of the latest user message (ru, en, es …).
 

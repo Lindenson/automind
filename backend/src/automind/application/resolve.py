@@ -90,6 +90,10 @@ def _years(v: db.Variant, ref: Reference | None) -> tuple[int | None, int | None
 def _fits(v: db.Variant, car: CaseCar, gen_hint: str | None, current_year: int, ref: Reference | None = None) -> bool:
     if gen_hint and (v.generation or "").lower() != gen_hint.lower():
         return False
+    if ref is not None and not v.generation:  # a catalog row without a generation is not reused when config knows them
+        make, model = identity.normalize_make_model(v.make, v.model, ref.aliases)
+        if ref.generations.get(f"{make}|{model}"):
+            return False
     lo, hi = _years(v, ref)
     if car.year is not None:
         return lo is None or identity.generation_matches(car.year, lo, hi, tolerance=1)
@@ -201,13 +205,25 @@ async def resolve_with_llm(ports: Ports, car: CaseCar, current_year: int) -> tup
     snippets = "\n\n".join(
         f'<untrusted_document url="{u}">\n{t}\n{x[:1500]}\n</untrusted_document>' for u, t, x in docs[:7]
     )
-    ident = await ports.llm.structured(
-        "resolver",
-        VariantIdentity,
-        ports.ref.prompts["resolver"],
+    current = current_generation(ports.ref, car, current_year)
+    if current is not None:
+        context.append(f"current generation (sold new now): {current[0]} ({current[1]}–)")
+    user = (
         f"User's car: {car.request_text}\nCase context: {'; '.join(context)}\nCurrent year: {current_year}\n\n"
-        f"Search results:\n{snippets or '(none)'}",
+        f"Search results:\n{snippets or '(none)'}"
     )
+    ident = await ports.llm.structured("resolver", VariantIdentity, ports.ref.prompts["resolver"], user)
+    if current is not None and (ident.generation or "").lower() != current[0].lower():
+        # a NEW car must be the current generation: ask once more with the generation named, then take it
+        again = await ports.llm.structured(
+            "resolver", VariantIdentity, ports.ref.prompts["resolver"],
+            user + f"\n\nThe car is bought NEW: it is the {current[0]} generation ({current[1]}–). "
+            "Return that generation and one of its engines.",
+        )  # fmt: skip
+        ident = again if (again.generation or "").lower() == current[0].lower() else again.model_copy(
+            update={"generation": current[0], "generation_years_from": current[1], "generation_years_to": None,
+                    "note": (again.note + " " if again.note else "") + f"Generation set to {current[0]} (new car)."}
+        )  # fmt: skip
     if (
         car.year
         and ident.generation_years_from
@@ -220,6 +236,16 @@ async def resolve_with_llm(ports: Ports, car: CaseCar, current_year: int) -> tup
             f"{ident.generation_years_to or 'now'}) does not match ~{car.year}"
         )
     return await upsert_variant(ident, ports.ref), ident
+
+
+def current_generation(ref: Reference, car: CaseCar, current_year: int) -> tuple[str, int] | None:
+    """For a NEW car without a year: the generation on sale now according to config/generations.yaml."""
+    if car.year is not None or car.condition == "USED" or not (car.make and car.model):
+        return None
+    make, model = identity.normalize_make_model(car.make, car.model, ref.aliases)
+    gens = [(g, a, b) for g, a, b in ref.generations.get(f"{make}|{model}", []) if a is not None]
+    on_sale = [(g, a) for g, a, b in gens if a <= current_year and (b is None or b >= current_year)]
+    return max(on_sale, key=lambda x: x[1]) if on_sale else None
 
 
 class GenerationMismatch(ValueError):

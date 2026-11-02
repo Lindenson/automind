@@ -35,6 +35,7 @@ RequestKind = Literal[
     "follow_up_question",
     "weights_change",
     "correction",
+    "research_more",
     "general_question",
     "confirm_yes",
     "confirm_no",
@@ -103,7 +104,17 @@ def decide(
         if est >= confirm_threshold_eur and not cost_approved:
             return Action(kind="CONFIRM_COST", cars=stale, over_cap=est > hard_cap_eur, reason=f"estimated €{est:.2f}")
         return Action(kind="RESEARCH", cars=stale, reason="data stale or missing for the current criteria")
+    return _answer_or_report(case, request, last_fingerprint, case_changed, feasibility_pending)
+
+
+def _answer_or_report(
+    case: CaseFile, request: RequestKind, last_fingerprint: str | None, case_changed: bool, feasibility_pending: bool
+) -> Action:
+    """Data is in place: answer from context, say the request does not fit, or write the report."""
     single = len(case.cars) == 1
+    # 4b. "find the missing data and update the report": after the research, always a fresh report
+    if request == "research_more":
+        return Action(kind="REPORT", profile=single, reason="the user asked to research more and update the report")
     # 5. answer from context (a correction that changes nothing is answered, not re-reported)
     if request == "correction" and not case_changed:
         return Action(

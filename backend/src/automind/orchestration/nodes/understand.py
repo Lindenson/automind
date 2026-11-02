@@ -97,7 +97,10 @@ async def assess_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[s
     out: dict[str, Any] = {}
     if changed:
         out["case_version"] = await save_case(c, case, changed)
-    plan = await _plan(c, case)
+    more = state.get("request_kind") == "research_more" and not state.get("research_done")
+    plan = await _plan(
+        c, case, research_more=more, focus=list((state.get("interpretation") or {}).get("focus_cars") or [])
+    )
     for key, a in assessments.items():
         car = case.car(key)
         a["state"]["data_fresh"] = bool(car.variant_id) and not any(j.car_key == key for j in plan.jobs)
@@ -123,7 +126,9 @@ async def assess_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[s
     return out
 
 
-async def _plan(c: TurnContext, case: CaseFile) -> research_plan.ResearchPlan:
+async def _plan(
+    c: TurnContext, case: CaseFile, *, research_more: bool = False, focus: list[str] | None = None
+) -> research_plan.ResearchPlan:
     cars = [
         research_plan.CarToPlan(key=x.key, variant_id=x.variant_id, condition=x.condition, age_years=x.age_years)
         for x in case.cars
@@ -134,9 +139,14 @@ async def _plan(c: TurnContext, case: CaseFile) -> research_plan.ResearchPlan:
     budget_used = bool(case.budget.max_eur) and (
         case.budget.intent in ("USED", "ANY") or any(x.condition == "USED" for x in case.cars)
     )
+    unmet = await research.unmet_areas([x.variant_id for x in cars])
+    force: dict[str, set[str]] = {}
+    if research_more:  # the user asked to find what is missing: retry areas below their minimum now, deeper
+        keys = set(focus or []) or {x.key for x in cars}
+        force = {x.variant_id: unmet.get(x.variant_id, set()) for x in cars if x.key in keys}
     return research_plan.plan(
-        cars, persona=case.persona, criteria=criteria, depth=case.depth, last_done=last, now=c.ports.clock.now(),
-        budget_used=budget_used,
+        cars, persona=case.persona, criteria=criteria, depth="DEEP" if research_more else case.depth, last_done=last,
+        now=c.ports.clock.now(), budget_used=budget_used, force=force, unmet=unmet,
     )  # fmt: skip
 
 

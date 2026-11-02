@@ -22,14 +22,18 @@ class Interpretation(BaseModel):
     request: RequestKind = Field(
         description="compare: compare/recommend cars; single: one car; follow_up_question: question about cars "
         "already discussed; weights_change: priorities/what matters changed; correction: user corrects a car or "
-        "a fact; general_question: general automotive knowledge; confirm_yes/confirm_no: answer to a pending "
-        "confirmation; chitchat: greetings/other"
+        "a fact; research_more: the user asks to find missing data, search again or redo/update the report "
+        "('why is there no data for X? find it', 'update the report', 'look deeper'); general_question: general "
+        "automotive knowledge; confirm_yes/confirm_no: answer to a pending confirmation; chitchat: greetings/other"
     )
     language: str = Field(description="ISO 639-1 code of the user's message, e.g. 'ru', 'en', 'es'")
     delta: CaseDelta = Field(default_factory=CaseDelta, description="Changes to the case file stated in THIS message")
     persona_evidence: str | None = Field(
         default=None,
         description="Verbatim words from the LATEST user message that show who the user is (required to set_persona)",
+    )
+    focus_cars: list[str] = Field(
+        default_factory=list, description="research_more: car keys the user named (empty = all cars)"
     )
     constraints_evidence: list[str] = Field(
         default_factory=list,
