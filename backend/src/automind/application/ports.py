@@ -8,7 +8,7 @@ scripted LLM and fixture search.
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Protocol, TypeVar
 
@@ -30,6 +30,12 @@ class Reference:
     queries: dict[str, list[str]]
     criteria: Any = None  # domain.criteria.CriteriaModel (config/criteria.yaml)
     rates: dict[str, Any] | None = None  # config/rates.yaml (TCO)
+    favourite_queries: dict[str, str] = field(default_factory=dict)  # area -> template with {sites}
+    search: dict[str, Any] = field(default_factory=dict)  # config/search.yaml
+    favourites: list[dict[str, Any]] = field(default_factory=list)  # config/sources.yaml favourites
+    manufacturer_sites: dict[str, str] = field(default_factory=dict)  # make -> official ES site
+    plausibility: dict[str, Any] = field(default_factory=dict)  # config/plausibility.yaml
+    feasibility: dict[str, Any] = field(default_factory=dict)  # config/feasibility.yaml
 
 
 @dataclass
@@ -52,12 +58,85 @@ class LLM(Protocol):
         ...
 
 
-class Search(Protocol):
-    async def search(self, query: str, max_results: int = 5) -> list[WebDoc]: ...
+@dataclass(frozen=True)
+class SearchHit:
+    """One web search result. Never carries page text: pages come from the PageStore (spec 003 R1)."""
 
-    async def extract(self, url: str) -> WebDoc | None: ...
+    url: str
+    title: str
+    snippet: str
+    rank: int
 
-    async def fill_full_text(self, docs: list[WebDoc]) -> None: ...
+
+class SearchProvider(Protocol):
+    """One external search API (Serper, SerpApi, Tavily …). Raises SearchUnavailable-like errors."""
+
+    name: str
+
+    async def search(self, query: str, *, gl: str, hl: str, num: int = 10) -> list[SearchHit]: ...
+
+
+class Searcher(Protocol):
+    """Cache-first search over the configured providers (search_cache → primary → fallback).
+
+    Records usage (cost 0 for cache hits), drops deny-listed URLs, and raises only when every
+    provider failed."""
+
+    async def search(self, query: str, *, market: str = "ES", area: str | None = None) -> list[SearchHit]: ...
+
+
+@dataclass(frozen=True)
+class Page:
+    """A fetched page: main content (markdown, tables kept) or PDF text (spec 003 R4)."""
+
+    url: str  # final URL
+    title: str
+    text: str
+    content_type: str = "text/html"
+    reader: str = "main_content"  # main_content | pdf | site:<id>
+    fetched_at: datetime | None = None
+    from_cache: bool = False
+    html: str | None = None  # raw HTML for site readers only; never stored
+    document_id: str | None = None
+
+    def as_doc(self) -> WebDoc:
+        return WebDoc(url=self.url, title=self.title, text=self.text, snippet_only=False)
+
+
+class PageStore(Protocol):
+    """Cache-first fetch under the fetch policy (deny-list, robots incl. Crawl-delay, rate, size).
+
+    Returns None when the page is refused, empty or failed; the reason is stored with the page."""
+
+    async def get(self, url: str, *, area: str | None = None) -> Page | None: ...
+
+    def last_reason(self, url: str) -> str | None: ...
+
+
+@dataclass(frozen=True)
+class ReadingRow:
+    attribute: str
+    raw_value: str
+    raw_unit: str | None
+    excerpt: str  # the table row text, so the 002 excerpt validation still applies
+
+
+@dataclass(frozen=True)
+class SiteReading:
+    reader: str
+    rows: list[ReadingRow]
+    ambiguous: bool = False
+
+
+class SiteReaders(Protocol):
+    """Deterministic table readers for favourite spec sites (spec 003 R6). None = layout not recognised."""
+
+    def read(self, page: Page, target: dict[str, Any]) -> SiteReading | None: ...
+
+
+class NoReaders:
+    def read(self, page: Page, target: dict[str, Any]) -> SiteReading | None:
+        return None
 
 
 class CaseRepo(Protocol):
@@ -125,7 +204,7 @@ Emit = Callable[[str, dict[str, Any]], Awaitable[None]]
 @dataclass
 class Ports:
     llm: LLM
-    search: Search
+    search: Searcher
     cases: CaseRepo
     turns: TurnRepo
     events: EventBus
@@ -134,3 +213,9 @@ class Ports:
     ref: Reference
     messages: MessageRepo
     estimator: Estimator
+    pages: PageStore | None = None  # None → `search` also implements PageStore (test fakes)
+    readers: SiteReaders = field(default_factory=NoReaders)
+
+    @property
+    def page_store(self) -> PageStore:
+        return self.pages if self.pages is not None else self.search  # type: ignore[return-value]

@@ -7,6 +7,8 @@ validator: openai:gpt-5.4-mini
 reporter: openai:gpt-5.4
 answerer: openai:gpt-5.4
 general: openai:gpt-5.4-mini
+query_planner: openai:gpt-5.4-mini  # proposes follow-up search queries; never sees page text
+relevance: openai:gpt-5.4-mini      # web reader: is this page about the exact variant?
 # Legacy demo roles (removed when the demo graph is replaced, T035/T060):
 hub: openai:gpt-5.4
 analyst: openai:gpt-5.4

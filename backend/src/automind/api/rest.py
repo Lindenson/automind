@@ -13,6 +13,7 @@ from automind.config import settings
 from automind.domain.casefile import Budget, CaseDelta, CaseFile, PersonaChange, Rates, apply, set_weights
 from automind.infrastructure import config as cfg
 from automind.infrastructure import llm_gateway
+from automind.infrastructure.config import search_config
 
 router = APIRouter()
 
@@ -33,7 +34,15 @@ def health_payload(request: Request) -> dict[str, Any]:
     return {
         "status": "ok",
         "models": llm_gateway.models_by_role(),
-        "search": "tavily",
+        "search": {
+            "provider": (sc := search_config()).get("provider"),
+            "fallback": sc.get("fallback") or [],
+            "keys": {
+                "serper": bool(s.serper_api_key),
+                "serpapi": bool(s.serpapi_api_key),
+                "tavily": bool(s.tavily_api_key),
+            },
+        },
         "keys": {
             "openai": bool(s.openai_api_key),
             "anthropic": bool(s.anthropic_api_key),

@@ -34,3 +34,43 @@ version: 1
 "Tesla|Model 3":
   - {generation: Mk1, from: 2017, to: 2023}
   - {generation: Highland, from: 2023, to: null}
+"BMW|5 Series":
+  - {generation: F10, from: 2010, to: 2016}
+  - {generation: G30, from: 2017, to: 2023}
+  - {generation: G60, from: 2023, to: null}
+"Mercedes-Benz|E-Class":
+  - {generation: W124, from: 1985, to: 1995}
+  - {generation: W210, from: 1995, to: 2002}
+  - {generation: W211, from: 2002, to: 2009}
+  - {generation: W212, from: 2009, to: 2016}
+  - {generation: W213, from: 2016, to: 2023}
+  - {generation: W214, from: 2023, to: null}
+"Skoda|Octavia":
+  - {generation: Mk2, from: 2004, to: 2012}
+  - {generation: Mk3, from: 2012, to: 2019}
+  - {generation: Mk4, from: 2020, to: null}
+"Toyota|RAV4":
+  - {generation: XA30, from: 2005, to: 2012}
+  - {generation: XA40, from: 2013, to: 2018}
+  - {generation: XA50, from: 2019, to: null}
+"Honda|Civic":
+  - {generation: FK (10th), from: 2017, to: 2021}
+  - {generation: FL (11th), from: 2022, to: null}
+"SEAT|Leon":
+  - {generation: Mk3, from: 2012, to: 2019}
+  - {generation: Mk4, from: 2020, to: null}
+"Audi|A4":
+  - {generation: B8, from: 2008, to: 2015}
+  - {generation: B9, from: 2015, to: 2024}
+"Renault|Clio":
+  - {generation: IV, from: 2012, to: 2019}
+  - {generation: V, from: 2019, to: null}
+"Kia|Sportage":
+  - {generation: QL, from: 2016, to: 2021}
+  - {generation: NQ5, from: 2022, to: null}
+"Peugeot|308":
+  - {generation: T9, from: 2013, to: 2021}
+  - {generation: P5, from: 2021, to: null}
+"Volkswagen|Tiguan":
+  - {generation: Mk2, from: 2016, to: 2023}
+  - {generation: Mk3, from: 2024, to: null}

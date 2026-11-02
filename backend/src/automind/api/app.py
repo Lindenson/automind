@@ -103,4 +103,5 @@ if settings().frontend_dist.exists():
 def main() -> None:
     import uvicorn
 
-    uvicorn.run("automind.api.app:app", host="127.0.0.1", port=8000)
+    s = settings()
+    uvicorn.run("automind.api.app:app", host=s.api_host, port=s.api_port)

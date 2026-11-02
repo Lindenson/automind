@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select, text, update
 from sqlalchemy.exc import IntegrityError
 
 from .models import (
@@ -159,18 +159,15 @@ class TurnRepo:
 
 class EventRepo:
     async def append(self, chat_id: str, turn_id: str | None, type_: str, payload: dict[str, Any]) -> int:
-        """Persist an event with the next per-chat seq. Retries on a concurrent seq collision."""
-        for _ in range(5):
-            async with sessionmaker()() as s:
-                seq = (await s.execute(select(func.max(TurnEvent.seq)).where(TurnEvent.chat_id == chat_id))).scalar()
-                nxt = int(seq or 0) + 1
-                s.add(TurnEvent(chat_id=chat_id, seq=nxt, turn_id=turn_id, type=type_, payload=payload))
-                try:
-                    await s.commit()
-                    return nxt
-                except IntegrityError:
-                    await s.rollback()
-        raise RuntimeError(f"could not allocate event seq for chat {chat_id}")
+        """Persist an event with the next per-chat seq. Concurrent writers of one chat are serialised by a
+        transaction-scoped advisory lock, so parallel research jobs never collide on the seq."""
+        async with sessionmaker()() as s:
+            await s.execute(text("SELECT pg_advisory_xact_lock(hashtext(:k))"), {"k": f"events:{chat_id}"})
+            seq = (await s.execute(select(func.max(TurnEvent.seq)).where(TurnEvent.chat_id == chat_id))).scalar()
+            nxt = int(seq or 0) + 1
+            s.add(TurnEvent(chat_id=chat_id, seq=nxt, turn_id=turn_id, type=type_, payload=payload))
+            await s.commit()
+            return nxt
 
     async def since(self, chat_id: str, after_seq: int) -> list[TurnEvent]:
         async with sessionmaker()() as s:
@@ -290,12 +287,14 @@ class UsageRepo:
         cost_eur: float,
         job_id: str | None = None,
         area: str | None = None,
+        provider: str = "tavily",
+        cached: bool = False,
     ) -> None:
         async with sessionmaker()() as s:
             s.add(
                 SearchCall(
                     chat_id=chat_id, turn_id=turn_id, kind=kind, credits=credits, cost_eur=cost_eur, job_id=job_id,
-                    area=area,
+                    area=area, provider=provider, cached=cached,
                 )
             )  # fmt: skip
             await s.commit()
@@ -345,7 +344,7 @@ class UsageRepo:
             srch = (
                 await s.execute(
                     select(func.count(SearchCall.id), func.coalesce(func.sum(SearchCall.cost_eur), 0)).where(
-                        SearchCall.turn_id == turn_id
+                        SearchCall.turn_id == turn_id, SearchCall.cached.is_(False)
                     )
                 )
             ).one()

@@ -287,11 +287,11 @@ async def run_dialogue(path: Path, saver: Any, *, live: bool = False, record: bo
     await seed(d)
     chat_id = str(uuid.uuid4())
     if live:
-        from automind.infrastructure.adapters import LiveLLM, LiveSearch
+        from automind.infrastructure.adapters import LiveLLM, live_pages, live_search
         from automind.infrastructure.llm_gateway import new_budget
 
         llm: Any = RecordingLLM(LiveLLM()) if record else LiveLLM()
-        search: Any = LiveSearch()
+        search: Any = live_search()
         budgets = new_budget
     else:
         llm = FakeLLM()
@@ -302,6 +302,7 @@ async def run_dialogue(path: Path, saver: Any, *, live: bool = False, record: bo
     events = EventBus(EventRepo())
     from automind.infrastructure.config import reference
     from automind.orchestration.prompts import load_all
+    from tests.graph.conftest import open_web_reference
 
     ports = Ports(
         llm=llm,
@@ -311,9 +312,10 @@ async def run_dialogue(path: Path, saver: Any, *, live: bool = False, record: bo
         events=events,
         jobs=JobRepo(),
         clock=_clock(),
-        ref=reference(load_all()),
+        ref=reference(load_all()) if live else open_web_reference(),
         messages=MessageRepo(),
         estimator=_estimator(live),
+        pages=live_pages() if live else None,
     )
     runner = ChatRunner(build_graph(saver), ports, budgets, messages=MessageRepo())
     failures: list[str] = []

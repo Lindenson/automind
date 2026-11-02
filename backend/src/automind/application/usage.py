@@ -28,6 +28,7 @@ class Prices:
     default_llm: tuple[float, float]
     eur_per_credit: float
     credits: dict[str, float]
+    provider_query_eur: dict[str, float] = field(default_factory=dict)
 
     @classmethod
     def from_config(cls, d: dict[str, Any]) -> Prices:
@@ -39,6 +40,7 @@ class Prices:
             default_llm=pair(d["default_llm"]),
             eur_per_credit=float(d["search"]["eur_per_credit"]),
             credits={k: float(v) for k, v in d["search"]["credits"].items()},
+            provider_query_eur={k: float(v["eur_per_query"]) for k, v in (d["search"].get("providers") or {}).items()},
         )
 
     def llm_cost(self, model: str, input_tokens: int, output_tokens: int) -> float:
@@ -47,6 +49,12 @@ class Prices:
 
     def search_cost(self, credits: float) -> float:
         return credits * self.eur_per_credit
+
+    def query_cost(self, provider: str) -> float:
+        """€ per search query for a provider; Tavily is priced in credits (advanced = 2)."""
+        if provider in self.provider_query_eur:
+            return self.provider_query_eur[provider]
+        return self.search_cost(self.credits.get("search_advanced", 2))
 
 
 @dataclass(frozen=True)
@@ -99,10 +107,16 @@ class TurnBudget:
             raise self._reached("cost_cap", f"cost cap of €{self.limits.hard_cap_eur:.2f} per turn reached")
 
     def after_search(self, credits: float) -> float:
+        return self.after_search_eur(self.prices.search_cost(credits))
+
+    def before_search_eur(self, eur: float) -> None:
+        if self.cost_eur + eur > self.limits.hard_cap_eur:
+            raise self._reached("cost_cap", f"cost cap of €{self.limits.hard_cap_eur:.2f} per turn reached")
+
+    def after_search_eur(self, eur: float) -> float:
         self.search_calls += 1
-        cost = self.prices.search_cost(credits)
-        self.cost_eur += cost
-        return cost
+        self.cost_eur += eur
+        return eur
 
     def restore(self, usage: dict[str, Any] | None) -> None:
         """Continue counting from a stored snapshot (a turn resumed after a confirmation or a restart)."""

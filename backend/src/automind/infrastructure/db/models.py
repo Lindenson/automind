@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
+from typing import Any
 
 from sqlalchemy import (
     JSON,
     BigInteger,
     Boolean,
+    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -66,8 +68,18 @@ class Document(Base):
     url: Mapped[str] = mapped_column(Text)
     title: Mapped[str | None] = mapped_column(Text)
     text: Mapped[str] = mapped_column(Text)
-    content_sha256: Mapped[str | None] = mapped_column(String(64), unique=True)
+    content_sha256: Mapped[str | None] = mapped_column(String(64), index=True)
     retrieved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    # page store (spec 003, data-model "documents → page store"): one row per normalised URL
+    url_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
+    final_url: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(16), default="OK", server_default="OK")  # OK|NO_CONTENT|REFUSED|ERROR
+    fail_reason: Mapped[str | None] = mapped_column(Text)
+    content_type: Mapped[str | None] = mapped_column(String(60))
+    reader: Mapped[str | None] = mapped_column(String(40))  # main_content | pdf | site:<id>
+    fetched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    bytes: Mapped[int | None] = mapped_column(Integer)
 
 
 class Evidence(Base):
@@ -81,6 +93,8 @@ class Evidence(Base):
     source_type: Mapped[str] = mapped_column(String(24))
     snippet_only: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     retrieved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    favourite: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    favourite_priority: Mapped[int | None] = mapped_column(Integer)
 
 
 class Claim(Base):
@@ -97,7 +111,11 @@ class Claim(Base):
     excerpt: Mapped[str] = mapped_column(Text)
     scope: Mapped[str] = mapped_column(String(12), default="VARIANT")
     provenance: Mapped[str] = mapped_column(String(24))
-    status: Mapped[str] = mapped_column(String(32))  # ACCEPTED | REJECTED_UNSUPPORTED | REJECTED_UNIT
+    # ACCEPTED | REJECTED_UNSUPPORTED | REJECTED_UNIT | REJECTED_IMPLAUSIBLE | REJECTED_OTHER_VARIANT
+    # | REJECTED_OTHER_MARKET | REJECTED_OTHER_YEAR | REJECTED_AMBIGUOUS
+    status: Mapped[str] = mapped_column(String(32))
+    reject_rule: Mapped[str | None] = mapped_column(String(40))
+    extracted_by: Mapped[str] = mapped_column(String(12), default="LLM", server_default="LLM")  # READER | LLM
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 
@@ -248,6 +266,14 @@ class ResearchJob(Base):
     rejected: Mapped[int] = mapped_column(Integer, default=0)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # spec 003 metrics (FR-017)
+    queries: Mapped[list[Any] | None] = mapped_column(JSONB)
+    pages_found: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    pages_cached: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    pages_rejected: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    values_rejected: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    reader_values: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    search_cost_eur: Mapped[float | None] = mapped_column(Numeric(10, 4))
 
 
 class SearchCall(Base):
@@ -261,7 +287,80 @@ class SearchCall(Base):
     kind: Mapped[str] = mapped_column(String(10))  # search | extract
     credits: Mapped[float] = mapped_column(Float, default=0)
     cost_eur: Mapped[float | None] = mapped_column(Numeric(10, 5))
+    cached: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+# --- Search v2: cache, relevance, used prices, reader stats, feasibility, tombstones (spec 003) -----
+
+
+class SearchCache(Base):
+    __tablename__ = "search_cache"
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    provider: Mapped[str] = mapped_column(String(20))
+    query: Mapped[str] = mapped_column(Text)
+    gl: Mapped[str] = mapped_column(String(8))
+    hl: Mapped[str] = mapped_column(String(8))
+    hits: Mapped[list[Any]] = mapped_column(JSONB)
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+
+
+class PageRelevance(Base):
+    __tablename__ = "page_relevance"
+    __table_args__ = (PrimaryKeyConstraint("document_id", "variant_id"),)
+    document_id: Mapped[str] = mapped_column(ForeignKey("documents.id", ondelete="CASCADE"))
+    variant_id: Mapped[str] = mapped_column(ForeignKey("vehicle_variants.id"))
+    verdict: Mapped[str] = mapped_column(String(16))  # RELEVANT|OTHER_VARIANT|MULTI_VARIANT|NOT_ABOUT_CAR|UNCERTAIN
+    other: Mapped[str | None] = mapped_column(String(80))
+    reason: Mapped[str] = mapped_column(Text)
+    method: Mapped[str] = mapped_column(String(12))  # RULES | LLM
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class UsedPriceRange(Base):
+    __tablename__ = "used_price_ranges"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    variant_id: Mapped[str] = mapped_column(ForeignKey("vehicle_variants.id"), index=True)
+    evidence_id: Mapped[str] = mapped_column(ForeignKey("evidence.id"))
+    model_year_from: Mapped[int | None] = mapped_column(Integer)
+    model_year_to: Mapped[int | None] = mapped_column(Integer)
+    min_eur: Mapped[float] = mapped_column(Numeric(10, 0))
+    max_eur: Mapped[float] = mapped_column(Numeric(10, 0))
+    market: Mapped[str] = mapped_column(String(4))
+    quoted_on: Mapped[date | None] = mapped_column(Date)
+    excerpt: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(32))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class SiteReaderStat(Base):
+    __tablename__ = "site_reader_stats"
+    __table_args__ = (PrimaryKeyConstraint("domain", "day"),)
+    domain: Mapped[str] = mapped_column(String(200))
+    day: Mapped[date] = mapped_column(Date)
+    ok: Mapped[int] = mapped_column(Integer, default=0)
+    failed: Mapped[int] = mapped_column(Integer, default=0)
+    ambiguous: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class FeasibilityCheck(Base):
+    __tablename__ = "feasibility_checks"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    chat_id: Mapped[str] = mapped_column(String(36), index=True)
+    turn_id: Mapped[str] = mapped_column(String(36))
+    variant_id: Mapped[str] = mapped_column(ForeignKey("vehicle_variants.id"))
+    check: Mapped[str] = mapped_column(String(16))  # BUDGET|RUNNING_COST|USAGE_SPACE|USAGE_POWER|USAGE_RANGE
+    verdict: Mapped[str] = mapped_column(String(16))  # FITS|DOES_NOT_FIT|USED_ONLY|OTHER_CLASS|UNKNOWN
+    details: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class DeletedChat(Base):
+    __tablename__ = "deleted_chats"
+    chat_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    deleted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    counts: Mapped[dict[str, Any]] = mapped_column(JSONB)
 
 
 # --- Research results per area (data-model §4) ------------------------------------------------

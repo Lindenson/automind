@@ -8,13 +8,19 @@ from typing import Any, TypeVar
 from langchain.agents import create_agent
 from pydantic import BaseModel
 
-from automind.application.ports import Ports, WebDoc
+from automind.application.ports import Ports
 from automind.domain.cost import AreaAverage, CostPrices, estimate
-from automind.infrastructure import llm_gateway, search_tavily
-from automind.infrastructure.config import fetch_policy, reference
+from automind.infrastructure import llm_gateway
+from automind.infrastructure.config import fetch_policy, reference, search_config
 from automind.infrastructure.db.repositories import CaseRepo, JobRepo, MessageRepo, TurnRepo, UsageRepo
 from automind.infrastructure.events import EventBus
-from automind.infrastructure.fetch import Fetcher, FetchPolicy, FetchRefused
+from automind.infrastructure.fetch import Fetcher, FetchPolicy
+from automind.infrastructure.pages import DbPageStore
+from automind.infrastructure.search.cache import CachedSearcher
+from automind.infrastructure.search.serpapi import SerpApiProvider
+from automind.infrastructure.search.serper import SerperProvider
+from automind.infrastructure.search.tavily import TavilyProvider
+from automind.infrastructure.site_readers import live_readers
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -31,26 +37,16 @@ class LiveLLM:
         return create_agent(llm_gateway.chat_model(role), tools, system_prompt=system_prompt)
 
 
-class LiveSearch:
-    def __init__(self, fetcher: Fetcher | None = None) -> None:
-        self.fetcher = fetcher or Fetcher(FetchPolicy.from_config(fetch_policy()))
+def live_search() -> CachedSearcher:
+    """Cache-first searcher over the providers named in config/search.yaml (primary, then fallback)."""
+    cfg = search_config()
+    make = {"serper": SerperProvider, "serpapi": SerpApiProvider, "tavily": TavilyProvider}
+    names = [cfg["provider"], *[p for p in cfg.get("fallback") or [] if p != cfg["provider"]]]
+    return CachedSearcher([make[n]() for n in names], cfg)
 
-    async def search(self, query: str, max_results: int = 5) -> list[WebDoc]:
-        return await search_tavily.search(query, max_results=max_results)
 
-    async def extract(self, url: str) -> WebDoc | None:
-        """A pasted URL: direct fetch under the fetch policy; Tavily extract only if fetching failed."""
-        try:
-            return await self.fetcher.fetch(url)
-        except FetchRefused as e:
-            if "deny-list" in e.reason or "robots" in e.reason:
-                return None  # never work around a refusal
-        except Exception:  # noqa: BLE001 - network error: fall back to the search provider
-            pass
-        return await search_tavily.extract(url)
-
-    async def fill_full_text(self, docs: list[WebDoc]) -> None:
-        await search_tavily.fill_full_text(docs)
+def live_pages() -> DbPageStore:
+    return DbPageStore(Fetcher(FetchPolicy.from_config(fetch_policy())))
 
 
 class SystemClock:
@@ -61,7 +57,7 @@ class SystemClock:
 def live_ports(events: EventBus, prompts: dict[str, str]) -> Ports:
     return Ports(
         llm=LiveLLM(),
-        search=LiveSearch(),
+        search=live_search(),
         cases=CaseRepo(),
         turns=TurnRepo(),
         events=events,
@@ -70,6 +66,8 @@ def live_ports(events: EventBus, prompts: dict[str, str]) -> Ports:
         ref=reference(prompts),
         messages=MessageRepo(),
         estimator=LiveEstimator(),
+        pages=live_pages(),
+        readers=live_readers(),
     )
 
 
@@ -87,7 +85,7 @@ class LiveEstimator:
         prices = CostPrices(
             eur_per_m_in=p_in,
             eur_per_m_out=p_out,
-            eur_per_search=p.search_cost(p.credits.get("search_advanced", 2)),
+            eur_per_search=p.query_cost(search_config()["provider"]),
         )
         averages = {a: AreaAverage(*v) for a, v in (await self.repo.area_averages()).items()}
         return estimate(jobs, rounds=rounds, averages=averages, default=self.DEFAULT, prices=prices)

@@ -174,14 +174,21 @@ async def resolve_with_llm(ports: Ports, car: CaseCar, current_year: int) -> tup
     if hints:
         context.append("hints: " + ", ".join(f"{k}={v}" for k, v in hints.items()))
     query = " ".join(x for x in (car.make, car.model, car.constraints.generation_hint) if x) or car.request_text
-    docs = []
+    docs: list[tuple[str, str, str]] = []  # (url, title, text)
+    store = ports.page_store
     if car.constraints.url:
-        d = await ports.search.extract(car.constraints.url)
-        if d:
-            docs.append(d)
-    docs += await ports.search.search(f"{query} generation years engines specifications", max_results=5)
+        page = await store.get(car.constraints.url, area="specs")
+        if page:
+            docs.append((page.url, page.title, page.text))
+    hits = await ports.search.search(f"{query} generation years engines specifications", market="EN", area="specs")
+    docs += [(h.url, h.title, h.snippet) for h in hits[:5]]
+    # the snippets alone rarely give production years: read the top two pages too (cache-first)
+    for h in hits[:2]:
+        page = await store.get(h.url, area="specs")
+        if page:
+            docs.append((page.url, page.title, page.text))
     snippets = "\n\n".join(
-        f'<untrusted_document url="{d.url}">\n{d.title}\n{d.text[:1500]}\n</untrusted_document>' for d in docs[:6]
+        f'<untrusted_document url="{u}">\n{t}\n{x[:1500]}\n</untrusted_document>' for u, t, x in docs[:7]
     )
     ident = await ports.llm.structured(
         "resolver",

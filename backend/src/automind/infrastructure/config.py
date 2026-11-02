@@ -83,13 +83,73 @@ def questions() -> dict[str, str]:
     return {k: str(v) for k, v in load_yaml("questions.yaml").items() if k != "version"}
 
 
+def _query_areas() -> dict[str, Any]:
+    return {k: v for k, v in load_yaml("queries.yaml").items() if k != "version"}
+
+
+def open_queries() -> dict[str, list[str]]:
+    return {k: [str(q) for q in (v.get("open") or [])] for k, v in _query_areas().items()}
+
+
+def favourite_queries() -> dict[str, str]:
+    return {k: str(v["favourite"]) for k, v in _query_areas().items() if v.get("favourite")}
+
+
+PROVIDERS = ("serper", "serpapi", "tavily")
+MARKETS = ("ES", "EN", "DE", "ANY")
+SOURCE_TYPES = ("MANUFACTURER", "INSTRUMENTED_TEST", "SPEC_DATABASE", "PUBLICATION", "ENCYCLOPEDIA")
+
+
+def search_config() -> dict[str, Any]:
+    """config/search.yaml with the SEARCH_PROVIDER env override; validated at start."""
+    d = dict(load_yaml("search.yaml"))
+    if settings().search_provider:
+        d["provider"] = settings().search_provider
+    for p in [d.get("provider"), *(d.get("fallback") or [])]:
+        if p not in PROVIDERS:
+            raise ValueError(f"config/search.yaml: unknown search provider {p!r} (known: {', '.join(PROVIDERS)})")
+    return d
+
+
+def favourites() -> list[dict[str, Any]]:
+    """Favourite sources (config/sources.yaml); a favourite on the deny-list is a configuration error."""
+    d = load_yaml("sources.yaml")
+    deny = [str(x).lower() for x in d.get("denylist", [])]
+    out = []
+    for f in d.get("favourites") or []:
+        dom = str(f["domain"]).lower()
+        if any(x in dom for x in deny):
+            raise ValueError(f"config/sources.yaml: favourite {dom} is on the deny-list")
+        if f.get("source_type") not in SOURCE_TYPES:
+            raise ValueError(f"config/sources.yaml: favourite {dom}: unknown source_type {f.get('source_type')!r}")
+        bad = [m for m in f.get("markets", []) if m not in MARKETS]
+        if bad:
+            raise ValueError(f"config/sources.yaml: favourite {dom}: unknown markets {bad}")
+        out.append(dict(f, domain=dom))
+    return out
+
+
+def plausibility_rules() -> dict[str, Any]:
+    return load_yaml("plausibility.yaml")
+
+
+def feasibility_rules() -> dict[str, Any]:
+    return load_yaml("feasibility.yaml")
+
+
 def reference(prompts: dict[str, str]) -> Reference:
     return Reference(
         aliases=Aliases.from_config(aliases()),
         generations=generations(),
         questions=questions(),
         prompts=prompts,
-        queries={k: [str(q) for q in v] for k, v in load_yaml("queries.yaml").items() if k != "version"},
+        queries=open_queries(),
+        favourite_queries=favourite_queries(),
+        search=search_config(),
+        favourites=favourites(),
+        manufacturer_sites=dict(load_yaml("sources.yaml").get("manufacturer_sites") or {}),
+        plausibility=plausibility_rules(),
+        feasibility=feasibility_rules(),
         criteria=CriteriaModel.from_config(load_yaml("criteria.yaml")),
         rates=rates(),
     )

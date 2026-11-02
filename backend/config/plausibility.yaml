@@ -1,0 +1,16 @@
+# Plausibility rules (spec 003 FR-014, research R8). Applied after unit normalisation, on top of the
+# single-attribute ranges in domain/specs.py. Conservative: reject only the clearly impossible.
+version: 1
+# Ranges by powertrain/fuel (canonical units). Keys: ICE_PETROL, ICE_DIESEL, HEV, PHEV, MHEV, BEV, ANY.
+by_powertrain:
+  claimed_0_100:  {ICE_DIESEL: [4.0, 25], ICE_PETROL: [2.3, 25], BEV: [1.8, 20], ANY: [1.8, 25]}
+  measured_0_100: {ICE_DIESEL: [4.0, 25], ICE_PETROL: [2.3, 25], BEV: [1.8, 20], ANY: [1.8, 25]}
+  consumption:    {ICE_DIESEL: [3.0, 15], ICE_PETROL: [3.5, 25], BEV: [10, 35], ANY: [1.0, 35]}
+  battery_kwh:    {BEV: [15, 150], PHEV: [5, 40], HEV: [0.5, 3], MHEV: [0.2, 2]}
+# Cross-attribute checks; each id is stored as the claim's reject_rule when it fails.
+cross:
+  - {id: pw_ratio_max, desc: "power-to-weight above 1 kW/kg is not a road car", max_kw_per_t: 1000}
+  - {id: slow_car_quick_sprint, desc: "0-100 too quick for the power-to-weight", below_kw_per_t: 60, min_0_100_s: 6.5}
+  - {id: very_slow_car_quick_sprint, desc: "0-100 too quick for the power-to-weight", below_kw_per_t: 40, min_0_100_s: 9.5}
+  - {id: measured_vs_claimed, desc: "measured 0-100 differs from the claimed value by more than 35%", max_rel_diff: 0.35}
+price_eur: {min: 5000, max: 600000}

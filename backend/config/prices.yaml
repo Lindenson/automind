@@ -9,5 +9,12 @@ llm:
   anthropic:claude-haiku-5-5: {input: 0.92, output: 4.60}
 default_llm: {input: 2.30, output: 13.80}
 search:
+  # Per-query price per provider (EUR). serper: ≈ $1 per 1,000 queries on the smallest pack (vendor
+  # list, 2026-11-02; 1 credit per query with num=10 confirmed by a live call) → €0.00092.
+  # serpapi: ≈ $15 per 1,000 on the Developer plan (third-party lists, 2026-11-02) → €0.0138.
+  providers:
+    serper: {eur_per_query: 0.00092}
+    serpapi: {eur_per_query: 0.0138}
+  # Tavily (credits): advanced search = 2 credits.
   eur_per_credit: 0.0074
   credits: {search_basic: 1, search_advanced: 2, extract_basic_per_5_urls: 1, extract_advanced_per_5_urls: 2}

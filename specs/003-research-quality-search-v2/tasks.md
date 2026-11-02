@@ -29,12 +29,12 @@ US1's relevance gate and site readers work on pages from US2's `PageStore`.
 
 **Purpose**: Dependencies, configuration skeletons and keys.
 
-- [ ] T001 Add dependencies with `uv add` in `backend/`: `trafilatura>=2.3,<3`, `pypdf>=6,<7`, `selectolax>=1.0,<2`; commit `uv.lock`; run `scripts/check.sh`
-- [ ] T002 [P] Add `SERPER_API_KEY=`, `SERPAPI_API_KEY=` (and the commented `PARALLEL_API_KEY`) to `.env.example`. Add `serper_api_key: str | None`, `serpapi_api_key: str | None` and `search_provider: str | None` (env override of `config/search.yaml`) to `src/automind/config.py`. Report key presence (booleans only) in `/api/v1/health` `search.keys`
-- [ ] T003 [P] Create `config/search.yaml` exactly as in contracts/search-and-config.md (provider `serper` | `serpapi` | `tavily`, default `serper`, fallback `[tavily]`, `num: 10`, `cache_ttl_days {default: 7, price: 3}`, markets ES/EN/DE → gl/hl, `ai_followup {max_queries_per_area: 3, depths: [DEEP, STANDARD]}`, `limits {max_pages_per_job: 8, max_fetch_bytes_per_turn: 40000000}`). Add a loader `search_config()` in `src/automind/infrastructure/config.py` with validation (unknown provider → error at start)
-- [ ] T004 [P] Add the `favourites:` section to `config/sources.yaml` with the initial list from research.md R5. Each entry has `domain`, `source_type` ∈ {MANUFACTURER, INSTRUMENTED_TEST, SPEC_DATABASE, PUBLICATION, ENCYCLOPEDIA}, `areas`, `markets` ⊆ {ES, EN, DE, ANY}, `priority` 1–3, `reader` (km77 | ultimatespecs | auto_data | adac | null) and `tos_checked: null`. Extend the `SourcePolicy` loader so a favourite on the deny-list fails at start
-- [ ] T005 [P] Reshape `config/queries.yaml`: each area gets `favourite: "<template with {sites}>"` and `open: [...]` (the existing templates), plus the new area `used_price` (templates from contracts/search-and-config.md). Update the loader in `infrastructure/config.py` and the `Reference.queries` type in `application/ports.py`
-- [ ] T006 [P] Create `config/plausibility.yaml` and `config/feasibility.yaml` with the starting values from contracts/search-and-config.md, plus loaders `plausibility_rules()` and `feasibility_rules()`. Add `serper` search prices (`search.providers.serper.per_query_eur`, verified on serper.dev and dated in a comment) to `config/prices.yaml`. Add roles `query_planner` and `relevance` (`openai:gpt-5.4-mini`) to `config/models.yaml`
+- [X] T001 Add dependencies with `uv add` in `backend/`: `trafilatura>=2.3,<3`, `pypdf>=6,<7`, `selectolax>=1.0,<2`; commit `uv.lock`; run `scripts/check.sh`
+- [X] T002 [P] Add `SERPER_API_KEY=`, `SERPAPI_API_KEY=` (and the commented `PARALLEL_API_KEY`) to `.env.example`. Add `serper_api_key: str | None`, `serpapi_api_key: str | None` and `search_provider: str | None` (env override of `config/search.yaml`) to `src/automind/config.py`. Report key presence (booleans only) in `/api/v1/health` `search.keys`
+- [X] T003 [P] Create `config/search.yaml` exactly as in contracts/search-and-config.md (provider `serper` | `serpapi` | `tavily`, default `serper`, fallback `[tavily]`, `num: 10`, `cache_ttl_days {default: 7, price: 3}`, markets ES/EN/DE → gl/hl, `ai_followup {max_queries_per_area: 3, depths: [DEEP, STANDARD]}`, `limits {max_pages_per_job: 8, max_fetch_bytes_per_turn: 40000000}`). Add a loader `search_config()` in `src/automind/infrastructure/config.py` with validation (unknown provider → error at start)
+- [X] T004 [P] Add the `favourites:` section to `config/sources.yaml` with the initial list from research.md R5. Each entry has `domain`, `source_type` ∈ {MANUFACTURER, INSTRUMENTED_TEST, SPEC_DATABASE, PUBLICATION, ENCYCLOPEDIA}, `areas`, `markets` ⊆ {ES, EN, DE, ANY}, `priority` 1–3, `reader` (km77 | ultimatespecs | auto_data | adac | null) and `tos_checked: null`. Extend the `SourcePolicy` loader so a favourite on the deny-list fails at start
+- [X] T005 [P] Reshape `config/queries.yaml`: each area gets `favourite: "<template with {sites}>"` and `open: [...]` (the existing templates), plus the new area `used_price` (templates from contracts/search-and-config.md). Update the loader in `infrastructure/config.py` and the `Reference.queries` type in `application/ports.py`
+- [X] T006 [P] Create `config/plausibility.yaml` and `config/feasibility.yaml` with the starting values from contracts/search-and-config.md, plus loaders `plausibility_rules()` and `feasibility_rules()`. Add `serper` search prices (`search.providers.serper.per_query_eur`, verified on serper.dev and dated in a comment) to `config/prices.yaml`. Add roles `query_planner` and `relevance` (`openai:gpt-5.4-mini`) to `config/models.yaml`
 
 ---
 
@@ -42,7 +42,7 @@ US1's relevance gate and site readers work on pages from US2's `PageStore`.
 
 **Purpose**: Schema, ports and the baseline measurement. No story work starts before this phase ends.
 
-- [ ] T007 Alembic migration `src/automind/infrastructure/db/migrations/versions/0005_search_v2.py` and models in `db/models.py`, exactly per data-model.md:
+- [X] T007 Alembic migration `src/automind/infrastructure/db/migrations/versions/0005_search_v2.py` and models in `db/models.py`, exactly per data-model.md:
   - **new tables**: `search_cache`, `page_relevance`, `used_price_ranges`, `site_reader_stats`, `feasibility_checks`, `deleted_chats`;
   - **`documents`**: + `url_hash char(64) unique`, `final_url`, `status varchar(16)` (`OK|NO_CONTENT|REFUSED|ERROR`), `fail_reason`, `content_type varchar(60)`, `reader varchar(40)`, `fetched_at`, `expires_at` (indexed), `bytes int`. Backfill `url_hash` from `url` and `expires_at = retrieved_at + 365 days`. Replace the unique constraint on `content_sha256` with a plain index;
   - **`claims`**: + `reject_rule varchar(40)`, `extracted_by varchar(12)` (`READER|LLM`, default `LLM`);
@@ -51,21 +51,21 @@ US1's relevance gate and site readers work on pages from US2's `PageStore`.
   - **`search_calls`**: + `cached bool default false`.
 
   Test: `tests/integration/test_migrations.py` upgrade/downgrade on `automind_mig`.
-- [ ] T008 [P] Ports in `src/automind/application/ports.py` per contracts/search-and-config.md:
+- [X] T008 [P] Ports in `src/automind/application/ports.py` per contracts/search-and-config.md:
   - new: `SearchHit`, `SearchProvider`, `Searcher`, `Page`, `PageStore`, `SiteReading`, `SiteReaders`;
   - `Ports` gets `searcher`, `pages` and `readers` in place of `search`.
 
   Keep a temporary adapter so 002 code paths still work until T021.
-- [ ] T009 [P] Test fakes: `tests/fakes/fixture_search.py` becomes a `FakeSearcher` (fixtures keyed by query substring, records calls and `cached`). Add `tests/fakes/fake_pages.py` (`FakePageStore` serving HTML/text fixtures from `tests/fixtures/pages/`) and `tests/fakes/fake_readers.py`. Update `tests/graph/conftest.py::make_ports`
-- [ ] T010 Benchmark list `eval/research_benchmark.yaml`:
+- [X] T009 [P] Test fakes: `tests/fakes/fixture_search.py` becomes a `FakeSearcher` (fixtures keyed by query substring, records calls and `cached`). Add `tests/fakes/fake_pages.py` (`FakePageStore` serving HTML/text fixtures from `tests/fixtures/pages/`) and `tests/fakes/fake_readers.py`. Update `tests/graph/conftest.py::make_ports`
+- [X] T010 Benchmark list `eval/research_benchmark.yaml`:
   - ≥ 20 cars built in the last 15 years and sold in Spain, each with make, model, generation, variant, years, market and expected critical attributes (source to be filled when sourced);
   - ≥ 8 generation traps: Prado J150/J250, Golf Mk7/Mk8, BMW 3 Series F30/G20, BMW 5 Series G30/G60, E-Class W212/W213, Octavia Mk3/Mk4, RAV4 XA40/XA50, Civic FK/FL.
-- [ ] T011 Eval harness `tests/eval/test_research_quality.py` (marker `live`):
+- [X] T011 Eval harness `tests/eval/test_research_quality.py` (marker `live`):
   - runs a new Standard research for each benchmark car in an isolated DB schema or fresh catalog;
   - computes per area: minimum-met share; pages found, cached and rejected by reason; values accepted and rejected by reason; reader share; search and fetch cost; LLM cost; cost per accepted value; wrong-variant values in selected values; duration;
   - writes `eval/out/<provider>-<date>.json` and a markdown summary;
   - respects `SEARCH_PROVIDER` env.
-- [ ] T012 Run the baseline: `SEARCH_PROVIDER=tavily uv run pytest tests/eval/test_research_quality.py -m live -s` on the 002 search path. Record the result in `specs/003-research-quality-search-v2/checklists/baseline.md` (numbers and cost). **Ask the user before running** (estimated several euros)
+- [X] T012 Run the baseline: `SEARCH_PROVIDER=tavily uv run pytest tests/eval/test_research_quality.py -m live -s` on the 002 search path. Record the result in `specs/003-research-quality-search-v2/checklists/baseline.md` (numbers and cost). **Ask the user before running** (estimated several euros)
 
 **Checkpoint**: schema, ports and baseline ready.
 
@@ -82,21 +82,21 @@ switch by config; fallback when Serper fails; deny-listed and robots-forbidden U
 
 ### Tests first (US2)
 
-- [ ] T013 [P] [US2] `tests/unit/domain/test_search_plan.py` covers `domain/search_plan.queries(area, identity, market, favourites, templates, round)`:
+- [X] T013 [P] [US2] `tests/unit/domain/test_search_plan.py` covers `domain/search_plan.queries(area, identity, market, favourites, templates, round)`:
   - round 0 → favourite groups of ≤ 4 sites, ordered by priority, filtered by area and market (ANY matches all), `{sites}` rendered as `site:a OR site:b`;
   - round ≥ 1 → open templates;
   - deny-listed favourites never appear;
   - market locale gl/hl from config;
   - no duplicate queries.
-- [ ] T014 [P] [US2] `tests/unit/infrastructure/test_search_cache.py` covers the cache key: normalisation (lowercase, collapsed spaces, sorted `site:` group), the same key for equivalent queries, expiry by area TTL, and a cache hit returning stored hits with `cached=True` and cost 0
-- [ ] T015 [P] [US2] `tests/unit/infrastructure/test_fetch_policy.py` covers the fetcher against a local `httpx.MockTransport`:
+- [X] T014 [P] [US2] `tests/unit/infrastructure/test_search_cache.py` covers the cache key: normalisation (lowercase, collapsed spaces, sorted `site:` group), the same key for equivalent queries, expiry by area TTL, and a cache hit returning stored hits with `cached=True` and cost 0
+- [X] T015 [P] [US2] `tests/unit/infrastructure/test_fetch_policy.py` covers the fetcher against a local `httpx.MockTransport`:
   - robots `Crawl-delay` respected (second request delayed);
   - robots 401/403 → disallow all;
   - a redirect to a deny-listed host is refused;
   - ≤ 2 concurrent requests per host;
   - size limit;
   - content-type limit.
-- [ ] T016 [P] [US2] `tests/unit/infrastructure/test_page_store.py` covers the page store:
+- [X] T016 [P] [US2] `tests/unit/infrastructure/test_page_store.py` covers the page store:
   - HTML main content keeps tables as markdown (trafilatura) on fixture pages in `tests/fixtures/pages/`;
   - PDF text (pypdf) on a small fixture PDF;
   - < 400 chars → `NO_CONTENT`;
@@ -105,14 +105,14 @@ switch by config; fallback when Serper fails; deny-listed and robots-forbidden U
 
 ### Implementation (US2)
 
-- [ ] T017 [P] [US2] Pure `src/automind/domain/search_plan.py` (`PlannedQuery {text, kind: FAVOURITE|OPEN|AI, area, market, sites}`) passing T013
-- [ ] T018 [P] [US2] Providers in `src/automind/infrastructure/search/`:
+- [X] T017 [P] [US2] Pure `src/automind/domain/search_plan.py` (`PlannedQuery {text, kind: FAVOURITE|OPEN|AI, area, market, sites}`) passing T013
+- [X] T018 [P] [US2] Providers in `src/automind/infrastructure/search/`:
   - `serper.py`: `POST https://google.serper.dev/search` with `X-API-KEY`, body `{q, gl, hl, num}`, maps `organic[]` → `SearchHit`, timeout, raises `SearchUnavailable` on 401/402/429/5xx;
   - `serpapi.py` (serpapi.com, a different company from Serper): `GET https://serpapi.com/search.json` with `engine=google`, `q`, `gl`, `hl`, `num`, `api_key`, maps `organic_results[]` → `SearchHit`, same error mapping;
   - `tavily.py`: the 002 client reduced to search only, mapped to `SearchHit`.
 
   Test both on recorded JSON fixtures.
-- [ ] T019 [US2] `src/automind/infrastructure/search/cache.py`: `CachedSearcher` implements `Searcher`:
+- [X] T019 [US2] `src/automind/infrastructure/search/cache.py`: `CachedSearcher` implements `Searcher`:
   - `search_cache` lookup;
   - primary provider, then the fallback list;
   - deny-list filter;
@@ -121,7 +121,7 @@ switch by config; fallback when Serper fails; deny-listed and robots-forbidden U
   - `search_calls` row with `provider`, `cached`, `area`, `job_id`.
 
   Passes T014.
-- [ ] T020 [US2] Fetcher and page store:
+- [X] T020 [US2] Fetcher and page store:
   - extend `src/automind/infrastructure/fetch.py`:
     - Crawl-delay from robots (max with config interval);
     - robots 401/403 = disallow;
@@ -137,13 +137,13 @@ switch by config; fallback when Serper fails; deny-listed and robots-forbidden U
     - keep raw HTML in memory for readers only.
 
   Passes T015 and T016.
-- [ ] T021 [US2] Rewire `src/automind/application/research.py`:
+- [X] T021 [US2] Rewire `src/automind/application/research.py`:
   - `queries_for` → `search_plan.queries`;
   - `_collect` → `Searcher.search` then `PageStore.get` with `max_pages_per_job`, dropping `NO_CONTENT/REFUSED` with reasons counted;
   - remove `fill_full_text` and the old `Search` port adapter from T008;
   - pasted URLs (`resolve.py`) use `PageStore.get`;
   - record `queries`, `pages_found`, `pages_cached`, `search_cost_eur` on `research_jobs`.
-- [ ] T022 [US2] Open-web and AI follow-up rounds in `application/research.py`:
+- [X] T022 [US2] Open-web and AI follow-up rounds in `application/research.py`:
   - round 1 runs open-web queries for areas below their minimum;
   - round 2 (DEEP, or STANDARD with budget left) runs role `query_planner` with a new prompt `orchestration/prompts/query_planner.md`:
     - inputs: variant identity, area, missing attributes, tried queries;
@@ -152,13 +152,13 @@ switch by config; fallback when Serper fails; deny-listed and robots-forbidden U
   - code drops queries mentioning deny-listed domains, longer than 200 chars, or repeated, and checks the budget before running them.
 
   Graph test in `tests/graph/test_research_flow.py`.
-- [ ] T023 [US2] Composition in `src/automind/infrastructure/adapters.py::live_ports`:
+- [X] T023 [US2] Composition in `src/automind/infrastructure/adapters.py::live_ports`:
   - `CachedSearcher` from `config/search.yaml`, with the `SEARCH_PROVIDER` env override;
   - `DbPageStore`;
   - readers registry (empty until US1).
 
   The cost estimator (`LiveEstimator`) uses the provider price and expected cache hits. Update graph tests and golden replays to the new fakes; all existing tests green.
-- [ ] T024 [US2] Graph test `tests/graph/test_search_cache.py`:
+- [X] T024 [US2] Graph test `tests/graph/test_search_cache.py`:
   - the same 1-car research in two chats → the second turn has `search_calls` rows only with `cached=true` and no fetches (SC-006);
   - primary provider raising `SearchUnavailable` → fallback used;
   - both failing → areas marked "search unavailable", turn DONE.

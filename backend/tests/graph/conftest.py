@@ -49,10 +49,18 @@ def make_ports(llm=None, search=None, events=None) -> Ports:
         events=events or EventBus(EventRepo()),
         jobs=JobRepo(),
         clock=FixedClock(),
-        ref=reference(load_all()),
+        ref=open_web_reference(),
         messages=MessageRepo(),
         estimator=FixedEstimator(),
     )
+
+
+def open_web_reference(**overrides):
+    """Reference data for fixture scenarios: no favourites, so round 0 uses the open-web templates the
+    fixtures match on (favourite planning has its own tests). Overrides replace fields, e.g. favourites=[...]."""
+    from dataclasses import replace
+
+    return replace(reference(load_all()), favourites=[], favourite_queries={}, **overrides)
 
 
 def budget_factory(**limits):

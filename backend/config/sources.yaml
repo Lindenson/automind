@@ -18,3 +18,61 @@ fetch:
   robots_cache_hours: 24
   user_agent: "AutoMindResearchBot/0.2 (+local single-user research tool)"
   allowed_content_types: [text/html, application/pdf, text/plain]
+max_concurrency_per_host: 2
+max_concurrency_total: 8
+max_redirects: 5
+
+# Favourite sources (spec 003 FR-011, research R5): queried first, per research area and market.
+# source_type: MANUFACTURER | INSTRUMENTED_TEST | SPEC_DATABASE | PUBLICATION | ENCYCLOPEDIA.
+# markets: ES | EN | DE | ANY. priority: 1 (first) … 3. reader: deterministic table reader id or null.
+# tos_checked: date the operator reviewed the site's terms of use; a reader runs only when it is set.
+# robots.txt allowed the sample car pages for our user agent on 2026-11-02 (whatcar.com: robots 403 → never fetched).
+favourites:
+  # --- Spain ---
+  - {domain: km77.com, source_type: SPEC_DATABASE, areas: [specs, engineering, measured, price, maintenance, reviews, reliability, used_issues, used_price], markets: [ES], priority: 1, reader: km77, tos_checked: null}
+  - {domain: motor.es, source_type: PUBLICATION, areas: [specs, reviews, price], markets: [ES], priority: 2, reader: null, tos_checked: null}
+  - {domain: autopista.es, source_type: INSTRUMENTED_TEST, areas: [measured, reviews, reliability, used_issues, used_price], markets: [ES], priority: 1, reader: null, tos_checked: null}
+  - {domain: fichasmotor.com, source_type: SPEC_DATABASE, areas: [specs], markets: [ES], priority: 3, reader: null, tos_checked: null}
+  # --- English ---
+  - {domain: ultimatespecs.com, source_type: SPEC_DATABASE, areas: [specs, engineering], markets: [ANY], priority: 1, reader: ultimatespecs, tos_checked: null}
+  - {domain: auto-data.net, source_type: SPEC_DATABASE, areas: [specs, engineering], markets: [ANY], priority: 1, reader: auto_data, tos_checked: null}
+  - {domain: cars-data.com, source_type: SPEC_DATABASE, areas: [specs], markets: [EN], priority: 3, reader: null, tos_checked: null}
+  - {domain: parkers.co.uk, source_type: PUBLICATION, areas: [specs, maintenance, used_price, reviews], markets: [EN], priority: 2, reader: null, tos_checked: null}
+  - {domain: caranddriver.com, source_type: INSTRUMENTED_TEST, areas: [measured, reviews], markets: [EN], priority: 1, reader: null, tos_checked: null}
+  - {domain: evo.co.uk, source_type: INSTRUMENTED_TEST, areas: [measured, reviews], markets: [EN], priority: 2, reader: null, tos_checked: null}
+  - {domain: autoexpress.co.uk, source_type: PUBLICATION, areas: [measured, reviews, reliability], markets: [EN], priority: 2, reader: null, tos_checked: null}
+  - {domain: honestjohn.co.uk, source_type: PUBLICATION, areas: [maintenance, reliability, used_issues, used_price, reviews], markets: [EN], priority: 1, reader: null, tos_checked: null}
+  - {domain: carwow.co.uk, source_type: PUBLICATION, areas: [reviews], markets: [EN], priority: 3, reader: null, tos_checked: null}
+  # --- German ---
+  - {domain: auto-motor-und-sport.de, source_type: INSTRUMENTED_TEST, areas: [measured, reviews], markets: [DE], priority: 1, reader: null, tos_checked: null}
+  - {domain: autobild.de, source_type: INSTRUMENTED_TEST, areas: [measured, reviews, reliability, used_issues, used_price], markets: [DE], priority: 1, reader: null, tos_checked: null}
+  - {domain: adac.de, source_type: PUBLICATION, areas: [specs, maintenance, reliability, used_issues, used_price], markets: [DE], priority: 1, reader: null, tos_checked: null}
+  # --- any market ---
+  - {domain: wikipedia.org, source_type: ENCYCLOPEDIA, areas: [engineering, manufacturer], markets: [ANY], priority: 2, reader: null, tos_checked: null}
+
+# Official manufacturer sites by make for the Spanish market (price, specs, maintenance).
+manufacturer_sites:
+  Audi: audi.es
+  BMW: bmw.es
+  Cupra: cupraofficial.es
+  Dacia: dacia.es
+  Fiat: fiat.es
+  Ford: ford.es
+  Honda: honda.es
+  Hyundai: hyundai.com/es
+  Kia: kia.com/es
+  Lexus: lexus.es
+  Mazda: mazda.es
+  Mercedes-Benz: mercedes-benz.es
+  MINI: mini.es
+  Nissan: nissan.es
+  Opel: opel.es
+  Peugeot: peugeot.es
+  Porsche: porsche.com/spain
+  Renault: renault.es
+  SEAT: seat.es
+  Skoda: skoda.es
+  Tesla: tesla.com/es_es
+  Toyota: toyota.es
+  Volkswagen: volkswagen.es
+  Volvo: volvocars.com/es
