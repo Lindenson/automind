@@ -325,6 +325,16 @@ verdict, table and panel are readable without horizontal scrolling.
   conversation's language with a manual switch.
 - **FR-025**: The report MUST be readable on a 375 px wide screen without page-level horizontal scrolling.
 
+**Value sense and identity (added at planning, from the 2026-11-02 defects)**
+
+- **FR-027**: Every value MUST pass a sense check for its attribute before it is used, not only an excerpt
+  check: unit and magnitude (a service interval of 16 km or 5 months next to "years"), meaning (a hybrid
+  e-CVT is not a "one-speed gearbox"), consistency with the car (power vs mass vs acceleration) and with the
+  computed results (a yearly cost far outside the class range). Values failing it are rejected or flagged,
+  never shown as facts.
+- **FR-028**: When a model is sold with several gearboxes or driven wheels, the identified variant MUST carry
+  them, and values from another gearbox or drive MUST NOT be mixed into it (e.g. manual and automatic CX-5).
+
 **Measurement**
 
 - **FR-026**: The user MUST be able to rate each report (1–5) and say what was missing; ratings MUST be
@@ -362,6 +372,8 @@ verdict, table and panel are readable without horizontal scrolling.
 - **SC-007**: The first useful answer (verdict card) appears within 30 seconds when the data is cached,
   and research progress is visible within 5 seconds of starting.
 - **SC-008**: A report has no more than one data-quality element at the top level (no wall of warnings).
+- **SC-010**: Zero values in golden comparisons that fail the sense check (the 2026-11-02 defect list is a
+  regression set: 16 km intervals, years as months, one-speed e-CVT, yearly costs outside the class range).
 - **SC-009**: The interface in a Russian conversation shows no English labels; the report passes a 375 px
   layout check.
 
