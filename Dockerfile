@@ -1,22 +1,33 @@
-# Multi-stage: build frontend, then run backend serving the built SPA.
+# AutoMind image: build the frontend, then run the backend API that also serves the built SPA.
+# Built and started by scripts/deploy.sh (docker compose). Secrets come from .env at run time, never baked in.
+
 FROM node:22-bookworm-slim AS web
 WORKDIR /web
 COPY frontend/package*.json ./
-RUN npm ci
+RUN npm ci --no-audit --no-fund
 COPY frontend/ ./
 RUN npm run build
 
 FROM python:3.13-slim
 COPY --from=ghcr.io/astral-sh/uv:0.13.6 /uv /usr/local/bin/uv
+ENV PYTHONUNBUFFERED=1 \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy \
+    UV_NO_SYNC=1
 WORKDIR /app/backend
+# dependencies first (cached layer), then the project itself
 COPY backend/pyproject.toml backend/uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 COPY backend/ ./
 RUN uv sync --frozen --no-dev
 COPY --from=web /web/dist /app/frontend/dist
-ENV FRONTEND_DIST=/app/frontend/dist
-# config/*.yaml and the Alembic migrations ship with the backend sources.
-ENV CONFIG_DIR=/app/backend/config
+ENV PATH=/app/backend/.venv/bin:$PATH \
+    FRONTEND_DIST=/app/frontend/dist \
+    CONFIG_DIR=/app/backend/config
+RUN useradd --system --uid 10001 --home /app automind && chown -R automind /app
+USER automind
 EXPOSE 8000
-# Bring the schema to head (Alembic), then serve. The API also checks migrations at startup.
-CMD ["sh", "-c", "uv run --no-sync python -m automind.infrastructure.db.migrate && exec uv run --no-sync uvicorn automind.api.app:app --host 0.0.0.0 --port 8000"]
+HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=5 \
+  CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=4).status == 200 else 1)"
+# Bring the schema to head (Alembic), then serve.
+CMD ["sh", "-c", "python -m automind.infrastructure.db.migrate && exec uvicorn automind.api.app:app --host 0.0.0.0 --port 8000 --proxy-headers"]

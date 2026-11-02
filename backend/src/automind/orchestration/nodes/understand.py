@@ -106,8 +106,9 @@ async def assess_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[s
     }
     out["cost_estimate"] = await c.ports.estimator.estimate([(j.variant_id, j.area) for j in plan.jobs], plan.rounds)
     out["research_plan"]["key"] = research_plan.plan_key(plan)
-    if plan.jobs and case.declined_plan == out["research_plan"]["key"]:
-        out["research_declined"] = True  # the user already said no to exactly this research
+    # Recomputed on every assess: the plan can grow inside a turn (a car confirmed after the first assess),
+    # and a refusal of the smaller plan must not block research for the new one.
+    out["research_declined"] = bool(plan.jobs) and case.declined_plan == out["research_plan"]["key"]
     warn = [notice(_warning_text(w.kind, case.car(w.car_key).label or case.car(w.car_key).request_text), "warning")
             for w in plan.warnings]  # fmt: skip
     have = {n["text"] for n in state.get("notices", [])}

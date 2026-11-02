@@ -61,11 +61,19 @@ shows the UI with recorded data and no backend.
 ## Run with Docker (deployment)
 
 ```bash
-docker compose up --build      # http://127.0.0.1:8000
+scripts/deploy.sh              # build, start app + Postgres 16, migrate, wait until healthy → http://127.0.0.1:8080
+scripts/deploy.sh status       # containers + health
+scripts/deploy.sh logs         # follow app logs
+scripts/deploy.sh backup       # pg_dump → backups/automind-<time>.sql.gz   (restore: scripts/deploy.sh restore <file>)
+scripts/deploy.sh down         # stop (data kept);  destroy = stop and delete the database volume
 ```
 
-The image runs the Alembic migrations before starting uvicorn. Not yet verified on this machine
-(Docker is not installed here).
+- Keys come from `.env` (`OPENAI_API_KEY`, `TAVILY_API_KEY`); they are passed at run time, never baked into the image.
+- On first run the script creates `.env.docker` (git-ignored) with a generated Postgres password. Port and bind
+  address: `AUTOMIND_PORT` (default 8080, so it does not clash with `scripts/dev.sh` on 8000) and `AUTOMIND_BIND`
+  (default 127.0.0.1; put a reverse proxy with TLS in front before exposing it).
+- The container runs the Alembic migrations before uvicorn, runs as a non-root user and has a health check
+  (`/api/v1/health`). Postgres is not published to the host.
 
 ## Tests and quality gates
 

@@ -40,6 +40,13 @@ Scenarios that need a crash or a reload are covered by graph tests with the real
    from the current message (`persona_evidence`, checked by code).
 3. **Panel persona change showed only scores.** Answers now show the full report in the new persona's
    order when the persona differs from the last report's.
+4. **Research skipped after adding a car (found by the user, 2026-11-02).** In a chat where the research
+   for a W124 had been declined, "e-class or bmw 520" confirmed a BMW 520d (G30) and went straight to a
+   report with no data: the first assessment of the turn (only the W124 in the plan) matched the declined
+   plan and set `research_declined`, and the flag was never cleared when the plan grew after the variant
+   confirmation. Now every assessment recomputes it; regression test
+   `test_declined_plan_does_not_block_research_for_a_newly_added_car`. Same turn: usage counted before a
+   confirmation was reset on resume; the budget now continues from the stored turn usage.
 
 Earlier live runs in this session also fixed: a correction without the age reset a confirmed car;
 `model: "Golf GTI"` duplicated a catalog entry; concurrent research jobs raced on the selected values
@@ -52,7 +59,7 @@ Earlier live runs in this session also fixed: a correction without the age reset
 - SC-007 / SC-011: the reference set `backend/eval/reference_vehicles.yaml` needs ≥ 20 sourced vehicles
   (manufacturer data + instrumented tests); the evaluation code is ready.
 - SC-014 (usability check with 3 people) is a human test.
-- Docker image and compose: updated, not run (Docker is not installed on this machine).
+- Docker: `scripts/deploy.sh` + compose written and validated (`docker compose config`); the first real build/run is pending (the session had no access to the Docker daemon yet).
 - `config/prices.yaml` holds placeholder model prices; € figures are estimates until verified.
 - Priorities inferred from the first message (e.g. performance from "race enthusiast") stay after a
   persona change; the user can remove them in the case panel.

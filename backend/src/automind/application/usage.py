@@ -104,6 +104,15 @@ class TurnBudget:
         self.cost_eur += cost
         return cost
 
+    def restore(self, usage: dict[str, Any] | None) -> None:
+        """Continue counting from a stored snapshot (a turn resumed after a confirmation or a restart)."""
+        u = usage or {}
+        self.calls = int(u.get("llm_calls") or 0)
+        self.input_tokens = int(u.get("input_tokens") or 0)
+        self.output_tokens = int(u.get("output_tokens") or 0)
+        self.search_calls = int(u.get("search_calls") or 0)
+        self.cost_eur = float(u.get("cost_eur") or 0.0)
+
     def snapshot(self) -> dict[str, Any]:
         """The `usage` payload shown to the user (contracts/chat-protocol.md)."""
         return {

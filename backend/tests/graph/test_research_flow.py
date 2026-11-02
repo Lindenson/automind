@@ -224,3 +224,34 @@ async def test_declined_research_is_not_offered_again_for_the_same_plan(saver, c
     llm.queue("answerer", "From what exists: ...")
     r = await rn.run_turn(chat_id, "which one is faster?")
     assert r.status == "DONE" and r.action == "ANSWER_FROM_CONTEXT" and r.usage["search_calls"] == 0
+
+
+async def test_declined_plan_does_not_block_research_for_a_newly_added_car(saver, chat_id, fresh_variant):
+    """Regression (live chat 2026-11-02): the research for car#1 was declined earlier; adding car#2 (new to the
+    catalog, confirmed in the same turn) must offer the research again for the new, larger plan, not skip it."""
+    llm = FakeLLM().queue("interpreter", INTERPRET).queue("reporter", "Report from what exists.")
+    rn = runner(saver, llm, FixtureSearch("racer"), FixedEstimator(eur_per_job=0.2))
+    w = await rn.run_turn(chat_id, "FixtureMake Racer for a race enthusiast")
+    assert w.confirm["kind"] == "cost"
+    await rn.resume(chat_id, {"choice": "skip"})
+    add = {"request_text": "FixtureMake Coupe", "make": MAKE, "model": "Coupe", "condition": "NEW"}
+    llm.queue("interpreter", {"request": "compare", "language": "en", "delta": {"add_cars": [add]}})
+    llm.queue(
+        "resolver",
+        {
+            "make": MAKE,
+            "model": "Coupe",
+            "generation": "C1",
+            "generation_years_from": 2023,
+            "generation_years_to": None,
+            "variant_name": "2.0 Turbo",
+            "powertrain": "ICE",
+            "certainty": "exact",
+        },
+    )
+    w2 = await rn.run_turn(chat_id, "compare it with the FixtureMake Coupe")
+    assert w2.confirm["kind"] == "variants", w2.reply_text
+    r = await rn.resume(chat_id, {"choice": w2.confirm["options"][0]["id"]})
+    assert r.confirm is not None and r.confirm["kind"] == "cost", (r.status, r.action, r.reply_text)
+    usage = (await make_ports().turns.get(r.turn_id)).usage
+    assert usage["llm_calls"] >= 2  # interpreter + resolver before the confirmation are kept (not reset on resume)

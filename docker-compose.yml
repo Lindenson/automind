@@ -1,17 +1,31 @@
-# Deployment / Docker-based dev (requires Docker). Local dev without Docker: scripts/dev.sh
+# AutoMind deployment. Use scripts/deploy.sh (it creates .env.docker with the database password).
+# Local development without Docker: scripts/dev.sh
+name: automind
+
 services:
   postgres:
     image: postgres:16
-    environment: { POSTGRES_USER: automind, POSTGRES_PASSWORD: automind, POSTGRES_DB: automind }
-    ports: ["127.0.0.1:5432:5432"]
+    restart: unless-stopped
+    env_file: [.env.docker]
+    environment:
+      POSTGRES_USER: automind
+      POSTGRES_DB: automind
     volumes: [pgdata:/var/lib/postgresql/data]
-    healthcheck: { test: ["CMD-SHELL", "pg_isready -U automind"], interval: 5s, retries: 10 }
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U automind -d automind"]
+      interval: 5s
+      retries: 20
+
   app:
     build: .
-    env_file: .env
+    image: automind:latest
+    restart: unless-stopped
+    env_file: [.env, .env.docker]
     environment:
-      DATABASE_URL: postgresql+asyncpg://automind:automind@postgres:5432/automind
-    ports: ["127.0.0.1:8000:8000"]
-    depends_on: { postgres: { condition: service_healthy } }
+      DATABASE_URL: postgresql+asyncpg://automind:${POSTGRES_PASSWORD:?run scripts/deploy.sh}@postgres:5432/automind
+    ports: ["${AUTOMIND_BIND:-127.0.0.1}:${AUTOMIND_PORT:-8080}:8000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+
 volumes:
   pgdata:
