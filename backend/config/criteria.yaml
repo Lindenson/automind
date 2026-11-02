@@ -1,0 +1,90 @@
+# Criteria dictionary v1 (FR-025..FR-028; research R7). Scores are 0–100 indices computed by code from
+# validated data — never measurements. Scale bounds: "lo" maps to 0, "hi" to 100 (lo > hi = lower is better).
+# Persona weights are proposals; the user can change them. Wishes add +10/+20/+30 (LOW/MEDIUM/HIGH).
+criteria_version: 1
+min_coverage: 0.6          # share of weight with data needed to rank a car (FR-027)
+strength_points: {LOW: 10, MEDIUM: 20, HIGH: 30}
+personas:
+  PERFORMANCE: {performance: 35, driving_fun: 30, traction_all_weather: 15, ownership_cost: 10, reliability: 10}
+  BUYER: {reliability: 30, ownership_cost: 25, practicality: 20, comfort: 15, efficiency: 10}
+  EXPERT: {engineering: 35, performance: 20, reliability: 20, driving_fun: 15, efficiency: 10}
+  UNKNOWN: {reliability: 20, ownership_cost: 20, performance: 15, practicality: 15, efficiency: 15, purchase_price: 15}
+criteria:
+  reliability:
+    label: Reliability
+    definition: Documented technical issues (recurring and severe count more) and published reliability statistics.
+    inputs: [issues (recurrence, severity), reliability statistics, age]
+    scale: {base_none_found: 85, per_recurring: -15, per_high: -10, per_isolated: -3, age_free_years: 5, per_year_over: -1.5, age_max: -20}
+    min_data: reliability minimum met (≥2 independent sources)
+  ownership_cost:
+    label: Ownership cost
+    definition: Estimated annual cost of owning the car (maintenance, energy, tyres, tax, repair reserve).
+    inputs: [annual ownership cost (EUR/year)]
+    scale: {lo: 6000, hi: 1500}
+    min_data: an ownership cost estimate
+  purchase_price:
+    label: Purchase price
+    definition: Official manufacturer price in Spain (new), or the original new price for a used car's generation.
+    inputs: [official price ES (EUR)]
+    scale: {lo: 100000, hi: 18000}
+    min_data: a sourced official price
+  practicality:
+    label: Practicality
+    definition: Boot volume, seats and rear legroom where sourced.
+    inputs: [boot volume (L), seats, rear legroom (mm)]
+    scale: {boot: [250, 650], seats: [2, 7], rear_legroom: [800, 1050]}
+    min_data: boot volume or seats
+  comfort:
+    label: Comfort
+    definition: Balance of recurring comfort and noise points in validated expert and owner reviews.
+    inputs: [review points tagged comfort/noise (recurring only)]
+    scale: {tags: [comfort, noise]}
+    min_data: review minimum met (≥5 reviews from ≥2 sources) and ≥1 recurring point
+  performance:
+    label: Performance
+    definition: Simulated 0–100 km/h and 400 m (estimates) and power-to-weight.
+    inputs: [simulated 0–100 (s), simulated 400 m (s), power-to-weight (kW/t)]
+    scale: {sim_0_100: [10, 3], sim_400m: [17, 11], power_to_weight: [50, 300]}
+    min_data: power and weight
+  driving_fun:
+    label: Driving fun
+    definition: Power-to-weight, lightness, drivetrain and recurring handling points in reviews.
+    inputs: [power-to-weight (kW/t), kerb weight (kg), drivetrain, review points tagged handling]
+    scale: {power_to_weight: [50, 250], mass: [2100, 1200], drivetrain: {RWD: 90, AWD: 80, FWD: 60}}
+    min_data: power and weight
+  traction_all_weather:
+    label: Traction and all-weather
+    definition: Driven wheels, plus a low-range gearbox where sourced.
+    inputs: [drivetrain, low range]
+    scale: {drivetrain: {AWD: 90, FWD: 60, RWD: 40}, low_range_bonus: 10}
+    min_data: drivetrain
+  offroad_mountain:
+    label: Off-road and mountains
+    definition: Ground clearance, low range, torque-to-weight and driven wheels.
+    inputs: [ground clearance (mm), low range, torque-to-weight (N·m/t), drivetrain]
+    scale: {ground_clearance: [130, 250], torque_to_weight: [100, 300], low_range: {"YES": 100, "NO": 30}, drivetrain: {AWD: 100, FWD: 40, RWD: 30}}
+    min_data: two of the inputs
+  efficiency:
+    label: Efficiency
+    definition: Official combined consumption (WLTP), per powertrain.
+    inputs: [consumption (l/100 km or kWh/100 km)]
+    scale: {ice: [10, 4], bev: [25, 12]}
+    min_data: sourced consumption
+  safety:
+    label: Safety
+    definition: Euro NCAP star rating if sourced.
+    inputs: [Euro NCAP stars]
+    scale: {per_star: 20}
+    min_data: a sourced Euro NCAP rating
+  status:
+    label: Status
+    definition: Price class (official new price) + vehicle segment + brand positioning (premium / mainstream / budget) from cited sources; for used cars reduced with the generation's age.
+    inputs: [official or original new price (EUR), vehicle class, brand positioning (sourced), age]
+    scale: {price: [15000, 90000], class: {small: 20, compact: 40, mid_large: 65, premium_suv_4x4: 85}, brand: {BUDGET: 15, MAINSTREAM: 50, PREMIUM: 90}, age_free_years: 3, per_year_over: -2, age_max: -30}
+    min_data: two of the three indicators
+  engineering:
+    label: Engineering
+    definition: Specific output, torque-to-weight and how much Tier 2 engineering data is documented.
+    inputs: [specific output (kW/L), torque-to-weight (N·m/t), engineering data documented (%)]
+    scale: {specific_output: [50, 150], torque_to_weight: [100, 400]}
+    min_data: two of the inputs

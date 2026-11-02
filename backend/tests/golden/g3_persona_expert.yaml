@@ -1,0 +1,36 @@
+id: g3_persona_expert
+description: >
+  After a buyer report, "the same, but I'm a car engineer" switches the persona to EXPERT. Engineering and
+  manufacturer data are cached, so no research runs; the report is reordered for the expert, starting
+  with engineering (FR-030, SC-008).
+scenario: empty
+seed:
+  - {make: Dacia, model: Bigster, generation: Mk1, variant_name: TCe 140 mild hybrid, powertrain: MHEV,
+     body_class: SUV, years: [2025, null], vehicle_class: compact, segment: C-SUV, cached: true,
+     specs: {max_power: 103, curb_mass: 1438, max_torque: 230, drivetrain: FWD, official_price_es: 24990,
+             displacement: 1199, engine_layout: inline-3 turbo, cylinders: 3, aspiration: turbo, platform: CMF-B}}
+  - {make: Toyota, model: Land Cruiser Prado, generation: J150, variant_name: 3.0 D-4D, powertrain: ICE,
+     body_class: SUV, years: [2009, 2023], vehicle_class: premium_suv_4x4, segment: large 4x4, cached: true,
+     specs: {max_power: 127, curb_mass: 2170, max_torque: 410, drivetrain: AWD, displacement: 2982,
+             engine_layout: inline-4 diesel, cylinders: 4, aspiration: turbo, platform: body-on-frame}}
+turns:
+  - user: "Family on a budget: a new Dacia Bigster or a used Land Cruiser Prado 150 from 2016?"
+    expect:
+      status: WAITING_CONFIRMATION
+      confirm_kind: variants
+      variants: [{car: "car#2", generation: J150}]
+      case:
+        persona: BUYER
+  - confirm: confirm
+    expect:
+      action: REPORT
+      no_search: true
+      block_order_starts_with: [case_summary, criteria_scores]
+  - user: "the same, but I'm a car engineer"
+    expect:
+      action: ANSWER_FROM_CONTEXT
+      no_search: true
+      block_order_starts_with: [case_summary, engineering]
+      case:
+        persona: EXPERT
+        persona_source: ASKED

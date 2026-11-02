@@ -1,0 +1,325 @@
+"""Ownership cost (TCO) engine (FR-033..FR-035; research R9). Pure and deterministic.
+
+Items: MAINTENANCE, ENERGY, TYRES, ROAD_TAX and, for used cars, BIG_TICKET (documented age/mileage
+items due within the horizon) and BASE_RESERVE (age band × class table). Every item is labelled
+SOURCED or ASSUMPTION and lists its inputs (constitution XI). Items without data are "not included",
+never guessed.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+from typing import Any, Literal
+
+RULES_VERSION = "tco-1.0"
+Basis = Literal["SOURCED", "ASSUMPTION"]
+Kind = Literal["MAINTENANCE", "ENERGY", "TYRES", "ROAD_TAX", "BIG_TICKET", "BASE_RESERVE"]
+CLASSES = ("small", "compact", "mid_large", "premium_suv_4x4")
+
+
+@dataclass(frozen=True)
+class TcoRates:
+    fuel_eur_per_l: float
+    diesel_eur_per_l: float
+    electricity_eur_per_kwh: float
+    labour_eur_per_h: float
+    annual_km: int
+    horizon_years: int
+    tyre_life_km: Mapping[str, float]
+    tyre_set_eur: Mapping[str, float]
+    service_hours: Mapping[str, float]
+    service_parts_eur: Mapping[str, float]
+    default_interval_km: Mapping[str, float]
+    big_ticket_default_eur: float
+    road_tax_eur_per_cvf: float | None
+    base_reserve: Mapping[str, list[float]]  # class -> per age band [0-4, 5-9, 10-14, 15+]
+
+    @classmethod
+    def from_config(cls, d: Mapping[str, Any], overrides: Mapping[str, float | None] | None = None) -> TcoRates:
+        o = {k: v for k, v in (overrides or {}).items() if v is not None}
+        table = d["base_reserve_eur_per_year"]
+        return cls(
+            fuel_eur_per_l=float(o.get("fuel_eur_per_l", d["fuel_eur_per_l"])),
+            diesel_eur_per_l=float(o.get("diesel_eur_per_l", d["diesel_eur_per_l"])),
+            electricity_eur_per_kwh=float(o.get("electricity_eur_per_kwh", d["electricity_eur_per_kwh"])),
+            labour_eur_per_h=float(o.get("labour_eur_per_h", d["labour_eur_per_h"])),
+            annual_km=int(d["annual_km"]),
+            horizon_years=int(d["horizon_years"]),
+            tyre_life_km=dict(d["tyre_life_km"]),
+            tyre_set_eur=dict(d["tyre_set_eur"]),
+            service_hours=dict(d["service_hours"]),
+            service_parts_eur=dict(d["service_parts_eur"]),
+            default_interval_km=dict(d["default_interval_km"]),
+            big_ticket_default_eur=float(d["big_ticket_default_eur"]),
+            road_tax_eur_per_cvf=d.get("road_tax_eur_per_cvf"),
+            base_reserve={k: [float(x) for x in v] for k, v in table.items() if k in CLASSES},
+        )
+
+
+@dataclass(frozen=True)
+class MaintenanceSched:
+    item: str
+    interval_km: float | None = None
+    interval_months: float | None = None
+    cost_eur: float | None = None  # sourced price of this service, if published
+    evidence_ids: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class BigTicket:
+    component: str
+    age_from: int | None = None
+    age_to: int | None = None
+    mileage_from: int | None = None
+    mileage_to: int | None = None
+    cost_eur: float | None = None
+    evidence_ids: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class TcoCar:
+    car_id: str
+    label: str
+    powertrain: str
+    fuel: str | None = None  # petrol | diesel (ICE/hybrids)
+    consumption: float | None = None  # l/100 km or kWh/100 km (BEV)
+    vehicle_class: str | None = None
+    condition: str = "NEW"
+    age_years: int | None = None
+    mileage_km: int | None = None
+    fiscal_hp: float | None = None
+    road_tax_eur: float | None = None  # sourced annual road tax
+    maintenance: list[MaintenanceSched] = field(default_factory=list)
+    big_tickets: list[BigTicket] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class TcoItem:
+    kind: Kind
+    label: str
+    annual_eur: float | None
+    five_year_eur: float | None
+    basis: Basis
+    inputs: list[str]
+    evidence_ids: list[str] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class TcoEstimate:
+    car_id: str
+    label: str
+    condition: str
+    age_years: int | None
+    annual_km: int
+    items: list[TcoItem]
+    annual_total: float
+    five_year_total: float
+    rules_version: str = RULES_VERSION
+
+
+def _item(
+    kind: Kind,
+    label: str,
+    annual: float | None,
+    basis: Basis,
+    inputs: list[str],
+    years: int,
+    evidence: list[str] | None = None,
+) -> TcoItem:
+    a = round(annual, 2) if annual is not None else None
+    return TcoItem(kind, label, a, round(a * years, 2) if a is not None else None, basis, inputs, evidence or [])
+
+
+def _cls(car: TcoCar) -> tuple[str, list[str]]:
+    if car.vehicle_class in CLASSES:
+        return car.vehicle_class, [f"class {car.vehicle_class}"]
+    return "compact", ["class unknown → compact (assumption)"]
+
+
+def _services_per_year(interval_km: float | None, interval_months: float | None, km: int) -> float:
+    by_km = km / interval_km if interval_km else 0.0
+    by_time = 12 / interval_months if interval_months else 0.0
+    return max(by_km, by_time)
+
+
+def _maintenance(car: TcoCar, r: TcoRates, km: int, years: int) -> TcoItem:
+    pt = car.powertrain if car.powertrain in r.service_hours else "ICE"
+    assumed = r.service_hours[pt] * r.labour_eur_per_h + r.service_parts_eur[pt]
+    if not car.maintenance:
+        per_year = km / r.default_interval_km.get(pt, 15000)
+        return _item(
+            "MAINTENANCE",
+            "Scheduled maintenance",
+            per_year * assumed,
+            "ASSUMPTION",
+            [
+                f"no published schedule: 1 service / {r.default_interval_km.get(pt, 15000):.0f} km",
+                f"labour {r.service_hours[pt]} h × €{r.labour_eur_per_h:.0f}/h + parts €{r.service_parts_eur[pt]:.0f}",
+                f"{km:,} km/year",
+            ],
+            years,
+        )
+    total, basis, inputs, ev = 0.0, "SOURCED", [], []
+    for m in car.maintenance:
+        n = _services_per_year(m.interval_km, m.interval_months, km)
+        if n == 0:
+            continue
+        cost = m.cost_eur if m.cost_eur is not None else assumed
+        if m.cost_eur is None:
+            basis = "ASSUMPTION"
+            inputs.append(
+                f"{m.item}: interval sourced, cost = labour {r.service_hours[pt]} h × €{r.labour_eur_per_h:.0f}/h"
+                f" + parts €{r.service_parts_eur[pt]:.0f}"
+            )
+        else:
+            inputs.append(f"{m.item}: €{m.cost_eur:.0f} sourced")
+        total += n * cost
+        ev += m.evidence_ids
+    inputs.append(f"{km:,} km/year")
+    return _item("MAINTENANCE", "Scheduled maintenance", total, basis, inputs, years, ev)  # type: ignore[arg-type]
+
+
+def _energy(car: TcoCar, r: TcoRates, km: int, years: int) -> TcoItem:
+    if not car.consumption:
+        return _item(
+            "ENERGY",
+            "Energy: not included (consumption not found)",
+            None,
+            "ASSUMPTION",
+            ["consumption not found"],
+            years,
+        )
+    if car.powertrain == "BEV":
+        price, unit, what = r.electricity_eur_per_kwh, "kWh", "electricity"
+    elif car.fuel == "diesel":
+        price, unit, what = r.diesel_eur_per_l, "l", "diesel"
+    else:
+        price, unit, what = r.fuel_eur_per_l, "l", "petrol"
+    annual = car.consumption * km / 100 * price
+    return _item(
+        "ENERGY",
+        f"Energy ({what})",
+        annual,
+        "ASSUMPTION",
+        [
+            f"consumption {car.consumption} {unit}/100 km (sourced)",
+            f"{what} €{price:.2f}/{unit} (assumption)",
+            f"{km:,} km/year",
+        ],
+        years,
+    )
+
+
+def _tyres(car: TcoCar, r: TcoRates, km: int, years: int) -> TcoItem:
+    cls, notes = _cls(car)
+    annual = r.tyre_set_eur[cls] * km / r.tyre_life_km[cls]
+    return _item(
+        "TYRES",
+        "Tyres",
+        annual,
+        "ASSUMPTION",
+        [f"set €{r.tyre_set_eur[cls]:.0f}, life {r.tyre_life_km[cls]:,.0f} km", *notes, f"{km:,} km/year"],
+        years,
+    )
+
+
+def _road_tax(car: TcoCar, r: TcoRates, years: int) -> TcoItem:
+    if car.road_tax_eur is not None:
+        return _item("ROAD_TAX", "Road tax (IVTM)", car.road_tax_eur, "SOURCED", ["sourced annual rate"], years)
+    if r.road_tax_eur_per_cvf is not None and car.fiscal_hp:
+        return _item(
+            "ROAD_TAX",
+            "Road tax (IVTM)",
+            r.road_tax_eur_per_cvf * car.fiscal_hp,
+            "ASSUMPTION",
+            [f"{car.fiscal_hp} CVF × €{r.road_tax_eur_per_cvf}/CVF (configured)"],
+            years,
+        )
+    return _item(
+        "ROAD_TAX",
+        "Road tax (IVTM): not included — no rate found",
+        None,
+        "ASSUMPTION",
+        ["municipal rate not found"],
+        years,
+    )
+
+
+def _due(b: BigTicket, age: int | None, mileage: int | None, km: int, years: int) -> bool:
+    if age is not None and b.age_from is not None:
+        hi = b.age_to if b.age_to is not None else b.age_from
+        if hi >= age and b.age_from <= age + years:
+            return True
+    if mileage is not None and b.mileage_from is not None:
+        hi_km = b.mileage_to if b.mileage_to is not None else b.mileage_from
+        if hi_km >= mileage and b.mileage_from <= mileage + km * years:
+            return True
+    return False
+
+
+def _big_tickets(car: TcoCar, r: TcoRates, km: int, years: int) -> list[TcoItem]:
+    out = []
+    for b in car.big_tickets:
+        if not _due(b, car.age_years, car.mileage_km, km, years):
+            continue
+        sourced = b.cost_eur is not None
+        cost = b.cost_eur if sourced else r.big_ticket_default_eur
+        assert cost is not None
+        window = (
+            f"age {b.age_from}–{b.age_to}"
+            if b.age_from is not None
+            else f"{b.mileage_from:,}–{b.mileage_to or b.mileage_from:,} km"
+        )
+        inputs = [
+            f"documented for {window} ({len(b.evidence_ids)} source(s))",
+            "cost sourced" if sourced else f"cost €{cost:.0f} (assumption)",
+        ]
+        out.append(
+            TcoItem(
+                "BIG_TICKET",
+                f"Due within {years} years: {b.component}",
+                round(cost / years, 2),
+                round(cost, 2),
+                "SOURCED" if sourced else "ASSUMPTION",
+                inputs,
+                list(b.evidence_ids),
+            )
+        )
+    return out
+
+
+def _band(age: int) -> int:
+    return 0 if age <= 4 else 1 if age <= 9 else 2 if age <= 14 else 3
+
+
+def _reserve(car: TcoCar, r: TcoRates, years: int) -> TcoItem:
+    cls, notes = _cls(car)
+    age = car.age_years or 0
+    annual = r.base_reserve[cls][_band(age)]
+    bands = ("0–4", "5–9", "10–14", "15+")
+    return _item(
+        "BASE_RESERVE",
+        "Base repair reserve",
+        annual,
+        "ASSUMPTION",
+        [f"age band {bands[_band(age)]} years", *notes, "table in config/rates.yaml"],
+        years,
+    )
+
+
+def compute(car: TcoCar, rates: TcoRates, annual_km: int | None = None) -> TcoEstimate:
+    km = annual_km or rates.annual_km
+    years = rates.horizon_years
+    items = [
+        _maintenance(car, rates, km, years),
+        _energy(car, rates, km, years),
+        _tyres(car, rates, km, years),
+        _road_tax(car, rates, years),
+    ]
+    if car.condition == "USED":
+        items += _big_tickets(car, rates, km, years)
+        items.append(_reserve(car, rates, years))
+    annual = round(sum(i.annual_eur for i in items if i.annual_eur is not None), 2)
+    five = round(sum(i.five_year_eur for i in items if i.five_year_eur is not None), 2)
+    return TcoEstimate(car.car_id, car.label, car.condition, car.age_years, km, items, annual, five)

@@ -1,0 +1,60 @@
+{
+  "interpreter": [
+    {
+      "request": "compare",
+      "language": "ru",
+      "delta": {
+        "set_profile": {
+          "age": 20
+        },
+        "set_persona": {
+          "persona": "PERFORMANCE",
+          "source": "INFERRED"
+        },
+        "set_usage": [
+          "CITY",
+          "MOUNTAINS"
+        ],
+        "add_priorities": [
+          {
+            "criterion": "performance",
+            "strength": "HIGH"
+          },
+          {
+            "criterion": "offroad_mountain",
+            "strength": "MEDIUM"
+          },
+          {
+            "criterion": "traction_all_weather",
+            "strength": "MEDIUM"
+          }
+        ],
+        "add_cars": [
+          {
+            "request_text": "б/у BMW 320d M Sport",
+            "make": "BMW",
+            "model": "3 Series",
+            "condition": "USED",
+            "constraints": {
+              "trim_hint": "320d M Sport",
+              "fuel_hint": "diesel"
+            }
+          },
+          {
+            "request_text": "Golf R-Line 4Motion",
+            "make": "Volkswagen",
+            "model": "Golf",
+            "condition": "USED",
+            "constraints": {
+              "trim_hint": "R-Line 4Motion"
+            }
+          }
+        ]
+      },
+      "persona_evidence": "Мне 20"
+    }
+  ],
+  "asker": [
+    "Понял: тебе 20, б/у BMW 320d M Sport против Golf R-Line 4Motion — драг, город и горы.\n\n1. BMW 320d: примерно какого года или какое поколение (E90, F30, G20)?\n2. Golf R-Line 4Motion: примерно какого года или какое поколение (Mk5, Mk6, Mk7, Mk7.5, Mk8, Mk8.5)?"
+  ]
+}

@@ -1,0 +1,41 @@
+"""Helpers shared by graph nodes: context access, case load/save with `case_file` events."""
+
+from __future__ import annotations
+
+from typing import Any
+
+from langgraph.runtime import Runtime
+
+from automind.domain.casefile import CaseFile
+from automind.orchestration.runner import TurnContext
+
+
+def ctx(runtime: Runtime[TurnContext]) -> TurnContext:
+    assert runtime.context is not None, "graph must run through ChatRunner (TurnContext missing)"
+    return runtime.context
+
+
+def current_year(c: TurnContext) -> int:
+    return c.ports.clock.now().year
+
+
+async def load_case(c: TurnContext) -> tuple[int, CaseFile]:
+    version, data, _ = await c.ports.cases.latest(c.chat_id)
+    return version, (CaseFile.model_validate(data) if data else CaseFile())
+
+
+async def save_case(c: TurnContext, case: CaseFile, changes: list[str], *, publish: bool = True) -> int:
+    version = await c.ports.cases.save_version(c.chat_id, case.model_dump(mode="json"), "hub", changes)
+    if publish:
+        await c.emit("case_file", {"version": version, "case": case.model_dump(mode="json"), "changes": changes})
+    return version
+
+
+async def history(c: TurnContext, limit: int = 12) -> list[dict[str, str]]:
+    msgs = await c.ports.messages.history(c.chat_id)
+    prior = msgs[:-1] if msgs and msgs[-1].role == "user" else msgs
+    return [{"role": m.role, "text": m.text} for m in prior[-limit:]]
+
+
+def notice(text: str, level: str = "info") -> dict[str, Any]:
+    return {"type": "notice", "level": level, "text": text}

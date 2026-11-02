@@ -1,0 +1,10 @@
+# Issue severity rules (research R8; FR-036). Deterministic keyword matching on component, description
+# and the source's own severity wording. First matching level wins: HIGH, then MEDIUM, else LOW.
+version: 1
+HIGH: [engine failure, engine seizure, timing chain, head gasket, gearbox failure, transmission failure,
+       dsg, mechatronic, battery failure, fire, brake failure, steering failure, airbag, frame corrosion,
+       chassis corrosion, subframe, crankshaft, piston, turbo failure, safety recall, catastrophic]
+MEDIUM: [turbo, dpf, egr, injector, clutch, dual-mass flywheel, flywheel, suspension, shock absorber,
+         water pump, timing belt, adblue, oil leak, coolant leak, rust, corrosion, alternator, starter,
+         abs, ecu, air conditioning, compressor, wheel bearing]
+LOW: [infotainment, trim, rattle, squeak, paint, bluetooth, software, sensor, light, wiper, noise]

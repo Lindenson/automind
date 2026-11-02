@@ -1,0 +1,93 @@
+import { memo, useMemo } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import type { UiMessage } from "../store/chat";
+import type { ChatMessage } from "../lib/protocol";
+import { fmtTime } from "../lib/util";
+import { useChat } from "../store/chat";
+import { BlockView } from "./blocks/BlockView";
+import { buildCarColors, CarColorContext } from "./carColors";
+import { Logo } from "./Logo";
+import { WarnIcon } from "./icons";
+
+export const Message = memo(function Message({ m }: { m: UiMessage }) {
+  if (m.role === "user") {
+    return (
+      <div className="flex animate-fadeUp justify-end">
+        <div className="max-w-[85%] sm:max-w-[75%]">
+          <div className="whitespace-pre-wrap break-words rounded-2xl rounded-br-md bg-gradient-to-br from-accent to-orange-600 px-4 py-2.5 text-[15px] text-white shadow-lg shadow-accent/10">
+            {m.text}
+          </div>
+          <div className="mt-1 text-right text-[10px] text-muted">
+            {fmtTime(m.created_at)}
+          </div>
+        </div>
+      </div>
+    );
+  }
+  if (m.role === "error") {
+    return (
+      <div
+        className="flex animate-fadeUp items-start gap-2 rounded-xl border border-bad/40 bg-bad/10 px-3.5 py-2.5 text-sm"
+        role="alert"
+      >
+        <span className="mt-0.5 text-bad">
+          <WarnIcon />
+        </span>
+        <span>{m.text}</span>
+      </div>
+    );
+  }
+  return <AssistantMessage m={m} />;
+});
+
+function AssistantMessage({ m }: { m: ChatMessage }) {
+  const colors = useMemo(() => buildCarColors(m.blocks), [m.blocks]);
+  return (
+    <div className="flex animate-fadeUp gap-3">
+      <div className="hidden shrink-0 sm:block">
+        <Logo small />
+      </div>
+      <div className="min-w-0 flex-1 space-y-3">
+        <div className="flex items-center gap-2 text-xs text-muted">
+          <span className="font-display font-semibold text-fg">AutoMind</span>
+          <span>{fmtTime(m.created_at)}</span>
+          <UsageBadge turnId={m.turn_id} />
+        </div>
+        {m.text && (
+          <div className="md">
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                a: ({ node: _n, ...p }) => (
+                  <a {...p} target="_blank" rel="noreferrer noopener" />
+                ),
+              }}
+            >
+              {m.text}
+            </ReactMarkdown>
+          </div>
+        )}
+        <CarColorContext.Provider value={colors}>
+          {m.blocks.map((b, i) => (
+            <BlockView key={i} block={b} />
+          ))}
+        </CarColorContext.Provider>
+      </div>
+    </div>
+  );
+}
+
+/** AI usage of the turn that produced this answer (FR-042): calls, tokens and estimated cost. */
+function UsageBadge({ turnId }: { turnId?: string | null }) {
+  const u = useChat((s) => (turnId ? s.usageByTurn[turnId] : undefined));
+  if (!u) return null;
+  return (
+    <span
+      className="chip text-[10px]"
+      title={`${u.llm_calls} AI calls · ${u.input_tokens.toLocaleString()} in / ${u.output_tokens.toLocaleString()} out tokens · ${u.search_calls} searches`}
+    >
+      {u.llm_calls} calls · {u.search_calls} searches · €{u.cost_eur.toFixed(3)}
+    </span>
+  );
+}

@@ -1,0 +1,8 @@
+# Clarification question templates (FR-005, FR-005a). The asker model only phrases them in the
+# user's language; it never adds questions. Placeholders: {car}, {options}, {count}.
+version: 1
+TOO_MANY_CARS: "I compare up to 3 cars at a time. Which 3 of these should I compare: {options}?"
+CAR_IDENTITY: "Which exact car do you mean by \"{car}\"? Make and model (and the year, if it is used) are enough."
+USED_AGE: "For the {car}: roughly how old, or which generation ({options})? The answer changes the reliability and running costs a lot."
+TRIM: "Which version of the {car} do you mean ({options})?"
+PERSONA: "So I can tailor the answer: what matters most to you — low running costs and reliability, driving performance, or the engineering details?"

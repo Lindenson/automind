@@ -1,0 +1,18 @@
+# Architecture decisions
+
+- [ADR-001](ADR-001.md) — Modular monolith (Accepted)
+- [ADR-002](ADR-002.md) — LangGraph as the orchestration engine (Accepted)
+- [ADR-003](ADR-003.md) — TypedDict for graph state, Pydantic for domain contracts (Accepted)
+- [ADR-004](ADR-004.md) — PostgreSQL as the primary database (Accepted)
+- [ADR-005](ADR-005.md) — One model gateway for OpenAI and Anthropic (Accepted)
+- [ADR-006](ADR-006.md) — Parallel research with Send (Accepted)
+- [ADR-007](ADR-007.md) — Human in the loop through interrupts (Accepted)
+- [ADR-008](ADR-008.md) — Deterministic Python simulation engine (Accepted)
+- [ADR-009](ADR-009.md) — React + FastAPI over WebSocket (supersedes SSE) (Accepted (amended))
+- [ADR-010](ADR-010.md) — Evidence-first research (Accepted)
+- [ADR-011](ADR-011.md) — Graph checkpoints separate from domain persistence (Accepted)
+- [ADR-012](ADR-012.md) — Versioned research artifacts and models (Accepted)
+- [ADR-013](ADR-013.md) — Persistent chat thread and a versioned case file (Accepted)
+- [ADR-014](ADR-014.md) — Deterministic action policy (Accepted)
+- [ADR-015](ADR-015.md) — Criteria dictionary (Accepted)
+- [ADR-016](ADR-016.md) — Deferred: TanStack Query, React Router, LangSmith (Accepted)

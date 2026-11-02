@@ -1,0 +1,28 @@
+id: g6_no_repeat
+description: >
+  The same comparison twice in a row (FR-004, SC-002). The second time the hub says nothing changed instead
+  of repeating the report, and runs no research.
+scenario: empty
+seed:
+  - {make: Volkswagen, model: Golf, generation: Mk8, variant_name: GTI 2.0 TSI 245 PS DSG, powertrain: ICE,
+     body_class: HATCHBACK, years: [2020, 2023], vehicle_class: compact, segment: C, cached: true,
+     specs: {max_power: 180, curb_mass: 1429, max_torque: 370, drivetrain: FWD, claimed_0_100: 6.2}}
+  - {make: Hyundai, model: i30 N, generation: PDe, variant_name: 2.0 T-GDi 280 PS, powertrain: ICE,
+     body_class: HATCHBACK, years: [2017, null], vehicle_class: compact, segment: C, cached: true,
+     specs: {max_power: 206, curb_mass: 1480, max_torque: 392, drivetrain: FWD, claimed_0_100: 5.9}}
+turns:
+  - user: "Golf GTI Mk8 vs i30 N for a race enthusiast"
+    expect:
+      action: REPORT
+      no_search: true
+      variants: [{car: "car#1", generation: Mk8}, {car: "car#2", model: i30 N}]
+      case:
+        persona: PERFORMANCE
+        cars[0].resolution: AUTO_OK
+        cars[1].resolution: AUTO_OK
+  - user: "Golf GTI Mk8 vs i30 N for a race enthusiast"
+    expect:
+      action: ANSWER_FROM_CONTEXT
+      no_search: true
+      case:
+        cars[2]: null

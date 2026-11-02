@@ -1,0 +1,6 @@
+{
+  "interpreter": [
+    {"request": "compare", "language": "ru", "delta": {
+      "set_car_context": [{"target_key": "car#1", "year": 2016}, {"target_key": "car#2", "year": 2019}]}}
+  ]
+}

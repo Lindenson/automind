@@ -1,0 +1,8 @@
+{
+  "interpreter": [
+    {"request": "compare", "language": "en", "delta": {"add_cars": [
+      {"request_text": "Tesla Model 3 Performance", "make": "Tesla", "model": "Model 3", "condition": "UNKNOWN",
+       "constraints": {"trim_hint": "Performance"}}]}}
+  ],
+  "reporter": ["**The Tesla is quickest in a straight line; data for it is still thin.**"]
+}

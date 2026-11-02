@@ -1,0 +1,130 @@
+"""Criteria dictionary and deterministic scoring (FR-025..FR-029; research R7)."""
+
+from pathlib import Path
+
+import pytest
+import yaml
+
+from automind.domain.casefile import CaseDelta, CaseFile, PersonaChange, PriorityChange, apply, set_weights
+from automind.domain.criteria import CriteriaModel, ReliabilitySummary, ReviewSummary, score, weights_for
+from automind.domain.metrics import CarFacts
+
+MODEL = CriteriaModel.from_config(yaml.safe_load((Path(__file__).parents[3] / "config" / "criteria.yaml").read_text()))
+
+
+def case(persona="UNKNOWN", priorities=()):
+    c, _ = apply(CaseFile(), CaseDelta(set_persona=PersonaChange(persona=persona)), current_year=2026)
+    for key, strength in priorities:
+        c, _ = apply(c, CaseDelta(add_priorities=[PriorityChange(criterion=key, strength=strength)]), current_year=2026)
+    return c
+
+
+@pytest.mark.parametrize(
+    ("persona", "expected"),
+    [
+        (
+            "PERFORMANCE",
+            {"performance": 35, "driving_fun": 30, "traction_all_weather": 15, "ownership_cost": 10, "reliability": 10},
+        ),
+        ("BUYER", {"reliability": 30, "ownership_cost": 25, "practicality": 20, "comfort": 15, "efficiency": 10}),
+        ("EXPERT", {"engineering": 35, "performance": 20, "reliability": 20, "driving_fun": 15, "efficiency": 10}),
+    ],
+)
+def test_persona_default_weights(persona, expected):
+    assert weights_for(case(persona), MODEL) == pytest.approx(expected)
+
+
+def test_unknown_persona_is_balanced_and_sums_to_100():
+    w = weights_for(case(), MODEL)
+    assert abs(sum(w.values()) - 100) < 0.01 and max(w.values()) <= 20
+
+
+def test_wish_strength_adds_points_then_normalizes():
+    w = weights_for(case("BUYER", [("status", "HIGH")]), MODEL)
+    assert w["status"] == pytest.approx(30 / 130 * 100, abs=0.01)
+    assert w["reliability"] == pytest.approx(30 / 130 * 100, abs=0.01)
+    w2 = weights_for(case("BUYER", [("reliability", "LOW")]), MODEL)
+    assert w2["reliability"] == pytest.approx(40 / 110 * 100, abs=0.01)
+    assert abs(sum(w2.values()) - 100) < 0.01
+
+
+def test_user_override_wins():
+    c = set_weights(case("BUYER"), {"status": 1, "reliability": 1})
+    assert weights_for(c, MODEL) == {"status": 50.0, "reliability": 50.0}
+
+
+def gti(**kw) -> CarFacts:
+    base = dict(
+        car_id="gti",
+        label="Golf GTI",
+        powertrain="ICE",
+        power_kw=180,
+        torque_nm=370,
+        mass_kg=1430,
+        displacement_cc=1984,
+        drivetrain="FWD",
+        consumption=7.0,
+        boot_l=374,
+        seats=5,
+        price_eur=47500,
+        sim_0_100=6.4,
+        sim_400m=14.7,
+    )
+    return CarFacts(**{**base, **kw})
+
+
+def test_scales_are_deterministic_and_clamped():
+    a = score([gti()], {"performance": 50, "efficiency": 50}, MODEL)
+    b = score([gti()], {"performance": 50, "efficiency": 50}, MODEL)
+    assert a == b
+    perf = a.cars[0].parts["performance"]
+    assert 0 <= perf.score <= 100 and perf.inputs  # inputs are named
+    eff = a.cars[0].parts["efficiency"].score
+    assert eff == pytest.approx(50.0)  # 7.0 l/100 km on the 10 → 4 scale
+
+
+def test_status_uses_three_indicators_and_age():
+    new = gti(vehicle_class="compact", brand_positioning="MAINSTREAM")
+    old = gti(vehicle_class="compact", brand_positioning="MAINSTREAM", condition="USED", age_years=10)
+    s_new = score([new], {"status": 100}, MODEL).cars[0].parts["status"]
+    s_old = score([old], {"status": 100}, MODEL).cars[0].parts["status"]
+    assert s_new.score > s_old.score
+    assert any("brand positioning" in i for i in s_new.inputs) and any("price" in i for i in s_new.inputs)
+    only_price = score([gti()], {"status": 100}, MODEL).cars[0].parts["status"]
+    assert only_price.insufficient and only_price.score is None  # needs two of three indicators
+
+
+def test_review_balance_uses_only_recurring_points():
+    rs = ReviewSummary(minimum_met=True, recurring={"comfort": (0, 2)}, isolated={"comfort": (5, 0)})
+    part = score([gti(reviews=rs)], {"comfort": 100}, MODEL).cars[0].parts["comfort"]
+    assert part.score == 0.0  # 2 recurring cons, isolated pros ignored
+    weak = ReviewSummary(minimum_met=False, recurring={"comfort": (3, 0)})
+    assert score([gti(reviews=weak)], {"comfort": 100}, MODEL).cars[0].parts["comfort"].insufficient
+
+
+def test_reliability_score_from_documented_issues():
+    clean = ReliabilitySummary(minimum_met=True, recurring=0, isolated=0, high=0)
+    bad = ReliabilitySummary(minimum_met=True, recurring=2, isolated=1, high=1)
+    r1 = score([gti(reliability=clean)], {"reliability": 100}, MODEL).cars[0].parts["reliability"].score
+    r2 = score([gti(reliability=bad)], {"reliability": 100}, MODEL).cars[0].parts["reliability"].score
+    assert r1 == 85 and r2 == 85 - 30 - 3 - 10
+    none = score([gti()], {"reliability": 100}, MODEL).cars[0].parts["reliability"]
+    assert none.insufficient and none.score is None
+
+
+def test_missing_data_is_insufficient_and_low_coverage_is_not_ranked():
+    thin = CarFacts(car_id="thin", label="Thin", powertrain="ICE", power_kw=150)
+    r = score([gti(), thin], {"performance": 40, "efficiency": 30, "practicality": 30}, MODEL)
+    by = {c.car_id: c for c in r.cars}
+    assert by["thin"].parts["efficiency"].insufficient and not by["thin"].ranked and by["thin"].coverage < 0.6
+    assert by["gti"].ranked and r.winner_car_id == "gti"
+
+
+def test_single_car_profile_is_absolute_without_ranking():
+    r = score([gti()], {"performance": 50, "efficiency": 50}, MODEL)
+    assert r.winner_car_id is None and not r.cars[0].ranked and r.cars[0].total is not None
+
+
+def test_winner_is_deterministic_on_ties():
+    r = score([gti(car_id="b"), gti(car_id="a")], {"performance": 100}, MODEL)
+    assert r.winner_car_id == "a"

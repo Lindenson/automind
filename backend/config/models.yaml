@@ -1,0 +1,12 @@
+# Model per role: "<provider>:<model>" (constitution VII). Override with env MODEL_<ROLE>.
+interpreter: openai:gpt-5.4
+asker: openai:gpt-5.4-mini
+resolver: openai:gpt-5.4-mini
+extractor: openai:gpt-5.4-mini
+validator: openai:gpt-5.4-mini
+reporter: openai:gpt-5.4
+answerer: openai:gpt-5.4
+general: openai:gpt-5.4-mini
+# Legacy demo roles (removed when the demo graph is replaced, T035/T060):
+hub: openai:gpt-5.4
+analyst: openai:gpt-5.4

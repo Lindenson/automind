@@ -1,0 +1,46 @@
+{
+  "interpreter": [
+    {
+      "request": "compare",
+      "language": "en",
+      "delta": {
+        "set_persona": {
+          "persona": "BUYER",
+          "source": "INFERRED"
+        },
+        "add_priorities": [
+          {
+            "criterion": "ownership_cost",
+            "strength": "HIGH"
+          },
+          {
+            "criterion": "purchase_price",
+            "strength": "MEDIUM"
+          },
+          {
+            "criterion": "reliability",
+            "strength": "HIGH"
+          }
+        ],
+        "add_cars": [
+          {
+            "request_text": "brand-new Dacia Bigster",
+            "make": "Dacia",
+            "model": "Bigster",
+            "condition": "NEW"
+          },
+          {
+            "request_text": "used Land Cruiser Prado",
+            "make": "Toyota",
+            "model": "Land Cruiser Prado",
+            "condition": "USED"
+          }
+        ]
+      },
+      "persona_evidence": "I don't want to spend too much"
+    }
+  ],
+  "asker": [
+    "Got it: a sensible purchase that holds up — a new Dacia Bigster against a used Land Cruiser Prado.\n\n1. For the used Prado: roughly how old, or which generation (J90, J120, J150, J250)? It changes reliability and running costs a lot."
+  ]
+}

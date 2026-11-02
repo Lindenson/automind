@@ -1,0 +1,18 @@
+{
+  "queries": [
+    {"match": ["racer", "specifications"], "results": [
+      {"url": "https://www.km77.com/racer-mk1", "title": "FixtureMake Racer Mk1 2.0 Turbo – ficha", "doc": "spec_km77.txt"},
+      {"url": "https://www.ultimatespecs.com/racer-mk1", "title": "FixtureMake Racer Mk1 specs", "doc": "spec_us.txt"},
+      {"url": "https://www.coches.net/racer-mk1-usado", "title": "classified ad", "doc": "spec_km77.txt"}
+    ]},
+    {"match": ["racer", "instrumented"], "results": [
+      {"url": "https://www.autobild.de/racer-test", "title": "FixtureMake Racer Mk1 im Test", "doc": "measured.txt"}
+    ]},
+    {"match": ["racer", "review pros"], "results_by_call": [
+      [{"url": "https://www.evo.co.uk/racer-review", "title": "FixtureMake Racer Mk1 review", "doc": "review_evo.txt"},
+       {"url": "https://broken.example/racer", "title": "Racer Mk1 forum", "doc": "review_evo.txt"}],
+      [{"url": "https://www.whatcar.com/racer-review", "title": "FixtureMake Racer Mk1 review", "doc": "review_whatcar.txt"}]
+    ]}
+  ],
+  "default": []
+}

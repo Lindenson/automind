@@ -1,0 +1,24 @@
+# Tier 1 reference set (SC-007 coverage/accuracy, SC-011 race calibration ±15%).
+# Every value MUST come from a cited source (constitution I): manufacturer data for specs, an
+# instrumented test (magazine track test) for measured_0_100. Entries without `sources` are skipped.
+# Target: ≥ 20 variants, including used generations.
+#
+# - make: Volkswagen
+#   model: Golf
+#   generation: Mk8
+#   variant_name: GTI 2.0 TSI 245 PS DSG
+#   powertrain: ICE
+#   condition: NEW            # or USED with year
+#   specs:                    # canonical units: kW, N·m, kg, s, km/h
+#     max_power: 180
+#     max_torque: 370
+#     curb_mass: 1429
+#     drivetrain: FWD
+#     transmission: 7-speed DSG
+#     top_speed: 250
+#     claimed_0_100: 6.2
+#   measured_0_100: 6.0       # instrumented test
+#   sources:
+#     specs: https://...      # manufacturer page or brochure
+#     measured: https://...   # magazine instrumented test
+vehicles: []

@@ -1,0 +1,62 @@
+id: g1_bigster_prado
+description: >
+  New Dacia Bigster vs used Land Cruiser Prado (FR-046a, c). The hub asks for the Prado's age, resolves
+  "about 10 years old, the 150" to the J150 generation (never the J250), confirms, reports from cache,
+  answers "status" from context, and treats "I meant the used 150" as nothing to correct.
+scenario: empty
+seed:
+  - {make: Dacia, model: Bigster, generation: Mk1, variant_name: TCe 140 mild hybrid, powertrain: MHEV,
+     body_class: SUV, years: [2025, null], vehicle_class: compact, segment: C-SUV, cached: true,
+     specs: {max_power: 103, curb_mass: 1438, max_torque: 230, drivetrain: FWD, official_price_es: 24990}}
+  - {make: Toyota, model: Land Cruiser Prado, generation: J150, variant_name: 3.0 D-4D, powertrain: ICE,
+     body_class: SUV, years: [2009, 2023], vehicle_class: premium_suv_4x4, segment: large 4x4, cached: true,
+     specs: {max_power: 127, curb_mass: 2170, max_torque: 410, drivetrain: AWD}}
+  - {make: Toyota, model: Land Cruiser Prado, generation: J250, variant_name: 2.8 D-4D, powertrain: MHEV,
+     body_class: SUV, years: [2024, null], vehicle_class: premium_suv_4x4, segment: large 4x4, cached: true,
+     specs: {max_power: 150, curb_mass: 2400, max_torque: 500, drivetrain: AWD}}
+turns:
+  - user: "I don't want to spend too much, but I don't want rubbish either. A brand-new Dacia Bigster or a used Land Cruiser Prado?"
+    expect:
+      action: ASK
+      status: DONE
+      max_questions: 3
+      no_search: true
+      case:
+        persona: BUYER
+        cars[0].condition: NEW
+        cars[1].condition: USED
+        pending.items[0].kind: USED_AGE
+        pending.items[0].car: car#2
+        priorities: {contains: reliability}
+  - user: "about 10 years old, the 150"
+    expect:
+      status: WAITING_CONFIRMATION
+      confirm_kind: variants
+      no_search: true
+      variants: [{car: "car#2", generation: J150, years_include: 2015}]
+      no_variant_generation: [J250]
+      case:
+        cars[1].age_years: 10
+        cars[1].resolution: PROPOSED
+        cars[0].resolution: AUTO_OK
+  - confirm: confirm
+    expect:
+      action: REPORT
+      status: DONE
+      no_search: true
+      block_order_starts_with: [case_summary, criteria_scores, tco]
+      variants: [{car: "car#1", model: Bigster}, {car: "car#2", generation: J150}]
+      case:
+        cars[1].resolution: CONFIRMED
+  - user: "if I prefer status, who wins?"
+    expect:
+      action: ANSWER_FROM_CONTEXT
+      no_search: true
+      case:
+        priorities: {contains: status}
+  - user: "but I meant the used 150, not new"
+    expect:
+      action: ANSWER_FROM_CONTEXT
+      no_search: true
+      variants: [{car: "car#2", generation: J150}]
+      no_variant_generation: [J250]

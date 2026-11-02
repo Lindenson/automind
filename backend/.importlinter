@@ -1,0 +1,47 @@
+[importlinter]
+root_package = automind
+include_external_packages = True
+
+[importlinter:contract:domain-pure]
+name = Domain is pure (constitution V)
+type = forbidden
+source_modules =
+    automind.domain
+forbidden_modules =
+    langgraph
+    langchain
+    langchain_core
+    langchain_openai
+    langchain_anthropic
+    langchain_mcp_adapters
+    fastapi
+    sqlalchemy
+    httpx
+    tavily
+    mcp
+    automind.application
+    automind.orchestration
+    automind.infrastructure
+    automind.api
+
+[importlinter:contract:application-ports]
+name = Application depends only on domain and ports
+type = forbidden
+source_modules =
+    automind.application
+forbidden_modules =
+    automind.orchestration
+    automind.api
+    automind.infrastructure
+    langgraph
+    fastapi
+    sqlalchemy
+# Legacy demo services still use the DB directly. New application code goes through ports
+# (application/ports.py). Remove these lines as each module is moved behind a port.
+ignore_imports =
+    automind.application.compose -> automind.infrastructure.**
+    automind.application.compose -> sqlalchemy
+    automind.application.research -> automind.infrastructure.**
+    automind.application.research -> sqlalchemy
+    automind.application.resolve -> automind.infrastructure.**
+    automind.application.resolve -> sqlalchemy

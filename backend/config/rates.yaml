@@ -1,0 +1,26 @@
+# TCO rates and the used-car base reserve table (FR-033..FR-035, research R9).
+# All values are ASSUMPTIONS shown with their inputs; users can override fuel, electricity and labour per chat.
+version: 1
+fuel_eur_per_l: 1.60
+diesel_eur_per_l: 1.50
+electricity_eur_per_kwh: 0.25
+labour_eur_per_h: 75
+annual_km: 15000
+horizon_years: 5
+tyre_life_km: {small: 45000, compact: 40000, mid_large: 35000, premium_suv_4x4: 30000}
+tyre_set_eur: {small: 320, compact: 450, mid_large: 650, premium_suv_4x4: 1000}
+# Assumed service cost when the price of a sourced service is not published: labour hours × rate + parts.
+service_hours: {ICE: 2.0, MHEV: 2.0, HEV: 2.0, PHEV: 2.2, BEV: 1.0}
+service_parts_eur: {ICE: 110, MHEV: 115, HEV: 120, PHEV: 130, BEV: 60}
+# A documented big-ticket item without a published cost (labelled assumption).
+big_ticket_default_eur: 900
+# Road tax (IVTM) per fiscal horsepower: unknown by default → "not included" (set a value to include it).
+road_tax_eur_per_cvf: null
+default_interval_km: {ICE: 15000, MHEV: 15000, HEV: 15000, PHEV: 15000, BEV: 30000}
+# Base repair reserve, EUR per year, by age band × vehicle class (FR-035 part b).
+base_reserve_eur_per_year:
+  age_bands: ["0-4", "5-9", "10-14", "15+"]
+  small:           [100, 300, 500, 700]
+  compact:         [150, 400, 650, 900]
+  mid_large:       [200, 550, 900, 1200]
+  premium_suv_4x4: [300, 800, 1300, 1800]

@@ -1,0 +1,36 @@
+# Known generations with production years (end: null = in production). Used to decide whether a
+# used car without a year spans more than one generation (FR-005, FR-008) and to validate the
+# resolver's answer. Seed knowledge, extendable; the resolver adds years for models not listed.
+# Keys are canonical "Make|Model" (see aliases.yaml).
+version: 1
+"Toyota|Land Cruiser Prado":
+  - {generation: J90, from: 1996, to: 2002}
+  - {generation: J120, from: 2002, to: 2009}
+  - {generation: J150, from: 2009, to: 2023}
+  - {generation: J250, from: 2024, to: null}
+"Dacia|Bigster":
+  - {generation: Mk1, from: 2025, to: null}
+"Dacia|Duster":
+  - {generation: Mk1, from: 2010, to: 2017}
+  - {generation: Mk2, from: 2018, to: 2023}
+  - {generation: Mk3, from: 2024, to: null}
+"Volkswagen|Golf":
+  - {generation: Mk5, from: 2003, to: 2008}
+  - {generation: Mk6, from: 2008, to: 2012}
+  - {generation: Mk7, from: 2012, to: 2016}
+  - {generation: Mk7.5, from: 2017, to: 2019}
+  - {generation: Mk8, from: 2020, to: 2023}
+  - {generation: Mk8.5, from: 2024, to: null}
+"BMW|3 Series":
+  - {generation: E90, from: 2005, to: 2011}
+  - {generation: F30, from: 2012, to: 2018}
+  - {generation: G20, from: 2019, to: null}
+"Land Rover|Range Rover Sport":
+  - {generation: L320, from: 2005, to: 2013}
+  - {generation: L494, from: 2013, to: 2022}
+  - {generation: L461, from: 2022, to: null}
+"Hyundai|i30 N":
+  - {generation: PDe, from: 2017, to: null}
+"Tesla|Model 3":
+  - {generation: Mk1, from: 2017, to: 2023}
+  - {generation: Highland, from: 2023, to: null}

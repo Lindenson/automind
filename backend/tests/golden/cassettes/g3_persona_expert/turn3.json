@@ -1,0 +1,18 @@
+{
+  "interpreter": [
+    {
+      "request": "weights_change",
+      "language": "en",
+      "delta": {
+        "set_persona": {
+          "persona": "EXPERT",
+          "source": "ASKED"
+        }
+      },
+      "persona_evidence": "I'm a car engineer"
+    }
+  ],
+  "answerer": [
+    "From an engineering view: the Bigster uses a small turbo three-cylinder on the CMF-B platform; the Prado J150 a turbo-diesel four on a body-on-frame chassis with permanent AWD — robust, heavy, and built for load and terrain rather than efficiency."
+  ]
+}

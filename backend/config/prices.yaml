@@ -1,0 +1,13 @@
+# Prices used for cost estimates and usage accounting (FR-041, FR-042). EUR.
+# LLM prices are per 1M tokens. PLACEHOLDERS: verify against the provider price lists before
+# trusting cost figures. Usage counts (calls, tokens) are exact; € values are estimates.
+version: 1
+llm:
+  openai:gpt-5.4: {input: 2.30, output: 13.80}
+  openai:gpt-5.4-mini: {input: 0.23, output: 1.84}
+  anthropic:claude-sonnet-5-5: {input: 2.76, output: 13.80}
+  anthropic:claude-haiku-5-5: {input: 0.92, output: 4.60}
+default_llm: {input: 2.30, output: 13.80}
+search:
+  eur_per_credit: 0.0074
+  credits: {search_basic: 1, search_advanced: 2, extract_basic_per_5_urls: 1, extract_advanced_per_5_urls: 2}

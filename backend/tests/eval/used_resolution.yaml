@@ -1,0 +1,25 @@
+# Used-car resolution test set (SC-003: ≥95% correct generation). Each case: what the user said, the
+# year, and accepted generation names (case-insensitive; any match counts). Target: ≥ 95%.
+cases:
+  - {make: Volkswagen, model: Passat, year: 2012, accept: [B7]}
+  - {make: Volkswagen, model: Passat, year: 2018, accept: [B8]}
+  - {make: BMW, model: 5 Series, year: 2015, accept: [F10, F11]}
+  - {make: BMW, model: 5 Series, year: 2020, accept: [G30, G31]}
+  - {make: Mercedes-Benz, model: C-Class, year: 2016, accept: [W205]}
+  - {make: Mercedes-Benz, model: C-Class, year: 2010, accept: [W204]}
+  - {make: Audi, model: A4, year: 2014, accept: [B8, B8.5]}
+  - {make: Audi, model: A4, year: 2019, accept: [B9]}
+  - {make: Toyota, model: RAV4, year: 2017, accept: [XA40, "4th", "IV", Mk4]}
+  - {make: Toyota, model: RAV4, year: 2021, accept: [XA50, "5th", "V", Mk5]}
+  - {make: Ford, model: Focus, year: 2016, accept: [Mk3, "3rd", "III"]}
+  - {make: Ford, model: Focus, year: 2020, accept: [Mk4, "4th", "IV"]}
+  - {make: Renault, model: Clio, year: 2015, accept: [IV, Mk4, "4th", X98]}
+  - {make: Renault, model: Clio, year: 2021, accept: ["V", Mk5, "5th", BF]}
+  - {make: Toyota, model: Land Cruiser Prado, year: 2015, accept: [J150]}
+  - {make: Volkswagen, model: Golf, year: 2015, accept: [Mk7]}
+  - {make: BMW, model: 3 Series, year: 2010, accept: [E90, E91, E92, E93]}
+  - {make: Mazda, model: MX-5, year: 2017, accept: [ND]}
+  - {make: Mazda, model: MX-5, year: 2012, accept: [NC]}
+  - {make: Volvo, model: XC90, year: 2012, accept: [Mk1, "1st", "I", P2, first]}
+  - {make: Land Rover, model: Range Rover Sport, year: 2011, accept: [L320]}
+  - {make: Seat, model: Leon, year: 2014, accept: [Mk3, "3rd", "III", 5F]}

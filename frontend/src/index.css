@@ -1,0 +1,100 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: 8 11 17;
+  --panel: 15 20 30;
+  --panel2: 22 29 42;
+  --line: 40 50 68;
+  --fg: 230 234 242;
+  --muted: 139 150 170;
+  --accent: 249 115 22;
+  --accent2: 56 189 248;
+  --good: 34 197 94;
+  --warn: 245 158 11;
+  --bad: 239 68 68;
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: 244 246 250;
+    --panel: 255 255 255;
+    --panel2: 240 243 248;
+    --line: 218 224 234;
+    --fg: 17 24 39;
+    --muted: 92 104 124;
+    --accent: 234 88 12;
+    --accent2: 2 132 199;
+    --good: 22 163 74;
+    --warn: 217 119 6;
+    --bad: 220 38 38;
+    color-scheme: light;
+  }
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-bg font-sans text-fg antialiased;
+  overflow-x: hidden;
+  background-image:
+    radial-gradient(1200px 500px at 85% -10%, rgb(var(--accent) / 0.08), transparent 60%),
+    radial-gradient(900px 400px at -10% 10%, rgb(var(--accent2) / 0.07), transparent 60%);
+  background-attachment: fixed;
+}
+
+.card {
+  @apply rounded-2xl border border-line/70 bg-panel/90 shadow-[0_1px_0_rgb(255_255_255/0.03)_inset,0_12px_32px_-18px_rgb(0_0_0/0.6)];
+}
+
+.chip {
+  @apply inline-flex items-center gap-1 rounded-full border border-line/80 bg-panel2 px-2 py-0.5 text-[11px] font-medium text-muted;
+}
+
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--line)) transparent;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Markdown answer text */
+.md {
+  @apply text-[15px] leading-relaxed text-fg;
+}
+.md > * + * {
+  @apply mt-3;
+}
+.md h1,
+.md h2,
+.md h3 {
+  @apply font-display font-semibold tracking-tight;
+}
+.md h1 { @apply text-xl; }
+.md h2 { @apply text-lg; }
+.md h3 { @apply text-base; }
+.md strong { @apply font-semibold text-fg; }
+.md em { @apply text-fg/90; }
+.md a { @apply text-accent2 underline decoration-accent2/40 underline-offset-2 hover:decoration-accent2; }
+.md ul { @apply list-disc space-y-1 pl-5 marker:text-accent; }
+.md ol { @apply list-decimal space-y-1 pl-5 marker:text-accent marker:font-semibold; }
+.md code { @apply rounded bg-panel2 px-1.5 py-0.5 font-mono text-[0.85em] text-accent2; }
+.md pre { @apply overflow-x-auto rounded-lg bg-panel2 p-3; }
+.md pre code { @apply bg-transparent p-0; }
+.md blockquote { @apply border-l-2 border-accent/60 pl-3 text-muted; }
+.md table { @apply block w-full max-w-full overflow-x-auto border-collapse text-sm; }
+.md th { @apply border-b border-line px-3 py-1.5 text-left font-semibold text-muted; }
+.md td { @apply border-b border-line/50 px-3 py-1.5 tabular-nums; }
+.md hr { @apply border-line; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+}

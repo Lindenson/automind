@@ -1,0 +1,191 @@
+/**
+ * Ownership cost (FR-033..FR-035): annual and 5-year totals per car, a stacked bar by item, every item
+ * labelled SOURCED or ASSUMPTION with its inputs. For used cars the repair reserve is shown in two
+ * parts: documented big-ticket items and the base reserve.
+ */
+import type { BlockOf } from "../../lib/protocol";
+import { cx, fmtNum } from "../../lib/util";
+import {
+  AssumptionBadge,
+  BlockCard,
+  ProvenanceBadge,
+  SourcesButton,
+} from "../badges";
+import { useCarColor } from "../carColors";
+import { WrenchIcon } from "../icons";
+
+type Car = BlockOf<"tco">["cars"][number];
+type Item = Car["items"][number];
+
+const KIND_ORDER = [
+  "MAINTENANCE",
+  "ENERGY",
+  "TYRES",
+  "ROAD_TAX",
+  "BIG_TICKET",
+  "BASE_RESERVE",
+] as const;
+const KIND_LABEL: Record<Item["kind"], string> = {
+  MAINTENANCE: "Maintenance",
+  ENERGY: "Energy",
+  TYRES: "Tyres",
+  ROAD_TAX: "Road tax",
+  BIG_TICKET: "Due repairs",
+  BASE_RESERVE: "Base reserve",
+};
+const OPACITY: Record<Item["kind"], number> = {
+  MAINTENANCE: 1,
+  ENERGY: 0.78,
+  TYRES: 0.6,
+  ROAD_TAX: 0.45,
+  BIG_TICKET: 0.34,
+  BASE_RESERVE: 0.24,
+};
+const eur = (v: number | null) => (v === null ? "—" : `€${fmtNum(v, 0)}`);
+
+function Row({ it }: { it: Item }) {
+  return (
+    <li
+      className="flex items-start justify-between gap-2 py-1 text-xs"
+      title={it.inputs.join("\n")}
+    >
+      <span className="min-w-0">
+        <span className={cx(it.annual_eur === null && "text-muted")}>
+          {it.label}
+        </span>
+        <span className="block truncate text-[10px] text-muted">
+          {it.inputs.join(" · ")}
+        </span>
+      </span>
+      <span className="flex shrink-0 items-center gap-1.5 tabular">
+        {eur(it.annual_eur)}/yr
+        {it.basis === "SOURCED" ? (
+          <ProvenanceBadge p="SOURCED_FACT" />
+        ) : (
+          <AssumptionBadge />
+        )}
+        {it.sources.length > 0 && <SourcesButton sources={it.sources} />}
+      </span>
+    </li>
+  );
+}
+
+function CarCost({
+  car,
+  color,
+  max,
+}: {
+  car: Car;
+  color: string;
+  max: number;
+}) {
+  const regular = car.items.filter(
+    (i) => i.kind !== "BIG_TICKET" && i.kind !== "BASE_RESERVE",
+  );
+  const bigTicket = car.items.filter((i) => i.kind === "BIG_TICKET");
+  const reserve = car.items.filter((i) => i.kind === "BASE_RESERVE");
+  const byKind = KIND_ORDER.map(
+    (k) =>
+      [
+        k,
+        car.items
+          .filter((i) => i.kind === k)
+          .reduce((a, i) => a + (i.annual_eur ?? 0), 0),
+      ] as const,
+  );
+  return (
+    <div className="rounded-xl border border-line/50 p-3">
+      <div className="mb-2 flex items-baseline justify-between gap-2">
+        <span
+          className="min-w-0 truncate font-display text-sm font-semibold"
+          style={{ color }}
+        >
+          {car.label}
+          {car.condition === "USED" && (
+            <span className="ml-1 text-xs font-normal text-muted">
+              used{car.age_years ? `, ~${car.age_years} y` : ""}
+            </span>
+          )}
+        </span>
+        <span className="shrink-0 text-right">
+          <span className="font-display text-xl font-bold tabular">
+            {eur(car.annual_total)}
+          </span>
+          <span className="text-xs text-muted">
+            /yr · {eur(car.five_year_total)} over 5 years
+          </span>
+        </span>
+      </div>
+      <div
+        className="flex h-2.5 overflow-hidden rounded-full bg-panel2"
+        aria-label="cost by item"
+      >
+        {byKind.map(([k, v]) =>
+          v > 0 ? (
+            <div
+              key={k}
+              title={`${KIND_LABEL[k]}: ${eur(v)}/yr`}
+              style={{
+                width: `${(v / max) * 100}%`,
+                background: color,
+                opacity: OPACITY[k],
+              }}
+            />
+          ) : null,
+        )}
+      </div>
+      <ul className="mt-2 divide-y divide-line/30">
+        {regular.map((it) => (
+          <Row key={it.kind + it.label} it={it} />
+        ))}
+      </ul>
+      {(bigTicket.length > 0 || reserve.length > 0) && (
+        <div className="mt-2 rounded-lg bg-panel2/60 p-2">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+            Repair reserve (used car)
+          </div>
+          <div className="mt-1 text-[11px] text-muted">
+            a) Documented items due within 5 years
+          </div>
+          {bigTicket.length === 0 ? (
+            <p className="text-xs text-muted">
+              None documented for this age and mileage.
+            </p>
+          ) : (
+            <ul>
+              {bigTicket.map((it) => (
+                <Row key={it.label} it={it} />
+              ))}
+            </ul>
+          )}
+          <div className="mt-1 text-[11px] text-muted">
+            b) Base reserve by age and class
+          </div>
+          <ul>
+            {reserve.map((it) => (
+              <Row key={it.label} it={it} />
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function Tco({ b }: { b: BlockOf<"tco"> }) {
+  const color = useCarColor();
+  const max = Math.max(1, ...b.cars.map((c) => c.annual_total));
+  return (
+    <BlockCard
+      title={b.title}
+      icon={<WrenchIcon />}
+      right={<span className="chip">{fmtNum(b.annual_km, 0)} km/yr</span>}
+    >
+      <div className="grid gap-3 lg:grid-cols-2">
+        {b.cars.map((c) => (
+          <CarCost key={c.car_id} car={c} color={color(c.car_id)} max={max} />
+        ))}
+      </div>
+    </BlockCard>
+  );
+}

@@ -1,0 +1,7 @@
+{
+  "interpreter": [
+    {"request": "compare", "language": "en", "delta": {"add_cars": [
+      {"request_text": "BMW M3", "make": "BMW", "model": "3 Series", "condition": "UNKNOWN", "constraints": {"trim_hint": "M3"}}]}}
+  ],
+  "asker": ["I compare up to 3 cars at a time. Which 3 of these should I compare: Golf GTI Mk8, i30 N, Tesla Model 3 Performance, BMW M3?"]
+}

@@ -1,0 +1,593 @@
+openapi: 3.1.0
+info:
+  title: AutoMind API
+  version: 1.0.0-mvp
+  description: >
+    REST contract for the Ultimate Car Battle MVP (feature 001-car-battle-mvp).
+    All numeric quantities carry explicit units. Values carry provenance and confidence.
+    The live progress stream is specified in sse-events.md.
+servers:
+  - url: http://127.0.0.1:8000/api/v1
+
+paths:
+  /health:
+    get:
+      summary: Liveness and dependency status
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [ok, degraded] }
+                  database: { type: string, enum: [ok, down] }
+                  llm_providers: { type: array, items: { type: string } }
+                  search_provider: { type: string }
+
+  /researches:
+    post:
+      summary: Create a research session (FR-001, FR-002)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateResearchRequest" }
+      responses:
+        "201":
+          description: Created (state CREATED)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Research" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+    get:
+      summary: List research history (FR-035)
+      parameters:
+        - { name: state, in: query, schema: { $ref: "#/components/schemas/ResearchState" } }
+        - { name: limit, in: query, schema: { type: integer, default: 20, maximum: 100 } }
+        - { name: cursor, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: Page of research summaries, newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/ResearchSummary" } }
+                  next_cursor: { type: [string, "null"] }
+
+  /researches/{id}:
+    parameters: [ { $ref: "#/components/parameters/ResearchId" } ]
+    get:
+      summary: Research status, plan, tasks and usage (FR-031, FR-032)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Research" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /researches/{id}/start:
+    parameters: [ { $ref: "#/components/parameters/ResearchId" } ]
+    post:
+      summary: Start planning (CREATED → PLANNING); also resumes an interrupted research
+      responses:
+        "202": { description: Accepted; follow progress on /events }
+        "409": { $ref: "#/components/responses/InvalidState" }
+
+  /researches/{id}/approval:
+    parameters: [ { $ref: "#/components/parameters/ResearchId" } ]
+    post:
+      summary: Approve, reject or edit the plan (FR-005, FR-006, FR-040)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ApprovalRequest" }
+      responses:
+        "202": { description: "Accepted (APPROVE → RUNNING, EDIT → PLANNING with new plan_version, REJECT → CANCELLED)" }
+        "409": { $ref: "#/components/responses/InvalidState" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /researches/{id}/cancel:
+    parameters: [ { $ref: "#/components/parameters/ResearchId" } ]
+    post:
+      summary: Cancel a non-terminal research (FR-034)
+      responses:
+        "202": { description: Cancellation requested }
+        "409": { $ref: "#/components/responses/InvalidState" }
+
+  /researches/{id}/events:
+    parameters:
+      - { $ref: "#/components/parameters/ResearchId" }
+      - { name: Last-Event-ID, in: header, required: false, schema: { type: string } }
+    get:
+      summary: Server-Sent Events stream with replay (see sse-events.md)
+      responses:
+        "200":
+          description: text/event-stream
+          content:
+            text/event-stream:
+              schema: { type: string }
+
+  /researches/{id}/report:
+    parameters: [ { $ref: "#/components/parameters/ResearchId" } ]
+    get:
+      summary: Final immutable report (FR-029, FR-030); partial report for CANCELLED
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Report" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/InvalidState" }
+
+  /vehicles/search:
+    get:
+      summary: Search the local vehicle catalog (FR-040)
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string, minLength: 2 } }
+        - { name: limit, in: query, schema: { type: integer, default: 10, maximum: 50 } }
+      responses:
+        "200":
+          description: Matching catalog variants
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/VariantSummary" } }
+
+  /vehicles/{id}:
+    get:
+      summary: Catalog variant with latest specs, issues and evidence
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VehicleDetail" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /simulations/drag-race:
+    post:
+      summary: Run a drag race with settings and optional prediction (FR-023..FR-028, FR-041)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DragRaceRequest" }
+      responses:
+        "201":
+          description: Simulation stored and returned
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Simulation" }
+        "422": { $ref: "#/components/responses/ValidationError" }
+
+  /simulations/{id}:
+    get:
+      summary: Retrieve a stored simulation including time series
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Simulation" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /researches/{id}/simulations:
+    parameters: [ { $ref: "#/components/parameters/ResearchId" } ]
+    get:
+      summary: All drag race runs of a research, newest first
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/SimulationSummary" } }
+
+components:
+  parameters:
+    ResearchId:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  responses:
+    NotFound:
+      description: Resource not found
+      content:
+        application/json: { schema: { $ref: "#/components/schemas/Error" } }
+    InvalidState:
+      description: Operation not allowed in the current research state
+      content:
+        application/json: { schema: { $ref: "#/components/schemas/Error" } }
+    ValidationError:
+      description: Request failed validation
+      content:
+        application/json: { schema: { $ref: "#/components/schemas/Error" } }
+
+  schemas:
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: string, examples: [VEHICLE_COUNT_OUT_OF_RANGE, INVALID_STATE, NOT_FOUND] }
+        message: { type: string }
+        details: { type: object }
+
+    ResearchState:
+      type: string
+      enum: [CREATED, PLANNING, AWAITING_APPROVAL, RUNNING, VERIFYING, ANALYZING, COMPLETED, FAILED, CANCELLED]
+    TaskStatus:
+      type: string
+      enum: [PENDING, RUNNING, COMPLETED, FAILED, RETRYING, SKIPPED]
+    Provenance:
+      type: string
+      enum: [MANUFACTURER_CLAIM, MEASURED, SOURCED_FACT, DERIVED, SIMULATED_ESTIMATE, ASSUMPTION]
+    Confidence:
+      type: string
+      enum: [HIGH, MEDIUM, LOW]
+    SourceType:
+      type: string
+      enum: [MANUFACTURER, INSTRUMENTED_TEST, PUBLICATION, ENCYCLOPEDIA, SPEC_DATABASE]
+    Powertrain:
+      type: string
+      enum: [ICE, BEV, HEV, PHEV, MHEV]
+
+    VehicleInput:
+      type: object
+      required: [text]
+      properties:
+        text: { type: string, minLength: 2, maxLength: 200, examples: ["VW Golf GTI Mk8"] }
+        model_year: { type: [integer, "null"], minimum: 1950, maximum: 2030 }
+
+    Limits:
+      type: object
+      properties:
+        max_llm_calls: { type: integer, default: 150, minimum: 10, maximum: 1000 }
+        max_followup_rounds: { type: integer, default: 2, minimum: 0, maximum: 5 }
+        max_concurrency: { type: integer, default: 6, minimum: 1, maximum: 16 }
+        request_timeout_s: { type: integer, default: 30, minimum: 5, maximum: 120 }
+
+    CreateResearchRequest:
+      type: object
+      required: [vehicles]
+      properties:
+        vehicles:
+          type: array
+          minItems: 2
+          maxItems: 4
+          items: { $ref: "#/components/schemas/VehicleInput" }
+        question: { type: [string, "null"], maxLength: 1000 }
+        market: { type: string, default: ES, pattern: "^[A-Z]{2}$" }
+        limits: { $ref: "#/components/schemas/Limits" }
+
+    VariantSummary:
+      type: object
+      required: [id, make, model, variant_name, powertrain, market]
+      properties:
+        id: { type: [string, "null"], format: uuid, description: "null for not-yet-catalogued candidates" }
+        make: { type: string }
+        model: { type: string }
+        generation_code: { type: [string, "null"] }
+        variant_name: { type: string }
+        powertrain: { $ref: "#/components/schemas/Powertrain" }
+        model_year_from: { type: [integer, "null"] }
+        model_year_to: { type: [integer, "null"] }
+        market: { type: string }
+        catalog_status: { type: string, enum: [NEW, FRESH, STALE] }
+        last_researched_at: { type: [string, "null"], format: date-time }
+
+    PlanVehicle:
+      type: object
+      properties:
+        position: { type: integer, minimum: 1, maximum: 4 }
+        input_text: { type: string }
+        selected: { oneOf: [ { $ref: "#/components/schemas/VariantSummary" }, { type: "null" } ] }
+        alternatives: { type: array, items: { $ref: "#/components/schemas/VariantSummary" } }
+        ambiguity: { type: string, enum: [NONE, AMBIGUOUS, UNIDENTIFIED] }
+        data_mode: { type: string, enum: [RESEARCH, REUSE] }
+        warnings: { type: array, items: { type: string } }
+        market_note: { type: [string, "null"], description: "Set when the resolved variant is from a different market than requested (e.g. not sold in ES)" }
+
+    ResearchPlan:
+      type: object
+      properties:
+        version: { type: integer }
+        vehicles: { type: array, items: { $ref: "#/components/schemas/PlanVehicle" } }
+        categories: { type: array, items: { type: string } }
+        tasks:
+          type: array
+          items:
+            type: object
+            properties:
+              vehicle_position: { type: integer }
+              category: { type: string }
+        planned_source_types: { type: array, items: { $ref: "#/components/schemas/SourceType" } }
+        estimated_task_count: { type: integer }
+        ambiguities: { type: array, items: { type: string } }
+
+    ApprovalRequest:
+      type: object
+      required: [decision, plan_version]
+      properties:
+        decision: { type: string, enum: [APPROVE, REJECT, EDIT] }
+        plan_version: { type: integer, description: "Optimistic concurrency: must match current plan" }
+        vehicle_choices:
+          description: Required for EDIT; optional overrides for APPROVE
+          type: array
+          items:
+            type: object
+            required: [position]
+            properties:
+              position: { type: integer }
+              variant_id: { type: [string, "null"], format: uuid }
+              candidate_index: { type: [integer, "null"] }
+              new_text: { type: [string, "null"] }
+              data_mode: { type: string, enum: [RESEARCH, REUSE] }
+              remove: { type: boolean, default: false }
+
+    ResearchTask:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        vehicle_position: { type: integer }
+        category: { type: string }
+        status: { $ref: "#/components/schemas/TaskStatus" }
+        attempt: { type: integer }
+        followup_round: { type: integer }
+        error: { type: [string, "null"] }
+
+    Usage:
+      type: object
+      properties:
+        llm_calls: { type: integer }
+        input_tokens: { type: integer }
+        output_tokens: { type: integer }
+        estimated_cost_eur: { type: number }
+        search_requests: { type: integer }
+
+    ResearchSummary:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        state: { $ref: "#/components/schemas/ResearchState" }
+        vehicles: { type: array, items: { type: string } }
+        created_at: { type: string, format: date-time }
+        completed_at: { type: [string, "null"], format: date-time }
+        resumable: { type: boolean }
+
+    Research:
+      type: object
+      required: [id, state, vehicles, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        state: { $ref: "#/components/schemas/ResearchState" }
+        question: { type: [string, "null"] }
+        market: { type: string }
+        vehicles:
+          type: array
+          items:
+            type: object
+            properties:
+              position: { type: integer }
+              input_text: { type: string }
+              model_year: { type: [integer, "null"] }
+        limits: { $ref: "#/components/schemas/Limits" }
+        plan: { oneOf: [ { $ref: "#/components/schemas/ResearchPlan" }, { type: "null" } ] }
+        tasks: { type: array, items: { $ref: "#/components/schemas/ResearchTask" } }
+        usage: { $ref: "#/components/schemas/Usage" }
+        limits_reached: { type: array, items: { type: string } }
+        failure_reason: { type: [string, "null"] }
+        last_event_seq: { type: integer }
+        created_at: { type: string, format: date-time }
+        completed_at: { type: [string, "null"], format: date-time }
+
+    EvidenceRef:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        url: { type: string, format: uri }
+        source_name: { type: string }
+        source_type: { $ref: "#/components/schemas/SourceType" }
+        retrieved_at: { type: string, format: date-time }
+        excerpt: { type: string }
+
+    SpecValue:
+      type: object
+      required: [attribute, tier, available]
+      properties:
+        attribute: { type: string, examples: [max_power] }
+        tier: { type: integer, enum: [1, 2, 3] }
+        available: { type: boolean }
+        value: { type: [number, string, array, "null"] }
+        unit: { type: [string, "null"], examples: [kW] }
+        display: { type: [string, "null"], examples: ["180 kW (245 PS) @ 5000–6500 rpm"] }
+        qualifiers: { type: object }
+        provenance: { oneOf: [ { $ref: "#/components/schemas/Provenance" }, { type: "null" } ] }
+        confidence: { oneOf: [ { $ref: "#/components/schemas/Confidence" }, { type: "null" } ] }
+        confidence_rule: { type: [string, "null"] }
+        evidence: { type: array, items: { $ref: "#/components/schemas/EvidenceRef" } }
+        conflict_id: { type: [string, "null"], format: uuid }
+
+    Conflict:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        vehicle_position: { type: integer }
+        attribute: { type: string }
+        status: { type: string, enum: [RESOLVED, UNRESOLVED] }
+        resolution_rule: { type: [string, "null"], enum: [AUTHORITY_ORDER, MAJORITY_SAME_RANK, null] }
+        candidates:
+          type: array
+          items:
+            type: object
+            properties:
+              value: { type: [number, string] }
+              unit: { type: [string, "null"] }
+              evidence: { $ref: "#/components/schemas/EvidenceRef" }
+              selected: { type: boolean }
+
+    TechnicalIssue:
+      type: object
+      properties:
+        component: { type: string }
+        description: { type: string }
+        recurrence: { type: string, enum: [RECURRING, ISOLATED] }
+        evidence: { type: array, items: { $ref: "#/components/schemas/EvidenceRef" } }
+
+    VehicleDetail:
+      type: object
+      properties:
+        variant: { $ref: "#/components/schemas/VariantSummary" }
+        specs: { type: array, items: { $ref: "#/components/schemas/SpecValue" } }
+        issues: { type: array, items: { $ref: "#/components/schemas/TechnicalIssue" } }
+        issues_found: { type: boolean, description: "false → 'no documented issues found'" }
+        vehicle_confidence:
+          type: object
+          properties:
+            tier1_high_share: { type: number, minimum: 0, maximum: 1 }
+            tier1_available_share: { type: number, minimum: 0, maximum: 1 }
+
+    Comparison:
+      type: object
+      properties:
+        rules_version: { type: string }
+        metrics:
+          type: array
+          items:
+            type: object
+            properties:
+              key: { type: string, examples: [power_to_weight] }
+              unit: { type: string, examples: [kW/t] }
+              values:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    vehicle_position: { type: integer }
+                    value: { type: [number, "null"] }
+                    provenance: { const: DERIVED }
+                    inputs: { type: array, items: { type: string } }
+              ranking: { type: array, items: { type: integer }, description: "vehicle positions, best first" }
+              excluded:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    vehicle_position: { type: integer }
+                    reason: { type: string }
+
+    RaceSettings:
+      type: object
+      properties:
+        surface: { type: string, enum: [DRY, WET], default: DRY }
+        extra_load_kg: { type: number, minimum: 0, maximum: 500, default: 0 }
+        temperature_c: { type: number, minimum: -20, maximum: 50, default: 20 }
+        altitude_m: { type: number, minimum: 0, maximum: 3000, default: 0 }
+
+    DragRaceRequest:
+      type: object
+      required: [research_id]
+      properties:
+        research_id: { type: string, format: uuid }
+        vehicle_positions: { type: array, items: { type: integer }, description: "default: all" }
+        settings: { $ref: "#/components/schemas/RaceSettings" }
+        prediction: { type: [array, "null"], items: { type: integer }, description: "predicted finishing order (positions)" }
+
+    SimulationSummary:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        model_version: { type: string, examples: [dragrace-0.1.0] }
+        settings: { $ref: "#/components/schemas/RaceSettings" }
+        winner_position: { type: [integer, "null"] }
+        created_at: { type: string, format: date-time }
+
+    Simulation:
+      allOf:
+        - $ref: "#/components/schemas/SimulationSummary"
+        - type: object
+          properties:
+            label: { const: SIMULATED_ESTIMATE }
+            input_hash: { type: string }
+            prediction: { type: [array, "null"], items: { type: integer } }
+            prediction_correct: { type: [boolean, "null"] }
+            results:
+              type: array
+              items:
+                type: object
+                properties:
+                  vehicle_position: { type: integer }
+                  finish_rank: { type: integer }
+                  t_0_100_s: { type: number }
+                  t_0_200_s: { type: [number, "null"], description: "null = not reached within 400 m" }
+                  t_400m_s: { type: number }
+                  v_400m_kmh: { type: number }
+                  claimed_0_100_s: { type: [number, "null"] }
+                  measured_0_100_s: { type: [number, "null"] }
+                  measured_400m_s: { type: [number, "null"] }
+                  notes: { type: array, items: { type: string }, examples: [["combined system power simplification"]] }
+                  assumptions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name: { type: string }
+                        value: { type: number }
+                        unit: { type: [string, "null"] }
+                        reason: { type: string }
+            excluded:
+              type: array
+              items:
+                type: object
+                properties:
+                  vehicle_position: { type: integer }
+                  reason: { type: string }
+            timeseries:
+              type: array
+              items:
+                type: object
+                properties:
+                  vehicle_position: { type: integer }
+                  t_s: { type: array, items: { type: number } }
+                  v_kmh: { type: array, items: { type: number } }
+                  s_m: { type: array, items: { type: number } }
+                  a_ms2: { type: array, items: { type: number } }
+
+    Report:
+      type: object
+      properties:
+        research_id: { type: string, format: uuid }
+        state: { $ref: "#/components/schemas/ResearchState" }
+        partial: { type: boolean }
+        generated_at: { type: string, format: date-time }
+        versions:
+          type: object
+          properties:
+            rules: { type: string }
+            simulation_model: { type: string }
+            app: { type: string }
+        vehicles: { type: array, items: { $ref: "#/components/schemas/VehicleDetail" } }
+        comparison: { $ref: "#/components/schemas/Comparison" }
+        simulation: { oneOf: [ { $ref: "#/components/schemas/Simulation" }, { type: "null" } ] }
+        conflicts: { type: array, items: { $ref: "#/components/schemas/Conflict" } }
+        evidence_index: { type: array, items: { $ref: "#/components/schemas/EvidenceRef" } }
+        findings: { type: array, items: { type: string }, description: "LLM-written narrative referencing computed values only" }
+        limits_reached: { type: array, items: { type: string } }
+        usage: { $ref: "#/components/schemas/Usage" }

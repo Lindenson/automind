@@ -1,0 +1,46 @@
+{
+  "interpreter": [
+    {
+      "request": "compare",
+      "language": "en",
+      "delta": {
+        "set_persona": {
+          "persona": "PERFORMANCE",
+          "source": "INFERRED"
+        },
+        "add_priorities": [
+          {
+            "criterion": "performance",
+            "strength": "HIGH"
+          },
+          {
+            "criterion": "driving_fun",
+            "strength": "HIGH"
+          }
+        ],
+        "add_cars": [
+          {
+            "request_text": "Golf GTI Mk8",
+            "make": "Volkswagen",
+            "model": "Golf",
+            "condition": "UNKNOWN",
+            "constraints": {
+              "generation_hint": "Mk8",
+              "trim_hint": "GTI"
+            }
+          },
+          {
+            "request_text": "i30 N",
+            "make": "Hyundai",
+            "model": "i30 N",
+            "condition": "UNKNOWN"
+          }
+        ]
+      },
+      "persona_evidence": "for a race enthusiast"
+    }
+  ],
+  "reporter": [
+    "**For a race enthusiast the i30 N is the quicker, sharper car; the Golf GTI is the more polished all-rounder.**\n\n- The i30 N has more power and torque.\n- The GTI is lighter and smoother with its DSG.\n\nData quality: manufacturer specs; race results are simulated estimates."
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "interpreter": [
+    {"request": "compare", "language": "en", "delta": {
+      "set_car_context": [{"target_key": "car#2", "age_years": 10, "constraints": {"generation_hint": "150"}}]}}
+  ]
+}

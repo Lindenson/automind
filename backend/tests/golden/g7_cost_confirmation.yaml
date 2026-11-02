@@ -1,0 +1,26 @@
+id: g7_cost_confirmation
+description: >
+  Deep research of 3 uncached cars (FR-041, SC-015): the estimate is at or above €0.30, so the hub asks first;
+  "skip" runs no research and answers with what exists; no turn costs more than €1.00.
+scenario: empty
+seed:
+  - {make: Skoda, model: Octavia, generation: Mk4, variant_name: RS 2.0 TSI 265 PS, powertrain: ICE, body_class: WAGON,
+     years: [2020, null], vehicle_class: compact, cached: false}
+  - {make: Cupra, model: Leon, generation: Mk1, variant_name: VZ 2.0 TSI 300 PS, powertrain: ICE, body_class: HATCHBACK,
+     years: [2020, null], vehicle_class: compact, cached: false}
+  - {make: Peugeot, model: "308", generation: P5, variant_name: 1.2 PureTech 130, powertrain: ICE, body_class: HATCHBACK,
+     years: [2021, null], vehicle_class: compact, cached: false}
+turns:
+  - user: "Deep research please: Skoda Octavia RS, Cupra Leon VZ and Peugeot 308"
+    expect:
+      status: WAITING_CONFIRMATION
+      confirm_kind: cost
+      no_search: true
+      max_cost_eur: 1.0
+      case: {depth: DEEP}
+  - confirm: skip
+    expect:
+      action: REPORT
+      no_search: true
+      researched: []
+      max_cost_eur: 1.0

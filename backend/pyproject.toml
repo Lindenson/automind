@@ -1,0 +1,77 @@
+[project]
+name = "automind"
+version = "0.1.0"
+description = "AutoMind: conversational automotive research backend"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "alembic>=1.20.1",
+    "asyncpg>=0.32.0",
+    "fastapi>=0.162.0",
+    "httpx>=0.28.1",
+    "langchain>=1.0",
+    "langchain-anthropic>=1.7.7",
+    "langchain-mcp-adapters>=0.3.2",
+    "langchain-openai>=1.7.3",
+    "langgraph>=1.0",
+    "langgraph-checkpoint-postgres>=3.2.0",
+    "mcp>=1.30.0",
+    "psycopg[binary,pool]>=3.3.6",
+    "pydantic-settings>=2.16.2",
+    "pyyaml>=6.0.3",
+    "rapidfuzz>=3.14.6",
+    "sqlalchemy[asyncio]>=2",
+    "structlog>=26.1.0",
+    "tavily-python>=0.8.5",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.6,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "hypothesis>=6.170.14",
+    "import-linter>=2.15",
+    "mypy>=2.4.1",
+    "pytest>=9.2.0",
+    "pytest-asyncio>=1.4.1",
+    "ruff>=0.17.3",
+    "types-pyyaml>=6.0.12.20261030",
+]
+
+[project.scripts]
+automind-api = "automind.api.app:main"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+addopts = "-m 'not live'"
+markers = ["live: calls real models and web search (costs money; opt-in with -m live)"]
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "B", "SIM", "C90", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+# Assertion helpers are flat lists of checks; the complexity gate applies to src/.
+"tests/**" = ["C901"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.mypy]
+python_version = "3.13"
+mypy_path = "src"
+explicit_package_bases = true
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "automind.domain.*"
+strict = true

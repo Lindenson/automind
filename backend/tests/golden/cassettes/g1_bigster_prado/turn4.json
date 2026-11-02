@@ -1,0 +1,8 @@
+{
+  "interpreter": [
+    {"request": "weights_change", "language": "en", "delta": {"add_priorities": [{"criterion": "status", "strength": "HIGH"}]}}
+  ],
+  "answerer": [
+    "With status weighted high, the Land Cruiser Prado wins: a premium large 4x4 against a budget-brand compact SUV (status = price class + segment + brand positioning). Reliability and running costs still favour the Bigster."
+  ]
+}

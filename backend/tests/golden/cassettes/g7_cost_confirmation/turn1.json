@@ -1,0 +1,8 @@
+{
+  "interpreter": [
+    {"request": "compare", "language": "en", "delta": {"set_depth": "DEEP", "add_cars": [
+      {"request_text": "Skoda Octavia RS", "make": "Skoda", "model": "Octavia", "condition": "NEW", "constraints": {"trim_hint": "RS"}},
+      {"request_text": "Cupra Leon VZ", "make": "Cupra", "model": "Leon", "condition": "NEW", "constraints": {"trim_hint": "VZ"}},
+      {"request_text": "Peugeot 308", "make": "Peugeot", "model": "308", "condition": "NEW"}]}}
+  ]
+}

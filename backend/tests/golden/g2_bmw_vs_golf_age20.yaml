@@ -1,0 +1,45 @@
+id: g2_bmw_vs_golf_age20
+description: >
+  A 20-year-old choosing a used BMW 320d M Sport vs a Golf R-Line 4Motion for drag racing, city and mountains
+  (FR-046b). Russian in, Russian out. Both are used without a year → one round of questions; years → the
+  generations sold then (F30, Mk7.5), confirmed, then a performance report.
+scenario: empty
+seed:
+  - {make: BMW, model: 3 Series, generation: F30, variant_name: 320d M Sport, powertrain: ICE, body_class: SEDAN,
+     years: [2012, 2018], vehicle_class: mid_large, segment: D, cached: true,
+     specs: {max_power: 140, curb_mass: 1505, max_torque: 400, drivetrain: RWD, claimed_0_100: 7.2}}
+  - {make: Volkswagen, model: Golf, generation: Mk7.5, variant_name: 2.0 TSI R-Line 4Motion, powertrain: ICE,
+     body_class: HATCHBACK, years: [2017, 2019], vehicle_class: compact, segment: C, cached: true,
+     specs: {max_power: 140, curb_mass: 1465, max_torque: 320, drivetrain: AWD, claimed_0_100: 6.5}}
+turns:
+  - user: "Мне 20, могу купить б/у BMW 320d M Sport или Golf R-Line 4Motion — сравни на драг-рейсинг, город и горы"
+    expect:
+      action: ASK
+      language: ru
+      max_questions: 3
+      no_search: true
+      case:
+        persona: PERFORMANCE
+        profile.age: 20
+        cars[0].condition: USED
+        cars[1].condition: USED
+        usage: {contains: MOUNTAINS}
+        priorities: {contains: offroad_mountain}
+        pending.items[0].kind: USED_AGE
+        pending.items[1].kind: USED_AGE
+  - user: "BMW 2016 года, Golf 2019"
+    expect:
+      status: WAITING_CONFIRMATION
+      confirm_kind: variants
+      no_search: true
+      variants: [{car: "car#1", generation: F30, years_include: 2016}, {car: "car#2", generation: Mk7.5, years_include: 2019}]
+      case:
+        cars[0].year: 2016
+        cars[1].year: 2019
+  - confirm: confirm
+    expect:
+      action: REPORT
+      no_search: true
+      case:
+        cars[0].resolution: CONFIRMED
+        cars[1].resolution: CONFIRMED

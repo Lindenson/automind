@@ -1,0 +1,39 @@
+/** Sourced manufacturer background (history, key models, market position). */
+import type { BlockOf } from "../../lib/protocol";
+import { BlockCard, SourcesButton } from "../badges";
+import { BookIcon } from "../icons";
+
+const KIND = {
+  HISTORY: "History",
+  KEY_MODEL: "Key model",
+  MARKET_POSITION: "Market position",
+} as const;
+
+export function Manufacturer({ b }: { b: BlockOf<"manufacturer"> }) {
+  return (
+    <BlockCard title={b.title} icon={<BookIcon />}>
+      <div className="space-y-3">
+        {b.makes.map((m) => (
+          <div key={m.make}>
+            <div className="mb-1 font-display text-sm font-semibold">
+              {m.make}
+            </div>
+            <ul className="space-y-1 text-sm">
+              {m.facts.map((f, i) => (
+                <li key={i} className="flex items-start gap-2">
+                  <span className="chip shrink-0 text-[10px]">
+                    {KIND[f.kind]}
+                  </span>
+                  <span className="min-w-0 flex-1">{f.text}</span>
+                  {f.sources.length > 0 && (
+                    <SourcesButton sources={f.sources} />
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </BlockCard>
+  );
+}

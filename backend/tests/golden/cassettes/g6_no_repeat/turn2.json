@@ -1,0 +1,46 @@
+{
+  "interpreter": [
+    {
+      "request": "compare",
+      "language": "en",
+      "delta": {
+        "set_persona": {
+          "persona": "PERFORMANCE",
+          "source": "INFERRED"
+        },
+        "add_priorities": [
+          {
+            "criterion": "performance",
+            "strength": "HIGH"
+          },
+          {
+            "criterion": "driving_fun",
+            "strength": "HIGH"
+          }
+        ],
+        "add_cars": [
+          {
+            "request_text": "Golf GTI Mk8",
+            "make": "Volkswagen",
+            "model": "Golf",
+            "condition": "UNKNOWN",
+            "constraints": {
+              "generation_hint": "Mk8",
+              "trim_hint": "GTI"
+            }
+          },
+          {
+            "request_text": "i30 N",
+            "make": "Hyundai",
+            "model": "i30 N",
+            "condition": "UNKNOWN"
+          }
+        ]
+      },
+      "persona_evidence": "for a race enthusiast"
+    }
+  ],
+  "answerer": [
+    "Nothing has changed since the comparison above: still the Volkswagen Golf Mk8 GTI against the Hyundai i30 N for a race enthusiast. Ask me about a wet race, extra load, or another priority to see a different result."
+  ]
+}

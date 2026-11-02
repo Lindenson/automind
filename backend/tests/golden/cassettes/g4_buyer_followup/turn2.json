@@ -1,0 +1,18 @@
+{
+  "interpreter": [
+    {
+      "request": "weights_change",
+      "language": "en",
+      "delta": {
+        "set_persona": {
+          "persona": "BUYER",
+          "source": "ASKED"
+        }
+      },
+      "persona_evidence": "smart buyer"
+    }
+  ],
+  "answerer": [
+    "For a smart buyer the picture changes: running costs, practicality and price matter more than lap times — see the scores and ownership cost below."
+  ]
+}

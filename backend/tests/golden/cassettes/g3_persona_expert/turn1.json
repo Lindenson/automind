@@ -1,0 +1,39 @@
+{
+  "interpreter": [
+    {
+      "request": "compare",
+      "language": "en",
+      "delta": {
+        "set_persona": {
+          "persona": "BUYER",
+          "source": "INFERRED"
+        },
+        "add_priorities": [
+          {
+            "criterion": "ownership_cost",
+            "strength": "HIGH"
+          }
+        ],
+        "add_cars": [
+          {
+            "request_text": "new Dacia Bigster",
+            "make": "Dacia",
+            "model": "Bigster",
+            "condition": "NEW"
+          },
+          {
+            "request_text": "used Land Cruiser Prado 150 from 2016",
+            "make": "Toyota",
+            "model": "Land Cruiser Prado",
+            "condition": "USED",
+            "year": 2016,
+            "constraints": {
+              "generation_hint": "150"
+            }
+          }
+        ]
+      },
+      "persona_evidence": "Family on a budget"
+    }
+  ]
+}

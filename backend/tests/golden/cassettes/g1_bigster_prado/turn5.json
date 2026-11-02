@@ -1,0 +1,10 @@
+{
+  "interpreter": [
+    {"request": "correction", "language": "en", "delta": {"replace_cars": [{"target_key": "car#2",
+      "request_text": "used ~10 years old Land Cruiser Prado 150", "make": "Toyota", "model": "Land Cruiser Prado",
+      "condition": "USED", "age_years": 10, "constraints": {"generation_hint": "150"}}]}}
+  ],
+  "answerer": [
+    "That is already the car I compared: a used Toyota Land Cruiser Prado J150 3.0 D-4D, about 10 years old — not the new J250. Nothing changes in the result; tell me a mileage or a different year if you want me to refine it."
+  ]
+}

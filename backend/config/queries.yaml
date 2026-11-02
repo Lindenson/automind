@@ -1,0 +1,32 @@
+# Search query templates per research area (EN + ES; research R8). Placeholders: {make} {model}
+# {generation} {variant} {years}. Classified-ads sites are filtered by the deny-list, never queried.
+version: 1
+specs:
+  - "{make} {model} {generation} {variant} specifications power torque weight 0-100"
+  - "{make} {model} {generation} {variant} ficha técnica peso potencia par"
+engineering:
+  - "{make} {model} {generation} {variant} engine bore stroke compression ratio platform suspension"
+  - "{make} {model} {generation} technical analysis chassis drivetrain engineering"
+measured:
+  - "{make} {model} {generation} {variant} instrumented test 0-100 km/h measured"
+price:
+  - "{make} {model} {variant} precio oficial España PVP"
+  - "{make} {model} precio tarifa España {generation}"
+maintenance:
+  - "{make} {model} {generation} {variant} service schedule maintenance intervals cost"
+  - "{make} {model} {generation} plan de mantenimiento revisiones intervalos coste"
+reviews:
+  - "{make} {model} {generation} {variant} review pros cons"
+  - "{make} {model} {generation} owner reviews opinions problems"
+  - "{make} {model} {generation} prueba opinión"
+reliability:
+  - "{make} {model} {generation} reliability common problems known issues"
+  - "{make} {model} {generation} fiabilidad averías comunes"
+  - "{make} {model} {generation} TÜV report breakdown statistics"
+manufacturer:
+  - "{make} car manufacturer history market position premium brand"
+  - "{make} brand positioning premium mainstream budget"
+used_issues:
+  - "{make} {model} {generation} {years} used buying guide what to check high mileage"
+  - "{make} {model} {generation} timing belt gearbox rust problems age mileage"
+  - "{make} {model} {generation} segunda mano qué revisar problemas"

@@ -1,0 +1,35 @@
+# Make / model / generation aliases for canonical identity and de-dup (FR-024, research R6).
+version: 1
+makes:
+  vw: Volkswagen
+  volkswagen: Volkswagen
+  mercedes: Mercedes-Benz
+  mercedes benz: Mercedes-Benz
+  merc: Mercedes-Benz
+  bmw: BMW
+  landrover: Land Rover
+  range rover: Land Rover
+  toyota: Toyota
+  hyundai: Hyundai
+  dacia: Dacia
+  tesla: Tesla
+models:
+  # "<make>|<alias>" -> canonical model
+  "Land Rover|prado": {make: Toyota, model: Land Cruiser Prado}
+  "Toyota|prado": Land Cruiser Prado
+  "Toyota|land cruiser prado": Land Cruiser Prado
+  "Toyota|lc prado": Land Cruiser Prado
+  "Toyota|landcruiser prado": Land Cruiser Prado
+  "BMW|3 series": 3 Series
+  "BMW|serie 3": 3 Series
+  "Volkswagen|golf": Golf
+  "Land Rover|rr sport": Range Rover Sport
+  "Land Rover|range rover sport": Range Rover Sport
+generations:
+  # "<canonical make>|<canonical model>" -> {alias: canonical generation}
+  "Toyota|Land Cruiser Prado": {j150: J150, "150": J150, prado 150: J150, lc150: J150, j250: J250, "250": J250,
+                                lc250: J250, j120: J120, "120": J120}
+  "Land Rover|Range Rover Sport": {l320: L320, mk1: L320, "1st gen": L320, l494: L494, mk2: L494, l461: L461, mk3: L461}
+  "BMW|3 Series": {f30: F30, f31: F30, g20: G20, g21: G20, e90: E90}
+  "Volkswagen|Golf": {mk7: Mk7, "7": Mk7, mk7.5: Mk7.5, mk8: Mk8, "8": Mk8, mk8.5: Mk8.5}
+  "Hyundai|i30 N": {pd: PDe, pde: PDe}
