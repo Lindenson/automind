@@ -652,7 +652,7 @@ def _maintenance(s: Any, v: db.Variant, e: db.Evidence, out: Any, k: _Counter) -
                     variant_id=v.id,
                     item=it.item[:200],
                     interval_km=interval_km(it.interval_km),
-                    interval_months=interval_months(it.interval_months),
+                    interval_months=interval_months(it.interval_months, it.excerpt),
                     cost_eur=_num(it.cost_eur),
                     cost_basis="SOURCED",
                     evidence_ids=[e.id],
@@ -672,9 +672,19 @@ def interval_km(raw: str | None) -> int | None:
     return v if 1000 <= v <= 300_000 else None
 
 
-def interval_months(raw: str | None) -> int | None:
+_YEAR_WORDS = ("year", "años", "año", "anos", "jahr", "yr")
+_MONTH_WORDS = ("month", "mes", "monat")
+
+
+def interval_months(raw: str | None, excerpt: str = "") -> int | None:
+    """Interval in months; "every 5 years" extracted as 5 is converted when the excerpt speaks of years."""
     v = _int(raw)
-    return v if v is not None and 1 <= v <= 120 else None
+    if v is None:
+        return None
+    ex = excerpt.lower()
+    if v <= 15 and any(w in ex for w in _YEAR_WORDS) and not any(w in ex for w in _MONTH_WORDS):
+        v *= 12
+    return v if 1 <= v <= 240 else None
 
 
 def _reviews(s: Any, v: db.Variant, e: db.Evidence, out: Any, k: _Counter) -> None:

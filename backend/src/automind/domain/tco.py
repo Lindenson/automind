@@ -9,7 +9,7 @@ never guessed.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Literal
 
 RULES_VERSION = "tco-1.0"
@@ -34,6 +34,7 @@ class TcoRates:
     big_ticket_default_eur: float
     road_tax_eur_per_cvf: float | None
     base_reserve: Mapping[str, list[float]]  # class -> per age band [0-4, 5-9, 10-14, 15+]
+    max_maintenance_eur: Mapping[str, float] = field(default_factory=dict)  # sanity cap per class and year
 
     @classmethod
     def from_config(cls, d: Mapping[str, Any], overrides: Mapping[str, float | None] | None = None) -> TcoRates:
@@ -54,6 +55,7 @@ class TcoRates:
             big_ticket_default_eur=float(d["big_ticket_default_eur"]),
             road_tax_eur_per_cvf=d.get("road_tax_eur_per_cvf"),
             base_reserve={k: [float(x) for x in v] for k, v in table.items() if k in CLASSES},
+            max_maintenance_eur={k: float(v) for k, v in (d.get("max_maintenance_eur_per_year") or {}).items()},
         )
 
 
@@ -149,22 +151,40 @@ def _services_per_year(interval_km: float | None, interval_months: float | None,
 def _maintenance(car: TcoCar, r: TcoRates, km: int, years: int) -> TcoItem:
     pt = car.powertrain if car.powertrain in r.service_hours else "ICE"
     assumed = r.service_hours[pt] * r.labour_eur_per_h + r.service_parts_eur[pt]
-    if not car.maintenance:
-        per_year = km / r.default_interval_km.get(pt, 15000)
-        return _item(
-            "MAINTENANCE",
-            "Scheduled maintenance",
-            per_year * assumed,
-            "ASSUMPTION",
-            [
-                f"no published schedule: 1 service / {r.default_interval_km.get(pt, 15000):.0f} km",
-                f"labour {r.service_hours[pt]} h × €{r.labour_eur_per_h:.0f}/h + parts €{r.service_parts_eur[pt]:.0f}",
-                f"{km:,} km/year",
-            ],
-            years,
-        )
+    sourced = _sourced_maintenance(car, r, km, years, assumed, pt) if car.maintenance else None
+    cap = r.max_maintenance_eur.get(car.vehicle_class or "compact")
+    if sourced is not None and cap and (sourced.annual_eur or 0) > cap:
+        default = _default_maintenance(r, km, years, assumed, pt)
+        return replace(default, inputs=[
+            f"published schedule gave €{sourced.annual_eur:,.0f}/year — implausible for this class "
+            f"(cap €{cap:,.0f}); estimate used instead", *default.inputs])  # fmt: skip
+    return sourced if sourced is not None else _default_maintenance(r, km, years, assumed, pt)
+
+
+def _default_maintenance(r: TcoRates, km: int, years: int, assumed: float, pt: str) -> TcoItem:
+    per_year = km / r.default_interval_km.get(pt, 15000)
+    return _item(
+        "MAINTENANCE",
+        "Scheduled maintenance",
+        per_year * assumed,
+        "ASSUMPTION",
+        [
+            f"no published schedule: 1 service / {r.default_interval_km.get(pt, 15000):.0f} km",
+            f"labour {r.service_hours[pt]} h × €{r.labour_eur_per_h:.0f}/h + parts €{r.service_parts_eur[pt]:.0f}",
+            f"{km:,} km/year",
+        ],
+        years,
+    )
+
+
+def _sourced_maintenance(car: TcoCar, r: TcoRates, km: int, years: int, assumed: float, pt: str) -> TcoItem:
     total, basis, inputs, ev = 0.0, "SOURCED", [], []
+    seen: set[tuple[int, int]] = set()
     for m in car.maintenance:
+        sig = (round((m.interval_km or 0) / 1000), int(m.interval_months or 0))
+        if sig != (0, 0) and sig in seen:  # the same job listed twice (e.g. in two languages)
+            continue
+        seen.add(sig)
         n = _services_per_year(m.interval_km, m.interval_months, km)
         if n == 0:
             continue

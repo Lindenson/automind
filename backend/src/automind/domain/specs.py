@@ -231,22 +231,60 @@ def normalize_drivetrain(raw: str) -> str | None:
     return None
 
 
+_GEARS = {"four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10, "cuatro": 4, "cinco": 5,
+          "seis": 6, "siete": 7, "ocho": 8, "nueve": 9, "diez": 10}  # fmt: skip
+
+
+def normalize_transmission(raw: str) -> str | None:
+    """Canonical gearbox text. Spec sites list hybrid planetary e-CVTs and BEV reductions as "1 speed": that is
+    not a one-speed gearbox, so the speed count is dropped for those (user report 2026-11-02)."""
+    r = " " + raw.lower().replace("-", " ") + " "
+    m = re.search(r"(\d{1,2})\s*(?:speed|velocidades|relaciones|marchas|gang|vel)", r)
+    n = int(m.group(1)) if m else next((v for k, v in _GEARS.items() if f" {k} " in r or f" {k}speed" in r), None)
+    if any(k in r for k in ("e cvt", "ecvt", "power split", "planetary", "planetario", "e:hev", "hybrid synergy")):
+        return "e-CVT (power-split hybrid)"
+    if any(k in r for k in ("cvt", "continuously variable", "variador", "variable continua", "stufenlos")):
+        return "CVT"
+    if any(k in r for k in ("single speed", "single ratio", "reduction", "reductora fija", "1 speed direct")):
+        return "single-speed reduction"
+    if any(k in r for k in ("dct", "dsg", "dual clutch", "doble embrague", "doppelkupplung", "edc", "s tronic")):
+        return f"dual-clutch {n}-speed" if n and n > 1 else "dual-clutch"
+    if any(k in r for k in ("manual", "manuell", "mt ")):
+        return f"manual {n}-speed" if n and n > 1 else "manual"
+    if any(k in r for k in ("auto", "steptronic", "tiptronic", "automática", "automatica", "at ", "torque converter")):
+        return f"automatic {n}-speed" if n and n > 1 else "automatic"
+    return None
+
+
+def _low_range(raw_value: str) -> str:
+    r = raw_value.strip().lower()
+    if any(k in r for k in ("no ", "without", "sin ", "none")) or r in ("no", "n/a"):
+        return "NO"
+    if any(k in r for k in ("low range", "low-range", "reductora", "yes", "transfer", "2-speed", "hi/lo")):
+        return "YES"
+    raise units.UnitError(f"unrecognized low range value {raw_value!r}")
+
+
+def _normalize_text(key: str, raw_value: str) -> str:
+    if key == "drivetrain":
+        d = normalize_drivetrain(raw_value)
+        if d is None:
+            raise units.UnitError(f"unrecognized drivetrain {raw_value!r}")
+        return d
+    if key == "low_range":
+        return _low_range(raw_value)
+    if key == "transmission":
+        t = normalize_transmission(raw_value)
+        if t is None:
+            raise units.UnitError(f"unrecognized transmission {raw_value!r}")
+        return t
+    return raw_value.strip()
+
+
 def normalize(attr: Attr, raw_value: str, unit: str | None) -> float | str:
     """Convert a raw extracted value to the canonical unit. Raises UnitError when impossible."""
     if attr.kind == "text":
-        if attr.key == "drivetrain":
-            d = normalize_drivetrain(raw_value)
-            if d is None:
-                raise units.UnitError(f"unrecognized drivetrain {raw_value!r}")
-            return d
-        if attr.key == "low_range":
-            r = raw_value.strip().lower()
-            if any(k in r for k in ("no ", "without", "sin ", "none")) or r in ("no", "n/a"):
-                return "NO"
-            if any(k in r for k in ("low range", "low-range", "reductora", "yes", "transfer", "2-speed", "hi/lo")):
-                return "YES"
-            raise units.UnitError(f"unrecognized low range value {raw_value!r}")
-        return raw_value.strip()
+        return _normalize_text(attr.key, raw_value)
     if RANGE_RE.search(raw_value):
         raise units.UnitError(f"{attr.key}: range {raw_value!r} is not a single variant value")
     v = units.parse_number(raw_value)

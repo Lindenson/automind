@@ -24,3 +24,6 @@ base_reserve_eur_per_year:
   compact:         [150, 400, 650, 900]
   mid_large:       [200, 550, 900, 1200]
   premium_suv_4x4: [300, 800, 1300, 1800]
+# Sanity cap for scheduled maintenance per year and class: a published schedule above it is an extraction
+# error (e.g. "16" read for 16,000 km) and the default estimate is used instead.
+max_maintenance_eur_per_year: {small: 1200, compact: 1500, mid_large: 2200, premium_suv_4x4: 3500}

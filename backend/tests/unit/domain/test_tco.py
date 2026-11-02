@@ -101,3 +101,16 @@ def test_annual_km_override_and_rate_overrides():
         overrides={"fuel_eur_per_l": 1.0},
     )
     assert items(compute(car(), cheap))["ENERGY"].annual_eur == pytest.approx(7.0 * 150 * 1.0)
+
+
+def test_implausible_published_schedule_falls_back_to_the_estimate():
+    """User report: '16' read for 16,000 km made a CX-5 cost EUR 73,000/year to maintain."""
+    from automind.domain import tco
+
+    rates = RATES
+    jobs = [tco.MaintenanceSched("oil", 1100, None), tco.MaintenanceSched("x", 1200, None)]
+    bad = tco.TcoCar(car_id="c", label="CX-5", powertrain="ICE", condition="NEW", vehicle_class="compact",
+                     maintenance=jobs)  # fmt: skip
+    e = tco.compute(bad, rates, 15000)
+    m = next(i for i in e.items if i.kind == "MAINTENANCE")
+    assert m.annual_eur < 1500 and "implausible" in m.inputs[0]

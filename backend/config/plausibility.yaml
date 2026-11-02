@@ -7,6 +7,7 @@ by_powertrain:
   measured_0_100: {ICE_DIESEL: [4.0, 25], ICE_PETROL: [2.3, 25], BEV: [1.8, 20], ANY: [1.8, 25]}
   consumption:    {ICE_DIESEL: [3.0, 15], ICE_PETROL: [3.5, 25], BEV: [10, 35], ANY: [1.0, 35]}
   battery_kwh:    {BEV: [15, 150], PHEV: [5, 40], HEV: [0.5, 3], MHEV: [0.2, 2]}
+  gear_count:     {BEV: [1, 2], ANY: [2, 10]}   # "1 speed" for a hybrid e-CVT is not a gear count
 # Cross-attribute checks; each id is stored as the claim's reject_rule when it fails.
 cross:
   - {id: pw_ratio_max, desc: "power-to-weight above 1 kW/kg is not a road car", max_kw_per_t: 1000}
