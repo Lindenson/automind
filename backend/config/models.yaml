@@ -1,14 +1,28 @@
 # Model per role: "<provider>:<model>" (constitution VII). Override with env MODEL_<ROLE>.
-interpreter: openai:gpt-5.4
-asker: openai:gpt-5.4-mini
-resolver: openai:gpt-5.4-mini
-extractor: openai:gpt-5.4-mini
-validator: openai:gpt-5.4-mini
-reporter: openai:gpt-5.4
-answerer: openai:gpt-5.4
-general: openai:gpt-5.4-mini
-query_planner: openai:gpt-5.4-mini  # proposes follow-up search queries; never sees page text
-relevance: openai:gpt-5.4-mini      # web reader: is this page about the exact variant?
+# 2026-11-02: switched from OpenAI (gpt-5.4 / gpt-5.4-mini) to Gemini — OpenAI credit is nearly used up.
+# Previous setting for a rollback: interpreter/resolver/reporter/answerer/hub/analyst openai:gpt-5.4, the rest
+# openai:gpt-5.4-mini.
+interpreter: google_genai:gemini-3.6-flash
+asker: google_genai:gemini-3.1-flash-lite
+resolver: google_genai:gemini-3.6-flash
+extractor: google_genai:gemini-3.1-flash-lite
+validator: google_genai:gemini-3.1-flash-lite
+reporter: google_genai:gemini-3.6-flash
+answerer: google_genai:gemini-3.6-flash
+general: google_genai:gemini-3.1-flash-lite
+query_planner: google_genai:gemini-3.1-flash-lite  # proposes follow-up search queries; never sees page text
+relevance: google_genai:gemini-3.1-flash-lite      # web reader: is this page about the exact variant?
 # Legacy demo roles (removed when the demo graph is replaced, T035/T060):
-hub: openai:gpt-5.4
-analyst: openai:gpt-5.4
+hub: google_genai:gemini-3.6-flash
+analyst: google_genai:gemini-3.6-flash
+
+# Extra model options (passed to the provider). Gemini 3 "thinking" is kept low: the roles here have
+# structured outputs and code-side checks, and full thinking was 8× the output tokens and 5× slower.
+options:
+  google_genai:gemini-3.6-flash: {thinking_level: low}
+
+# When a model's quota is used up (e.g. 20 requests/day per model on the Gemini free tier), the gateway
+# switches the role to the next model here until the quota resets. Each Gemini model has its own quota.
+fallbacks:
+  google_genai:gemini-3.6-flash: [google_genai:gemini-3.5-flash, google_genai:gemini-3.1-flash-lite]
+  google_genai:gemini-3.1-flash-lite: [google_genai:gemini-3.5-flash-lite, google_genai:gemini-2.5-flash-lite]

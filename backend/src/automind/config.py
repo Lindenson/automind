@@ -3,6 +3,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ROOT = Path(__file__).resolve().parents[3]  # repo root (carexepert/)
@@ -15,6 +16,10 @@ class Settings(BaseSettings):
 
     openai_api_key: str | None = None
     anthropic_api_key: str | None = None
+    # Gemini: GOOGLE_API_KEY, GEMINI_API_KEY or (as written in this project's .env) GEMENI_API_KEY
+    google_api_key: str | None = Field(
+        default=None, validation_alias=AliasChoices("GOOGLE_API_KEY", "GEMINI_API_KEY", "GEMENI_API_KEY")
+    )
     tavily_api_key: str | None = None
     serper_api_key: str | None = None
     serpapi_api_key: str | None = None

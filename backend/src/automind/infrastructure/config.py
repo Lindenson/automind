@@ -49,12 +49,22 @@ def models() -> dict[str, str]:
     """Role -> "provider:model". Env MODEL_<ROLE> overrides the file (constitution VII)."""
     import os
 
-    roles = {k: str(v) for k, v in load_yaml("models.yaml").items()}
+    roles = {k: str(v) for k, v in load_yaml("models.yaml").items() if k not in ("options", "fallbacks", "version")}
     for role in list(roles):
         env = os.environ.get(f"MODEL_{role.upper()}")
         if env:
             roles[role] = env
     return roles
+
+
+def model_options(name: str) -> dict[str, Any]:
+    """Provider options for one model ("provider:model"), from models.yaml `options`."""
+    return dict((load_yaml("models.yaml").get("options") or {}).get(name) or {})
+
+
+def model_fallbacks(name: str) -> list[str]:
+    """Models to use when `name` has used up its quota (models.yaml `fallbacks`)."""
+    return [str(x) for x in (load_yaml("models.yaml").get("fallbacks") or {}).get(name) or []]
 
 
 def prices() -> dict[str, Any]:

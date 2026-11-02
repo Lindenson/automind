@@ -7,6 +7,9 @@ and recorded per turn (FR-041, FR-042).
 
 from __future__ import annotations
 
+import logging
+import re
+import time
 from functools import lru_cache
 from typing import Any, TypeVar
 
@@ -18,6 +21,8 @@ from automind.application.usage import BudgetExceeded, Limits, Prices, TurnBudge
 from automind.config import settings
 from automind.infrastructure import config as cfg
 from automind.infrastructure.usage_callback import UsageCallbackHandler
+
+log = logging.getLogger(__name__)
 
 __all__ = [
     "BudgetExceeded",
@@ -68,21 +73,84 @@ def model_name(role: str) -> str:
     return roles[role]
 
 
-def chat_model(role: str) -> BaseChatModel:
+# Models whose provider quota is used up (e.g. a free tier's requests per day): name -> monotonic time it
+# may be tried again. Calls go to the role's fallback models meanwhile (config/models.yaml `fallbacks`).
+_EXHAUSTED: dict[str, float] = {}
+_RETRY_RE = re.compile(r"retry in (?:(\d+)h)?(?:(\d+)m)?(?:([\d.]+)s)?", re.I)
+
+
+def quota_exhausted(error: BaseException) -> float | None:
+    """Seconds until a daily/plan quota resets when the error is one (None for other errors)."""
+    text = str(error)
+    if "RESOURCE_EXHAUSTED" not in text and "insufficient_quota" not in text:
+        return None
+    if "PerMinute" in text or "per minute" in text.lower():
+        return None  # a short burst limit: the client's own retries handle it
+    m = _RETRY_RE.search(text)
+    if m and any(m.groups()):
+        h, mi, sec = (float(x) if x else 0.0 for x in m.groups())
+        return h * 3600 + mi * 60 + sec
+    return 3600.0
+
+
+def mark_exhausted(name: str, error: BaseException) -> bool:
+    wait = quota_exhausted(error)
+    if wait is None:
+        return False
+    _EXHAUSTED[name] = time.monotonic() + wait
+    log.warning("model %s: quota used up, using fallbacks for %.0f min", name, wait / 60)
+    return True
+
+
+def candidates(role: str) -> list[str]:
+    """The role's model, then its fallbacks, skipping models whose quota is used up."""
+    primary = model_name(role)
+    chain = [primary, *cfg.model_fallbacks(primary)]
+    now = time.monotonic()
+    usable = [n for n in chain if _EXHAUSTED.get(n, 0) <= now]
+    return usable or [primary]
+
+
+def _build(role: str, name: str) -> BaseChatModel:
     s = settings()
-    name = model_name(role)
     kwargs: dict[str, Any] = {"timeout": s.request_timeout_s * 4, "max_retries": 2}
     if name.startswith("openai:") and s.openai_api_key:
         kwargs["api_key"] = s.openai_api_key
     if name.startswith("anthropic:") and s.anthropic_api_key:
         kwargs["api_key"] = s.anthropic_api_key
+    if name.startswith("google_genai:") and s.google_api_key:
+        kwargs["google_api_key"] = s.google_api_key
+    kwargs.update(cfg.model_options(name))
     kwargs["callbacks"] = [UsageCallbackHandler(role, name, prices())]
     return init_chat_model(name, **kwargs)
 
 
+def chat_model(role: str) -> BaseChatModel:
+    return _build(role, candidates(role)[0])
+
+
+async def _with_fallbacks(role: str, call: Any) -> Any:
+    last: BaseException | None = None
+    for name in candidates(role):
+        try:
+            return await call(_build(role, name))
+        except BudgetExceeded:
+            raise
+        except Exception as e:  # noqa: BLE001 - only a used-up quota moves on to the next model
+            if not mark_exhausted(name, e):
+                raise
+            last = e
+    assert last is not None
+    raise last
+
+
 async def structured(role: str, schema: type[T], system: str, user: str) -> T:
-    runnable = chat_model(role).with_structured_output(schema, include_raw=True)
-    out = await runnable.ainvoke([("system", system), ("user", user)])
+    async def call(model: BaseChatModel) -> Any:
+        return await model.with_structured_output(schema, include_raw=True).ainvoke(
+            [("system", system), ("user", user)]
+        )
+
+    out = await _with_fallbacks(role, call)
     if out.get("parsing_error") or out.get("parsed") is None:
         raise ValueError(f"{role}: structured output failed: {out.get('parsing_error')}")
     parsed: T = out["parsed"]
@@ -90,6 +158,9 @@ async def structured(role: str, schema: type[T], system: str, user: str) -> T:
 
 
 async def text(role: str, system: str, user: str) -> str:
-    msg = await chat_model(role).ainvoke([("system", system), ("user", user)])
+    async def call(model: BaseChatModel) -> Any:
+        return await model.ainvoke([("system", system), ("user", user)])
+
+    msg = await _with_fallbacks(role, call)
     content = msg.text if isinstance(getattr(msg, "text", None), str) else str(msg.content)
     return str(content)

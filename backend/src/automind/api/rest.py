@@ -56,6 +56,7 @@ def health_payload(request: Request) -> dict[str, Any]:
         "keys": {
             "openai": bool(s.openai_api_key),
             "anthropic": bool(s.anthropic_api_key),
+            "gemini": bool(s.google_api_key),
             "tavily": bool(s.tavily_api_key),
         },
         "mcp_tools": [t.name for t in request.app.state.mcp_tools],
