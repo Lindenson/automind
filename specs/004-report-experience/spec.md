@@ -235,6 +235,49 @@ verdict, table and panel are readable without horizontal scrolling.
 2. **Given** a phone screen, **When** the report is shown, **Then** the comparison table stacks or scrolls
    inside its block, and buttons are large enough to tap.
 
+---
+
+### User Story 8 - The exact cars, settled with the user before any research (Priority: P1)
+
+Before any research starts, every car is pinned down: make, model, generation and version (engine, gearbox,
+drive and equipment level). When the hub asks about a car, it checks the answer. If the answer does not
+settle the question (nonsense, another topic, a model that does not exist, a version that does not fit), the
+hub says what it did not understand and asks again with options. It never continues on a guess. The loop is
+cheap: it uses no search and no research until the cars are settled.
+
+When the user does not name an equipment level, the cars are compared at the **same level**: the base
+version of each model (the cheapest version on sale in Spain at its official price). The report says so
+("compared at base level"). When the user names a version for a car, that version is used, and the other
+cars without a named version are matched at the same level (base, mid or top of their range).
+
+**Why this priority**: research on the wrong car, or a base car against a top version, makes every number
+of the report wrong; the user saw the graph start after a meaningless answer.
+
+**Independent Test**:
+- Dialogues where the user answers a model question with nonsense, an unknown model, a valid answer, and
+  "choose for me". The nonsense and the unknown model are asked again. No research starts until every car
+  is settled. "Choose for me" takes the base level.
+- Comparisons without versions use the base version of each car. A comparison with one named version
+  matches the others at its level.
+
+**Acceptance Scenarios**:
+
+1. **Given** a question about a car's version, **When** the user answers with text that does not identify
+   it, **Then** the hub says what it did not understand and asks again (same question, with options), and
+   no search or research runs.
+2. **Given** a model that does not exist or is not known, **When** the user names it, **Then** the hub says
+   so and offers the closest known models; it does not invent a variant.
+3. **Given** several versions (engines, gearboxes, drives) and no hint, **When** the hub proposes one,
+   **Then** the user confirms or picks one; research starts only after every car is confirmed or uniquely
+   determined.
+4. **Given** no equipment level named for any car, **When** the cars are identified, **Then** each car is
+   the base version on sale (cheapest official price), and the verdict and case panel say "compared at
+   base level".
+5. **Given** a named version for one car (e.g. "CX-5 Homura"), **When** the others have none, **Then** they
+   are matched at the same level of their range (top, mid or base) and the report names each version.
+6. **Given** the user says "any" or "choose for me", **When** the hub applies it, **Then** it takes the base
+   level and says which version it took.
+
 ### Edge Cases
 
 - Only one car: a profile report (absolute scores, no winner), with the same verdict-first layout.
@@ -247,6 +290,12 @@ verdict, table and panel are readable without horizontal scrolling.
   starting the most likely action (research of the biggest gaps).
 - Depreciation or manufacturer data only from one market (e.g. UK): shown with the market named.
 - The user switches language mid-chat: interface and replies follow the latest message.
+- The user keeps giving answers that do not settle a car: the hub keeps asking (each time with fewer,
+  clearer options plus "choose for me" and "remove this car"); it never researches a guessed car.
+- The base version is not sold with the gearbox or drive the user wants (e.g. AWD only on mid trims): the
+  lowest level with that gearbox or drive is taken and the report says so.
+- Official prices per version are not found: the level is taken from the manufacturer's range order (first
+  listed = base) and labelled as such.
 
 ## Requirements *(mandatory)*
 
@@ -335,6 +384,19 @@ verdict, table and panel are readable without horizontal scrolling.
 - **FR-028**: When a model is sold with several gearboxes or driven wheels, the identified variant MUST carry
   them, and values from another gearbox or drive MUST NOT be mixed into it (e.g. manual and automatic CX-5).
 
+**Exact identity and equal level (US8, added after tasks on user request)**
+
+- **FR-029**: When the user names no version, all compared cars MUST be identified at the same equipment
+  level: the base version on sale (cheapest official price, or first in the manufacturer's range when prices
+  are not found). When the user names a version for one car, the others MUST be matched at the same level
+  of their range. The level and each version MUST be shown in the case panel and the verdict.
+- **FR-030**: Research MUST NOT start until every car is settled: make, model, generation and version
+  (engine, gearbox, drive, equipment level) confirmed by the user or uniquely determined from the catalog.
+- **FR-031**: Every answer to an identification question MUST be checked for whether it settles the
+  question. An answer that does not settle it MUST lead to the same question again (what was not
+  understood, the options, "choose for me", "remove this car"). The question MUST NOT count as answered, and
+  no search or research MUST run.
+
 **Measurement**
 
 - **FR-026**: The user MUST be able to rate each report (1–5) and say what was missing; ratings MUST be
@@ -350,6 +412,8 @@ verdict, table and panel are readable without horizontal scrolling.
 - **Data panel entry**: car × area status (complete, partial, missing), reason, last attempt, "find it".
 - **Profile**: experience, age band, family, usage, budget, priorities, each with the words it came from.
 - **Suggestion**: a one-click next step with the request it sends.
+- **Equipment level**: base, mid or top position of a version in its model's range, with its official
+  price when known.
 - **Value challenge**: a user's "this is wrong" on a value or claim, and its outcome.
 - **Report rating**: 1–5 and a free-text note per report.
 
@@ -374,6 +438,10 @@ verdict, table and panel are readable without horizontal scrolling.
 - **SC-008**: A report has no more than one data-quality element at the top level (no wall of warnings).
 - **SC-010**: Zero values in golden comparisons that fail the sense check (the 2026-11-02 defect list is a
   regression set: 16 km intervals, years as months, one-speed e-CVT, yearly costs outside the class range).
+- **SC-011**: In golden dialogues, 0 research runs start with an unsettled car, and 100% of answers that do
+  not settle a car question are asked again.
+- **SC-012**: In comparisons without named versions, 100% of cars are compared at the base level, and the
+  report says so.
 - **SC-009**: The interface in a Russian conversation shows no English labels; the report passes a 375 px
   layout check.
 

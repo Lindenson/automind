@@ -150,3 +150,35 @@ in the facts. Defects found live on 2026-11-02 are the regression set for this f
 - **Decision**: `report_ratings` table (message id, 1–5, note, created); a small rating control under each
   report; golden dialogues 004 (G12–G18) cover verdict, tie, trade-off, critique, challenge, questions,
   Russian UI; the defect regression set as unit tests.
+
+## R14. Identification loop and equal equipment level (FR-029–FR-031, US8)
+
+- **Decision (loop)**: identification becomes a small loop that runs before research. It uses no search,
+  except the resolver's single lookup per car.
+  - `domain/identification.py` (pure) decides per car whether it is **settled**: make + model known to the
+    catalog or config, the generation unique, and the version (engine, gearbox, drive, level) either
+    confirmed by the user or the only catalog fit.
+  - Policy rule 2/3 becomes: while any car is unsettled, the action is ASK or CONFIRM_VARIANTS, never
+    RESEARCH/REPORT (FR-030).
+  - Answer check (FR-031): after a pending question, code compares the case before and after the
+    interpretation. A car question counts as answered only if it now settles more: a field the question
+    asked for was set, an option was picked, or the user said yes/no to a proposal. Otherwise the
+    question is **not** added to `asked`, the pending question stays, and the hub replies with a
+    `not_understood` phrase plus the same question, its options, "choose for me" and "remove this car".
+    Today `asked` is consumed on the first ask, and that is the bug the user saw: a meaningless answer let
+    the turn run on.
+  - An unknown model (not in the catalog or config, and the resolver finds no generation) gives "I don't
+    know this model", with the closest known models (fuzzy match on `known_models`) as options.
+  - The loop has no cap. Each round is cheap. The options shrink, and "choose for me" is always offered.
+- **Decision (equal level)**:
+  - The variant gains `trim` (equipment name) and `trim_level` (`BASE`, `MID`, `TOP`), plus
+    `price_eur` (official, when found).
+  - The resolver is asked for the range of versions on sale in Spain with official prices, and returns the
+    one at the requested level. The level comes from a user-named trim on any car, otherwise BASE (FR-029).
+  - `domain/identification.level_for(cars)` gives the common level. A named trim is mapped to its level by
+    its position in the price-ordered range.
+  - The case gains `compare_level` and `compare_level_source` (`DEFAULT`, `USER_TRIM`).
+  - Gearbox or drive wishes narrow the range before the level is taken.
+- **Rationale**: the user saw research start after a meaningless answer, and a base car compared with a top
+  version.
+- **Alternatives**: asking for the trim every time (too many questions, against FR-018). Rejected.

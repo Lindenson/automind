@@ -7,6 +7,7 @@ Changes on top of 002/003. One Alembic migration `0007_report_experience`.
 | Table | Change | Notes |
 |---|---|---|
 | `vehicle_variants` | + `transmission varchar(16)` (`manual`, `automatic`, `dct`, `cvt`, `e-cvt`, `single`), + `drive varchar(4)` (`FWD`, `RWD`, `AWD`) | FR-028; filled by the resolver, or from unanimous accepted claims; null = unknown |
+| `vehicle_variants` (level) | + `trim varchar(64)`, + `trim_level varchar(4)` (`BASE`, `MID`, `TOP`), + `price_eur numeric(10,0)` (official, null = unknown) | FR-029 |
 | `manufacturer_facts` | `fact_type` gains `MARKET_SHARE`, `FINANCIAL`, `RELIABILITY_REPUTATION`, `NETWORK_ES`; + `value_num`, `year` | FR-006 |
 | `claims` | `reject_rule` values from the sense layer (`sense.<attribute>.<rule>`) | FR-027 metrics |
 
@@ -43,6 +44,8 @@ profile:
   age, experience (existing) + family: SINGLE|COUPLE|FAMILY|null, age_band, driving_style
   evidence: {field: "verbatim words"}           # FR-017
 asked: + KM_PER_YEAR, FAMILY_SIZE, PRIORITY, GEARBOX          # profile_gaps questions
+compare_level: BASE|MID|TOP, compare_level_source: DEFAULT|USER_TRIM        # FR-029
+pending.items[].attempts: int, pending.items[].not_understood: str       # FR-031 re-ask loop
 last_report: {fingerprint, blocks_hash, insights_hash}        # to prove a critique changed the report
 ```
 

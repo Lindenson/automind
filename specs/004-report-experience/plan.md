@@ -124,6 +124,7 @@ backend/
 │   ├── queries.yaml / sources.yaml   # + depreciation area; manufacturer kinds
 │   └── generations.yaml       # + transmissions/drives per generation where several exist
 ├── src/automind/domain/
+│   ├── identification.py      # settled cars, answer check, common equipment level (US8)
 │   ├── insights.py  verdict.py  sense.py  profile_gaps.py  suggestions.py   # new, pure
 │   ├── report_layout.py       # declarative layouts (replaces fixed ORDER)
 │   ├── casefile.py / policy.py  # profile with evidence, critique/challenge kinds, questions
@@ -181,7 +182,9 @@ facts (sense-checked) ─► insights(profile, thresholds) ─► verdict(rankin
    - Profile fields with evidence; `profile_gaps` and questions.
    - Suggestions; the critique kind (research or rework); challenge and re-check; ratings.
 8. **Progress, language, layout** (US6/US7). Progress events and grid, i18n ru/es/en, phone layout.
-9. **Validation.**
+9. **Identification loop and equal level** (US8, FR-029–031): `domain/identification.py`, answer check,
+   re-ask with options, the resolver returns trim, level and official price, and the common level.
+10. **Validation.**
    - Golden G12–G18; live runs on the configured model.
    - Usability check with people (SC-001), run by the user.
    - ADRs and README.
