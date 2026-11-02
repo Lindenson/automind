@@ -10,7 +10,17 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from automind.config import settings
-from automind.domain.casefile import Budget, CaseDelta, CaseFile, PersonaChange, Rates, apply, set_weights
+from automind.domain.casefile import (
+    Budget,
+    CaseDelta,
+    CaseFile,
+    Needs,
+    PersonaChange,
+    Rates,
+    RunningLimit,
+    apply,
+    set_weights,
+)
 from automind.infrastructure import config as cfg
 from automind.infrastructure import llm_gateway
 from automind.infrastructure.config import search_config
@@ -111,7 +121,10 @@ class CasePatch(BaseModel):
 
     persona: Literal["EXPERT", "PERFORMANCE", "BUYER", "UNKNOWN"] | None = None
     usage: list[Literal["CITY", "MOTORWAY", "MOUNTAINS", "OFFROAD", "TRACK", "FAMILY"]] | None = None
-    budget: Budget | None = None
+    budget: Budget | None = None  # partial: only the fields sent change (amount, intent, currency, kind)
+    running_cost_limit: RunningLimit | None = None
+    clear_running_cost_limit: bool = False
+    needs: Needs | None = None  # partial
     annual_km: int | None = None
     rates_override: Rates | None = None
     depth: Literal["QUICK", "STANDARD", "DEEP"] | None = None
@@ -158,12 +171,21 @@ def apply_patch(case: CaseFile, patch: CasePatch, *, current_year: int) -> tuple
     delta = CaseDelta(
         set_persona=PersonaChange(persona=patch.persona, source="USER_EDIT") if patch.persona else None,
         set_usage=patch.usage,
-        set_budget=patch.budget,
+        set_running_cost_limit=patch.running_cost_limit,
+        set_needs=patch.needs,
         set_annual_km=patch.annual_km,
         set_depth=patch.depth,
         remove_priorities=[patch.remove_priority] if patch.remove_priority else [],  # type: ignore[list-item]
     )
     new, changes = apply(case, delta, current_year=current_year)
+    if patch.budget is not None:  # a panel edit sets exactly what was sent (also clearing the amount)
+        budget = new.budget.model_copy(update=patch.budget.model_dump(exclude_unset=True))
+        if budget != new.budget:
+            new.budget = budget
+            changes.append(f"budget: {budget.max_eur or 'none'} {budget.currency}, {budget.intent.lower()}")
+    if patch.clear_running_cost_limit and new.running_cost_limit is not None:
+        new.running_cost_limit = None
+        changes.append("running cost limit removed")
     if patch.rates_override is not None:  # explicit nulls clear an override (back to the default rate)
         rates = new.rates_override.model_copy(update=patch.rates_override.model_dump(exclude_unset=True))
         if rates != new.rates_override:

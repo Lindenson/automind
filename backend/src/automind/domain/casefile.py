@@ -48,7 +48,8 @@ Depth = Literal["QUICK", "STANDARD", "DEEP"]
 Condition = Literal["NEW", "USED", "UNKNOWN"]
 Resolution = Literal["UNRESOLVED", "PROPOSED", "CONFIRMED", "AUTO_OK"]
 Strength = Literal["LOW", "MEDIUM", "HIGH"]
-QuestionKind = Literal["TOO_MANY_CARS", "CAR_IDENTITY", "USED_AGE", "TRIM", "PERSONA"]
+QuestionKind = Literal["TOO_MANY_CARS", "CAR_IDENTITY", "USED_AGE", "TRIM", "PERSONA", "BUDGET_INTENT"]
+BudgetIntent = Literal["NEW", "USED", "ANY", "UNKNOWN"]
 
 MAX_CARS = 3
 
@@ -59,8 +60,31 @@ class Profile(BaseModel):
 
 
 class Budget(BaseModel):
-    max_eur: int | None = Field(default=None, ge=0)
+    max_eur: int | None = Field(default=None, ge=0)  # the amount as stated (see currency and kind)
     note: str | None = None
+    intent: BudgetIntent = "UNKNOWN"  # spec 003: a new car, a used one, or either
+    currency: Literal["EUR", "GBP", "USD"] = "EUR"
+    kind: Literal["TOTAL", "MONTHLY"] = "TOTAL"
+
+
+class RunningLimit(BaseModel):
+    """Most the user wants to spend on running the car (spec 003 FR-018)."""
+
+    amount_eur: float = Field(gt=0)
+    period: Literal["MONTH", "YEAR"] = "MONTH"
+
+    @property
+    def per_month(self) -> float:
+        return self.amount_eur if self.period == "MONTH" else self.amount_eur / 12
+
+
+class Needs(BaseModel):
+    """Usage needs that a car must meet (spec 003 FR-018). Mountains come from `usage`."""
+
+    passengers: int | None = Field(default=None, ge=1, le=9)
+    luggage: Literal["LOW", "MEDIUM", "HIGH"] = "MEDIUM"
+    towing_kg: int | None = Field(default=None, ge=100, le=4000)
+    daily_km: int | None = Field(default=None, ge=1, le=2000)
 
 
 class Rates(BaseModel):
@@ -129,6 +153,9 @@ class CaseFile(BaseModel):
     profile: Profile = Field(default_factory=Profile)
     usage: list[Usage] = Field(default_factory=list)
     budget: Budget = Field(default_factory=Budget)
+    running_cost_limit: RunningLimit | None = None
+    needs: Needs = Field(default_factory=Needs)
+    feasibility_ack: str | None = None  # fingerprint of the feasibility verdict the user answered (spec 003)
     annual_km: int = Field(default=15000, ge=1000, le=200000)
     rates_override: Rates = Field(default_factory=Rates)
     depth: Depth = "STANDARD"
@@ -201,6 +228,8 @@ class CaseDelta(BaseModel):
     set_profile: Profile | None = None
     set_usage: list[Usage] | None = None
     set_budget: Budget | None = None
+    set_running_cost_limit: RunningLimit | None = None
+    set_needs: Needs | None = None
     set_annual_km: int | None = Field(default=None, ge=1000, le=200000)
     set_depth: Depth | None = None
     set_rates_override: Rates | None = None
@@ -266,9 +295,7 @@ def _apply_settings(c: CaseFile, d: CaseDelta, log: list[str]) -> None:
     if d.set_usage is not None and d.set_usage != c.usage:
         c.usage = list(dict.fromkeys(d.set_usage))
         log.append("usage: " + ", ".join(c.usage))
-    if d.set_budget is not None and d.set_budget != c.budget:
-        log.append(f"budget: {_money(c.budget.max_eur)} → {_money(d.set_budget.max_eur)}")
-        c.budget = d.set_budget
+    _apply_constraints(c, d, log)
     if d.set_annual_km is not None and d.set_annual_km != c.annual_km:
         log.append(f"annual mileage: {c.annual_km:,} → {d.set_annual_km:,} km")
         c.annual_km = d.set_annual_km
@@ -283,6 +310,29 @@ def _apply_settings(c: CaseFile, d: CaseDelta, log: list[str]) -> None:
     if d.set_race_settings is not None and d.set_race_settings != c.race_settings:
         c.race_settings = d.set_race_settings
         log.append(f"race: {d.set_race_settings.surface}, +{d.set_race_settings.extra_load_kg:g} kg")
+
+
+def _apply_constraints(c: CaseFile, d: CaseDelta, log: list[str]) -> None:
+    """Budget (amount, intent, currency, kind), running-cost limit and usage needs (spec 003 FR-018)."""
+    if d.set_budget is not None and d.set_budget != c.budget:
+        new = d.set_budget
+        if new.max_eur is None and c.budget.max_eur is not None:  # an intent-only answer keeps the amount
+            new = c.budget.model_copy(update={"intent": new.intent} if new.intent != "UNKNOWN" else {})
+        if new != c.budget:
+            if new.max_eur != c.budget.max_eur:
+                log.append(f"budget: {_money(c.budget.max_eur)} → {_money(new.max_eur)}")
+            if new.intent != c.budget.intent:
+                log.append(f"budget for: {new.intent.lower()}")
+            c.budget = new
+    if d.set_running_cost_limit is not None and d.set_running_cost_limit != c.running_cost_limit:
+        c.running_cost_limit = d.set_running_cost_limit
+        log.append(f"running cost limit: €{d.set_running_cost_limit.amount_eur:,.0f} per "
+                   f"{d.set_running_cost_limit.period.lower()}")  # fmt: skip
+    if d.set_needs is not None:
+        needs = c.needs.model_copy(update=d.set_needs.model_dump(exclude_unset=True))
+        if needs != c.needs:
+            c.needs = needs
+            log.append("needs: " + ", ".join(f"{k}={v}" for k, v in needs.model_dump(exclude_none=True).items()))
 
 
 def _apply_priorities(c: CaseFile, d: CaseDelta, log: list[str]) -> None:

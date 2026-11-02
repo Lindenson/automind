@@ -21,7 +21,7 @@ from sqlalchemy import delete, select
 
 from automind.application.ports import Ports
 from automind.infrastructure.db import models as m
-from automind.infrastructure.db.repositories import CaseRepo, EventRepo, JobRepo, MessageRepo, TurnRepo
+from automind.infrastructure.db.repositories import CaseRepo, EventRepo, FeasibilityRepo, JobRepo, MessageRepo, TurnRepo
 from automind.infrastructure.db.session import sessionmaker
 from automind.infrastructure.events import EventBus
 from automind.orchestration.runner import ChatRunner, TurnResult
@@ -316,6 +316,7 @@ async def run_dialogue(path: Path, saver: Any, *, live: bool = False, record: bo
         messages=MessageRepo(),
         estimator=_estimator(live),
         pages=live_pages() if live else None,
+        feasibility=FeasibilityRepo(),
     )
     runner = ChatRunner(build_graph(saver), ports, budgets, messages=MessageRepo())
     failures: list[str] = []

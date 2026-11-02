@@ -235,6 +235,73 @@ export function CaseBody() {
           value={c.budget.max_eur}
           onCommit={(v) => void save({ budget: { max_eur: v } })}
         />
+        <label className="flex items-center justify-between gap-2 text-sm">
+          <span className="text-fg/80">Budget for</span>
+          <select
+            className="rounded border border-line/70 bg-panel2 px-2 py-1 text-sm"
+            value={c.budget.intent ?? "UNKNOWN"}
+            onChange={(e) =>
+              void save({
+                budget: {
+                  intent: e.target.value as "NEW" | "USED" | "ANY" | "UNKNOWN",
+                },
+              })
+            }
+          >
+            <option value="UNKNOWN">not said</option>
+            <option value="NEW">a new car</option>
+            <option value="USED">a used car</option>
+            <option value="ANY">new or used</option>
+          </select>
+        </label>
+        <NumberField
+          label="Running cost limit"
+          unit="€/month"
+          value={
+            c.running_cost_limit
+              ? Math.round(
+                  c.running_cost_limit.period === "YEAR"
+                    ? c.running_cost_limit.amount_eur / 12
+                    : c.running_cost_limit.amount_eur,
+                )
+              : null
+          }
+          onCommit={(v) =>
+            void save(
+              v
+                ? { running_cost_limit: { amount_eur: v, period: "MONTH" } }
+                : { clear_running_cost_limit: true },
+            )
+          }
+        />
+        <NumberField
+          label="People"
+          unit=""
+          value={c.needs.passengers}
+          onCommit={(v) => void save({ needs: { passengers: v } })}
+        />
+        <label className="flex items-center justify-between gap-2 text-sm">
+          <span className="text-fg/80">Luggage</span>
+          <select
+            className="rounded border border-line/70 bg-panel2 px-2 py-1 text-sm"
+            value={c.needs.luggage ?? "MEDIUM"}
+            onChange={(e) =>
+              void save({
+                needs: { luggage: e.target.value as "LOW" | "MEDIUM" | "HIGH" },
+              })
+            }
+          >
+            <option value="LOW">little</option>
+            <option value="MEDIUM">normal</option>
+            <option value="HIGH">a lot</option>
+          </select>
+        </label>
+        <NumberField
+          label="Towing"
+          unit="kg"
+          value={c.needs.towing_kg}
+          onCommit={(v) => void save({ needs: { towing_kg: v } })}
+        />
         <NumberField
           label="Per year"
           unit="km"

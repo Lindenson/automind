@@ -38,6 +38,27 @@ PHRASES: dict[str, dict[str, str]] = {
     "limit_time": {"en": "time", "ru": "время", "es": "tiempo"},
     "limit_continue": {"en": "Continue research", "ru": "Продолжить исследование", "es": "Seguir investigando"},
     "limit_stop": {"en": "Answer with what you have", "ru": "Ответить по собранному", "es": "Responder con lo que hay"},
+    "feasibility_intro": {
+        "en": "Before the full comparison — this does not fully fit what you asked for:",
+        "ru": "Прежде чем сравнивать подробно: это не совсем укладывается в ваши условия:",
+        "es": "Antes de la comparación completa: esto no encaja del todo con lo que pides:",
+    },
+    "feasibility_question": {
+        "en": "How do you want to continue?",
+        "ru": "Как продолжим?",
+        "es": "¿Cómo seguimos?",
+    },
+    "feasibility_report": {
+        "en": "Show the report anyway",
+        "ru": "Всё равно показать отчёт",
+        "es": "Mostrar el informe igualmente",
+    },
+    "feasibility_used": {"en": "Look at used ones", "ru": "Посмотреть б/у", "es": "Ver de segunda mano"},
+    "feasibility_alternatives": {
+        "en": "Suggest cars that fit",
+        "ru": "Предложить подходящие машины",
+        "es": "Sugerir coches que encajen",
+    },
     "rephrase": {
         "en": "Sorry, I could not map that to the cars we are discussing. Could you rephrase it?",
         "ru": "Не понял, к какой из машин это относится. Можете сформулировать иначе?",

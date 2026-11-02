@@ -215,6 +215,7 @@ class Ports:
     estimator: Estimator
     pages: PageStore | None = None  # None → `search` also implements PageStore (test fakes)
     readers: SiteReaders = field(default_factory=NoReaders)
+    feasibility: Any = None  # application.feasibility.FeasibilityStore (spec 003 US3)
 
     @property
     def page_store(self) -> PageStore:

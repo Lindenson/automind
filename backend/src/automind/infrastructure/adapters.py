@@ -12,7 +12,14 @@ from automind.application.ports import Ports
 from automind.domain.cost import AreaAverage, CostPrices, estimate
 from automind.infrastructure import llm_gateway
 from automind.infrastructure.config import fetch_policy, reference, search_config
-from automind.infrastructure.db.repositories import CaseRepo, JobRepo, MessageRepo, TurnRepo, UsageRepo
+from automind.infrastructure.db.repositories import (
+    CaseRepo,
+    FeasibilityRepo,
+    JobRepo,
+    MessageRepo,
+    TurnRepo,
+    UsageRepo,
+)
 from automind.infrastructure.events import EventBus
 from automind.infrastructure.fetch import Fetcher, FetchPolicy
 from automind.infrastructure.pages import DbPageStore
@@ -68,6 +75,7 @@ def live_ports(events: EventBus, prompts: dict[str, str]) -> Ports:
         estimator=LiveEstimator(),
         pages=live_pages(),
         readers=live_readers(),
+        feasibility=FeasibilityRepo(),
     )
 
 

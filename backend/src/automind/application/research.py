@@ -481,7 +481,8 @@ async def _persist(
             a, r = await _spec_claims(ports, s, v, area, d, e, out, target, uncertain, known or {},
                                       values_rejected if values_rejected is not None else defaultdict(int))  # fmt: skip
         else:
-            a, r = await _items(s, v, area, d, e, out)
+            rates = {k: float(x) for k, x in (ports.ref.feasibility.get("currency_to_eur") or {}).items()}
+            a, r = await _items(s, v, area, d, e, out, rates)
         await s.commit()
     return a, r
 
@@ -715,7 +716,9 @@ def _manufacturer(s: Any, v: db.Variant, d: WebDoc, out: Any, k: _Counter) -> No
             )
 
 
-async def _items(s: Any, v: db.Variant, area: str, d: WebDoc, e: db.Evidence, out: Any) -> tuple[int, int]:
+async def _items(
+    s: Any, v: db.Variant, area: str, d: WebDoc, e: db.Evidence, out: Any, rates: dict[str, float] | None = None
+) -> tuple[int, int]:
     """Non-numeric areas: keep only items whose excerpt literally occurs in the document."""
     k = _Counter(d.text)
     if area == "maintenance":
@@ -726,7 +729,35 @@ async def _items(s: Any, v: db.Variant, area: str, d: WebDoc, e: db.Evidence, ou
         _issues(s, v, area, e, out, k)
     elif area == "manufacturer":
         _manufacturer(s, v, d, out, k)
+    elif area == "used_price":
+        _used_prices(s, v, e, out, k, ports_rates=rates or {"EUR": 1.0})
     return k.accepted, k.rejected
+
+
+def _used_prices(s: Any, v: db.Variant, e: db.Evidence, out: Any, k: _Counter, ports_rates: dict[str, float]) -> None:
+    """Editorial used-price ranges (FR-022): verbatim excerpt containing the price, plausible numbers, EUR."""
+    for r in out.ranges:
+        lo, hi = sorted((float(r.min), float(r.max)))
+        rate = ports_rates.get(r.currency, 1.0)
+        plausible = 500 <= lo * rate <= hi * rate <= 600_000
+        good = k.ok(r.excerpt) and plausible
+        s.add(
+            db.UsedPriceRange(
+                variant_id=v.id, evidence_id=e.id, model_year_from=r.model_year_from, model_year_to=r.model_year_to,
+                min_eur=round(lo * rate), max_eur=round(hi * rate), market=r.market,
+                quoted_on=_date(r.quoted_on), excerpt=r.excerpt[:300],
+                status="ACCEPTED" if good else ("REJECTED_IMPLAUSIBLE" if not plausible else "REJECTED_UNSUPPORTED"),
+            )
+        )  # fmt: skip
+
+
+def _date(raw: str | None) -> Any:
+    from datetime import date  # noqa: PLC0415
+
+    try:
+        return date.fromisoformat(raw) if raw else None
+    except ValueError:
+        return None
 
 
 def _num(raw: str | None) -> float | None:
@@ -766,9 +797,12 @@ async def _maintenance_sources(s: Any, v: db.Variant) -> list[tuple[str, str]]:
 
 
 async def _table_sources(s: Any, v: db.Variant, area: str) -> list[tuple[str, str]]:
-    table: Any = {"reviews": db.ReviewItem, "reliability": db.Issue, "used_issues": db.Issue}[area]
+    table: Any = {"reviews": db.ReviewItem, "reliability": db.Issue, "used_issues": db.Issue,
+                  "used_price": db.UsedPriceRange}[area]  # fmt: skip
     q = select(db.Evidence.domain, db.Evidence.source_type).join(table, table.evidence_id == db.Evidence.id)
     q = q.where(table.variant_id == v.id)
+    if table is db.UsedPriceRange:
+        q = q.where(db.UsedPriceRange.status == "ACCEPTED")
     if table is db.Issue:
         q = q.where(db.Issue.area == area)
     out = [(str(a), str(b)) for a, b in (await s.execute(q)).all()]

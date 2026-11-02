@@ -12,10 +12,12 @@ from datetime import datetime, timedelta
 from typing import Literal
 
 Area = Literal[
-    "specs", "engineering", "measured", "price", "maintenance", "reviews", "reliability", "manufacturer", "used_issues"
-]
+    "specs", "engineering", "measured", "price", "maintenance", "reviews", "reliability", "manufacturer", "used_issues",
+    "used_price",
+]  # fmt: skip
 AREAS: tuple[Area, ...] = (
     "specs", "engineering", "measured", "price", "maintenance", "reviews", "reliability", "manufacturer", "used_issues",
+    "used_price",
 )  # fmt: skip
 
 FRESHNESS_DAYS: dict[str, int] = {
@@ -28,6 +30,7 @@ FRESHNESS_DAYS: dict[str, int] = {
     "reviews": 180,
     "price": 30,
     "manufacturer": 30,
+    "used_price": 30,
 }
 ROUNDS: dict[str, int] = {"QUICK": 0, "STANDARD": 1, "DEEP": 2}
 OLD_CAR_YEARS = 25
@@ -94,12 +97,14 @@ class SourceHit:
     items: int = 1
 
 
-def areas_for(persona: str, criteria: Iterable[str], condition: str) -> set[str]:
+def areas_for(persona: str, criteria: Iterable[str], condition: str, budget_used: bool = False) -> set[str]:
     out = {"specs"} | PERSONA_AREAS.get(persona, PERSONA_AREAS["UNKNOWN"])
     for c in criteria:
         out |= CRITERION_AREAS.get(c, set())
     if condition == "USED":
         out.add("used_issues")
+    if budget_used:  # a budget check may need used prices (spec 003 FR-022): price and editorial ranges
+        out |= {"price", "used_price"}
     return out
 
 
@@ -115,6 +120,7 @@ def plan(
     depth: str,
     last_done: Mapping[str, Mapping[str, datetime]],
     now: datetime,
+    budget_used: bool = False,
 ) -> ResearchPlan:
     crit = list(criteria)
     jobs: list[Job] = []
@@ -122,7 +128,8 @@ def plan(
     for car in cars:
         done = last_done.get(car.variant_id, {})
         for area in AREAS:  # stable order
-            if area in areas_for(persona, crit, car.condition) and not is_fresh(area, done.get(area), now):
+            wanted = areas_for(persona, crit, car.condition, budget_used)
+            if area in wanted and not is_fresh(area, done.get(area), now):
                 jobs.append(Job(car.key, car.variant_id, area))
         if car.age_years is not None and car.age_years > OLD_CAR_YEARS:
             warnings.append(Warning("OLD_CAR", car.key))
@@ -156,6 +163,8 @@ def minimum_met(area: str, hits: list[SourceHit]) -> bool:
         return sum(h.items for h in hits) >= 5 and len(domains) >= 2
     if area in ("reliability", "used_issues", "manufacturer"):
         return len(domains) >= 2
+    if area == "used_price":
+        return len(domains) >= 1  # one editorial range for the model years; otherwise the labelled estimate
     if area == "price":
         return _has_manufacturer(hits)
     if area == "measured":

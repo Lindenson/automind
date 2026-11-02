@@ -31,7 +31,16 @@ Rules
   important"/"above all", LOW if "a bit", else MEDIUM). "not rubbish"/"reliable" → reliability;
   "don't want to spend too much" → ownership_cost and purchase_price; "status"/"prestige" → status.
   A wish that matches no key ("nice colour", "looks cool") goes to `unmapped_wishes` verbatim.
-- Budget → set_budget.max_eur (whole euros). Annual mileage → set_annual_km.
+- Budget → set_budget: max_eur = the amount as stated (whole units), currency EUR/GBP/USD, kind TOTAL or
+  MONTHLY ("€300 a month"), intent NEW / USED / ANY when the user says so ("a new one", "second hand",
+  "new or used"), else UNKNOWN. An answer to the new-or-used question → set_budget with only intent.
+- Running-cost limit ("no more than €150 a month to run", "€2,000 a year on fuel and service") →
+  set_running_cost_limit {amount_eur, period MONTH or YEAR}.
+- Needs: number of people → set_needs.passengers; "lots of luggage"/"family holidays" → luggage HIGH;
+  towing ("a caravan of 1,400 kg") → set_needs.towing_kg; daily distance → set_needs.daily_km.
+- Every number you put in set_budget, set_running_cost_limit or set_needs must be written in the LATEST
+  message; copy the words that contain them into `constraints_evidence`. Never take them from history.
+  Annual mileage → set_annual_km.
 - Race requests: wet/dry, passengers or load (≈75 kg per passenger) → set_race_settings; a guess of
   the winner → set_prediction with the car key.
 - "and for a smart buyer?" after a report → weights_change with set_persona BUYER (ASKED).

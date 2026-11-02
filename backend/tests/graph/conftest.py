@@ -10,7 +10,7 @@ from automind.application.usage import Limits, Prices, TurnBudget
 from automind.infrastructure.checkpoint import checkpointer
 from automind.infrastructure.config import reference
 from automind.infrastructure.db import init_db
-from automind.infrastructure.db.repositories import CaseRepo, EventRepo, JobRepo, MessageRepo, TurnRepo
+from automind.infrastructure.db.repositories import CaseRepo, EventRepo, FeasibilityRepo, JobRepo, MessageRepo, TurnRepo
 from automind.infrastructure.events import EventBus
 from automind.orchestration.prompts import load_all
 from tests.fakes.fake_llm import FakeLLM, FixedEstimator
@@ -52,6 +52,7 @@ def make_ports(llm=None, search=None, events=None) -> Ports:
         ref=open_web_reference(),
         messages=MessageRepo(),
         estimator=FixedEstimator(),
+        feasibility=FeasibilityRepo(),
     )
 
 

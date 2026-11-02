@@ -6,12 +6,14 @@ from typing import Any
 
 from langgraph.runtime import Runtime
 
+from automind.application import feasibility as fz_app
 from automind.application import research, resolve
 from automind.application.interpret import Interpretation, InterpretError, interpret
 from automind.config import settings
 from automind.domain import research_plan
 from automind.domain.casefile import CaseFile, apply
 from automind.domain.policy import CarState, decide
+from automind.orchestration.nodes import feasibility as fz_nodes
 from automind.orchestration.phrases import t
 from automind.orchestration.runner import TurnContext
 from automind.orchestration.state import PER_TURN_RESET, TurnState
@@ -109,6 +111,10 @@ async def assess_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[s
     # Recomputed on every assess: the plan can grow inside a turn (a car confirmed after the first assess),
     # and a refusal of the smaller plan must not block research for the new one.
     out["research_declined"] = bool(plan.jobs) and case.declined_plan == out["research_plan"]["key"]
+    if fz_app.has_constraints(case) and case.cars and not plan.jobs and all(x.variant_id for x in case.cars):
+        out["feasibility"] = await fz_app.evaluate(
+            case, c.ports.ref.feasibility, c.ports.ref.rates or {}, c.ports.clock.now().year, c.ports.feasibility
+        )
     warn = [notice(_warning_text(w.kind, case.car(w.car_key).label or case.car(w.car_key).request_text), "warning")
             for w in plan.warnings]  # fmt: skip
     have = {n["text"] for n in state.get("notices", [])}
@@ -125,9 +131,13 @@ async def _plan(c: TurnContext, case: CaseFile) -> research_plan.ResearchPlan:
     ]
     criteria = [p.criterion for p in case.priorities] + [k for k, w in case.weights.items() if w > 0]
     last = await research.last_done([x.variant_id for x in cars])
-    return research_plan.plan(
-        cars, persona=case.persona, criteria=criteria, depth=case.depth, last_done=last, now=c.ports.clock.now()
+    budget_used = bool(case.budget.max_eur) and (
+        case.budget.intent in ("USED", "ANY") or any(x.condition == "USED" for x in case.cars)
     )
+    return research_plan.plan(
+        cars, persona=case.persona, criteria=criteria, depth=case.depth, last_done=last, now=c.ports.clock.now(),
+        budget_used=budget_used,
+    )  # fmt: skip
 
 
 def _warning_text(kind: str, label: str) -> str:
@@ -150,6 +160,7 @@ async def policy_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[s
         cost_approved=bool(state.get("cost_approved")),
         research_declined=bool(state.get("research_declined") or state.get("research_done")),
         case_changed=bool(state.get("case_changed", True)),
+        feasibility_pending=fz_nodes.pending(case, state.get("feasibility")),
         confirm_threshold_eur=s.cost_confirm_threshold_eur,
         hard_cap_eur=s.cost_hard_cap_eur,
     )
@@ -173,4 +184,5 @@ def route_policy(state: TurnState) -> str:
         "RESEARCH": "plan_research",
         "ANSWER_FROM_CONTEXT": "answer",
         "REPORT": "report",
+        "FEASIBILITY": "prepare_feasibility",
     }[state["decision"]["kind"]]

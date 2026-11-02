@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from automind.application import compose
+from automind.application import feasibility as fz_app
 from automind.domain import tco
 from automind.domain.casefile import CaseFile
 from automind.domain.criteria import CriteriaScore, score, weights_for
@@ -35,8 +36,7 @@ def case_facts(case: CaseFile) -> list[str]:
         out.append(f"age {case.profile.age}")
     if case.usage:
         out.append("usage: " + ", ".join(u.lower() for u in case.usage))
-    if case.budget.max_eur:
-        out.append(f"budget up to €{case.budget.max_eur:,}")
+    out += [x[0].lower() + x[1:] for x in fz_app.constraint_lines(case)]
     if case.priorities:
         out.append("priorities: " + ", ".join(p.criterion.replace("_", " ") for p in case.priorities))
     out.append(f"{case.annual_km:,} km per year")
@@ -84,6 +84,12 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]])
     if crit is not None:
         blocks.append(compose.criteria_block(crit, model, case.unmapped_wishes))
     ages = {x.variant_id: x.age_years for x in case.cars if x.variant_id}
+    if fz_app.has_constraints(case) and c.ports.feasibility is not None:  # spec 003: the verdict stays visible
+        fz = await fz_app.evaluate(case, c.ports.ref.feasibility, c.ports.ref.rates or {}, c.ports.clock.now().year,
+                                   c.ports.feasibility)  # fmt: skip
+        fz_block = fz_app.block(case, fz)
+        if fz_block is not None:
+            blocks.append(fz_block)
     for extra in (
         compose.engineering_block(cars),
         compose.manufacturer_block(cars),

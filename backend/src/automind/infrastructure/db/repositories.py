@@ -436,3 +436,26 @@ class MetricsRepo:
                 "by_provider": {p: sum(1 for c in paid if c.provider == p) for p in {c.provider for c in paid}},
             },
         }
+
+
+class FeasibilityRepo:
+    """Storage for the feasibility check (spec 003 US3): editorial used-price ranges and persisted verdicts."""
+
+    async def used_ranges(self, variant_id: str) -> list[tuple[Any, str]]:
+        from .models import Evidence, UsedPriceRange  # noqa: PLC0415
+
+        async with sessionmaker()() as s:
+            rows = await s.execute(
+                select(UsedPriceRange, Evidence.url)
+                .join(Evidence, UsedPriceRange.evidence_id == Evidence.id)
+                .where(UsedPriceRange.variant_id == variant_id, UsedPriceRange.status == "ACCEPTED")
+            )
+            return [(r, str(u)) for r, u in rows.all()]
+
+    async def save_checks(self, chat_id: str, turn_id: str, rows: list[dict[str, Any]]) -> None:
+        if not rows:
+            return
+        async with sessionmaker()() as s:
+            for r in rows:
+                s.add(FeasibilityCheck(chat_id=chat_id, turn_id=turn_id, **r))
+            await s.commit()

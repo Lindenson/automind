@@ -26,6 +26,7 @@ AREA_ATTRS: dict[str, list[str]] = {
 }
 SPEC_AREAS = ("specs", "engineering", "measured", "price")
 PROMPT_FOR_AREA = {
+    "used_price": "extract_used_price",
     "specs": "extract_specs",
     "engineering": "extract_specs",
     "measured": "extract_specs",
@@ -120,6 +121,21 @@ class ManufacturerFacts(BaseModel):
     facts: list[ManufacturerEntry]
 
 
+class UsedPriceEntry(_Excerpted):
+    model_year_from: int | None = None
+    model_year_to: int | None = None
+    min: float
+    max: float
+    currency: Literal["EUR", "GBP", "USD"] = "EUR"
+    market: Literal["ES", "GB", "DE", "US"] = "ES"
+    quoted_on: str | None = None
+
+
+class UsedPriceItems(BaseModel):
+    is_about_variant: bool = True
+    ranges: list[UsedPriceEntry] = Field(default_factory=list)
+
+
 def schema_for(area: str) -> type[BaseModel]:
     if area in SPEC_AREAS:
         return spec_claims_schema(area)
@@ -129,6 +145,7 @@ def schema_for(area: str) -> type[BaseModel]:
         "reliability": IssueItems,
         "used_issues": IssueItems,
         "manufacturer": ManufacturerFacts,
+        "used_price": UsedPriceItems,
     }[area]
 
 

@@ -16,6 +16,7 @@ ALL = [
     "reviews",
     "manufacturer",
     "case_summary",
+    "feasibility",
 ]
 
 
@@ -26,11 +27,24 @@ def blocks(*types):
 @pytest.mark.parametrize(
     ("persona", "expected"),
     [
-        ("BUYER", ["case_summary", "criteria_scores", "tco", "reliability", "reviews", "spec_table", "sources"]),
+        (
+            "BUYER",
+            [
+                "case_summary",
+                "feasibility",
+                "criteria_scores",
+                "tco",
+                "reliability",
+                "reviews",
+                "spec_table",
+                "sources",
+            ],
+        ),
         (
             "PERFORMANCE",
             [
                 "case_summary",
+                "feasibility",
                 "race_chart",
                 "metric_bars",
                 "criteria_scores",
@@ -44,6 +58,7 @@ def blocks(*types):
             "EXPERT",
             [
                 "case_summary",
+                "feasibility",
                 "engineering",
                 "spec_table",
                 "metric_bars",
@@ -55,7 +70,19 @@ def blocks(*types):
                 "sources",
             ],
         ),
-        ("UNKNOWN", ["case_summary", "criteria_scores", "spec_table", "tco", "reliability", "race_chart", "sources"]),
+        (
+            "UNKNOWN",
+            [
+                "case_summary",
+                "feasibility",
+                "criteria_scores",
+                "spec_table",
+                "tco",
+                "reliability",
+                "race_chart",
+                "sources",
+            ],
+        ),
     ],
 )
 def test_exact_orders(persona, expected):

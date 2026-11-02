@@ -22,7 +22,13 @@ export type Confidence = z.infer<typeof ConfidenceSchema>;
 export const SourceRefSchema = z.object({
   name: z.string(),
   url: z.string(),
-  type: z.enum(["MANUFACTURER", "INSTRUMENTED_TEST", "PUBLICATION", "ENCYCLOPEDIA", "SPEC_DATABASE"]),
+  type: z.enum([
+    "MANUFACTURER",
+    "INSTRUMENTED_TEST",
+    "PUBLICATION",
+    "ENCYCLOPEDIA",
+    "SPEC_DATABASE",
+  ]),
   retrieved_at: z.string(),
   excerpt: z.string().nullish(),
   // spec 003 (FR-012): favourite source, values read from the site's table, or rejected for another variant
@@ -77,7 +83,13 @@ export const MetricBarsBlockSchema = z.object({
       label: z.string(),
       unit: z.string(),
       better: z.enum(["higher", "lower"]),
-      values: z.array(z.object({ car_id: z.string(), label: z.string(), value: z.number().nullable() })),
+      values: z.array(
+        z.object({
+          car_id: z.string(),
+          label: z.string(),
+          value: z.number().nullable(),
+        }),
+      ),
     }),
   ),
 });
@@ -115,12 +127,18 @@ export const RaceChartBlockSchema = z.object({
       claimed_0_100: z.number().nullable(),
     }),
   ),
-  excluded: z.array(z.object({ car_id: z.string(), label: z.string(), reason: z.string() })),
+  excluded: z.array(
+    z.object({ car_id: z.string(), label: z.string(), reason: z.string() }),
+  ),
   assumptions: z.array(
     z.object({
       car_id: z.string(),
       items: z.array(
-        z.object({ name: z.string(), value: z.union([z.number(), z.string()]), unit: z.string().nullable() }),
+        z.object({
+          name: z.string(),
+          value: z.union([z.number(), z.string()]),
+          unit: z.string().nullable(),
+        }),
       ),
     }),
   ),
@@ -130,7 +148,9 @@ export const ProfileScoresBlockSchema = z.object({
   type: z.literal("profile_scores"),
   title: z.string(),
   profile: z.enum(["performance", "smart_buyer", "tech"]),
-  criteria: z.array(z.object({ key: z.string(), label: z.string(), weight: z.number() })),
+  criteria: z.array(
+    z.object({ key: z.string(), label: z.string(), weight: z.number() }),
+  ),
   scores: z.array(
     z.object({
       car_id: z.string(),
@@ -171,7 +191,12 @@ export const NoticeBlockSchema = z.object({
 });
 
 export const BasisSchema = z.enum(["SOURCED", "ASSUMPTION"]);
-export const PersonaSchema = z.enum(["EXPERT", "PERFORMANCE", "BUYER", "UNKNOWN"]);
+export const PersonaSchema = z.enum([
+  "EXPERT",
+  "PERFORMANCE",
+  "BUYER",
+  "UNKNOWN",
+]);
 export type Persona = z.infer<typeof PersonaSchema>;
 export const ConditionSchema = z.enum(["NEW", "USED", "UNKNOWN"]);
 
@@ -179,14 +204,28 @@ export const CaseSummaryBlockSchema = z.object({
   type: z.literal("case_summary"),
   persona: PersonaSchema,
   facts: z.array(z.string()),
-  cars: z.array(z.object({ key: z.string(), label: z.string(), condition: ConditionSchema, year: z.number().nullable() })),
+  cars: z.array(
+    z.object({
+      key: z.string(),
+      label: z.string(),
+      condition: ConditionSchema,
+      year: z.number().nullable(),
+    }),
+  ),
 });
 
 export const CriteriaScoresBlockSchema = z.object({
   type: z.literal("criteria_scores"),
   title: z.string(),
   criteria_version: z.number(),
-  criteria: z.array(z.object({ key: z.string(), label: z.string(), weight: z.number(), definition: z.string() })),
+  criteria: z.array(
+    z.object({
+      key: z.string(),
+      label: z.string(),
+      weight: z.number(),
+      definition: z.string(),
+    }),
+  ),
   cars: z.array(
     z.object({
       car_id: z.string(),
@@ -196,7 +235,11 @@ export const CriteriaScoresBlockSchema = z.object({
       coverage: z.number(),
       parts: z.record(
         z.string(),
-        z.object({ score: z.number().nullable(), insufficient: z.boolean(), inputs: z.array(z.string()) }),
+        z.object({
+          score: z.number().nullable(),
+          insufficient: z.boolean(),
+          inputs: z.array(z.string()),
+        }),
       ),
     }),
   ),
@@ -218,7 +261,14 @@ export const TcoBlockSchema = z.object({
       five_year_total: z.number(),
       items: z.array(
         z.object({
-          kind: z.enum(["MAINTENANCE", "ENERGY", "TYRES", "ROAD_TAX", "BIG_TICKET", "BASE_RESERVE"]),
+          kind: z.enum([
+            "MAINTENANCE",
+            "ENERGY",
+            "TYRES",
+            "ROAD_TAX",
+            "BIG_TICKET",
+            "BASE_RESERVE",
+          ]),
           label: z.string(),
           annual_eur: z.number().nullable(),
           five_year_eur: z.number().nullable(),
@@ -250,7 +300,13 @@ export const ReliabilityBlockSchema = z.object({
         }),
       ),
       stats: z.array(
-        z.object({ source: z.string(), metric: z.string(), value: z.string(), year: z.number().nullable(), url: z.string() }),
+        z.object({
+          source: z.string(),
+          metric: z.string(),
+          value: z.string(),
+          year: z.number().nullable(),
+          url: z.string(),
+        }),
       ),
       none_found: z.boolean(),
     }),
@@ -317,7 +373,59 @@ export const ManufacturerBlockSchema = z.object({
   ),
 });
 
+// spec 003 US3: does the request fit the user's budget and needs?
+export const FeasibilityBlockSchema = z.object({
+  type: z.literal("feasibility"),
+  title: z.string(),
+  constraints: z.array(z.string()),
+  cars: z.array(
+    z.object({
+      car_id: z.string(),
+      label: z.string(),
+      checks: z.array(
+        z.object({
+          check: z.enum([
+            "BUDGET",
+            "RUNNING_COST",
+            "USAGE_SPACE",
+            "USAGE_POWER",
+            "USAGE_RANGE",
+          ]),
+          label: z.string(),
+          verdict: z.enum([
+            "FITS",
+            "DOES_NOT_FIT",
+            "USED_ONLY",
+            "OTHER_CLASS",
+            "UNKNOWN",
+          ]),
+          summary: z.string(),
+          compared: z.array(
+            z.object({
+              label: z.string(),
+              value: z.number().nullable(),
+              unit: z.string(),
+              basis: BasisSchema,
+              sources: z.array(SourceRefSchema),
+              inputs: z.array(z.string()),
+            }),
+          ),
+          used_age: z
+            .object({
+              from_years: z.number(),
+              to_years: z.number(),
+              basis: z.enum(["EDITORIAL", "ASSUMPTION"]),
+            })
+            .nullish(),
+          missing: z.array(z.string()).nullish(),
+        }),
+      ),
+    }),
+  ),
+});
+
 export const BlockSchema = z.discriminatedUnion("type", [
+  FeasibilityBlockSchema,
   SpecTableBlockSchema,
   MetricBarsBlockSchema,
   RaceChartBlockSchema,
@@ -336,7 +444,9 @@ export const BlockSchema = z.discriminatedUnion("type", [
 export type Block = z.infer<typeof BlockSchema>;
 export type BlockOf<T extends Block["type"]> = Extract<Block, { type: T }>;
 
-const KNOWN_BLOCK_TYPES = new Set<string>(BlockSchema.options.map((o) => o.shape.type.value));
+const KNOWN_BLOCK_TYPES = new Set<string>(
+  BlockSchema.options.map((o) => o.shape.type.value),
+);
 
 /**
  * Parse a raw block list. Unknown block types are silently dropped; known
@@ -347,11 +457,18 @@ export function parseBlocks(raw: unknown): Block[] {
   if (!Array.isArray(raw)) return [];
   const out: Block[] = [];
   for (const item of raw) {
-    const type = typeof item === "object" && item !== null ? (item as { type?: unknown }).type : undefined;
+    const type =
+      typeof item === "object" && item !== null
+        ? (item as { type?: unknown }).type
+        : undefined;
     if (typeof type !== "string" || !KNOWN_BLOCK_TYPES.has(type)) continue;
     const res = BlockSchema.safeParse(item);
     if (res.success) out.push(res.data);
-    else console.warn(`[automind] dropped invalid ${type} block`, res.error.issues);
+    else
+      console.warn(
+        `[automind] dropped invalid ${type} block`,
+        res.error.issues,
+      );
   }
   return out;
 }
@@ -439,17 +556,46 @@ export const CaseCarSchema = z.object({
   mileage_km: z.number().nullish(),
   variant_id: z.string().nullish(),
   label: z.string().nullish(),
-  resolution: z.enum(["UNRESOLVED", "PROPOSED", "CONFIRMED", "AUTO_OK"]).default("UNRESOLVED"),
+  resolution: z
+    .enum(["UNRESOLVED", "PROPOSED", "CONFIRMED", "AUTO_OK"])
+    .default("UNRESOLVED"),
 });
 export const CaseSchema = z
   .object({
     persona: PersonaSchema.default("UNKNOWN"),
     usage: z.array(z.string()).default([]),
-    budget: z.object({ max_eur: z.number().nullish(), note: z.string().nullish() }).partial().default({}),
+    budget: z
+      .object({
+        max_eur: z.number().nullish(),
+        note: z.string().nullish(),
+        intent: z.enum(["NEW", "USED", "ANY", "UNKNOWN"]),
+        currency: z.enum(["EUR", "GBP", "USD"]),
+        kind: z.enum(["TOTAL", "MONTHLY"]),
+      })
+      .partial()
+      .default({}),
+    running_cost_limit: z
+      .object({ amount_eur: z.number(), period: z.enum(["MONTH", "YEAR"]) })
+      .nullish(),
+    needs: z
+      .object({
+        passengers: z.number().nullish(),
+        luggage: z.enum(["LOW", "MEDIUM", "HIGH"]),
+        towing_kg: z.number().nullish(),
+        daily_km: z.number().nullish(),
+      })
+      .partial()
+      .default({}),
     annual_km: z.number().default(15000),
     depth: z.enum(["QUICK", "STANDARD", "DEEP"]).default("STANDARD"),
     priorities: z
-      .array(z.object({ criterion: z.string(), strength: z.enum(["LOW", "MEDIUM", "HIGH"]), source: z.string() }))
+      .array(
+        z.object({
+          criterion: z.string(),
+          strength: z.enum(["LOW", "MEDIUM", "HIGH"]),
+          source: z.string(),
+        }),
+      )
       .default([]),
     weights: z.record(z.string(), z.number()).default({}),
     weights_overridden: z.boolean().default(false),
@@ -474,9 +620,22 @@ export const ConfirmRequestSchema = z.object({
   request_id: z.string().optional(),
   kind: z.enum(["variants", "cost", "limit", "feasibility"]),
   text: z.string(),
-  options: z.array(z.object({ id: z.string(), label: z.string(), detail: z.string().nullish() })).default([]),
+  options: z
+    .array(
+      z.object({
+        id: z.string(),
+        label: z.string(),
+        detail: z.string().nullish(),
+      }),
+    )
+    .default([]),
   estimate: z
-    .object({ eur: z.number(), cars: z.number(), areas: z.array(z.string()), depth: z.string() })
+    .object({
+      eur: z.number(),
+      cars: z.number(),
+      areas: z.array(z.string()),
+      depth: z.string(),
+    })
     .nullish(),
 });
 export type ConfirmRequest = z.infer<typeof ConfirmRequestSchema>;
@@ -492,7 +651,10 @@ export const UsageMsgSchema = z.object({
 });
 export type Usage = z.infer<typeof UsageMsgSchema>;
 
-export const TurnCancelledSchema = z.object({ ...Envelope, type: z.literal("turn_cancelled") });
+export const TurnCancelledSchema = z.object({
+  ...Envelope,
+  type: z.literal("turn_cancelled"),
+});
 
 export const ServerMsgSchema = z.discriminatedUnion("type", [
   StatusMsgSchema,
@@ -506,13 +668,18 @@ export const ServerMsgSchema = z.discriminatedUnion("type", [
 ]);
 export type ServerMsg = z.infer<typeof ServerMsgSchema>;
 
-const KNOWN_MSG_TYPES = new Set<string>(ServerMsgSchema.options.map((o) => o.shape.type.value));
+const KNOWN_MSG_TYPES = new Set<string>(
+  ServerMsgSchema.options.map((o) => o.shape.type.value),
+);
 
 /** Validate one incoming server message. Returns null for unknown or invalid messages. */
 export function parseServerMsg(raw: unknown): ServerMsg | null {
   const res = ServerMsgSchema.safeParse(raw);
   if (res.success) return res.data;
-  const type = typeof raw === "object" && raw !== null ? (raw as { type?: unknown }).type : undefined;
+  const type =
+    typeof raw === "object" && raw !== null
+      ? (raw as { type?: unknown }).type
+      : undefined;
   if (typeof type === "string" && KNOWN_MSG_TYPES.has(type)) {
     console.warn(`[automind] invalid ${type} message`, res.error.issues);
   }
@@ -538,8 +705,17 @@ export const HistorySchema = z.object({
   ),
 });
 
-export type UserMessageOut = { type: "user_message"; message_id: string; text: string };
+export type UserMessageOut = {
+  type: "user_message";
+  message_id: string;
+  text: string;
+};
 export type HelloOut = { type: "hello"; last_seq: number };
-export type ConfirmOut = { type: "confirm"; request_id?: string; choice: string; text?: string | null };
+export type ConfirmOut = {
+  type: "confirm";
+  request_id?: string;
+  choice: string;
+  text?: string | null;
+};
 export type CancelOut = { type: "cancel"; turn_id?: string | null };
 export type ClientMsg = UserMessageOut | HelloOut | ConfirmOut | CancelOut;

@@ -9,15 +9,20 @@ from __future__ import annotations
 from typing import Any
 
 ORDER: dict[str, list[str]] = {
-    "BUYER": ["case_summary", "criteria_scores", "tco", "reliability", "reviews", "spec_table", "sources"],
+    "BUYER": [
+        "case_summary", "feasibility", "criteria_scores", "tco", "reliability", "reviews", "spec_table", "sources",
+    ],
     "PERFORMANCE": [
-        "case_summary", "race_chart", "metric_bars", "criteria_scores", "spec_table", "reliability", "tco", "sources",
+        "case_summary", "feasibility", "race_chart", "metric_bars", "criteria_scores", "spec_table", "reliability",
+        "tco", "sources",
     ],
     "EXPERT": [
-        "case_summary", "engineering", "spec_table", "metric_bars", "criteria_scores", "reliability", "manufacturer",
-        "tco", "race_chart", "sources",
+        "case_summary", "feasibility", "engineering", "spec_table", "metric_bars", "criteria_scores", "reliability",
+        "manufacturer", "tco", "race_chart", "sources",
     ],
-    "UNKNOWN": ["case_summary", "criteria_scores", "spec_table", "tco", "reliability", "race_chart", "sources"],
+    "UNKNOWN": [
+        "case_summary", "feasibility", "criteria_scores", "spec_table", "tco", "reliability", "race_chart", "sources",
+    ],
 }  # fmt: skip
 
 

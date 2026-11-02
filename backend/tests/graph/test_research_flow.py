@@ -116,6 +116,9 @@ async def purge():
             m.ReliabilityStat,
             m.MaintenanceItem,
             m.TcoEstimateRow,
+            m.FeasibilityCheck,
+            m.PageRelevance,
+            m.UsedPriceRange,
         ):
             await s.execute(delete(t).where(t.variant_id.in_(ids)))
         await s.execute(delete(m.Evidence).where(m.Evidence.variant_id.in_(ids)))

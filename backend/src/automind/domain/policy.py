@@ -20,7 +20,14 @@ from pydantic import BaseModel, Field
 from .casefile import MAX_CARS, CaseFile, QuestionKind
 
 ActionKind = Literal[
-    "ANSWER_GENERAL", "ASK", "CONFIRM_VARIANTS", "CONFIRM_COST", "RESEARCH", "ANSWER_FROM_CONTEXT", "REPORT"
+    "ANSWER_GENERAL",
+    "ASK",
+    "CONFIRM_VARIANTS",
+    "CONFIRM_COST",
+    "RESEARCH",
+    "ANSWER_FROM_CONTEXT",
+    "REPORT",
+    "FEASIBILITY",
 ]
 RequestKind = Literal[
     "compare",
@@ -33,7 +40,9 @@ RequestKind = Literal[
     "confirm_no",
     "chitchat",
 ]
-QUESTION_ORDER: tuple[QuestionKind, ...] = ("TOO_MANY_CARS", "CAR_IDENTITY", "USED_AGE", "TRIM", "PERSONA")
+QUESTION_ORDER: tuple[QuestionKind, ...] = (
+    "TOO_MANY_CARS", "CAR_IDENTITY", "USED_AGE", "TRIM", "BUDGET_INTENT", "PERSONA",
+)  # fmt: skip
 MAX_QUESTIONS = 3
 DEFAULT_CONFIRM_THRESHOLD_EUR = 0.30
 DEFAULT_HARD_CAP_EUR = 1.00
@@ -69,6 +78,7 @@ def decide(
     cost_approved: bool = False,
     research_declined: bool = False,
     case_changed: bool = True,
+    feasibility_pending: bool = False,
     confirm_threshold_eur: float = DEFAULT_CONFIRM_THRESHOLD_EUR,
     hard_cap_eur: float = DEFAULT_HARD_CAP_EUR,
 ) -> Action:
@@ -99,6 +109,9 @@ def decide(
         return Action(
             kind="ANSWER_FROM_CONTEXT", nothing_new=True, profile=single, reason="correction matches the case"
         )
+    # 5b. the request does not fit the user's budget or needs: say so before any report (spec 003 FR-020)
+    if feasibility_pending and request not in ("weights_change",):
+        return Action(kind="FEASIBILITY", reason="a constraint is not met or could not be checked")
     if request in ("weights_change", "follow_up_question"):
         return Action(kind="ANSWER_FROM_CONTEXT", profile=single, reason="follow-up answered from validated data")
     # 6. report, never repeated unchanged
@@ -119,6 +132,8 @@ def _questions(case: CaseFile, state: dict[str, CarState]) -> tuple[list[Questio
             needed.setdefault("CAR_IDENTITY", []).append(c.key)
         elif c.condition == "USED" and c.year is None and st.plausible_generations != 1:
             needed.setdefault("USED_AGE", []).append(c.key)
+        if case.budget.max_eur and case.budget.intent == "UNKNOWN" and c.condition == "UNKNOWN":
+            needed.setdefault("BUDGET_INTENT", []).append(c.key)  # new or used changes the answer (FR-021)
     blocking = [q for q in QUESTION_ORDER if q in needed and q not in case.asked]
     if blocking and case.persona == "UNKNOWN" and "PERSONA" not in case.asked:
         blocking.append("PERSONA")  # FR-005a: only alongside another question, never a questionnaire
@@ -142,7 +157,9 @@ def fingerprint(case: CaseFile) -> str:
         "priorities": sorted((p.criterion, p.strength) for p in case.priorities),
         "weights": sorted((k, round(v, 2)) for k, v in case.weights.items()),
         "usage": sorted(case.usage),
-        "budget": case.budget.max_eur,
+        "budget": [case.budget.max_eur, case.budget.intent, case.budget.currency, case.budget.kind],
+        "running": case.running_cost_limit.model_dump() if case.running_cost_limit else None,
+        "needs": case.needs.model_dump(),
         "annual_km": case.annual_km,
         "rates": case.rates_override.model_dump(exclude_none=True),
         "race": case.race_settings.model_dump() if case.race_settings else None,

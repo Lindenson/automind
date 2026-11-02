@@ -12,6 +12,7 @@ import { Reliability } from "./Reliability";
 import { Reviews } from "./Reviews";
 import { Sources } from "./Sources";
 import { Tco } from "./Tco";
+import { Feasibility } from "./Feasibility";
 import { SpecTable } from "./SpecTable";
 
 export function BlockView({ block }: { block: Block }) {
@@ -40,6 +41,8 @@ export function BlockView({ block }: { block: Block }) {
       return <Manufacturer b={block} />;
     case "tco":
       return <Tco b={block} />;
+    case "feasibility":
+      return <Feasibility b={block} />;
     case "reliability":
       return <Reliability b={block} />;
     case "reviews":

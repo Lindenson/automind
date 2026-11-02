@@ -35,6 +35,10 @@ def fill_questions(
                 items.append(
                     {"kind": kind, "car": key, "text": tpl.format(car=car.request_text, options=opts, count=1)}
                 )
+        elif kind == "BUDGET_INTENT":
+            b = case.budget
+            amount = f"{b.max_eur:,} {b.currency}" + (" a month" if b.kind == "MONTHLY" else "")
+            items.append({"kind": kind, "car": None, "text": tpl.format(car="", options=amount, count=0)})
         else:
             items.append({"kind": kind, "car": None, "text": tpl.format(car="", options="", count=0)})
     return items[:3]

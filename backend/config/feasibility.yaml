@@ -12,7 +12,7 @@ used_age_span_years: 3
 max_used_age_years: 20
 usage:
   boot_l_per_passenger: {LOW: 60, MEDIUM: 100, HIGH: 140}   # boot litres needed per person with luggage
-  min_kw_per_t: {mountains: 60, towing_per_1000kg: 75}      # power-to-weight for mountains / towing
+  min_kw_per_t: {mountains: 60, towing: 45}                 # kW per tonne (towing: car + trailer mass)
   bev_range_margin: 1.6                                     # daily_km × margin must be ≤ WLTP range
 currency_to_eur: {EUR: 1.0, GBP: 1.17, USD: 0.92}
 monthly_budget_months: 48     # a MONTHLY budget is compared as amount × months (financing, labelled)

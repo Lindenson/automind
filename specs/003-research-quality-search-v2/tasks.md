@@ -247,13 +247,13 @@ SC-007a).
 
 ### Tests first (US3)
 
-- [ ] T038 [P] [US3] `tests/unit/domain/test_casefile_constraints.py`:
+- [X] T038 [P] [US3] `tests/unit/domain/test_casefile_constraints.py`:
   - `CaseDelta.set_constraints` merges partially;
   - amounts must be > 0 and currency ∈ {EUR, GBP, USD, null};
   - `intent` ∈ {NEW, USED, ANY, UNKNOWN} and `kind` ∈ {TOTAL, MONTHLY};
   - the fingerprint changes when constraints change;
   - `feasibility_ack` is reset when constraints change.
-- [ ] T039 [P] [US3] `tests/unit/domain/test_feasibility.py` covers `domain/feasibility.evaluate`:
+- [X] T039 [P] [US3] `tests/unit/domain/test_feasibility.py` covers `domain/feasibility.evaluate`:
   - **budget**:
     - new price ≤ budget → FITS;
     - new price > budget, intent NEW → DOES_NOT_FIT;
@@ -265,7 +265,7 @@ SC-007a).
   - **usage power**: kW/t vs the mountains/towing thresholds.
   - **usage range**: BEV `daily_km × margin` vs range.
   - **general**: every number carries basis and sources; deterministic.
-- [ ] T040 [P] [US3] `tests/unit/domain/test_policy_feasibility.py` covers `decide`:
+- [X] T040 [P] [US3] `tests/unit/domain/test_policy_feasibility.py` covers `decide`:
   - budget with intent UNKNOWN where new and used verdicts would differ → `ASK [BUDGET_INTENT]` (still ≤ 3 questions, one round, not re-asked once in `asked`);
   - after research, any non-FITS verdict without a matching `feasibility_ack` → `FEASIBILITY`;
   - with the ack → `REPORT`;
@@ -274,36 +274,36 @@ SC-007a).
 
 ### Implementation (US3)
 
-- [ ] T041 [US3] `domain/casefile.py`:
+- [X] T041 [US3] `domain/casefile.py`:
   - `Constraints` model (budget, running_cost_limit, usage, evidence), `feasibility_ack`;
   - `CaseDelta.set_constraints` and `constraints_evidence`;
   - `fingerprint` includes constraints;
   - question kinds `BUDGET_INTENT`, `BUDGET_CURRENCY`, `BUDGET_KIND` with templates in `config/questions.yaml` (ru/es/en).
 
   Passes T038.
-- [ ] T042 [US3] Interpreter: update `orchestration/prompts/interpreter.md` and `application/interpret.py` to fill `set_constraints`. Code drops any number not present verbatim (after number normalisation) in `constraints_evidence` from the current message, the same as `persona_evidence`. Graph test: a budget from an earlier message is not re-derived
-- [ ] T043 [P] [US3] Pure `src/automind/domain/feasibility.py` (`CarFacts` for feasibility, `CheckResult`, `CarFeasibility`, depreciation from rules). Passes T039
-- [ ] T044 [US3] `used_price` research area:
+- [X] T042 [US3] Interpreter: update `orchestration/prompts/interpreter.md` and `application/interpret.py` to fill `set_constraints`. Code drops any number not present verbatim (after number normalisation) in `constraints_evidence` from the current message, the same as `persona_evidence`. Graph test: a budget from an earlier message is not re-derived
+- [X] T043 [P] [US3] Pure `src/automind/domain/feasibility.py` (`CarFacts` for feasibility, `CheckResult`, `CarFeasibility`, depreciation from rules). Passes T039
+- [X] T044 [US3] `used_price` research area:
   - `research_plan.AREAS` + freshness 30 days + minimum (≥ 1 accepted editorial range for the model years);
   - extraction schema `UsedPriceItems {ranges: [{model_year_from, model_year_to, min, max, currency, market, quoted_on, excerpt}]}` with an extractor prompt section;
   - persist into `used_price_ranges` (GBP/USD → EUR via `feasibility.yaml` rates, labelled);
   - deny-list enforced.
 
   Unit test for normalisation, graph test with fixture pages.
-- [ ] T045 [US3] Policy and graph:
+- [X] T045 [US3] Policy and graph:
   - extend `domain/policy.decide` and pass T040;
   - new node `orchestration/nodes/feasibility.py`: gathers facts (`application/feasibility.py`), evaluates, persists `feasibility_checks`, builds the `feasibility` block, emits `confirm_request kind:"feasibility"` with options `report|used|alternatives`;
   - on resume: `report` → store `feasibility_ack` → REPORT; `used` → set the condition to USED for cars over budget, then re-assess; `alternatives` → answerer suggests cars of a fitting class, labelled as suggestions, no numbers without data;
   - route in `orchestration/graph.py`;
   - fixed phrases in `orchestration/phrases.py` (ru/es/en).
-- [ ] T046 [US3] Frontend:
+- [X] T046 [US3] Frontend:
   - `FeasibilityBlockSchema` in `src/lib/protocol.ts`;
   - `src/components/blocks/Feasibility.tsx`: verdict per car and check, numbers compared with basis badges, used age range with EDITORIAL/ASSUMPTION;
   - `ConfirmCard` handles `kind: "feasibility"`;
   - `src/components/CasePanel/Constraints.tsx` (view/edit budget, running-cost limit, usage) via `PATCH /api/v1/chats/{id}/case`;
   - backend PATCH validation;
   - vitest.
-- [ ] T047 [US3] Golden dialogues G8–G11 as in quickstart.md §4 (`tests/golden/dialogues/g08_budget_new_infeasible.yaml` … `g11_budget_intent_question.yaml`), replay fixtures plus a live run. Assert: no REPORT before a verdict or question; the verdict carries numbers; a used age range is present with its basis; zero values from classifieds
+- [ ] T047 [US3] (graph tests done: `tests/graph/test_feasibility_flow.py`; live G8–G11 recording pending the user's go-ahead) Golden dialogues G8–G11 as in quickstart.md §4 (`tests/golden/dialogues/g08_budget_new_infeasible.yaml` … `g11_budget_intent_question.yaml`), replay fixtures plus a live run. Assert: no REPORT before a verdict or question; the verdict carries numbers; a used age range is present with its basis; zero values from classifieds
 
 **Checkpoint**: impossible requests are named, not silently reported.
 

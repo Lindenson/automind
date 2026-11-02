@@ -8,6 +8,7 @@ references raise `InterpretError`, and the hub asks the user to rephrase instead
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 from pydantic import BaseModel, Field, ValidationError
@@ -29,6 +30,11 @@ class Interpretation(BaseModel):
     persona_evidence: str | None = Field(
         default=None,
         description="Verbatim words from the LATEST user message that show who the user is (required to set_persona)",
+    )
+    constraints_evidence: list[str] = Field(
+        default_factory=list,
+        description="Verbatim words from the LATEST message that contain the numbers set in set_budget, "
+        "set_running_cost_limit or set_needs",
     )
 
 
@@ -92,7 +98,7 @@ async def interpret(
     except (ValidationError, ValueError) as e:
         raise InterpretError(str(e)) from e
     _check(case, out.delta)
-    return _persona_from_this_message(out, user_text)
+    return _constraints_from_this_message(_persona_from_this_message(out, user_text), user_text)
 
 
 def _norm(t: str) -> str:
@@ -106,6 +112,51 @@ def _persona_from_this_message(i: Interpretation, user_text: str) -> Interpretat
     if i.delta.set_persona is None or (ev and len(ev.strip()) >= 3 and _norm(ev) in _norm(user_text)):
         return i
     return i.model_copy(update={"delta": i.delta.model_copy(update={"set_persona": None})})
+
+
+_NUM_RE = re.compile(r"(\d[\d.,\s]*\d|\d)\s*(k|mil|тыс\w*|thousand)?", re.I)
+
+
+def numbers_in(text: str) -> set[float]:
+    """Numbers written in a message: '25.000', '25,000', '25 000', '25k', '25 mil', '25 тыс' → 25000."""
+    out: set[float] = set()
+    for m in _NUM_RE.finditer(text):
+        raw = re.sub(r"\s", "", m.group(1))
+        if re.fullmatch(r"\d{1,3}([.,]\d{3})+", raw):
+            raw = raw.replace(".", "").replace(",", "")
+        else:
+            raw = raw.replace(",", ".")
+        try:
+            v = float(raw)
+        except ValueError:
+            continue
+        out.add(v * 1000 if m.group(2) else v)
+    return out
+
+
+def _constraints_from_this_message(i: Interpretation, user_text: str) -> Interpretation:
+    """Numbers in budget, running-cost limit and needs must be written in THIS message (constitution I):
+    an amount the model inferred or took from history is dropped; an intent-only budget answer is kept."""
+    d = i.delta
+    seen = numbers_in(user_text)
+
+    def ok(v: float | None) -> bool:
+        return v is None or any(abs(v - n) <= max(1.0, 0.005 * n) for n in seen)
+
+    upd: dict[str, Any] = {}
+    if d.set_budget is not None and not ok(d.set_budget.max_eur):
+        upd["set_budget"] = (
+            d.set_budget.model_copy(update={"max_eur": None}) if d.set_budget.intent != "UNKNOWN" else None
+        )
+    if d.set_running_cost_limit is not None and not ok(d.set_running_cost_limit.amount_eur):
+        upd["set_running_cost_limit"] = None
+    if d.set_needs is not None:
+        n = d.set_needs
+        bad = {k: None for k in ("passengers", "towing_kg", "daily_km") if not ok(getattr(n, k))}
+        if bad:
+            kept = n.model_copy(update=bad)
+            upd["set_needs"] = kept if kept.model_dump(exclude_none=True, exclude_defaults=True) else None
+    return i.model_copy(update={"delta": d.model_copy(update=upd)}) if upd else i
 
 
 def summarize(i: Interpretation) -> dict[str, Any]:
