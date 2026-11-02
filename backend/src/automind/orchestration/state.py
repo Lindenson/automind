@@ -45,6 +45,8 @@ class TurnState(TypedDict, total=False):
     route: str | None
     case_changed: bool
     persona_changed: bool
+    limit_hit: dict[str, Any] | None  # research paused at a limit: {reason, jobs} (asks the user, never cancels)
+    limit_extensions: int  # how many times the user said "continue" in this turn
 
 
 PER_TURN_RESET: dict[str, Any] = {
@@ -60,6 +62,8 @@ PER_TURN_RESET: dict[str, Any] = {
     "cost_approved": False,
     "research_declined": False,
     "research_done": False,
+    "limit_hit": None,
+    "limit_extensions": 0,
     "confirm_payload": None,
     "resume": None,
     "research_results": [RESET],

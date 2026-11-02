@@ -41,6 +41,9 @@ report instead of saying so.
 
 ### Session 2026-11-02
 
+- Q (user, during implementation): limits cut research short — what should happen instead?
+  → A: ask the user to continue or answer with what exists; never cancel (FR-032).
+
 - Q: Secondary-market prices are out of scope; how is the used-car age range for a budget estimated?
   → A: Base estimate from the official new price × configured depreciation curve (labelled
   assumption), refined by used-price ranges quoted in editorial sources (not classifieds); editorial
@@ -344,6 +347,15 @@ confirm only expired cache entries are removed.
   and evidence, or research results shared with other chats.
 - **FR-030**: A deleted chat MUST NOT come back on reconnect or reload; its address MUST show that it
   was deleted.
+
+**Limits ask, never cancel (added 2026-11-02 from live use)**
+
+- **FR-032**: When research approaches a per-turn limit (AI calls, cost or time), the system MUST pause
+  and ask the user whether to continue or to answer with what was collected, showing what was spent
+  and how many tasks are left. "Continue" grants one more allowance of each limit and resumes only the
+  unfinished tasks; "answer" writes the report from the collected data with a small reserve kept for
+  the answer. Research MUST NOT be cancelled silently by a limit; a hard safety timeout remains only
+  for runaway turns.
 
 **Measurement**
 

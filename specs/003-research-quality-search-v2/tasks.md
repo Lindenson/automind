@@ -163,6 +163,8 @@ switch by config; fallback when Serper fails; deny-listed and robots-forbidden U
   - primary provider raising `SearchUnavailable` → fallback used;
   - both failing → areas marked "search unavailable", turn DONE.
 
+- [X] T024a [US2] Limits ask, never cancel (FR-032): `TurnBudget.research_pause` (85% of calls/cost/time), `extend`, `allow_answer`; graph nodes `prepare_limit` → `wait_limit` → `apply_limit` (continue re-runs unfinished jobs; stop answers); extensions restored on resume; job timeout 180 s; turn timeout is a 1.5× safety net; LLM calls per turn 160; `confirm_request.kind = "limit"` in the UI. Tests `tests/graph/test_limit_pause.py`
+
 **Checkpoint**: research runs on Serper with our own pages; repeat research is free.
 
 ---
@@ -228,8 +230,8 @@ read without AI.
   - `compose.py` builds `SourceRef` with `favourite`, `extracted_by` and `rejected {reason, other}`; the sources block lists accepted sources first, then rejected pages for this turn's cars;
   - frontend: extend `SourceRefSchema` in `src/lib/protocol.ts`; in `src/components/blocks/Sources.tsx` mark favourites, show "read from table" for READER, and a collapsed "Rejected pages (n)" list with reasons;
   - vitest for the schema.
-- [ ] T036 [US1] Golden dialogue update: G1–G7 replay fixtures re-recorded for the new pipeline (FakeSearcher/FakePageStore). Live run of G1–G7 green
-- [ ] T037 [US1] Run the eval (`uv run pytest tests/eval/test_research_quality.py -m live -s`, default provider) and compare with the baseline in `checklists/baseline.md`: SC-001, SC-002, SC-003, SC-004, SC-005, SC-010. Record the results in `checklists/validation.md`. **Ask the user before running**
+- [X] T036 [US1] Golden dialogue update: G1–G7 replay fixtures re-recorded for the new pipeline (FakeSearcher/FakePageStore). Live run of G1–G7 green
+- [X] T037 [US1] Run the eval (`uv run pytest tests/eval/test_research_quality.py -m live -s`, default provider) and compare with the baseline in `checklists/baseline.md`: SC-001, SC-002, SC-003, SC-004, SC-005, SC-010. Record the results in `checklists/validation.md`. **Ask the user before running**
 
 **Checkpoint**: data quality measurably better than the baseline. This is the MVP of 003.
 

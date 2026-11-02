@@ -10,6 +10,8 @@ never fails the turn (FR-023). Areas still below their minimum after the last ro
 from __future__ import annotations
 
 import asyncio
+import time
+import uuid
 from typing import Any
 
 from langgraph.runtime import Runtime
@@ -19,6 +21,7 @@ from automind.application import research
 from automind.application.research import JobSpec
 from automind.application.usage import BudgetExceeded
 from automind.domain import research_plan as rp
+from automind.orchestration.phrases import t
 from automind.orchestration.runner import TurnContext
 from automind.orchestration.state import RESET, TurnState
 
@@ -67,6 +70,10 @@ async def research_job(job: dict[str, Any], runtime: Runtime[TurnContext]) -> di
     async def emit(stage: str, text: str) -> None:
         await c.status(stage, text, car=label, area=job["area"])
 
+    pause = c.budget.research_pause()
+    if pause is not None:  # near a limit: do not start, ask the user whether to continue (never cancel)
+        await c.ports.jobs.mark(job["job_id"], "FAILED", error=f"paused at the {pause} limit")
+        return {"research_results": [{**job, "ok": False, "error": f"paused: {pause}", "limit": pause}]}
     await c.ports.jobs.mark(job["job_id"], "RUNNING")
     try:
         async with asyncio.timeout(c.budget.limits.job_timeout_s):
@@ -79,12 +86,12 @@ async def research_job(job: dict[str, Any], runtime: Runtime[TurnContext]) -> di
             )
     except BudgetExceeded as e:
         await c.ports.jobs.mark(job["job_id"], "FAILED", error=str(e))
-        return {"research_results": [{**job, "ok": False, "error": str(e), "limit": True}]}
+        return {"research_results": [{**job, "ok": False, "error": str(e), "limit": e.limit}]}
     except TimeoutError:
         if "job_timeout" not in c.budget.limits_reached:
             c.budget.limits_reached.append("job_timeout")
         await c.ports.jobs.mark(job["job_id"], "FAILED", error="timeout")
-        return {"research_results": [{**job, "ok": False, "error": "timeout"}]}
+        return {"research_results": [{**job, "ok": False, "error": "timeout", "limit": "time"}]}
     status = "DONE" if res.ok else "FAILED"
     await c.ports.jobs.mark(
         job["job_id"], status, docs=res.docs, accepted=res.accepted, rejected=res.rejected, error=res.error
@@ -116,8 +123,12 @@ def _met(results: list[dict[str, Any]]) -> dict[tuple[str, str], bool]:
 async def collect_round(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
     c = ctx(runtime)
     results = state.get("research_results", [])
-    if any(r.get("limit") for r in results):
-        return {"jobs": []}  # a limit was reached: stop researching, answer with what we have
+    current = {j["job_id"] for j in state.get("jobs", [])}
+    stopped = [r for r in results if r.get("limit") and r.get("job_id") in current]
+    if stopped:  # a limit was reached in this round: ask the user (continue or answer with what exists)
+        reasons = sorted({str(r["limit"]) for r in stopped if r["limit"] is not True} or {"calls"})
+        todo = [{k: r[k] for k in ("car_key", "variant_id", "area", "round")} for r in stopped]
+        return {"jobs": [], "limit_hit": {"reasons": reasons, "jobs": todo}}
     gaps = rp.gaps(_plan(state), _met(results), round_done=int(state.get("round", 0)))
     if not gaps:
         return {"jobs": []}
@@ -126,6 +137,53 @@ async def collect_round(state: TurnState, runtime: Runtime[TurnContext]) -> dict
 
 
 def route_round(state: TurnState) -> str:
+    if state.get("limit_hit"):
+        return "prepare_limit"
+    return "next_round" if state.get("jobs") else "after_research"
+
+
+async def prepare_limit(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
+    """Research paused at a limit: offer to continue with one more allowance, or answer now."""
+    c = ctx(runtime)
+    hit = state.get("limit_hit") or {}
+    b = c.budget
+    lang = state.get("language")
+    reasons = ", ".join(t(f"limit_{r}", lang) for r in hit.get("reasons", []))
+    minutes = (time.monotonic() - b.started) / 60
+    text = t("limit_reached", lang, reasons=reasons, eur=f"{b.cost_eur:.2f}", calls=b.calls,
+             minutes=f"{minutes:.0f}", left=len(hit.get("jobs", [])), more=f"{b.limits.hard_cap_eur:.2f}")  # fmt: skip
+    payload = {
+        "kind": "limit",
+        "action": "CONFIRM_LIMIT",
+        "request_id": str(uuid.uuid4()),
+        "text": text,
+        "options": [
+            {"id": "continue", "label": t("limit_continue", lang)},
+            {"id": "stop", "label": t("limit_stop", lang)},
+        ],
+    }
+    await c.status("estimating", text)
+    return {"confirm_payload": payload}
+
+
+async def apply_limit(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
+    c = ctx(runtime)
+    answer = state.get("resume") or {}
+    choice = str(answer.get("choice") or "")
+    hit = state.get("limit_hit") or {}
+    if choice in ("continue", "run", "yes", "confirm"):
+        n = int(state.get("limit_extensions") or 0) + 1
+        c.budget.extend(n)
+        await c.status("researching", f"Continuing: {len(hit.get('jobs', []))} research task(s) left")
+        jobs = [rp.Job(j["car_key"], j["variant_id"], j["area"], int(j["round"])) for j in hit.get("jobs", [])]
+        return {"jobs": await _create(c, jobs), "limit_hit": None, "limit_extensions": n, "confirm_payload": None,
+                "resume": None}  # fmt: skip
+    # "stop", a typed reply or anything else: answer with what was collected (nothing is lost)
+    c.budget.allow_answer()
+    return {"jobs": [], "limit_hit": None, "confirm_payload": None, "resume": None}
+
+
+def route_after_limit(state: TurnState) -> str:
     return "next_round" if state.get("jobs") else "after_research"
 
 

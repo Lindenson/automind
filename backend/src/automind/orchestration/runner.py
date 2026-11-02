@@ -163,12 +163,15 @@ class ChatRunner:
         if not isinstance(inputs, dict):  # resume (Command) or restart (None): keep usage counted so far
             stored = await self.ports.turns.get(turn_id)
             budget.restore(stored.usage if stored is not None else None)
+            snap = await self.graph.aget_state(self._config(chat_id, turn_id))
+            budget.extend(int((snap.values or {}).get("limit_extensions") or 0))  # earlier "continue" answers
         ctx = TurnContext(self.ports, chat_id, turn_id, budget)
         token = current_budget.set(budget)
         started = time.monotonic()
         await self.ports.turns.update(turn_id, status="RUNNING")
         try:
-            async with asyncio.timeout(budget.limits.turn_timeout_s):
+            # safety net only: research pauses (and asks) at 85% of the turn time, see TurnBudget.research_pause
+            async with asyncio.timeout(budget.limits.turn_timeout_s * 1.5):
                 final = await self.graph.ainvoke(inputs, self._config(chat_id, turn_id), context=ctx)
             snapshot = await self.graph.aget_state(self._config(chat_id, turn_id))
             if snapshot.interrupts:

@@ -17,4 +17,4 @@ area_markets:               # markets searched per area (German instrumented tes
   used_price: [ES, EN]
 sites_per_query: 4          # favourite sites grouped into one `site:a OR site:b` query
 ai_followup: {max_queries_per_area: 3, depths: [DEEP, STANDARD]}
-limits: {max_pages_per_job: 8, max_fetch_bytes_per_turn: 40000000}
+limits: {max_pages_per_job: 6, max_fetch_bytes_per_turn: 40000000}

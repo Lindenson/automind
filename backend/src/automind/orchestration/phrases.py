@@ -22,6 +22,22 @@ PHRASES: dict[str, dict[str, str]] = {
         "ru": " Работа может остановиться на лимите €{cap} за ход.",
         "es": " Puede detenerse en el límite de {cap} € por turno.",
     },
+    "limit_reached": {
+        "en": "I paused the research at the {reasons} limit: €{eur} and {calls} AI calls so far, {minutes} min, "
+        "{left} task(s) left. Continue (up to €{more} for this turn) or answer with what I have?",
+        "ru": "Я приостановил исследование: достигнут лимит ({reasons}). Потрачено €{eur}, {calls} вызовов ИИ, "
+        "{minutes} мин; осталось заданий: {left}. Продолжить (до €{more} за этот ход) или ответить по тому, "
+        "что уже собрано?",
+        "es": "He pausado la investigación al llegar al límite ({reasons}): {eur} € y {calls} llamadas de IA, "
+        "{minutes} min; quedan {left} tarea(s). ¿Continúo (hasta {more} € en este turno) o respondo con lo que tengo?",
+    },
+    "limit_calls": {"en": "AI calls", "ru": "вызовы ИИ", "es": "llamadas de IA"},
+    "limit_cost": {"en": "cost", "ru": "стоимость", "es": "coste"},
+    "limit_cost_cap": {"en": "cost", "ru": "стоимость", "es": "coste"},
+    "limit_llm_calls": {"en": "AI calls", "ru": "вызовы ИИ", "es": "llamadas de IA"},
+    "limit_time": {"en": "time", "ru": "время", "es": "tiempo"},
+    "limit_continue": {"en": "Continue research", "ru": "Продолжить исследование", "es": "Seguir investigando"},
+    "limit_stop": {"en": "Answer with what you have", "ru": "Ответить по собранному", "es": "Responder con lo que hay"},
     "rephrase": {
         "en": "Sorry, I could not map that to the cars we are discussing. Could you rephrase it?",
         "ru": "Не понял, к какой из машин это относится. Можете сформулировать иначе?",

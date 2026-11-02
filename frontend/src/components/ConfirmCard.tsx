@@ -9,11 +9,12 @@ import { useChat } from "../store/chat";
 export function ConfirmCard({ req }: { req: ConfirmRequest }) {
   const answer = useChat((s) => s.answerConfirm);
   const isCost = req.kind === "cost";
+  const isChoice = req.kind === "limit" || req.kind === "feasibility"; // the options are the answers
   return (
     <div
       className="card animate-fadeUp space-y-3 border-accent/40 p-3 sm:p-4"
       role="group"
-      aria-label={isCost ? "Confirm research cost" : "Confirm variants"}
+      aria-label={isCost ? "Confirm research cost" : isChoice ? "Choose how to continue" : "Confirm variants"}
     >
       <div className="prose-sm text-sm">
         <ReactMarkdown>{req.text}</ReactMarkdown>
@@ -58,6 +59,21 @@ export function ConfirmCard({ req }: { req: ConfirmRequest }) {
               Answer with what you have
             </button>
           </>
+        ) : isChoice ? (
+          req.options.map((o, i) => (
+            <button
+              key={o.id}
+              type="button"
+              onClick={() => answer(o.id)}
+              className={
+                i === 0
+                  ? "rounded-full bg-accent px-4 py-1.5 text-sm font-semibold text-bg hover:opacity-90"
+                  : "rounded-full border border-line/70 px-4 py-1.5 text-sm hover:border-accent/60"
+              }
+            >
+              {o.label}
+            </button>
+          ))
         ) : (
           <>
             {req.options.map((o) => (
@@ -84,7 +100,7 @@ export function ConfirmCard({ req }: { req: ConfirmRequest }) {
         )}
       </div>
       <p className="text-xs text-muted">
-        {isCost
+        {isCost || isChoice
           ? "Or type what to change below."
           : "Something else? Type it below — e.g. “the diesel one, 2014”."}
       </p>

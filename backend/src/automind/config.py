@@ -22,11 +22,11 @@ class Settings(BaseSettings):
     search_provider: str | None = None
 
     # Per-turn limits (FR-041). Models per role live in config/models.yaml (constitution VII).
-    max_llm_calls_per_turn: int = 80
+    max_llm_calls_per_turn: int = 160  # spec 003: more pages per area; the €1 cost cap still bounds a turn
     cost_confirm_threshold_eur: float = 0.30
     cost_hard_cap_eur: float = 1.00
     max_concurrency: int = 4
-    job_timeout_s: float = 90.0
+    job_timeout_s: float = 180.0  # one car × area; a slow source no longer cuts a job short
     turn_timeout_s: float = 300.0
     max_docs_per_car: int = 8
     max_doc_chars: int = 14000

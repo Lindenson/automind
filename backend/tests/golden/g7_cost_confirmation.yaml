@@ -2,7 +2,10 @@ id: g7_cost_confirmation
 description: >
   Deep research of 3 uncached cars (FR-041, SC-015): the estimate is at or above €0.30, so the hub asks first;
   "skip" runs no research and answers with what exists; no turn costs more than €1.00.
+  Since spec 003 (Serper search) a deep 3-car research is estimated below the €0.30 default, so this
+  dialogue lowers the threshold to keep testing the confirmation itself.
 scenario: empty
+settings: {cost_confirm_threshold_eur: 0.05}
 seed:
   - {make: Skoda, model: Octavia, generation: Mk4, variant_name: RS 2.0 TSI 265 PS, powertrain: ICE, body_class: WAGON,
      years: [2020, null], vehicle_class: compact, cached: false}

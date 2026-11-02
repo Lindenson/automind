@@ -46,6 +46,9 @@ def build_graph(checkpointer: Any = None, tools: list[Any] | None = None) -> Any
     g.add_node("collect_round", research.collect_round)
     g.add_node("next_round", research.next_round)
     g.add_node("after_research", research.after_research)
+    g.add_node("prepare_limit", research.prepare_limit)
+    g.add_node("wait_limit", confirm.wait_confirm)
+    g.add_node("apply_limit", research.apply_limit)
     g.add_node("answer", report.answer_node)
     g.add_node("report", report.make_report_node(tools if tools is not None else MCP_TOOLS))
 
@@ -69,7 +72,10 @@ def build_graph(checkpointer: Any = None, tools: list[Any] | None = None) -> Any
     g.add_conditional_edges("apply_cost", confirm.route_after_apply, {"assess": "assess", "interpret": "interpret"})
     g.add_conditional_edges("plan_research", research.fan_out, ["research_job", "after_research"])
     g.add_edge("research_job", "collect_round")
-    g.add_conditional_edges("collect_round", research.route_round, ["next_round", "after_research"])
+    g.add_conditional_edges("collect_round", research.route_round, ["next_round", "after_research", "prepare_limit"])
+    g.add_edge("prepare_limit", "wait_limit")
+    g.add_edge("wait_limit", "apply_limit")
+    g.add_conditional_edges("apply_limit", research.route_after_limit, ["next_round", "after_research"])
     g.add_conditional_edges("next_round", research.fan_out, ["research_job", "after_research"])
     g.add_edge("after_research", "assess")
     for terminal in ("general", "ask", "answer", "report"):

@@ -26,16 +26,17 @@ max_redirects: 5
 # source_type: MANUFACTURER | INSTRUMENTED_TEST | SPEC_DATABASE | PUBLICATION | ENCYCLOPEDIA.
 # markets: ES | EN | DE | ANY. priority: 1 (first) … 3. reader: deterministic table reader id or null.
 # tos_checked: date the operator reviewed the site's terms of use; a reader runs only when it is set.
+# km77, ultimatespecs, auto-data: terms reviewed and readers enabled by the operator on 2026-11-02.
 # robots.txt allowed the sample car pages for our user agent on 2026-11-02 (whatcar.com: robots 403 → never fetched).
 favourites:
   # --- Spain ---
-  - {domain: km77.com, source_type: SPEC_DATABASE, areas: [specs, engineering, measured, price, maintenance, reviews, reliability, used_issues, used_price], markets: [ES], priority: 1, reader: km77, tos_checked: null}
+  - {domain: km77.com, source_type: SPEC_DATABASE, areas: [specs, engineering, measured, price, maintenance, reviews, reliability, used_issues, used_price], markets: [ES], priority: 1, reader: km77, tos_checked: 2026-11-02}
   - {domain: motor.es, source_type: PUBLICATION, areas: [specs, reviews, price], markets: [ES], priority: 2, reader: null, tos_checked: null}
   - {domain: autopista.es, source_type: INSTRUMENTED_TEST, areas: [measured, reviews, reliability, used_issues, used_price], markets: [ES], priority: 1, reader: null, tos_checked: null}
   - {domain: fichasmotor.com, source_type: SPEC_DATABASE, areas: [specs], markets: [ES], priority: 3, reader: null, tos_checked: null}
   # --- English ---
-  - {domain: ultimatespecs.com, source_type: SPEC_DATABASE, areas: [specs, engineering], markets: [ANY], priority: 1, reader: ultimatespecs, tos_checked: null}
-  - {domain: auto-data.net, source_type: SPEC_DATABASE, areas: [specs, engineering], markets: [ANY], priority: 1, reader: auto_data, tos_checked: null}
+  - {domain: ultimatespecs.com, source_type: SPEC_DATABASE, areas: [specs, engineering], markets: [ANY], priority: 1, reader: ultimatespecs, tos_checked: 2026-11-02}
+  - {domain: auto-data.net, source_type: SPEC_DATABASE, areas: [specs, engineering], markets: [ANY], priority: 1, reader: auto_data, tos_checked: 2026-11-02}
   - {domain: cars-data.com, source_type: SPEC_DATABASE, areas: [specs], markets: [EN], priority: 3, reader: null, tos_checked: null}
   - {domain: parkers.co.uk, source_type: PUBLICATION, areas: [specs, maintenance, used_price, reviews], markets: [EN], priority: 2, reader: null, tos_checked: null}
   - {domain: caranddriver.com, source_type: INSTRUMENTED_TEST, areas: [measured, reviews], markets: [EN], priority: 1, reader: null, tos_checked: null}

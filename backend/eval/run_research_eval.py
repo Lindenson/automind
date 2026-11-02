@@ -240,6 +240,10 @@ def main() -> None:
     asyncio.run(_recreate_db(admin, f"automind_eval_{args.label}"))
     os.environ["DATABASE_URL"] = url
     sys.path.insert(0, str(ROOT.parent / "src"))
+    from automind.config import settings  # noqa: PLC0415
+
+    settings.cache_clear()  # _db_urls may have read the default URL: drop it so the eval DB is used
+    assert settings().database_url == url, "eval must run on its own database"
     result = asyncio.run(run(args))
     print(f"\nwritten: {write(result)}")
 

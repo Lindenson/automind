@@ -467,7 +467,7 @@ export const ConfirmRequestSchema = z.object({
   ...Envelope,
   type: z.literal("confirm_request"),
   request_id: z.string().optional(),
-  kind: z.enum(["variants", "cost"]),
+  kind: z.enum(["variants", "cost", "limit", "feasibility"]),
   text: z.string(),
   options: z.array(z.object({ id: z.string(), label: z.string(), detail: z.string().nullish() })).default([]),
   estimate: z
