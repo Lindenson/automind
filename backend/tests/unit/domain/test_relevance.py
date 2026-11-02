@@ -109,3 +109,9 @@ def test_deterministic(text, title):
     a = judge(page(title, text), G30, BMW5)
     b = judge(page(title, text), G30, BMW5)
     assert a == b
+
+
+def test_model_names_with_dashes_and_digits_are_recognised():
+    cx5 = t("Mazda", "CX-5", "KF", 2017, 2025, "2.5 Skyactiv-G 194 CV", fuel="petrol", body="SUV")
+    gens = [GenerationInfo("KE", 2012, 2016), GenerationInfo("KF", 2017, 2025)]
+    assert judge(page("CX-5 2.5 194 CV ficha técnica (2019)", "Datos del CX-5"), cx5, gens).verdict != "NOT_ABOUT_CAR"

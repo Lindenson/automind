@@ -75,11 +75,22 @@ def _known_generations(ref: Reference, make: str, model: str, catalog: list[db.V
     return gens
 
 
-def _fits(v: db.Variant, car: CaseCar, gen_hint: str | None, current_year: int) -> bool:
+def _years(v: db.Variant, ref: Reference | None) -> tuple[int | None, int | None]:
+    """Generation years: config/generations.yaml wins over the catalog row (a row stored while the generation
+    was current keeps years_to empty after its successor arrived, e.g. RAV4 XA50 after XA60)."""
+    lo, hi = v.generation_years_from or v.model_year_from, v.generation_years_to
+    if ref is not None and v.generation:
+        make, model = identity.normalize_make_model(v.make, v.model, ref.aliases)
+        for g, a, b in ref.generations.get(f"{make}|{model}", []):
+            if g.lower() == v.generation.lower():
+                return a or lo, b
+    return lo, hi
+
+
+def _fits(v: db.Variant, car: CaseCar, gen_hint: str | None, current_year: int, ref: Reference | None = None) -> bool:
     if gen_hint and (v.generation or "").lower() != gen_hint.lower():
         return False
-    lo = v.generation_years_from or v.model_year_from
-    hi = v.generation_years_to
+    lo, hi = _years(v, ref)
     if car.year is not None:
         return lo is None or identity.generation_matches(car.year, lo, hi, tolerance=1)
     if car.condition in ("NEW", "UNKNOWN") and not gen_hint:
@@ -138,7 +149,7 @@ async def assess_car(car: CaseCar, ref: Reference, current_year: int) -> Assessm
     plausible = identity.plausible_generations(gens, condition=car.condition, year=car.year, current_year=current_year)
     if gen_hint:
         plausible = [g for g in plausible if g.lower() == gen_hint.lower()] or [gen_hint]
-    fitting = [v for v in catalog if _fits(v, car, gen_hint, current_year)]
+    fitting = [v for v in catalog if _fits(v, car, gen_hint, current_year, ref)]
     ranked, ambiguous = _rank(car, fitting)
     fresh = bool(car.variant_id) and not await stale_categories(car.variant_id or "")
     return Assessment(

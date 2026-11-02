@@ -52,7 +52,8 @@ version: 1
 "Toyota|RAV4":
   - {generation: XA30, from: 2005, to: 2012}
   - {generation: XA40, from: 2013, to: 2018}
-  - {generation: XA50, from: 2019, to: null}
+  - {generation: XA50, from: 2019, to: 2025}
+  - {generation: XA60, from: 2026, to: null}  # 6th generation (shown 2025, sold in Spain from 2026)
 "Honda|Civic":
   - {generation: FK (10th), from: 2017, to: 2021}
   - {generation: FL (11th), from: 2022, to: null}
@@ -74,3 +75,11 @@ version: 1
 "Volkswagen|Tiguan":
   - {generation: Mk2, from: 2016, to: 2023}
   - {generation: Mk3, from: 2024, to: null}
+"Mazda|CX-5":
+  - {generation: KE, from: 2012, to: 2016}
+  - {generation: KF, from: 2017, to: 2025}
+  - {generation: 3rd gen, from: 2026, to: null}
+"Honda|CR-V":
+  - {generation: 4th gen, from: 2012, to: 2016}
+  - {generation: 5th gen, from: 2017, to: 2022}
+  - {generation: 6th gen, from: 2023, to: null}

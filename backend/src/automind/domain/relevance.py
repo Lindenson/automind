@@ -99,7 +99,13 @@ def _strip(code: str, text: str) -> str:
 
 
 def _model_words(target: Target) -> list[str]:
-    words = [w for w in re.split(r"[\s\-]+", target.model.lower()) if len(w) >= 3 and not w.isdigit()]
+    m = target.model.lower()
+    # "CX-5", "CR-V", "RAV4", "3 Series": the whole name in its common spellings, then its longer words
+    spellings = (
+        {m, m.replace("-", " "), m.replace("-", ""), m.replace(" ", "")} if len(m.replace(" ", "")) >= 3 else set()
+    )
+    words = [w for w in re.split(r"[\s\-]+", m) if len(w) >= 3 and not w.isdigit()]
+    words += sorted(spellings)
     make = re.split(r"[\s\-]+", target.make.lower())[0]
     return [make, *words]
 
