@@ -24,6 +24,19 @@ PHRASES: dict[str, dict[str, str]] = {
         "es": "Esto ha tardado demasiado y me he detenido. Los datos reunidos están guardados: di «sigue» y "
         "redacto el informe con ellos.",
     },
+    "run_timeout_saved": {
+        "en": "This took too long, so I stopped searching. I am writing the report from the data already found.",
+        "ru": "Поиск занял слишком много времени, и я его остановил. Собираю отчёт из уже найденных данных.",
+        "es": "La búsqueda tardó demasiado y la detuve. Preparo el informe con los datos ya encontrados.",
+    },
+    "run_provider_down": {
+        "en": "The AI service is not answering right now (I tried twice). Nothing is lost: the case and the data "
+        "found are saved. Send the message again in a minute.",
+        "ru": "Сервис ИИ сейчас не отвечает (я попробовал дважды). Ничего не потеряно: кейс и найденные данные "
+        "сохранены. Отправьте сообщение ещё раз через минуту.",
+        "es": "El servicio de IA no responde ahora (lo intenté dos veces). No se pierde nada: el caso y los datos "
+        "están guardados. Envía el mensaje de nuevo en un minuto.",
+    },
     "run_loop": {
         "en": "I went round in circles on this request and stopped. Please rephrase what you need, or say what "
         "to change in the cars or the profile.",

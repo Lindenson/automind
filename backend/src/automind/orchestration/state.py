@@ -51,6 +51,7 @@ class TurnState(TypedDict, total=False):
     preset: dict[str, Any] | None  # a request from a button (no interpretation): {kind, focus_cars, areas, language}
     not_understood: list[str]  # car keys whose question the last message did not answer (spec 004 FR-031)
     picked: bool  # the message was one of the offered options, applied by code (spec 007 F)
+    hops: int  # policy passes in this turn (spec 007 FR-027)
 
 
 PER_TURN_RESET: dict[str, Any] = {
@@ -71,6 +72,7 @@ PER_TURN_RESET: dict[str, Any] = {
     "feasibility": None,
     "not_understood": [],
     "picked": False,
+    "hops": 0,
     "confirm_payload": None,
     "resume": None,
     "research_results": [RESET],

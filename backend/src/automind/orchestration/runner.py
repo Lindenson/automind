@@ -15,6 +15,7 @@ Graph nodes receive a `TurnContext` through LangGraph's runtime context (no modu
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -26,6 +27,9 @@ from langgraph.types import Command
 from automind.application.ports import Ports, TurnBusy
 from automind.application.usage import BudgetExceeded, TurnBudget, current_budget
 from automind.orchestration.phrases import t
+from automind.orchestration.retry import transient_provider_error
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -100,6 +104,7 @@ class ChatRunner:
         self.thread_per_turn = thread_per_turn  # legacy demo graph only
         self.recursion_limit = recursion_limit
         self._tasks: dict[str, asyncio.Task[TurnResult]] = {}
+        self._follow_up: asyncio.Task[None] | None = None
 
     # --- public API ---------------------------------------------------------------------------
 
@@ -113,7 +118,7 @@ class ChatRunner:
         active = await self.ports.turns.active(chat_id)
         if active is not None and active.status == "RUNNING":
             raise Busy("a turn is already running in this chat")
-        edit = (preset or {}).get("kind") == "rescore"
+        edit = (preset or {}).get("kind") in ("rescore", "report_saved")
         if edit and active is not None:
             raise Busy("a question is open: the edit is used when the user answers")
         msg = await self.messages.save(chat_id, "edit" if edit else "user", text, message_id=message_id)
@@ -223,19 +228,46 @@ class ChatRunner:
         except TimeoutError:
             budget.limits_reached.append("turn_timeout")
             lang = await self._language(chat_id, turn_id)
-            final = {"reply_text": t("run_timeout", lang), "blocks": [], "language": lang}
-            return await self._done(ctx, final, started)
+            saved = await self._saved_research(turn_id)
+            final = {"reply_text": t("run_timeout_saved" if saved else "run_timeout", lang), "blocks": [],
+                     "language": lang}  # fmt: skip
+            result = await self._done(ctx, final, started)
+            if saved:  # spec 007 FR-029: the report from the data already collected, as a follow-up turn
+                self._follow_up = asyncio.create_task(self._report_saved(chat_id, lang))
+            return result
         except GraphRecursionError:  # a loop the counters did not stop: a plain answer, never a bare FAILED
             budget.limits_reached.append("graph_steps")
             lang = await self._language(chat_id, turn_id)
             final = {"reply_text": t("run_loop", lang), "blocks": [], "language": lang}
             return await self._done(ctx, final, started)
         except Exception as e:
+            if transient_provider_error(e):  # spec 007 FR-028: retried by the node policy; then a plain message
+                lang = await self._language(chat_id, turn_id)
+                log.warning("turn.provider_unavailable chat=%s turn=%s error=%s", chat_id, turn_id, e)
+                final = {"reply_text": t("run_provider_down", lang), "blocks": [], "language": lang}
+                return await self._done(ctx, final, started)
             await self.ports.turns.update(turn_id, status="FAILED", usage=budget.snapshot())
             await ctx.emit("error", {"text": user_error_text(e), "detail": f"{type(e).__name__}: {e}"[:500]})
             raise
         finally:
             current_budget.reset(token)
+
+    async def _saved_research(self, turn_id: str) -> bool:
+        """Did this turn store research results before it ran out of time?"""
+        try:
+            jobs = await self.ports.jobs.for_turn(turn_id)
+        except Exception:  # noqa: BLE001 - no job store (demo graph): nothing saved
+            return False
+        return any(getattr(j, "status", "") == "DONE" for j in jobs)
+
+    async def _report_saved(self, chat_id: str, lang: str | None) -> None:
+        """A hidden follow-up turn that writes the report from the saved data (never researches again)."""
+        try:
+            await self.run_turn(chat_id, "↻ report", preset={"kind": "report_saved", "language": lang})
+        except Busy:
+            log.info("turn.report_saved_skipped chat=%s (another turn is running)", chat_id)
+        except Exception:  # noqa: BLE001 - the timeout message already told the user what to do
+            log.exception("turn.report_saved_failed chat=%s", chat_id)
 
     async def _waiting(self, ctx: TurnContext, value: Any, final: Any) -> TurnResult:
         payload = dict(value) if isinstance(value, dict) else {"text": str(value)}

@@ -295,8 +295,9 @@ async def policy_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[s
         confirm_threshold_eur=s.cost_confirm_threshold_eur,
         hard_cap_eur=s.cost_hard_cap_eur,
         intake_limits=_intake_limits(c),
+        hops=int(state.get("hops") or 0),
     )
-    return {"decision": action.model_dump(mode="json"), "action": action.kind}
+    return {"decision": action.model_dump(mode="json"), "action": action.kind, "hops": int(state.get("hops") or 0) + 1}
 
 
 def _intake_limits(c: TurnContext) -> intake.Limits:

@@ -21,6 +21,7 @@ from typing import Any
 from langgraph.graph import END, START, StateGraph
 
 from automind.orchestration.nodes import confirm, feasibility, identify, report, research, understand
+from automind.orchestration.retry import LLM_RETRY
 from automind.orchestration.runner import TurnContext
 from automind.orchestration.state import TurnState
 
@@ -30,12 +31,12 @@ MCP_TOOLS: list[Any] = []  # set by the API lifespan (persistent MCP stdio sessi
 def build_graph(checkpointer: Any = None, tools: list[Any] | None = None) -> Any:
     g = StateGraph(TurnState, context_schema=TurnContext)
     g.add_node("load_case", understand.load_case_node)
-    g.add_node("interpret", understand.interpret_node)
+    g.add_node("interpret", understand.interpret_node, retry_policy=LLM_RETRY)
     g.add_node("apply_delta", understand.apply_delta_node)
     g.add_node("identify", identify.identify_node)
     g.add_node("assess", understand.assess_node)
     g.add_node("policy", understand.policy_node)
-    g.add_node("general", report.general_node)
+    g.add_node("general", report.general_node, retry_policy=LLM_RETRY)
     g.add_node("ask", confirm.ask_node)
     g.add_node("prepare_variants", confirm.prepare_variants)
     g.add_node("wait_variants", confirm.wait_confirm)
@@ -58,8 +59,8 @@ def build_graph(checkpointer: Any = None, tools: list[Any] | None = None) -> Any
     g.add_node("prepare_intake", confirm.prepare_intake)
     g.add_node("wait_intake", confirm.wait_confirm)
     g.add_node("apply_intake", confirm.apply_intake)
-    g.add_node("answer", report.answer_node)
-    g.add_node("report", report.make_report_node())
+    g.add_node("answer", report.answer_node, retry_policy=LLM_RETRY)
+    g.add_node("report", report.make_report_node(), retry_policy=LLM_RETRY)
 
     g.add_edge(START, "load_case")
     g.add_edge("load_case", "interpret")
