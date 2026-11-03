@@ -10,7 +10,11 @@ const STAGE_LABEL: Record<Stage, string> = {
   resolving: "Resolve",
   cache: "Cache",
   researching: "Research",
+  searching: "Search",
+  reading: "Read",
+  relevance: "Variant check",
   validating: "Validate",
+  feasibility: "Fits your case?",
   followup: "Follow-up",
   estimating: "Estimate",
   computing: "Compute",
@@ -34,6 +38,10 @@ const RAIL_SLOT: Partial<Record<Stage, Stage>> = {
   asking: "understanding",
   estimating: "resolving",
   followup: "researching",
+  searching: "researching",
+  reading: "researching",
+  relevance: "validating",
+  feasibility: "analyzing",
   computing: "analyzing",
 };
 const slot = (st: Stage): Stage => RAIL_SLOT[st] ?? st;

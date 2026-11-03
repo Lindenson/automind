@@ -1,3 +1,4 @@
+import { useBlockTitle, useT } from "../../i18n";
 /** Tier 2 engineering details per car with confidence and sources (expert persona). */
 import type { BlockOf } from "../../lib/protocol";
 import { BlockCard, ConfidenceDot, SourcesButton } from "../badges";
@@ -5,9 +6,10 @@ import { useCarColor } from "../carColors";
 import { WrenchIcon } from "../icons";
 
 export function Engineering({ b }: { b: BlockOf<"engineering"> }) {
+  const t = useT();
   const color = useCarColor();
   return (
-    <BlockCard title={b.title} icon={<WrenchIcon />}>
+    <BlockCard title={useBlockTitle(b.type, b.title)} icon={<WrenchIcon />}>
       <div className="grid gap-3 sm:grid-cols-2">
         {b.cars.map((car) => (
           <div
@@ -43,6 +45,22 @@ export function Engineering({ b }: { b: BlockOf<"engineering"> }) {
                 ))}
               </dl>
             )}
+            {car.explainers.map((e) => (
+              <details key={e.key} className="mt-2 rounded-lg bg-panel2/60 p-2 text-xs">
+                <summary className="cursor-pointer font-medium">{e.title}</summary>
+                <p className="mt-1 text-fg/80">{e.text}</p>
+                <ul className="mt-1 space-y-0.5 text-muted">
+                  {e.consumption && <li>{t("eng.consumption")}: {e.consumption}</li>}
+                  {e.reliability && <li>{t("eng.reliability")}: {e.reliability}</li>}
+                  {e.feel && <li>{t("eng.feel")}: {e.feel}</li>}
+                </ul>
+                {e.source === "editorial" && (
+                  <p className="mt-1 text-[10px] uppercase tracking-wide text-muted">
+                    {t("eng.editorial")}
+                  </p>
+                )}
+              </details>
+            ))}
           </div>
         ))}
       </div>

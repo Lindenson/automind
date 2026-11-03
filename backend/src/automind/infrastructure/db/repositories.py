@@ -6,20 +6,30 @@ session, so callers never hold a transaction across LLM or web calls.
 
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import Any
 
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.exc import IntegrityError
 
 from .models import (
     CaseFileRow,
     Chat,
     ChatMessage,
+    Claim,
+    DeletedChat,
+    FeasibilityCheck,
     LLMCall,
+    ReportRating,
     ResearchJob,
+    ResearchRun,
     SearchCall,
+    Simulation,
+    SiteReaderStat,
+    TcoEstimateRow,
     Turn,
     TurnEvent,
+    ValueChallenge,
     now,
     uid,
 )
@@ -27,6 +37,34 @@ from .session import sessionmaker
 
 
 class ChatRepo:
+    CHAT_SCOPED = (ChatMessage, CaseFileRow, TurnEvent, ResearchJob, LLMCall, SearchCall, FeasibilityCheck,
+                   ReportRating, ValueChallenge)  # fmt: skip
+
+    async def is_deleted(self, chat_id: str) -> bool:
+        async with sessionmaker()() as s:
+            return await s.get(DeletedChat, chat_id) is not None
+
+    async def delete(self, chat_id: str) -> dict[str, int]:
+        """Hard-delete everything scoped to the chat in one transaction and leave a tombstone (FR-028, FR-030).
+        Shared knowledge (catalog, documents, evidence, claims, selected values, research runs) stays (FR-029)."""
+        counts: dict[str, int] = {}
+        async with sessionmaker()() as s:
+            turn_ids = select(Turn.id).where(Turn.chat_id == chat_id).scalar_subquery()
+            for model in (TcoEstimateRow, Simulation):
+                res = await s.execute(delete(model).where(model.turn_id.in_(turn_ids)))
+                counts[model.__tablename__] = res.rowcount or 0
+            for model in self.CHAT_SCOPED:
+                res = await s.execute(delete(model).where(model.chat_id == chat_id))
+                counts[model.__tablename__] = res.rowcount or 0
+            for model, col in ((Turn, Turn.chat_id), (Chat, Chat.id)):
+                res = await s.execute(delete(model).where(col == chat_id))
+                counts[model.__tablename__] = res.rowcount or 0
+            existed = counts["chats"] > 0 or any(counts.values())
+            if existed and await s.get(DeletedChat, chat_id) is None:
+                s.add(DeletedChat(chat_id=chat_id, counts=counts))
+            await s.commit()
+        return counts if existed else {}
+
     async def ensure(self, chat_id: str, title: str | None = None) -> Chat:
         async with sessionmaker()() as s:
             chat = await s.get(Chat, chat_id)
@@ -159,18 +197,15 @@ class TurnRepo:
 
 class EventRepo:
     async def append(self, chat_id: str, turn_id: str | None, type_: str, payload: dict[str, Any]) -> int:
-        """Persist an event with the next per-chat seq. Retries on a concurrent seq collision."""
-        for _ in range(5):
-            async with sessionmaker()() as s:
-                seq = (await s.execute(select(func.max(TurnEvent.seq)).where(TurnEvent.chat_id == chat_id))).scalar()
-                nxt = int(seq or 0) + 1
-                s.add(TurnEvent(chat_id=chat_id, seq=nxt, turn_id=turn_id, type=type_, payload=payload))
-                try:
-                    await s.commit()
-                    return nxt
-                except IntegrityError:
-                    await s.rollback()
-        raise RuntimeError(f"could not allocate event seq for chat {chat_id}")
+        """Persist an event with the next per-chat seq. Concurrent writers of one chat are serialised by a
+        transaction-scoped advisory lock, so parallel research jobs never collide on the seq."""
+        async with sessionmaker()() as s:
+            await s.execute(text("SELECT pg_advisory_xact_lock(hashtext(:k))"), {"k": f"events:{chat_id}"})
+            seq = (await s.execute(select(func.max(TurnEvent.seq)).where(TurnEvent.chat_id == chat_id))).scalar()
+            nxt = int(seq or 0) + 1
+            s.add(TurnEvent(chat_id=chat_id, seq=nxt, turn_id=turn_id, type=type_, payload=payload))
+            await s.commit()
+            return nxt
 
     async def since(self, chat_id: str, after_seq: int) -> list[TurnEvent]:
         async with sessionmaker()() as s:
@@ -178,6 +213,17 @@ class EventRepo:
                 select(TurnEvent).where(TurnEvent.chat_id == chat_id, TurnEvent.seq > after_seq).order_by(TurnEvent.seq)
             )
             return list(rows.scalars())
+
+
+async def latest_event(chat_id: str, turn_id: str, type_: str) -> TurnEvent | None:
+    async with sessionmaker()() as s:
+        rows = await s.execute(
+            select(TurnEvent)
+            .where(TurnEvent.chat_id == chat_id, TurnEvent.turn_id == turn_id, TurnEvent.type == type_)
+            .order_by(TurnEvent.seq.desc())
+            .limit(1)
+        )
+        return rows.scalar_one_or_none()
 
 
 class JobRepo:
@@ -290,12 +336,14 @@ class UsageRepo:
         cost_eur: float,
         job_id: str | None = None,
         area: str | None = None,
+        provider: str = "tavily",
+        cached: bool = False,
     ) -> None:
         async with sessionmaker()() as s:
             s.add(
                 SearchCall(
                     chat_id=chat_id, turn_id=turn_id, kind=kind, credits=credits, cost_eur=cost_eur, job_id=job_id,
-                    area=area,
+                    area=area, provider=provider, cached=cached,
                 )
             )  # fmt: skip
             await s.commit()
@@ -317,7 +365,11 @@ class UsageRepo:
                 .group_by(LLMCall.area)
             )
             srch = await s.execute(
-                select(SearchCall.area, func.count(func.distinct(SearchCall.job_id)), func.count(SearchCall.id))
+                select(
+                    SearchCall.area,
+                    func.count(func.distinct(SearchCall.job_id)),
+                    func.count(SearchCall.id).filter(SearchCall.cached.is_(False)),  # cache hits cost nothing
+                )
                 .where(SearchCall.job_id.is_not(None))
                 .group_by(SearchCall.area)
             )
@@ -345,7 +397,7 @@ class UsageRepo:
             srch = (
                 await s.execute(
                     select(func.count(SearchCall.id), func.coalesce(func.sum(SearchCall.cost_eur), 0)).where(
-                        SearchCall.turn_id == turn_id
+                        SearchCall.turn_id == turn_id, SearchCall.cached.is_(False)
                     )
                 )
             ).one()
@@ -356,3 +408,100 @@ class UsageRepo:
             "search_calls": int(srch[0]),
             "cost_eur": round(float(llm[3]) + float(srch[1]), 5),
         }
+
+
+class MetricsRepo:
+    """Operator metrics for research quality (spec 003 FR-017, FR-031)."""
+
+    async def research(self, days: int = 7) -> dict[str, Any]:
+        since = now() - timedelta(days=days)
+        async with sessionmaker()() as s:
+            jobs = (await s.execute(select(ResearchJob).where(ResearchJob.started_at >= since))).scalars().all()
+            runs = (await s.execute(select(ResearchRun).where(ResearchRun.completed_at >= since))).scalars().all()
+            calls = (await s.execute(select(SearchCall).where(SearchCall.created_at >= since))).scalars().all()
+            sites = (await s.execute(select(SiteReaderStat).where(SiteReaderStat.day >= since.date()))).scalars().all()
+            sense_rows = (
+                await s.execute(
+                    select(Claim.reject_rule, func.count())
+                    .where(Claim.created_at >= since, Claim.reject_rule.like("sense.%"))
+                    .group_by(Claim.reject_rule)
+                )
+            ).all()
+            ratings = (await s.execute(select(func.count(), func.avg(ReportRating.rating)).where(
+                ReportRating.created_at >= since))).one()  # fmt: skip
+        areas: dict[str, dict[str, Any]] = {}
+        for j in jobs:
+            a = areas.setdefault(j.area, {"jobs": 0, "accepted": 0, "rejected": 0, "pages_found": 0, "pages_cached": 0,
+                                          "pages_rejected": {}, "values_rejected": {}, "reader_values": 0,
+                                          "search_cost_eur": 0.0})  # fmt: skip
+            a["jobs"] += 1
+            a["accepted"] += j.accepted or 0
+            a["rejected"] += j.rejected or 0
+            a["pages_found"] += j.pages_found or 0
+            a["pages_cached"] += j.pages_cached or 0
+            a["reader_values"] += j.reader_values or 0
+            a["search_cost_eur"] += float(j.search_cost_eur or 0)
+            for key in ("pages_rejected", "values_rejected"):
+                for k, n in (getattr(j, key) or {}).items():
+                    a[key][k] = a[key].get(k, 0) + int(n)
+        met: dict[str, list[bool]] = {}
+        for r in runs:
+            met.setdefault(r.area, []).append(bool(r.minimum_met))
+        for area, flags in met.items():
+            areas.setdefault(area, {})["minimum_met_share"] = round(sum(flags) / len(flags), 3)
+        paid = [c for c in calls if not c.cached]
+        return {
+            "days": days,
+            "areas": areas,
+            "sense_rejections": {str(r): int(n) for r, n in sense_rows},  # spec 004 FR-027, per rule
+            "ratings": {"count": int(ratings[0] or 0), "average": round(float(ratings[1]), 2) if ratings[1] else None},
+            "sites": [
+                {"domain": x.domain, "day": x.day.isoformat(), "ok": x.ok, "failed": x.failed, "ambiguous": x.ambiguous}
+                for x in sites
+            ],  # fmt: skip
+            "search": {
+                "paid_calls": len(paid),
+                "cache_hits": len(calls) - len(paid),
+                "cost_eur": round(sum(float(c.cost_eur or 0) for c in paid), 4),
+                "by_provider": {p: sum(1 for c in paid if c.provider == p) for p in {c.provider for c in paid}},
+            },
+        }
+
+
+class FeasibilityRepo:
+    """Storage for the feasibility check (spec 003 US3): editorial used-price ranges and persisted verdicts."""
+
+    async def used_ranges(self, variant_id: str) -> list[tuple[Any, str]]:
+        from .models import Evidence, UsedPriceRange  # noqa: PLC0415
+
+        async with sessionmaker()() as s:
+            rows = await s.execute(
+                select(UsedPriceRange, Evidence.url)
+                .join(Evidence, UsedPriceRange.evidence_id == Evidence.id)
+                .where(UsedPriceRange.variant_id == variant_id, UsedPriceRange.status == "ACCEPTED")
+            )
+            return [(r, str(u)) for r, u in rows.all()]
+
+    async def save_checks(self, chat_id: str, turn_id: str, rows: list[dict[str, Any]]) -> None:
+        if not rows:
+            return
+        async with sessionmaker()() as s:
+            for r in rows:
+                s.add(FeasibilityCheck(chat_id=chat_id, turn_id=turn_id, **r))
+            await s.commit()
+
+
+class RatingRepo:
+    """Report ratings (spec 004 FR-026): one per assistant message, the latest wins."""
+
+    async def save(self, chat_id: str, message_id: str, rating: int, note: str = "") -> None:
+        from sqlalchemy.dialects.postgresql import insert  # noqa: PLC0415
+
+        values = {"message_id": message_id[:36], "chat_id": chat_id, "rating": max(1, min(5, int(rating))),
+                  "note": (note or "")[:1000]}  # fmt: skip
+        async with sessionmaker()() as s:
+            if await s.get(Chat, chat_id) is None:
+                return
+            stmt = insert(ReportRating).values(**values)
+            await s.execute(stmt.on_conflict_do_update(index_elements=["message_id"], set_=values))
+            await s.commit()

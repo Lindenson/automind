@@ -45,3 +45,8 @@ ignore_imports =
     automind.application.research -> sqlalchemy
     automind.application.resolve -> automind.infrastructure.**
     automind.application.resolve -> sqlalchemy
+    # one-off data repair after the 004 verification fixes; uses the research persistence directly
+    automind.application.repair -> automind.infrastructure.**
+    automind.application.repair -> sqlalchemy
+    automind.application.challenge -> automind.infrastructure.**
+    automind.application.challenge -> sqlalchemy

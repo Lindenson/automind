@@ -28,14 +28,27 @@ async def ask_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str,
     _, case = await load_case(c)
     decision = state["decision"]
     gens = {k: a.get("generations", []) for k, a in state.get("assessments", {}).items()}
+    lang = state.get("language", "en")
     items = asking.fill_questions(decision["questions"], case, c.ports.ref.questions, gens, decision["cars"])
     await c.status("asking", "Asking what I need to know")
-    text = await asking.phrase(
-        c.ports.llm, c.ports.ref.prompts["asker"], items, state.get("language", "en"), asking.understood_summary(case)
-    )
+    text = await asking.phrase(c.ports.llm, c.ports.ref.prompts["asker"], items, lang, asking.understood_summary(case))
+    lead = _not_understood_lead(case, state, lang)
     case = asking.record(case, items)
     version = await save_case(c, case, [f"asked: {', '.join(q['kind'] for q in items)}"])
-    return {"reply_text": text, "blocks": [], "action": "ASK", "case_version": version}
+    replies = asking.quick_replies(items, case, lambda car: t("remove_car", lang, car=car), t("choose_for_me", lang))
+    blocks = [{"type": "quick_replies", "items": replies}] if replies else []
+    return {"reply_text": f"{lead}\n\n{text}" if lead else text, "blocks": blocks, "action": "ASK",
+            "case_version": version}  # fmt: skip
+
+
+def _not_understood_lead(case: Any, state: TurnState, lang: str | None) -> str:
+    """ "I did not understand <answer> for <car>." when the last message left a car question open (FR-031)."""
+    keys = state.get("not_understood") or []
+    if not keys:
+        return ""
+    answer = " ".join(str(state.get("user_text") or "").split())[:60]
+    names = ", ".join(case.car(k).request_text for k in keys if any(x.key == k for x in case.cars))
+    return t("not_understood", lang, answer=answer, car=names or "the car")
 
 
 # --- variants ------------------------------------------------------------------------------------
@@ -55,33 +68,54 @@ async def prepare_variants(state: TurnState, runtime: Runtime[TurnContext]) -> d
     options: list[dict[str, Any]] = []
     notices: list[dict[str, Any]] = []
     items: list[dict[str, Any]] = []
-    for key in state["decision"]["cars"]:
+    unknown: list[str] = []
+    lang = state.get("language")
+    # cars with a named version first: their level sets the level of the others (spec 004 FR-029)
+    keys = sorted(state["decision"]["cars"], key=lambda k: not case.car(k).constraints.trim_hint)
+    for key in keys:
         car = case.car(key)
         cands = list(state.get("assessments", {}).get(key, {}).get("candidates", []))
+        if car.resolution == "PROPOSED" and car.variant_id and not any(o["id"] == car.variant_id for o in cands):
+            v = await resolve.get_variant(car.variant_id)  # asked again: keep the proposal, no new lookup
+            if v is not None:
+                cands = [resolve.variant_dict(v), *cands]
         if not cands:
             try:
-                v, ident = await resolve.resolve_with_llm(c.ports, car, year)
+                v, ident = await resolve.resolve_with_llm(c.ports, car, year, case.compare_level)
                 cands = [resolve.variant_dict(v)]
                 if ident.note:
                     notices.append(notice(f"{v.label}: {ident.note}"))
             except resolve.GenerationMismatch as e:
                 notices.append(notice(f"{car.request_text}: {e}. Please tell me the generation or year.", "warning"))
                 continue
+            except resolve.UnknownModel as e:
+                car.resolution, car.alternatives = "UNKNOWN_MODEL", [{"model": m} for m in e.closest]
+                unknown.append(key)
+                continue
         best = cands[0]
         car.variant_id, car.label, car.resolution = best["id"], best["label"], "PROPOSED"
+        if car.constraints.trim_hint and best.get("trim_level") and case.compare_level_source == "DEFAULT":
+            case.compare_level, case.compare_level_source = best["trim_level"], "USER_TRIM"
         detail = ", ".join(x for x in (car.condition.lower() if car.condition != "UNKNOWN" else "",
                                        f"~{car.year}" if car.year else "") if x)  # fmt: skip
         car_opts = [
             {"id": f"option:{key}:{o['id']}", "label": f"{o['label']}{_years(o)}", "detail": detail or None, "car": key}
             for o in cands[:3]
         ]
+        car_opts.append({"id": f"remove:{key}", "label": t("remove_car", lang, car=car.request_text), "detail": None,
+                         "car": key})  # fmt: skip
         options += car_opts
         items.append({"car": key, "options": car_opts})
         await c.status("resolving", f"{car.request_text} → {best['label']}{_years(best)}", car=best["label"])
+    if not items:  # every car to confirm is unknown: ask about it instead (the policy asks UNKNOWN_MODEL)
+        await save_case(c, case, [f"{k}: unknown model" for k in unknown])
+        return {"route": "assess", "confirm_payload": None, "notices": [*state.get("notices", []), *notices]}
     case.pending = Pending(kind="CONFIRM_VARIANTS", items=items)
     await save_case(c, case, [f"{i['car']} proposed: {i['options'][0]['label']}" for i in items])
     lines = [f"- **{i['car']}**: {i['options'][0]['label']}" for i in items]
-    text = t("confirm_variants", state.get("language")) + "\n" + "\n".join(lines)
+    lead = _not_understood_lead(case, state, lang)
+    options.append({"id": "choose", "label": t("choose_for_me", lang), "detail": None, "car": None})
+    text = (f"{lead}\n\n" if lead else "") + t("confirm_variants", lang) + "\n" + "\n".join(lines)
     payload = {
         "kind": "variants",
         "action": "CONFIRM_VARIANTS",
@@ -117,6 +151,12 @@ async def apply_variants(state: TurnState, runtime: Runtime[TurnContext]) -> dic
             "reply_text": t("variants_skipped", state.get("language")),
         }
     changes = []
+    if choice.startswith("remove:"):
+        key = choice.split(":", 1)[1]
+        case.cars = [x for x in case.cars if x.key != key]
+        case.pending = None
+        version = await save_case(c, case, [f"{key} removed"])
+        return {"route": "assess", "confirm_payload": None, "resume": None, "case_version": version}
     if choice.startswith("option:"):
         _, key, vid = choice.split(":", 2)
         car = case.car(key)
@@ -179,9 +219,13 @@ async def apply_cost(state: TurnState, runtime: Runtime[TurnContext]) -> dict[st
     }
 
 
+def route_after_prepare(state: TurnState) -> str:
+    return "wait" if state.get("confirm_payload") else "assess"
+
+
 def route_after_apply(state: TurnState) -> str:
     return str(state.get("route") or "assess")
 
 
 def _areas(state: TurnState) -> list[str]:
-    return sorted({a for _, _, a in (state.get("research_plan") or {}).get("jobs", [])})
+    return sorted({j[2] for j in (state.get("research_plan") or {}).get("jobs", [])})

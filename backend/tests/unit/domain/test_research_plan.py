@@ -115,5 +115,5 @@ def test_plan_key_identifies_the_same_research():
 
     a = plan([car()], persona="BUYER", criteria=[], depth="STANDARD", last_done={}, now=NOW)
     b = plan([car()], persona="BUYER", criteria=[], depth="DEEP", last_done={}, now=NOW)
-    c = plan([car()], persona="BUYER", criteria=["status"], depth="STANDARD", last_done={}, now=NOW)
+    c = plan([car()], persona="BUYER", criteria=["engineering"], depth="STANDARD", last_done={}, now=NOW)
     assert plan_key(a) == plan_key(b) != plan_key(c)

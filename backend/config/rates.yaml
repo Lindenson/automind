@@ -24,3 +24,10 @@ base_reserve_eur_per_year:
   compact:         [150, 400, 650, 900]
   mid_large:       [200, 550, 900, 1200]
   premium_suv_4x4: [300, 800, 1300, 1800]
+# Sanity cap for scheduled maintenance per year and class: a published schedule above it is an extraction
+# error (e.g. "16" read for 16,000 km) and the default estimate is used instead.
+max_maintenance_eur_per_year: {small: 1200, compact: 1500, mid_large: 2200, premium_suv_4x4: 3500}
+# Official cycle → real use (spec 004 FR-027): the fuel bill uses a sourced real-world figure when one exists,
+# else the WLTP figure × this allowance per powertrain (labelled ASSUMPTION). NEDC (old cycle) only when no
+# WLTP figure exists. Typical gaps from editorial and owner data (ICCT, Spritmonitor summaries); review yearly.
+real_world_factor: {ICE: 1.15, MHEV: 1.15, HEV: 1.15, PHEV: 1.8, BEV: 1.2, NEDC: 1.40}

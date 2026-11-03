@@ -1,0 +1,26 @@
+# Meaningful differences per attribute (spec 004 FR-003, FR-009; research R1).
+# A difference counts as an advantage only when it reaches threshold_abs OR threshold_rel (share of the
+# better value). direction: higher | lower is better. criterion links the attribute to the user's priorities.
+# money: per_year_at_km converts a consumption difference into € per year at the user's km (fuel prices from
+# rates.yaml); the insight then carries both units.
+version: 1
+attributes:
+  boot_volume:        {label: Boot volume, unit: L, threshold_abs: 30, direction: higher, criterion: practicality}
+  consumption:        {label: Consumption (WLTP), unit: l/100 km, threshold_abs: 0.5, threshold_rel: 0.05, direction: lower, criterion: efficiency, money: per_year_at_km}
+  accel_0_100:        {label: 0–100 km/h, unit: s, threshold_abs: 0.5, direction: lower, criterion: performance}
+  measured_0_100:     {label: 0–100 km/h (measured), unit: s, threshold_abs: 0.5, direction: lower, criterion: performance}
+  max_power:          {label: Power, unit: kW, threshold_rel: 0.10, direction: higher, criterion: performance}
+  max_torque:         {label: Torque, unit: N·m, threshold_rel: 0.10, direction: higher, criterion: performance}
+  curb_mass:          {label: Weight, unit: kg, threshold_rel: 0.07, direction: lower, criterion: driving_fun}
+  official_price_es:  {label: Price, unit: EUR, threshold_rel: 0.05, direction: lower, criterion: purchase_price}
+  tco_per_year:       {label: Ownership cost per year, unit: EUR, threshold_abs: 150, direction: lower, criterion: ownership_cost}
+  value_retention_5y: {label: Value after 5 years, unit: '%', threshold_abs: 5, direction: higher, criterion: ownership_cost}
+  reliability_score:  {label: Reliability score, unit: points, threshold_abs: 10, direction: higher, criterion: reliability}
+  ground_clearance:   {label: Ground clearance, unit: mm, threshold_abs: 20, direction: higher, criterion: offroad_mountain}
+  rear_legroom:       {label: Rear legroom, unit: mm, threshold_abs: 30, direction: higher, criterion: comfort}
+  euro_ncap_stars:    {label: Euro NCAP, unit: stars, threshold_abs: 1, direction: higher, criterion: safety}
+  top_speed:          {label: Top speed, unit: km/h, threshold_rel: 0.05, direction: higher, criterion: performance}
+# Cars whose totals differ less than this are "too close to call" (kept equal to the criteria tie margin).
+tie_margin_points: 3
+# Relevance weight of an insight whose criterion is not among the user's priorities.
+background_weight: 0.3

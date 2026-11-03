@@ -1,3 +1,4 @@
+import { useT } from "../i18n";
 import { memo, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -6,6 +7,8 @@ import type { ChatMessage } from "../lib/protocol";
 import { fmtTime } from "../lib/util";
 import { useChat } from "../store/chat";
 import { BlockView } from "./blocks/BlockView";
+import type { Block } from "../lib/protocol";
+import { RatingControl } from "./RatingControl";
 import { buildCarColors, CarColorContext } from "./carColors";
 import { Logo } from "./Logo";
 import { WarnIcon } from "./icons";
@@ -41,8 +44,28 @@ export const Message = memo(function Message({ m }: { m: UiMessage }) {
   return <AssistantMessage m={m} />;
 });
 
+const SECTIONS = new Set([
+  "comparison", "engineering", "performance", "cost_over_time", "value_retention", "reliability", "reviews",
+  "manufacturer", "data_panel", "sources",
+]);
+
+/** Consecutive blocks of one section become one collapsible part (spec 004 FR-002). */
+function groupSections(blocks: Block[]): { section?: string; open: boolean; blocks: Block[] }[] {
+  const out: { section?: string; open: boolean; blocks: Block[] }[] = [];
+  for (const b of blocks) {
+    const last = out[out.length - 1];
+    if (b.section && last && last.section === b.section) last.blocks.push(b);
+    else out.push({ section: b.section, open: Boolean(b.open), blocks: [b] });
+  }
+  return out;
+}
+
 function AssistantMessage({ m }: { m: ChatMessage }) {
   const colors = useMemo(() => buildCarColors(m.blocks), [m.blocks]);
+  const t = useT();
+  // spec 004 FR-001: the verdict card comes first, before the explanation
+  const lead = m.blocks.filter((b) => b.type === "verdict");
+  const rest = m.blocks.filter((b) => b.type !== "verdict");
   return (
     <div className="flex animate-fadeUp gap-3">
       <div className="hidden shrink-0 sm:block">
@@ -54,6 +77,11 @@ function AssistantMessage({ m }: { m: ChatMessage }) {
           <span>{fmtTime(m.created_at)}</span>
           <UsageBadge turnId={m.turn_id} />
         </div>
+        <CarColorContext.Provider value={colors}>
+          {lead.map((b, i) => (
+            <BlockView key={`lead-${i}`} block={b} />
+          ))}
+        </CarColorContext.Provider>
         {m.text && (
           <div className="md">
             <ReactMarkdown
@@ -69,10 +97,24 @@ function AssistantMessage({ m }: { m: ChatMessage }) {
           </div>
         )}
         <CarColorContext.Provider value={colors}>
-          {m.blocks.map((b, i) => (
-            <BlockView key={i} block={b} />
-          ))}
+          {groupSections(rest).map((g, i) =>
+            g.section ? (
+              <details key={i} open={g.open} className="group rounded-xl border border-line/40 p-2 sm:p-3">
+                <summary className="min-h-11 cursor-pointer select-none py-2 text-sm font-semibold capitalize">
+                  {SECTIONS.has(g.section) ? t(`section.${g.section}` as "section.comparison") : g.section.replace(/_/g, " ")}
+                </summary>
+                <div className="mt-2 space-y-3">
+                  {g.blocks.map((b, j) => (
+                    <BlockView key={j} block={b} />
+                  ))}
+                </div>
+              </details>
+            ) : (
+              g.blocks.map((b, j) => <BlockView key={`${i}-${j}`} block={b} />)
+            ),
+          )}
         </CarColorContext.Provider>
+        {lead.length > 0 && <RatingControl messageId={m.message_id} />}
       </div>
     </div>
   );

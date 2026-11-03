@@ -6,6 +6,7 @@ and the built frontend.
 
 from __future__ import annotations
 
+import asyncio
 import os
 import sys
 import traceback
@@ -29,6 +30,7 @@ from automind.infrastructure.config import configure_domain
 from automind.infrastructure.db.repositories import CaseRepo, ChatRepo, EventRepo, MessageRepo, TurnRepo
 from automind.infrastructure.events import EventBus
 from automind.infrastructure.llm_gateway import new_budget
+from automind.infrastructure.retention import retention_loop
 from automind.orchestration import graph as hub
 from automind.orchestration.prompts import load_all as load_prompts
 from automind.orchestration.runner import ChatRunner
@@ -69,11 +71,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.bus = bus
         app.state.messages = messages
         app.state.chats = ChatRepo()
+        app.state.delete_thread = saver.adelete_thread  # chat deletion removes the saved conversation state
         app.state.cases = CaseRepo()
         app.state.turns = TurnRepo()
         app.state.runner = ChatRunner(
             hub.build_graph(saver, tools), live_ports(bus, load_prompts()), new_budget, messages=messages
         )
+        retention = asyncio.create_task(retention_loop())  # spec 003 FR-026
+        stack.callback(retention.cancel)
         resumed = await app.state.runner.resume_incomplete()
         if resumed:
             print(f"resuming {len(resumed)} interrupted turn(s)")
@@ -103,4 +108,5 @@ if settings().frontend_dist.exists():
 def main() -> None:
     import uvicorn
 
-    uvicorn.run("automind.api.app:app", host="127.0.0.1", port=8000)
+    s = settings()
+    uvicorn.run("automind.api.app:app", host=s.api_host, port=s.api_port)

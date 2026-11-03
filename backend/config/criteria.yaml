@@ -13,8 +13,9 @@ criteria:
   reliability:
     label: Reliability
     definition: Documented technical issues (recurring and severe count more) and published reliability statistics.
+      Isolated mentions count little and are capped, so a well-documented car is not punished for being researched more.
     inputs: [issues (recurrence, severity), reliability statistics, age]
-    scale: {base_none_found: 85, per_recurring: -15, per_high: -10, per_isolated: -3, age_free_years: 5, per_year_over: -1.5, age_max: -20}
+    scale: {base_none_found: 85, per_recurring: -12, recurring_cap: -48, per_high: -8, high_cap: -24, per_isolated: -1, isolated_cap: -8, age_free_years: 5, per_year_over: -1.5, age_max: -20}
     min_data: reliability minimum met (≥2 independent sources)
   ownership_cost:
     label: Ownership cost

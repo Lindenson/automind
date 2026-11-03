@@ -7,7 +7,20 @@ llm:
   openai:gpt-5.4-mini: {input: 0.23, output: 1.84}
   anthropic:claude-sonnet-5-5: {input: 2.76, output: 13.80}
   anthropic:claude-haiku-5-5: {input: 0.92, output: 4.60}
+  # Gemini (ai.google.dev pricing pages, 2026-11-02; USD × 0.92). Thinking tokens are billed as output.
+  google_genai:gemini-3.6-flash: {input: 1.38, output: 6.90}
+  google_genai:gemini-3.1-flash-lite: {input: 0.23, output: 1.38}
+  google_genai:gemini-3.5-flash: {input: 1.38, output: 8.28}
+  google_genai:gemini-3.5-flash-lite: {input: 0.28, output: 2.30}
+  google_genai:gemini-2.5-flash-lite: {input: 0.09, output: 0.37}
 default_llm: {input: 2.30, output: 13.80}
 search:
+  # Per-query price per provider (EUR). serper: ≈ $1 per 1,000 queries on the smallest pack (vendor
+  # list, 2026-11-02; 1 credit per query with num=10 confirmed by a live call) → €0.00092.
+  # serpapi: ≈ $15 per 1,000 on the Developer plan (third-party lists, 2026-11-02) → €0.0138.
+  providers:
+    serper: {eur_per_query: 0.00092}
+    serpapi: {eur_per_query: 0.0138}
+  # Tavily (credits): advanced search = 2 credits.
   eur_per_credit: 0.0074
   credits: {search_basic: 1, search_advanced: 2, extract_basic_per_5_urls: 1, extract_advanced_per_5_urls: 2}

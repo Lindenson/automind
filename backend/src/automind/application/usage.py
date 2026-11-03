@@ -7,8 +7,9 @@ context variable for the duration of a turn so that adapters can charge it witho
 
 from __future__ import annotations
 
+import time
 from contextvars import ContextVar
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 
@@ -28,6 +29,7 @@ class Prices:
     default_llm: tuple[float, float]
     eur_per_credit: float
     credits: dict[str, float]
+    provider_query_eur: dict[str, float] = field(default_factory=dict)
 
     @classmethod
     def from_config(cls, d: dict[str, Any]) -> Prices:
@@ -39,6 +41,7 @@ class Prices:
             default_llm=pair(d["default_llm"]),
             eur_per_credit=float(d["search"]["eur_per_credit"]),
             credits={k: float(v) for k, v in d["search"]["credits"].items()},
+            provider_query_eur={k: float(v["eur_per_query"]) for k, v in (d["search"].get("providers") or {}).items()},
         )
 
     def llm_cost(self, model: str, input_tokens: int, output_tokens: int) -> float:
@@ -47,6 +50,12 @@ class Prices:
 
     def search_cost(self, credits: float) -> float:
         return credits * self.eur_per_credit
+
+    def query_cost(self, provider: str) -> float:
+        """€ per search query for a provider; Tavily is priced in credits (advanced = 2)."""
+        if provider in self.provider_query_eur:
+            return self.provider_query_eur[provider]
+        return self.search_cost(self.credits.get("search_advanced", 2))
 
 
 @dataclass(frozen=True)
@@ -72,6 +81,37 @@ class TurnBudget:
     cost_eur: float = 0.0
     by_role: dict[str, int] = field(default_factory=dict)
     limits_reached: list[str] = field(default_factory=list)
+    extensions: int = 0  # the user chose "continue" this many times (each adds one more allowance)
+    started: float = field(default_factory=time.monotonic)
+    _base: Limits | None = None
+
+    RESEARCH_SHARE = 0.85  # research pauses here, so the answer can still be written with the rest
+
+    def extend(self, times: int) -> None:
+        """Give the turn `times` more allowances of calls, cost and time (the user said "continue")."""
+        base = self._base or self.limits
+        self._base = base
+        self.extensions = times
+        k = 1 + max(0, times)
+        self.limits = replace(base, max_llm_calls=base.max_llm_calls * k, hard_cap_eur=base.hard_cap_eur * k,
+                              turn_timeout_s=base.turn_timeout_s * k)  # fmt: skip
+
+    def allow_answer(self, calls: int = 20, eur: float = 0.10) -> None:
+        """A small reserve so the answer can be written after research stopped at a limit."""
+        base = self.limits
+        self.limits = replace(base, max_llm_calls=max(base.max_llm_calls, self.calls + calls),
+                              hard_cap_eur=max(base.hard_cap_eur, self.cost_eur + eur))  # fmt: skip
+
+    def research_pause(self) -> str | None:
+        """Why research should pause and ask the user (None = go on): calls, cost or time near the limit."""
+        lim = self.limits
+        if self.calls >= lim.max_llm_calls * self.RESEARCH_SHARE:
+            return "calls"
+        if self.cost_eur >= lim.hard_cap_eur * self.RESEARCH_SHARE:
+            return "cost"
+        if time.monotonic() - self.started >= lim.turn_timeout_s * self.RESEARCH_SHARE:
+            return "time"
+        return None
 
     def _reached(self, limit: str, message: str) -> BudgetExceeded:
         if limit not in self.limits_reached:
@@ -99,10 +139,16 @@ class TurnBudget:
             raise self._reached("cost_cap", f"cost cap of €{self.limits.hard_cap_eur:.2f} per turn reached")
 
     def after_search(self, credits: float) -> float:
+        return self.after_search_eur(self.prices.search_cost(credits))
+
+    def before_search_eur(self, eur: float) -> None:
+        if self.cost_eur + eur > self.limits.hard_cap_eur:
+            raise self._reached("cost_cap", f"cost cap of €{self.limits.hard_cap_eur:.2f} per turn reached")
+
+    def after_search_eur(self, eur: float) -> float:
         self.search_calls += 1
-        cost = self.prices.search_cost(credits)
-        self.cost_eur += cost
-        return cost
+        self.cost_eur += eur
+        return eur
 
     def restore(self, usage: dict[str, Any] | None) -> None:
         """Continue counting from a stored snapshot (a turn resumed after a confirmation or a restart)."""

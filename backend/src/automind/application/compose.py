@@ -6,11 +6,14 @@ Used both by deterministic graph nodes and by the MCP server tools (same functio
 from __future__ import annotations
 
 from dataclasses import asdict
+from datetime import datetime
 from functools import lru_cache
 
 from sqlalchemy import select
 
 from automind.domain import dragrace, reliability, reviews, specs, tco, units
+from automind.domain import evidence as evidence_rules
+from automind.domain import insights as ins
 from automind.domain import metrics as scoring  # noqa: F401 (CarFacts, metrics, ownership)
 from automind.domain.criteria import CriteriaModel, CriteriaScore
 from automind.domain.metrics import ReliabilitySummary, ReviewSummary
@@ -28,6 +31,8 @@ TABLE_ROWS = [
     "claimed_0_100",
     "top_speed",
     "consumption",
+    "consumption_real",
+    "consumption_nedc",
     "boot_volume",
     "seats",
     "official_price_es",
@@ -73,6 +78,35 @@ async def load_car(variant_id: str) -> dict:
         facts_rows = list(
             (await s.execute(select(db.ManufacturerFact).where(db.ManufacturerFact.make == v.make))).scalars()
         )
+        retention = (
+            await s.execute(
+                select(db.ValueRetention, db.Evidence)
+                .join(db.Evidence, db.ValueRetention.evidence_id == db.Evidence.id, isouter=True)
+                .where(db.ValueRetention.variant_id == variant_id)
+            )
+        ).all()
+        rejected_rows = (
+            await s.execute(
+                select(db.PageRelevance, db.Document)
+                .join(db.Document, db.PageRelevance.document_id == db.Document.id)
+                .where(
+                    db.PageRelevance.variant_id == variant_id,
+                    db.PageRelevance.verdict.in_(("OTHER_VARIANT", "NOT_ABOUT_CAR")),
+                )
+                .order_by(db.PageRelevance.created_at.desc())
+                .limit(20)
+            )
+        ).all()
+    rejected_pages = [
+        {
+            "name": (d.title or d.url)[:200],
+            "url": d.final_url or d.url,
+            "type": evidence_rules.classify_source(d.final_url or d.url),
+            "retrieved_at": (d.fetched_at or d.retrieved_at).isoformat(),
+            "rejected": {"reason": r.reason, "other": r.other},
+        }
+        for r, d in rejected_rows
+    ]
     claim_src = {
         c.id: {
             "name": e.source_name,
@@ -80,6 +114,8 @@ async def load_car(variant_id: str) -> dict:
             "type": e.source_type,
             "retrieved_at": e.retrieved_at.isoformat(),
             "excerpt": c.excerpt,
+            "favourite": bool(e.favourite),
+            "extracted_by": c.extracted_by,
         }
         for c, e in rows
     }
@@ -88,12 +124,14 @@ async def load_car(variant_id: str) -> dict:
         "variant": v,
         "values": values,
         "claim_src": claim_src,
+        "rejected_pages": rejected_pages,
         "researched_at": researched.isoformat(),
         "runs": {r.area: r for r in runs},
         "issues": [(i, e) for i, e in issues],
         "reviews": [(r, e) for r, e in reviews],
         "manufacturer_facts": facts_rows,
         "stats": stats,
+        "retention": [(r, e) for r, e in retention],
     }
 
 
@@ -252,7 +290,7 @@ def display(key: str, sv) -> str | None:
         return units.kw_to_hp_display(x)
     if key == "official_price_es":
         return f"{x:,.0f} €".replace(",", ".")
-    if key == "consumption":
+    if key in ("consumption", "consumption_real", "consumption_nedc"):
         return f"{x:g}"
     if key in ("seats", "service_interval_months"):
         return f"{x:.0f}" + (" months" if key == "service_interval_months" else "")
@@ -272,16 +310,19 @@ def car_header(car: dict, from_cache: bool) -> dict:
     }
 
 
-def spec_table(cars: list[dict], from_cache: dict[str, bool]) -> dict:
+_INSIGHT_OF_ROW = {"claimed_0_100": "accel_0_100"}
+
+
+def spec_table(cars: list[dict], from_cache: dict[str, bool], insight_set: ins.InsightSet | None = None) -> dict:
+    """The comparison table (spec 004 FR-016): only rows with data for at least one car; missing cells are
+    marked; `better` marks the clearly best car of a meaningful difference (never a sub-threshold one)."""
     rows = []
     for key in TABLE_ROWS:
         attr = specs.ATTRS[key]
-        if all((c["values"].get(key) is None or not c["values"][key].available) for c in cars) and key in (
-            "battery_kwh",
-            "displacement",
-            "service_interval_months",
-        ):
+        if all((c["values"].get(key) is None or not c["values"][key].available) for c in cars):
             continue
+        insight = insight_set.get(_INSIGHT_OF_ROW.get(key, key)) if insight_set is not None else None
+        best = insight.better_car if insight is not None and insight.meaningful else None
         vals = []
         for c in cars:
             sv = c["values"].get(key)
@@ -296,10 +337,13 @@ def spec_table(cars: list[dict], from_cache: dict[str, bool]) -> dict:
                     "provenance": sv.provenance if available else None,
                     "confidence": sv.confidence if available else None,
                     "sources": sources,
+                    "missing": not available,
+                    "better": best == c["variant"].id,
                 }
             )
-        unit = "l or kWh /100 km" if key == "consumption" else attr.unit
-        rows.append({"key": key, "label": attr.label, "unit": unit, "values": vals})
+        unit = "l or kWh /100 km" if key.startswith("consumption") else attr.unit
+        meaningful = bool(insight is not None and insight.meaningful) if insight_set is not None else None
+        rows.append({"key": key, "label": attr.label, "unit": unit, "values": vals, "meaningful": meaningful})
     return {
         "type": "spec_table",
         "title": "Specifications (validated, with sources)",
@@ -374,13 +418,29 @@ def race_block(race: dragrace.RaceResult, predicted_car_id: str | None = None) -
 
 
 def sources_block(cars: list[dict]) -> dict:
-    seen, items = set(), []
+    """Accepted sources first (favourites marked, values read from tables flagged), then the pages rejected
+    for another variant with their reasons (FR-012)."""
+    seen: set[str] = set()
+    items: list[dict] = []
+    readers: dict[str, bool] = {}
+    for c in cars:
+        for src in c["claim_src"].values():
+            readers[src["url"]] = readers.get(src["url"], False) or src.get("extracted_by") == "READER"
     for c in cars:
         for src in c["claim_src"].values():
             if src["url"] not in seen:
                 seen.add(src["url"])
-                items.append({k: src[k] for k in ("name", "url", "type", "retrieved_at")})
-    return {"type": "sources", "title": f"Sources ({len(items)})", "items": items}
+                item = {k: src[k] for k in ("name", "url", "type", "retrieved_at")}
+                item["favourite"] = bool(src.get("favourite"))
+                item["extracted_by"] = "READER" if readers.get(src["url"]) else "LLM"
+                items.append(item)
+    accepted = len(items)
+    for c in cars:
+        for src in c.get("rejected_pages", []):
+            if src["url"] not in seen:
+                seen.add(src["url"])
+                items.append(src)
+    return {"type": "sources", "title": f"Sources ({accepted})", "items": items}
 
 
 def summary_for_llm(cars: list[dict], race: dragrace.RaceResult, criteria: CriteriaScore | None = None) -> dict:
@@ -423,31 +483,51 @@ def summary_for_llm(cars: list[dict], race: dragrace.RaceResult, criteria: Crite
     return out
 
 
-async def section_notices(cars: list[tuple[str, str]]) -> list[dict]:
-    """'Insufficient data' per car and area whose minimum was not met (FR-019), also for cached reports.
+DATA_AREAS = ("specs", "price", "maintenance", "reliability", "reviews", "measured", "engineering", "manufacturer",
+              "depreciation", "used_issues", "used_price")  # fmt: skip
+NO_SOURCES_RETRY_H = 12
 
-    `cars` are (variant_id, label). Areas never researched are not reported here.
-    """
-    out = []
-    async with db.sessionmaker()() as s:
-        for vid, label in cars:
-            runs = (
-                await s.execute(
-                    select(db.ResearchRun).where(
-                        db.ResearchRun.variant_id == vid, db.ResearchRun.minimum_met.is_(False)
-                    )
-                )
-            ).scalars()
-            areas = sorted(r.area.replace("_", " ") for r in runs)
-            if areas:
-                out.append(
-                    {
-                        "type": "notice",
-                        "level": "warning",
-                        "text": f"{label}: insufficient data for {', '.join(areas)} (minimum evidence not reached).",
-                    }
-                )
-    return out
+
+def data_panel_block(
+    cars: list[tuple[str, str, dict]],
+    areas: dict[str, set[str]],
+    now: datetime | None,
+    previous: dict[str, int] | None = None,
+) -> dict | None:
+    """One "what we know" panel instead of a warning per section (spec 004 FR-014, FR-015, SC-008).
+
+    `cars` are (case car key, short name, loaded car); `areas` the areas each car needs (by case key).
+    Status per area: COMPLETE (minimum met), PARTIAL (some evidence), MISSING (nothing yet), UNAVAILABLE
+    (searched recently and no source found: no "find it" until the retry window). `previous` holds the
+    accepted values per car from the last report, so the panel can say what changed after "find it"."""
+    out, total_now = [], 0
+    for key, name, car in cars:
+        runs = car["runs"]
+        rows = []
+        for area in (a for a in DATA_AREAS if a in areas.get(key, set())):
+            r = runs.get(area)
+            if r is None:
+                status, reason, findable = "MISSING", None, True
+            elif r.minimum_met:
+                status, reason, findable = "COMPLETE", None, False
+            elif (r.claims_accepted or 0) > 0 or (r.docs_used or 0) > 0:
+                status, reason, findable = "PARTIAL", "fewer independent sources than the minimum", True
+            else:
+                recent = now is not None and (now - r.completed_at).total_seconds() < NO_SOURCES_RETRY_H * 3600
+                status = "UNAVAILABLE" if recent else "MISSING"
+                reason, findable = "no usable sources found", not recent
+            rows.append({"area": area, "status": status, "reason": reason, "findable": findable})
+        values = sum(1 for sv in car["values"].values() if sv.available)
+        total_now += values
+        out.append({"car_id": car["variant"].id, "car_key": key, "label": name, "values": values, "areas": rows})
+    if not out:
+        return None
+    changed = None
+    if previous:
+        delta = total_now - sum(previous.values())
+        if delta:
+            changed = f"{delta:+d} values since the last report"
+    return {"type": "data_panel", "cars": out, "changed": changed}
 
 
 # ---------------- spec 002 blocks ----------------
@@ -484,14 +564,34 @@ def criteria_block(sc: CriteriaScore, model: CriteriaModel, unmapped: list[str])
         ],
         "winner_car_id": sc.winner_car_id,
         "unmapped_wishes": list(unmapped),
+        "compared_on": list(sc.common),
+        "tie": sc.tie,
+        # spec 004 FR-010: the basis of each score: relative to the best compared car (= 100) and what could
+        # not be compared because a car has no data for it
+        "relative": _relative(sc),
+        "not_compared": sorted(k for k in sc.weights if sc.weights[k] > 0 and k not in sc.common),
+        "single": len(sc.cars) == 1,
     }
+
+
+def _relative(sc: CriteriaScore) -> dict[str, dict[str, float]]:
+    """Per criterion: each car's score relative to the best compared car (best = 100)."""
+    out: dict[str, dict[str, float]] = {}
+    if len(sc.cars) < 2:
+        return out
+    for k in sc.weights:
+        scores = {c.car_id: c.parts[k].score for c in sc.cars if k in c.parts and c.parts[k].score is not None}
+        best = max(scores.values(), default=None)
+        if best and len(scores) >= 2:
+            out[k] = {cid: round(100 * (v or 0) / best, 0) for cid, v in scores.items()}
+    return out
 
 
 def case_summary_block(persona: str, facts_list: list[str], cars: list[dict]) -> dict:
     return {"type": "case_summary", "persona": persona, "facts": facts_list, "cars": cars}
 
 
-def engineering_block(cars: list[dict]) -> dict | None:
+def engineering_block(cars: list[dict], explainers: dict | None = None) -> dict | None:
     out = []
     for c in cars:
         items = []
@@ -508,10 +608,31 @@ def engineering_block(cars: list[dict]) -> dict | None:
                     "sources": [_src(c, cid) for cid in (sv.claim_ids or []) if cid in c["claim_src"]],
                 }
             )
-        out.append({"car_id": c["variant"].id, "label": c["variant"].label, "items": items})
-    if not any(x["items"] for x in out):
+        out.append({"car_id": c["variant"].id, "label": c["variant"].label, "items": items,
+                    "explainers": tech_explainers(c, explainers or {})})  # fmt: skip
+    if not any(x["items"] or x["explainers"] for x in out):
         return None
     return {"type": "engineering", "title": "Engineering", "cars": out}
+
+
+def tech_explainers(car: dict, cfg: dict) -> list[dict]:
+    """What the car's drivetrain technology means (spec 004 FR-004): config text matched on the car's own
+    validated gearbox / engine / powertrain, never web text. Most specific match first, at most two."""
+    v = car["variant"]
+    words = " ".join(
+        str(x) for x in (_txt(car, "transmission"), _txt(car, "engine"), v.variant_name, v.powertrain,
+                         v.transmission) if x
+    ).lower()  # fmt: skip
+    hits = []
+    for key, e in (cfg.get("explainers") or {}).items():
+        if any(m in words for m in e.get("match", [])):
+            hits.append({"key": key, "title": e.get("title", key), "text": e.get("text", ""),
+                         "consumption": e.get("consumption"), "reliability": e.get("reliability"),
+                         "feel": e.get("feel"), "source": e.get("source", "editorial")})  # fmt: skip
+    hybrid = {"power_split_hybrid", "series_hybrid"}
+    if any(h["key"] in hybrid for h in hits):  # a hybrid's "automatic" label is not a torque converter
+        hits = [h for h in hits if h["key"] not in ("torque_converter", "cvt")]
+    return hits[:2]
 
 
 def manufacturer_block(cars: list[dict]) -> dict | None:
@@ -524,6 +645,7 @@ def manufacturer_block(cars: list[dict]) -> dict | None:
             {
                 "kind": f.fact_type,
                 "text": f.text,
+                "year": getattr(f, "year", None),
                 "sources": [
                     {
                         "name": f.source_name or f.url,
@@ -534,15 +656,31 @@ def manufacturer_block(cars: list[dict]) -> dict | None:
                     }
                 ],
             }
-            for f in c.get("manufacturer_facts", [])[:6]
+            for f in _manufacturer_facts(c.get("manufacturer_facts", []))
         ]
-    if not any(makes.values()):
+    if not makes:
         return None
+    # spec 004 FR-006: fewer than two facts for a make is shown as insufficient, with "find it"
     return {
         "type": "manufacturer",
         "title": "Manufacturer",
-        "makes": [{"make": m, "facts": f} for m, f in makes.items()],
+        "makes": [{"make": m, "facts": f, "insufficient": len(f) < 2} for m, f in makes.items()],
     }
+
+
+_FACT_ORDER = ("MARKET_SHARE", "FINANCIAL", "RELIABILITY_REPUTATION", "NETWORK_ES", "MARKET_POSITION", "KEY_MODEL",
+               "HISTORY")  # fmt: skip
+
+
+def _manufacturer_facts(rows: list) -> list:
+    """Two facts per kind at most, the situation first (share, finances, reliability, network), newest first."""
+    by: dict[str, list] = {}
+    for f in sorted(rows, key=lambda f: (-(getattr(f, "year", None) or 0), f.retrieved_at), reverse=False):
+        by.setdefault(f.fact_type, []).append(f)
+    out = []
+    for kind in (*_FACT_ORDER, *sorted(set(by) - set(_FACT_ORDER))):
+        out += by.get(kind, [])[:2]
+    return out[:10]
 
 
 def _src(car: dict, claim_id: str) -> dict:
@@ -553,9 +691,13 @@ def _criteria_facts(sc: CriteriaScore | None) -> dict | None:
     if sc is None:
         return None
     return {
-        "note": "0–100 indices (scores), not measurements",
+        "note": "0–100 indices (scores), not measurements. Totals use only `compared_on` (criteria every car has "
+        "data for). `tie`: no winner — say the cars are close. Differences under 5 points in one criterion are not "
+        "a win; never present a few litres or a few tenths as an advantage.",
         "weights": {k: round(w, 1) for k, w in sc.weights.items()},
         "winner": next((c.label for c in sc.cars if c.car_id == sc.winner_car_id), None),
+        "compared_on": list(sc.common),
+        "tie": sc.tie,
         "cars": [
             {
                 "label": c.label,
@@ -610,6 +752,8 @@ async def tco_car(car: dict, condition: str, age_years: int | None, mileage_km: 
         powertrain=v.powertrain,
         fuel=None if v.powertrain == "BEV" else fuel,
         consumption=_num(car, "consumption"),
+        consumption_real=_num(car, "consumption_real"),
+        consumption_nedc=_num(car, "consumption_nedc"),
         vehicle_class=v.vehicle_class,
         condition=condition,
         age_years=age_years,
@@ -810,3 +954,97 @@ def reviews_block(cars: list[dict]) -> dict | None:
     if not out:
         return None
     return {"type": "reviews", "title": "What reviewers and owners say", "cars": out}
+
+
+# --- insights input (spec 004 FR-009) -----------------------------------------------------------------------
+
+INSIGHT_ATTRS = ("boot_volume", "consumption", "measured_0_100", "max_power", "max_torque", "curb_mass",
+                 "official_price_es", "ground_clearance", "rear_legroom", "euro_ncap_stars", "top_speed")  # fmt: skip
+
+
+def short_name(v: db.Variant) -> str:
+    """The name the text uses for a car: make and model (the full label is in the blocks)."""
+    return f"{v.make} {v.model}".strip()
+
+
+def insight_values(
+    car: dict,
+    *,
+    annual_cost: float | None,
+    reliability_score: float | None,
+    energy_eur_per_unit: float | None,
+    accel_0_100: float | None = None,
+    retention_curve: dict | None = None,
+) -> ins.CarValues:
+
+    v = car["variant"]
+    values: dict[str, float] = {}
+    conf: dict[str, str] = {}
+    srcs: dict[str, list[str]] = {}
+    for k in INSIGHT_ATTRS:
+        sv = car["values"].get(k)
+        if sv is not None and sv.available and sv.value_num is not None:
+            values[k], conf[k], srcs[k] = float(sv.value_num), str(sv.confidence or "MEDIUM"), list(sv.claim_ids or [])
+    claimed = car["values"].get("claimed_0_100")
+    if claimed is not None and claimed.available and claimed.value_num is not None:
+        values["accel_0_100"], conf["accel_0_100"] = float(claimed.value_num), str(claimed.confidence or "MEDIUM")
+    elif accel_0_100 is not None:
+        values["accel_0_100"], conf["accel_0_100"] = accel_0_100, "LOW"  # simulated
+    if annual_cost is not None:
+        values["tco_per_year"], conf["tco_per_year"] = annual_cost, "MEDIUM"
+    if reliability_score is not None:
+        values["reliability_score"], conf["reliability_score"] = reliability_score, "MEDIUM"
+    five = next((p for p in retention_points(car, retention_curve or {}) if p["years"] == 5), None)
+    if five is not None and five["share"]:
+        values["value_retention_5y"] = round(five["share"] * 100, 1)
+        conf["value_retention_5y"] = "MEDIUM" if five["basis"] == "SOURCED" else "LOW"
+    return ins.CarValues(v.id, short_name(v), values, conf, srcs, energy_eur_per_unit)
+
+
+# --- value retention (spec 004 FR-005) ----------------------------------------------------------------------
+
+RETENTION_YEARS = (3, 5)
+
+
+def retention_points(car: dict, curve: dict[str, dict[float, float]]) -> list[dict]:
+    """Value left after 3 and 5 years: sourced points (median per year when several), else the labelled
+    depreciation curve of the car's class (feasibility.yaml)."""
+    v = car["variant"]
+    out = []
+    for years in RETENTION_YEARS:
+        rows = [(r, e) for r, e in car.get("retention", []) if r.years == years and r.share is not None]
+        if rows:
+            shares = sorted(float(r.share) for r, _ in rows)
+            mid = shares[len(shares) // 2]
+            srcs = [{"name": e.source_name, "url": e.url, "type": e.source_type, "excerpt": r.excerpt,
+                     "retrieved_at": e.retrieved_at.isoformat()} for r, e in rows if e is not None][:3]  # fmt: skip
+            out.append({"years": years, "share": round(mid, 3), "eur": None, "basis": "SOURCED",
+                        "market": rows[0][0].market, "sources": srcs,
+                        "low": shares[0], "high": shares[-1]})  # fmt: skip
+            continue
+        table = curve.get(v.vehicle_class or "compact") or curve.get("compact") or {}
+        share = _interp(table, years)
+        if share is not None:
+            out.append({"years": years, "share": round(share, 3), "eur": None, "basis": "ASSUMPTION",
+                        "market": "ES", "sources": [], "low": None, "high": None})  # fmt: skip
+    price = _num(car, "official_price_es")
+    for p in out:
+        if price and p["share"]:
+            p["eur"] = round(price * p["share"], -2)
+    return out
+
+
+def _interp(table: dict, years: float) -> float | None:
+    pts = sorted((float(k), float(x)) for k, x in table.items())
+    for (a, va), (b, vb) in zip(pts, pts[1:], strict=False):
+        if a <= years <= b:
+            return va + (vb - va) * (years - a) / (b - a)
+    return None
+
+
+def value_retention_block(cars: list[dict], curve: dict[str, dict[float, float]]) -> dict | None:
+    rows = [{"car_id": c["variant"].id, "label": c["variant"].label, "points": retention_points(c, curve)}
+            for c in cars]  # fmt: skip
+    if not any(r["points"] for r in rows):
+        return None
+    return {"type": "value_retention", "title": "Value after 3 and 5 years", "cars": rows}

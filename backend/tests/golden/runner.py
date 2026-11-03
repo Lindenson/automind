@@ -21,7 +21,7 @@ from sqlalchemy import delete, select
 
 from automind.application.ports import Ports
 from automind.infrastructure.db import models as m
-from automind.infrastructure.db.repositories import CaseRepo, EventRepo, JobRepo, MessageRepo, TurnRepo
+from automind.infrastructure.db.repositories import CaseRepo, EventRepo, FeasibilityRepo, JobRepo, MessageRepo, TurnRepo
 from automind.infrastructure.db.session import sessionmaker
 from automind.infrastructure.events import EventBus
 from automind.orchestration.runner import ChatRunner, TurnResult
@@ -287,11 +287,11 @@ async def run_dialogue(path: Path, saver: Any, *, live: bool = False, record: bo
     await seed(d)
     chat_id = str(uuid.uuid4())
     if live:
-        from automind.infrastructure.adapters import LiveLLM, LiveSearch
+        from automind.infrastructure.adapters import LiveLLM, live_pages, live_search
         from automind.infrastructure.llm_gateway import new_budget
 
         llm: Any = RecordingLLM(LiveLLM()) if record else LiveLLM()
-        search: Any = LiveSearch()
+        search: Any = live_search()
         budgets = new_budget
     else:
         llm = FakeLLM()
@@ -302,6 +302,7 @@ async def run_dialogue(path: Path, saver: Any, *, live: bool = False, record: bo
     events = EventBus(EventRepo())
     from automind.infrastructure.config import reference
     from automind.orchestration.prompts import load_all
+    from tests.graph.conftest import open_web_reference
 
     ports = Ports(
         llm=llm,
@@ -311,12 +312,27 @@ async def run_dialogue(path: Path, saver: Any, *, live: bool = False, record: bo
         events=events,
         jobs=JobRepo(),
         clock=_clock(),
-        ref=reference(load_all()),
+        ref=reference(load_all()) if live else open_web_reference(),
         messages=MessageRepo(),
         estimator=_estimator(live),
+        pages=live_pages() if live else None,
+        feasibility=FeasibilityRepo(),
     )
     runner = ChatRunner(build_graph(saver), ports, budgets, messages=MessageRepo())
     failures: list[str] = []
+    from automind.config import settings as _settings
+
+    saved = {k: getattr(_settings(), k) for k in d.settings}
+    for k, v in d.settings.items():
+        setattr(_settings(), k, v)
+    try:
+        return await _run_turns(d, runner, chat_id, live, record, failures, llm, ports)
+    finally:
+        for k, v in saved.items():
+            setattr(_settings(), k, v)
+
+
+async def _run_turns(d, runner, chat_id, live, record, failures, llm, ports):  # noqa: ANN001, ANN202
     for i, turn in enumerate(d.turns, 1):
         cassette = CASSETTES / d.id / f"turn{i}.json"
         if not live:

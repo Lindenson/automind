@@ -19,7 +19,7 @@ from typing import Any
 
 from langgraph.graph import END, START, StateGraph
 
-from automind.orchestration.nodes import confirm, report, research, understand
+from automind.orchestration.nodes import confirm, feasibility, report, research, understand
 from automind.orchestration.runner import TurnContext
 from automind.orchestration.state import TurnState
 
@@ -46,6 +46,13 @@ def build_graph(checkpointer: Any = None, tools: list[Any] | None = None) -> Any
     g.add_node("collect_round", research.collect_round)
     g.add_node("next_round", research.next_round)
     g.add_node("after_research", research.after_research)
+    g.add_node("prepare_feasibility", feasibility.prepare_feasibility)
+    g.add_node("wait_feasibility", confirm.wait_confirm)
+    g.add_node("apply_feasibility", feasibility.apply_feasibility)
+    g.add_node("alternatives", feasibility.alternatives)
+    g.add_node("prepare_limit", research.prepare_limit)
+    g.add_node("wait_limit", confirm.wait_confirm)
+    g.add_node("apply_limit", research.apply_limit)
     g.add_node("answer", report.answer_node)
     g.add_node("report", report.make_report_node(tools if tools is not None else MCP_TOOLS))
 
@@ -57,21 +64,42 @@ def build_graph(checkpointer: Any = None, tools: list[Any] | None = None) -> Any
     g.add_conditional_edges(
         "policy",
         understand.route_policy,
-        ["general", "ask", "prepare_variants", "prepare_cost", "plan_research", "answer", "report"],
+        [
+            "general",
+            "ask",
+            "prepare_variants",
+            "prepare_cost",
+            "plan_research",
+            "answer",
+            "report",
+            "prepare_feasibility",
+        ],
     )
-    g.add_edge("prepare_variants", "wait_variants")
+    g.add_conditional_edges(  # every car unknown: nothing to confirm, ask about the model instead
+        "prepare_variants", confirm.route_after_prepare, {"wait": "wait_variants", "assess": "assess"}
+    )
     g.add_edge("wait_variants", "apply_variants")
     g.add_conditional_edges(
         "apply_variants", confirm.route_after_apply, {"assess": "assess", "interpret": "interpret", "end": END}
+    )
+    g.add_edge("prepare_feasibility", "wait_feasibility")
+    g.add_edge("wait_feasibility", "apply_feasibility")
+    g.add_conditional_edges(
+        "apply_feasibility",
+        feasibility.route_after_apply,
+        {"assess": "assess", "interpret": "interpret", "alternatives": "alternatives"},
     )
     g.add_edge("prepare_cost", "wait_cost")
     g.add_edge("wait_cost", "apply_cost")
     g.add_conditional_edges("apply_cost", confirm.route_after_apply, {"assess": "assess", "interpret": "interpret"})
     g.add_conditional_edges("plan_research", research.fan_out, ["research_job", "after_research"])
     g.add_edge("research_job", "collect_round")
-    g.add_conditional_edges("collect_round", research.route_round, ["next_round", "after_research"])
+    g.add_conditional_edges("collect_round", research.route_round, ["next_round", "after_research", "prepare_limit"])
+    g.add_edge("prepare_limit", "wait_limit")
+    g.add_edge("wait_limit", "apply_limit")
+    g.add_conditional_edges("apply_limit", research.route_after_limit, ["next_round", "after_research", "interpret"])
     g.add_conditional_edges("next_round", research.fan_out, ["research_job", "after_research"])
     g.add_edge("after_research", "assess")
-    for terminal in ("general", "ask", "answer", "report"):
+    for terminal in ("general", "ask", "answer", "report", "alternatives"):
         g.add_edge(terminal, END)
     return g.compile(checkpointer=checkpointer)

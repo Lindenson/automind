@@ -1,0 +1,29 @@
+{
+ "queries": [
+  {
+   "match": [
+    "520d",
+    "site:km77.com"
+   ],
+   "results": [
+    {
+     "url": "https://www.km77.com/coches/bmw/serie-5/2017/berlina/estandar/520d-berlina/datos",
+     "title": "BMW 520d Berlina (2016-2018) | Precio y ficha t\u00e9cnica - km77.com",
+     "doc": "km77.txt",
+     "html_doc": "km77.html"
+    },
+    {
+     "url": "https://www.km77.com/coches/bmw/serie-5/2024/berlina/g60/520d/datos",
+     "title": "BMW 520d G60 (2024) prueba",
+     "doc": "g60.txt"
+    },
+    {
+     "url": "https://www.example-specs.com/bmw-5-series-520d",
+     "title": "BMW 5 Series 520d specs",
+     "doc": "us.txt"
+    }
+   ]
+  }
+ ],
+ "default": []
+}

@@ -83,4 +83,5 @@ class Dialogue(BaseModel):
     scenario: str | None = None
     description: str = ""
     seed: list[SeedVariant] = Field(default_factory=list)
+    settings: dict[str, Any] = Field(default_factory=dict)  # overrides of automind.config settings for this dialogue
     turns: list[Turn]

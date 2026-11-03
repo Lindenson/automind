@@ -72,10 +72,33 @@ def classify_source(url: str) -> str:
     return "PUBLICATION"
 
 
+_MARKUP = re.compile(r"\\(?=[*_#|\\`\[\]()-])|[*#|`]+|(?<!\w)_+|_+(?!\w)")
+_GAP = re.compile(r"\s*(?:\.\.\.|…|\[\.\.\.\])\s*")
+
+
 def _norm(text: str) -> str:
+    """Text for literal comparison: Unicode-normalised, lower case, without markdown markup (bold, headings,
+    table pipes, escapes) and with collapsed whitespace. Page text is stored as markdown; models quote the
+    rendered words (user report 2026-11-02: the Tucson price "**36.075 euros**" failed the excerpt check)."""
     t = unicodedata.normalize("NFKC", text).lower()
-    t = t.replace(" ", " ").replace(" ", " ")
+    t = t.replace("\u00a0", " ").replace("\u202f", " ")
+    t = _MARKUP.sub(" ", t)
     return re.sub(r"\s+", " ", t).strip()
+
+
+def occurs(excerpt: str, document_text: str) -> bool:
+    """The excerpt occurs in the document; an ellipsis in the excerpt ("Klass ... Precio") skips text, and
+    the parts must occur in order."""
+    doc = _norm(document_text)
+    parts = [_norm(p) for p in _GAP.split(excerpt)]
+    parts = [p for p in parts if p]
+    pos = 0
+    for p in parts:
+        i = doc.find(p, pos)
+        if i < 0:
+            return False
+        pos = i + len(p)
+    return bool(parts)
 
 
 def validate_excerpt(excerpt: str, raw_value: str, document_text: str) -> bool:
@@ -83,7 +106,7 @@ def validate_excerpt(excerpt: str, raw_value: str, document_text: str) -> bool:
     ex = _norm(excerpt)
     if len(ex) < 4:
         return False
-    if ex not in _norm(document_text):
+    if not occurs(excerpt, document_text):
         return False
     val = _norm(raw_value)
     if val in ex:

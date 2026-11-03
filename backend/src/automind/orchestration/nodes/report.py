@@ -16,10 +16,20 @@ from typing import Any
 from langgraph.runtime import Runtime
 
 from automind.application import compose
+from automind.application.usage import BudgetExceeded
+from automind.domain import profile_gaps
 from automind.domain.casefile import CaseFile, Shown
 from automind.domain.policy import fingerprint
 from automind.orchestration import agents
-from automind.orchestration.guard import check_numbers, numbers_in, removal_notice
+from automind.orchestration.guard import (
+    check_numbers,
+    drop_sentences,
+    numbers_in,
+    removal_notice,
+    report_violations,
+    violations_prompt,
+)
+from automind.orchestration.phrases import t
 from automind.orchestration.runner import TurnContext
 from automind.orchestration.state import TurnState
 
@@ -65,12 +75,67 @@ async def _explain(
     return text, []
 
 
+async def _report_check(
+    c: TurnContext, system: str, request: str, comp: Any, text: str, allowed: set[float]
+) -> tuple[str, int]:
+    """Text vs blocks (spec 004 FR-012): one regeneration with the violations listed; if the text still
+    contradicts the blocks, the offending sentences are removed. Returns (text, sentences removed)."""
+    if comp.check is None:
+        return text, 0
+    bad = report_violations(text, comp.check)
+    if not bad:
+        return text, 0
+    await c.status("composing", f"Correcting {len(bad)} sentence(s) that contradict the data")
+    try:
+        again = await c.ports.llm.text(
+            "reporter",
+            system + "\nYou have no tools; use only the JSON facts provided.",
+            request + "\n\n" + violations_prompt(bad) + "\n\nPrevious text:\n" + text
+            + "\n\nValidated facts JSON:\n" + json.dumps(comp.facts, ensure_ascii=False, default=str),
+        )  # fmt: skip
+    except BudgetExceeded:
+        raise
+    except Exception:  # noqa: BLE001 - no second text: remove the offending sentences instead
+        return drop_sentences(text, bad), len(bad)
+    again, dropped = check_numbers(again, allowed)
+    still = report_violations(again, comp.check)
+    return (drop_sentences(again, still), dropped + len(still)) if still else (again, dropped)
+
+
+def _profile_question(case: CaseFile, comp: Any, lang: str | None) -> list[dict[str, Any]]:
+    """One question about the user that would sharpen this comparison (spec 004 FR-018), asked once, under the
+    report — never blocking it. The answer recomputes the report from the same data."""
+    variants = [car["variant"] for car in comp.cars]
+    kinds = profile_gaps.questions(case, [v.powertrain for v in variants], [v.vehicle_class for v in variants])
+    if not kinds or len(variants) < 2:
+        return []
+    kind = kinds[0]
+    case.asked.append(kind)
+    if kind == "KM_PER_YEAR":
+        items = [{"label": x, "text": x} for x in ("8,000 km", "15,000 km", "25,000 km", "40,000 km")]
+    else:
+        items = [
+            {"label": t(f"family_{x}", lang), "text": t(f"family_{x}", lang)} for x in ("single", "couple", "kids")
+        ]
+    return [{"type": "quick_replies", "question": t(f"profile_{kind}", lang, km=f"{case.annual_km:,}"), "items": items}]
+
+
+def _critique_lead(state: TurnState, lang: str | None) -> str:
+    """What was done about the critique, by code (never only an apology)."""
+    areas = sorted({str(r.get("area")) for r in state.get("research_results", []) if r.get("area")})
+    if state.get("research_done") and areas:
+        return t("critique_researched", lang, areas=", ".join(areas))
+    what = " ".join(str(state.get("user_text") or "").split())[:80]
+    return t("critique_reworked", lang, what=what)
+
+
 def make_report_node(tools: list[Any]):  # noqa: ANN201
     async def report_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
         c = ctx(runtime)
         _, case = await load_case(c)
         await c.status("computing", "Computing criteria scores, metrics and the drag race")
-        comp = await compute(c, case, list(state.get("notices", [])))
+        lang = state.get("language", "en")
+        comp = await compute(c, case, list(state.get("notices", [])), lang)
         await compose.persist_computations(
             c.turn_id,
             comp.tco,
@@ -90,19 +155,30 @@ def make_report_node(tools: list[Any]):  # noqa: ANN201
             f"User message: {state.get('user_text', '')}\nchat_id (for get_case/score_criteria): {c.chat_id}\n"
             f"Cars (car_ids for tools): {json.dumps(car_list)}"
         )
+        critique = state.get("request_kind") == "critique"
+        if critique:  # spec 004 FR-021: rework with what the user disliked, and say what was done
+            request += (f"\nThe user criticised the previous report: \"{state.get('user_text', '')}\". Rework it: go "
+                        "deeper on what they ask for, use every meaningful difference, never apologise.")  # fmt: skip
         text, outputs = await _explain(c, "reporter", system, request, comp.facts, agents.scoped_tools(tools, name))
         allowed = (
             numbers_in(comp.facts) | numbers_in(comp.blocks) | numbers_in(outputs) | numbers_in(_case_summary(case))
         )
         text, dropped = check_numbers(text, allowed)
-        blocks = comp.blocks + ([removal_notice(dropped)] if dropped else [])
+        text, fixed = await _report_check(c, system, request, comp, text, allowed)
+        blocks = comp.blocks + ([removal_notice(dropped + fixed)] if dropped + fixed else [])
+        if critique:
+            text = _critique_lead(state, lang) + "\n\n" + text
         fp = fingerprint(case)
         case.shown.append(
             Shown(
                 turn_seq=len(case.shown) + 1, fingerprint=fp, blocks=[b["type"] for b in blocks], persona=case.persona
             )
         )
-        case.asked = []  # a useful answer was given: a later new ambiguity may be asked about again
+        case.asked = [q for q in case.asked if q in ("KM_PER_YEAR", "FAMILY_SIZE")]  # profile questions: once
+        blocks += _profile_question(case, comp, lang)
+        panel = next((b for b in blocks if b.get("type") == "data_panel"), None)
+        if panel is not None:  # what the next "find it" is compared against (spec 004 FR-015)
+            case.last_values = {x["car_key"]: int(x["values"]) for x in panel["cars"]}
         version = await save_case(c, case, [], publish=False)
         await c.status("done", "Done")
         return {"reply_text": text, "blocks": blocks, "action": "REPORT", "fingerprint": fp, "case_version": version}
@@ -118,7 +194,7 @@ async def answer_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[s
     c = ctx(runtime)
     _, case = await load_case(c)
     nothing_new = bool(state["decision"].get("nothing_new"))
-    comp = await compute(c, case, list(state.get("notices", [])))
+    comp = await compute(c, case, list(state.get("notices", [])), state.get("language", "en"))
     if state.get("case_changed") and case.race_settings is not None:  # a new race: keep it reproducible
         await compose.persist_computations(
             c.turn_id, [], comp.cars, comp.race, {}, case.prediction.model_dump() if case.prediction else None, {}

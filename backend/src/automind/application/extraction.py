@@ -26,6 +26,8 @@ AREA_ATTRS: dict[str, list[str]] = {
 }
 SPEC_AREAS = ("specs", "engineering", "measured", "price")
 PROMPT_FOR_AREA = {
+    "used_price": "extract_used_price",
+    "depreciation": "extract_depreciation",
     "specs": "extract_specs",
     "engineering": "extract_specs",
     "measured": "extract_specs",
@@ -110,14 +112,49 @@ class IssueItems(BaseModel):
 
 
 class ManufacturerEntry(_Excerpted):
-    fact_type: Literal["HISTORY", "KEY_MODEL", "MARKET_POSITION"]
+    fact_type: Literal[
+        "HISTORY", "KEY_MODEL", "MARKET_POSITION", "MARKET_SHARE", "FINANCIAL", "RELIABILITY_REPUTATION", "NETWORK_ES"
+    ]  # fmt: skip
     text: str
     positioning: Literal["PREMIUM", "MAINSTREAM", "BUDGET"] | None = None
+    value_num: float | None = Field(default=None, description="The key number of the fact, e.g. 6.1 (% share)")
+    year: int | None = Field(default=None, description="The year the fact is about, e.g. 2025")
 
 
 class ManufacturerFacts(BaseModel):
     is_about_variant: bool = True
     facts: list[ManufacturerEntry]
+
+
+class UsedPriceEntry(_Excerpted):
+    model_year_from: int | None = None
+    model_year_to: int | None = None
+    min: float
+    max: float
+    currency: Literal["EUR", "GBP", "USD"] = "EUR"
+    market: Literal["ES", "GB", "DE", "US"] = "ES"
+    quoted_on: str | None = None
+
+
+class UsedPriceItems(BaseModel):
+    is_about_variant: bool = True
+    ranges: list[UsedPriceEntry] = Field(default_factory=list)
+
+
+class RetentionPoint(_Excerpted):
+    years: int = Field(description="Age in years the figure is for, e.g. 3 or 5")
+    share_pct: float | None = Field(default=None, description="Value left as % of the new price, e.g. 58")
+    eur: float | None = Field(default=None, description="Or the value left as an amount")
+    currency: Literal["EUR", "GBP", "USD"] = "EUR"
+    market: Literal["ES", "GB", "DE", "US", "EU"] = "ES"
+    quoted_on: str | None = None
+
+
+class DepreciationItems(BaseModel):
+    """spec 004 FR-005: residual value / value retention after N years, from analysts and editorial sources."""
+
+    is_about_variant: bool = True
+    points: list[RetentionPoint] = Field(default_factory=list)
 
 
 def schema_for(area: str) -> type[BaseModel]:
@@ -129,6 +166,8 @@ def schema_for(area: str) -> type[BaseModel]:
         "reliability": IssueItems,
         "used_issues": IssueItems,
         "manufacturer": ManufacturerFacts,
+        "used_price": UsedPriceItems,
+        "depreciation": DepreciationItems,
     }[area]
 
 
@@ -140,7 +179,7 @@ def _norm(t: str) -> str:
 def excerpt_in_doc(excerpt: str, doc_text: str, must_contain: str | None = None) -> bool:
     """The excerpt must literally occur in the document (≥15 chars), and contain `must_contain` if given."""
     ex = _norm(excerpt)
-    if len(ex) < 15 or ex not in _norm(doc_text):
+    if len(ex) < 15 or not ev.occurs(excerpt, doc_text):
         return False
     return must_contain is None or ev.validate_excerpt(excerpt, must_contain, doc_text)
 
@@ -159,12 +198,31 @@ async def extract(llm: LLM, prompts: dict[str, str], area: str, target: str, doc
     )
 
 
+# --- relevance role (spec 003 FR-013): only for pages the rules cannot decide -------------------
+
+
+class RelevanceOut(BaseModel):
+    verdict: Literal["RELEVANT", "MULTI_VARIANT", "OTHER_VARIANT", "NOT_ABOUT_CAR"]
+    other: str | None = None
+    reason: str = ""
+
+
+async def judge_relevance(llm: LLM, prompt: str, target: str, doc: WebDoc) -> RelevanceOut:
+    return await llm.structured(
+        "relevance",
+        RelevanceOut,
+        prompt,
+        f"Target: {target}\n\n"
+        f'<untrusted_document url="{doc.url}">\n{doc.title}\n{doc.text[:3000]}\n</untrusted_document>',
+    )
+
+
 # --- validator role (constitution XI) -----------------------------------------------------------
 
 
 class Verdict(BaseModel):
     index: int
-    verdict: Literal["SAME_VARIANT", "GENERATION_WIDE", "OTHER_VARIANT", "UNCLEAR"]
+    verdict: Literal["SAME_VARIANT", "GENERATION_WIDE", "OTHER_VARIANT", "OTHER_MARKET", "OTHER_YEAR", "UNCLEAR"]
     reason: str = ""
 
 

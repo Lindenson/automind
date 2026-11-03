@@ -1,3 +1,4 @@
+import { useT } from "../../i18n";
 /**
  * The case file: what AutoMind understood about you and the cars (FR-002, FR-009).
  * Desktop: a collapsible right sidebar. Phones (<768 px): a bottom sheet.
@@ -30,6 +31,7 @@ const RESOLUTION: Record<string, { label: string; cls: string }> = {
   PROPOSED: { label: "to confirm", cls: "text-warn border-warn/40" },
   CONFIRMED: { label: "confirmed", cls: "text-good border-good/40" },
   AUTO_OK: { label: "identified", cls: "text-good border-good/40" },
+  UNKNOWN_MODEL: { label: "unknown model", cls: "text-warn border-warn/40" },
 };
 const nice = (s: string) =>
   s.charAt(0) + s.slice(1).toLowerCase().replace(/_/g, " ");
@@ -89,6 +91,7 @@ export function CaseBody() {
   const cf = useChat((s) => s.caseFile);
   const running = useChat((s) => s.pending !== null);
   const [error, setError] = useState<string | null>(null);
+  const t = useT();
   const c = cf?.data;
 
   const save = async (p: CasePatch) => {
@@ -128,8 +131,16 @@ export function CaseBody() {
         </select>
       </Section>
 
-      <Section title="Cars">
-        {c.cars.length === 0 && <p className="text-sm text-muted">None yet.</p>}
+      <AboutYou profile={(c as Record<string, unknown>).profile} annualKm={c.annual_km} />
+
+      <Section title={t("case.cars")}>
+        {c.cars.length === 0 && <p className="text-sm text-muted">{t("case.none")}</p>}
+        {c.cars.length > 1 && (
+          <p className="mb-1.5 text-xs text-muted" data-testid="compare-level">
+            {t("case.level", { level: t(`case.level.${c.compare_level}` as "case.level.BASE") })}
+            {c.compare_level_source === "USER_TRIM" ? t("case.level.user") : t("case.level.default")}
+          </p>
+        )}
         <ul className="space-y-1.5">
           {c.cars.map((car) => {
             const r = RESOLUTION[car.resolution] ?? RESOLUTION.UNRESOLVED!;
@@ -234,6 +245,73 @@ export function CaseBody() {
           unit="€"
           value={c.budget.max_eur}
           onCommit={(v) => void save({ budget: { max_eur: v } })}
+        />
+        <label className="flex items-center justify-between gap-2 text-sm">
+          <span className="text-fg/80">Budget for</span>
+          <select
+            className="rounded border border-line/70 bg-panel2 px-2 py-1 text-sm"
+            value={c.budget.intent ?? "UNKNOWN"}
+            onChange={(e) =>
+              void save({
+                budget: {
+                  intent: e.target.value as "NEW" | "USED" | "ANY" | "UNKNOWN",
+                },
+              })
+            }
+          >
+            <option value="UNKNOWN">not said</option>
+            <option value="NEW">a new car</option>
+            <option value="USED">a used car</option>
+            <option value="ANY">new or used</option>
+          </select>
+        </label>
+        <NumberField
+          label="Running cost limit"
+          unit="€/month"
+          value={
+            c.running_cost_limit
+              ? Math.round(
+                  c.running_cost_limit.period === "YEAR"
+                    ? c.running_cost_limit.amount_eur / 12
+                    : c.running_cost_limit.amount_eur,
+                )
+              : null
+          }
+          onCommit={(v) =>
+            void save(
+              v
+                ? { running_cost_limit: { amount_eur: v, period: "MONTH" } }
+                : { clear_running_cost_limit: true },
+            )
+          }
+        />
+        <NumberField
+          label="People"
+          unit=""
+          value={c.needs.passengers}
+          onCommit={(v) => void save({ needs: { passengers: v } })}
+        />
+        <label className="flex items-center justify-between gap-2 text-sm">
+          <span className="text-fg/80">Luggage</span>
+          <select
+            className="rounded border border-line/70 bg-panel2 px-2 py-1 text-sm"
+            value={c.needs.luggage ?? "MEDIUM"}
+            onChange={(e) =>
+              void save({
+                needs: { luggage: e.target.value as "LOW" | "MEDIUM" | "HIGH" },
+              })
+            }
+          >
+            <option value="LOW">little</option>
+            <option value="MEDIUM">normal</option>
+            <option value="HIGH">a lot</option>
+          </select>
+        </label>
+        <NumberField
+          label="Towing"
+          unit="kg"
+          value={c.needs.towing_kg}
+          onCommit={(v) => void save({ needs: { towing_kg: v } })}
         />
         <NumberField
           label="Per year"
@@ -359,5 +437,41 @@ export function CaseSheet() {
         <CaseBody />
       </div>
     </div>
+  );
+}
+
+const PROFILE_LABELS: Record<string, string> = {
+  age: "Age",
+  experience: "Experience",
+  family: "Travels as",
+  age_band: "Age band",
+  driving_style: "Driving style",
+};
+
+/** What the hub inferred about the user, with the words it came from (spec 004 FR-017). */
+function AboutYou({ profile, annualKm }: { profile: unknown; annualKm: number }) {
+  const t = useT();
+  const p = (profile ?? {}) as Record<string, unknown>;
+  const evidence = (p.evidence ?? {}) as Record<string, string>;
+  const rows = Object.keys(PROFILE_LABELS).filter((k) => p[k] != null && p[k] !== "");
+  return (
+    <Section title={t("case.about")}>
+      {rows.length === 0 ? (
+        <p className="text-sm text-muted">{t("case.about.none")}</p>
+      ) : (
+        <dl className="space-y-1 text-sm">
+          {rows.map((k) => (
+            <div key={k} className="flex flex-wrap justify-between gap-x-2">
+              <dt className="text-muted">{PROFILE_LABELS[k]}</dt>
+              <dd className="text-right">
+                {String(p[k]).toLowerCase().replace("_", " ")}
+                {evidence[k] && <span className="block text-xs text-muted">“{evidence[k]}”</span>}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      <p className="mt-1 text-xs text-muted">{t("case.kmYear", { km: annualKm.toLocaleString() })}</p>
+    </Section>
   );
 }

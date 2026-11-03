@@ -107,7 +107,10 @@ def test_reliability_score_from_documented_issues():
     bad = ReliabilitySummary(minimum_met=True, recurring=2, isolated=1, high=1)
     r1 = score([gti(reliability=clean)], {"reliability": 100}, MODEL).cars[0].parts["reliability"].score
     r2 = score([gti(reliability=bad)], {"reliability": 100}, MODEL).cars[0].parts["reliability"].score
-    assert r1 == 85 and r2 == 85 - 30 - 3 - 10
+    assert r1 == 85 and r2 == 85 - 24 - 1 - 8
+    many = ReliabilitySummary(minimum_met=True, recurring=0, isolated=20, high=1)  # a well-researched car
+    r3 = score([gti(reliability=many)], {"reliability": 100}, MODEL).cars[0].parts["reliability"].score
+    assert r3 == 85 - 8 - 8  # isolated mentions are capped: more research must not mean a worse score
     none = score([gti()], {"reliability": 100}, MODEL).cars[0].parts["reliability"]
     assert none.insufficient and none.score is None
 
@@ -116,8 +119,19 @@ def test_missing_data_is_insufficient_and_low_coverage_is_not_ranked():
     thin = CarFacts(car_id="thin", label="Thin", powertrain="ICE", power_kw=150)
     r = score([gti(), thin], {"performance": 40, "efficiency": 30, "practicality": 30}, MODEL)
     by = {c.car_id: c for c in r.cars}
-    assert by["thin"].parts["efficiency"].insufficient and not by["thin"].ranked and by["thin"].coverage < 0.6
-    assert by["gti"].ranked and r.winner_car_id == "gti"
+    assert by["thin"].parts["efficiency"].insufficient and by["thin"].coverage < 0.6
+    # ranking uses only criteria every car has: here too little in common → no totals, no winner
+    assert r.common == [] and r.winner_car_id is None and by["gti"].total is None
+
+
+def test_a_missing_criterion_does_not_help_a_car():
+    """User report: the car with no performance data won because its weight moved to its strong points."""
+    full = gti(car_id="full")
+    gap = CarFacts(car_id="gap", label="Gap", powertrain="ICE", boot_l=600, seats=5, consumption=5.0)
+    r = score([full, gap], {"performance": 15, "practicality": 45, "efficiency": 40}, MODEL)
+    assert "performance" not in r.common and set(r.common) == {"practicality", "efficiency"}
+    by = {c.car_id: c for c in r.cars}
+    assert by["gap"].parts["performance"].insufficient and by["full"].parts["performance"].score is not None
 
 
 def test_single_car_profile_is_absolute_without_ranking():
@@ -125,6 +139,6 @@ def test_single_car_profile_is_absolute_without_ranking():
     assert r.winner_car_id is None and not r.cars[0].ranked and r.cars[0].total is not None
 
 
-def test_winner_is_deterministic_on_ties():
+def test_close_totals_are_a_tie_not_a_win():
     r = score([gti(car_id="b"), gti(car_id="a")], {"performance": 100}, MODEL)
-    assert r.winner_car_id == "a"
+    assert r.tie and r.winner_car_id is None

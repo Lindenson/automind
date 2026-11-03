@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { mockBlocks } from "../mock/data";
-import { HistorySchema, parseBlocks, parseServerMsg } from "./protocol";
+import { CaseSchema, HistorySchema, parseBlocks, parseServerMsg } from "./protocol";
 
 describe("parseBlocks", () => {
   it("accepts every mock block type and drops unknown ones", () => {
@@ -164,5 +164,67 @@ describe("protocol v2", () => {
       { type: "case_summary", persona: "BUYER", facts: ["budget ≤ €40,000"], cars: [{ key: "car#1", label: "A", condition: "NEW", year: null }] },
     ]);
     expect(blocks.map((b) => b.type)).toEqual(["criteria_scores", "tco", "case_summary"]);
+  });
+});
+
+describe("sources block (spec 003)", () => {
+  it("accepts favourite, reader and rejected marks and stays compatible", () => {
+    const blocks = parseBlocks([
+      {
+        type: "sources",
+        title: "Sources (1)",
+        items: [
+          { name: "km77", url: "https://www.km77.com/x", type: "SPEC_DATABASE", retrieved_at: "2026-11-02",
+            favourite: true, extracted_by: "READER" },
+          { name: "G60 test", url: "https://x/g60", type: "PUBLICATION", retrieved_at: "2026-11-02",
+            rejected: { reason: "other generation: G60 (2023–)", other: "G60 (2023–)" } },
+          { name: "old", url: "https://y", type: "PUBLICATION", retrieved_at: "2026-11-01" },
+        ],
+      },
+    ]);
+    expect(blocks).toHaveLength(1);
+    const b = blocks[0] as { items: { rejected?: { reason: string } | null }[] };
+    expect(b.items[1]?.rejected?.reason).toContain("G60");
+  });
+});
+
+describe("spec 004 US8", () => {
+  it("parses quick replies", () => {
+    const [b] = parseBlocks([
+      { type: "quick_replies", items: [{ label: "Toyota RAV4", text: "Toyota RAV4" }] },
+    ]);
+    expect(b?.type).toBe("quick_replies");
+  });
+  it("keeps a case with an unknown model and the comparison level", () => {
+    const c = CaseSchema.parse({
+      cars: [{ key: "car#1", request_text: "Rav7", resolution: "UNKNOWN_MODEL" }],
+      compare_level: "TOP",
+      compare_level_source: "USER_TRIM",
+    });
+    expect(c.cars[0]?.resolution).toBe("UNKNOWN_MODEL");
+    expect(c.compare_level).toBe("TOP");
+    expect(CaseSchema.parse({ cars: [{ key: "x", resolution: "NEW_STATE" }] }).cars[0]?.resolution).toBe(
+      "UNRESOLVED",
+    );
+  });
+});
+
+describe("spec 004 verdict", () => {
+  it("parses a verdict card with a trade-off and a tie", () => {
+    const [v] = parseBlocks([
+      {
+        type: "verdict",
+        headline: "Too close to call: RAV4 / CX-5",
+        pick_car_id: null,
+        tie: true,
+        reasons: [{ text: "Consumption: RAV4 5.6 vs CX-5 6.4", insight_id: "consumption" }],
+        trade_off: { text: "pays back in 54 years", numbers: [{ label: "x", value: 54, unit: "years" }] },
+        confidence: "MEDIUM",
+        confidence_reason: "part could not be compared",
+        would_change: null,
+      },
+    ]);
+    expect(v?.type).toBe("verdict");
+    if (v?.type === "verdict") expect(v.tie && v.gaps.length === 0).toBe(true);
   });
 });

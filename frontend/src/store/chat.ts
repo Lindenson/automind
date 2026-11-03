@@ -6,8 +6,10 @@ import {
   type ConfirmRequest,
   type StatusMsg,
   type Usage,
+  type ProgressMsg,
 } from "../lib/protocol";
 import type { ConnState, Transport } from "../lib/transport";
+import { asLang, storeLang, storedLang, type Lang } from "../i18n/lang";
 import { loadChatId, saveChatId, uuid } from "../lib/util";
 
 export type ErrorEntry = {
@@ -24,6 +26,7 @@ export interface PendingTurn {
   userMessageId: string;
   startedAt: number;
   statuses: TimedStatus[];
+  grid?: Record<string, ProgressMsg>; // "car_key|area" -> latest state (spec 004 FR-023)
 }
 
 export interface CaseState {
@@ -51,6 +54,12 @@ interface ChatState {
   setHistoryLoading: (v: boolean) => void;
   handleRaw: (raw: unknown) => void;
   send: (text: string) => void;
+  manualLang: Lang | null; // the user's choice in the header (kept in this browser)
+  convoLang: Lang | null; // the conversation's language, from the latest reply
+  setLang: (lang: Lang | null) => void;
+  find: (focusCars: string[], areas: string[], text: string) => void;
+  rate: (messageId: string, rating: number, note: string) => void;
+  challenge: (carId: string, attribute: string) => void;
   answerConfirm: (choice: string, text?: string) => void;
   cancel: () => void;
   setCase: (c: CaseState) => void;
@@ -64,6 +73,8 @@ export const useChat = create<ChatState>((set, get) => ({
   chatId: loadChatId(),
   conn: "connecting",
   messages: [],
+  manualLang: storedLang(),
+  convoLang: null,
   pending: null,
   turnId: null,
   confirm: null,
@@ -92,6 +103,13 @@ export const useChat = create<ChatState>((set, get) => ({
     const msg = parseServerMsg(raw);
     if (!msg) return;
     switch (msg.type) {
+      case "progress":
+        set((s) => {
+          const pending = s.pending ?? { userMessageId: "", startedAt: Date.now(), statuses: [] };
+          const grid = { ...(pending.grid ?? {}), [`${msg.car_key}|${msg.area}`]: msg };
+          return { pending: { ...pending, grid }, turnId: msg.turn_id ?? s.turnId };
+        });
+        break;
       case "status":
         set((s) => {
           const entry = { ...msg, at: Date.now() };
@@ -129,6 +147,27 @@ export const useChat = create<ChatState>((set, get) => ({
           set((s) => ({ usageByTurn: { ...s.usageByTurn, [turnId]: msg } }));
         }
         break;
+      case "challenge_result": {
+        const what: Record<string, string> = {
+          CONFIRMED: `confirmed by ${msg.sources.join(", ")}`,
+          CORRECTED: `corrected: ${msg.before ?? "—"} → ${msg.after ?? "—"}`,
+          REMOVED: `removed (${msg.rejected.map((r) => `${r.source}: ${r.why}`).join("; ")})`,
+          UNRESOLVED: "only one source — use “Find it” to search again",
+        };
+        set((s) => ({
+          messages: [
+            ...s.messages,
+            {
+              role: "assistant",
+              message_id: uuid(),
+              created_at: now(),
+              text: `Re-checked **${msg.attribute.replace(/_/g, " ")}**: ${what[msg.outcome]}.`,
+              blocks: [],
+            },
+          ],
+        }));
+        break;
+      }
       case "turn_cancelled":
         set((s) => ({
           pending: null,
@@ -162,6 +201,7 @@ export const useChat = create<ChatState>((set, get) => ({
             pending: null,
             confirm: null,
             turnId: null,
+            convoLang: asLang(msg.language) ?? s.convoLang,
             messages: [
               ...s.messages,
               {
@@ -177,6 +217,14 @@ export const useChat = create<ChatState>((set, get) => ({
         });
         break;
       case "error":
+        if (msg.code === "chat_deleted") {
+          set({
+            pending: null,
+            confirm: null,
+            messages: [{ role: "error", message_id: uuid(), created_at: now(), text: "This chat was deleted." }],
+          });
+          break;
+        }
         set((s) => ({
           pending: null,
           messages: [
@@ -214,6 +262,34 @@ export const useChat = create<ChatState>((set, get) => ({
   cancel: () => {
     const { transport, turnId } = get();
     transport?.send({ type: "cancel", turn_id: turnId });
+  },
+
+  challenge: (carId, attribute) => {
+    get().transport?.send({ type: "challenge", car_id: carId, attribute, text: "this is wrong" });
+  },
+
+  setLang: (lang) => {
+    storeLang(lang);
+    set({ manualLang: lang });
+  },
+
+  rate: (messageId, rating, note) => {
+    get().transport?.send({ type: "rating", message_id: messageId, rating, note });
+  },
+
+  find: (focusCars, areas, text) => {
+    const { transport, pending } = get();
+    if (pending || !transport) return;
+    const message_id = uuid();
+    if (transport.send({ type: "find", focus_cars: focusCars, areas, text, message_id })) {
+      set((s) => ({
+        messages: [
+          ...s.messages,
+          { role: "user", message_id, created_at: now(), text, blocks: [] },
+        ],
+        pending: { userMessageId: message_id, startedAt: Date.now(), statuses: [] },
+      }));
+    }
   },
 
   send: (text) => {

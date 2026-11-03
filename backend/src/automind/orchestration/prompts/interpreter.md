@@ -31,13 +31,41 @@ Rules
   important"/"above all", LOW if "a bit", else MEDIUM). "not rubbish"/"reliable" → reliability;
   "don't want to spend too much" → ownership_cost and purchase_price; "status"/"prestige" → status.
   A wish that matches no key ("nice colour", "looks cool") goes to `unmapped_wishes` verbatim.
-- Budget → set_budget.max_eur (whole euros). Annual mileage → set_annual_km.
+- Budget → set_budget: max_eur = the amount as stated (whole units), currency EUR/GBP/USD, kind TOTAL or
+  MONTHLY ("€300 a month"), intent NEW / USED / ANY when the user says so ("a new one", "second hand",
+  "new or used"), else UNKNOWN. An answer to the new-or-used question → set_budget with only intent.
+- Running-cost limit ("no more than €150 a month to run", "€2,000 a year on fuel and service") →
+  set_running_cost_limit {amount_eur, period MONTH or YEAR}.
+- Needs: number of people → set_needs.passengers; "lots of luggage"/"family holidays" → luggage HIGH;
+  towing ("a caravan of 1,400 kg") → set_needs.towing_kg; daily distance → set_needs.daily_km.
+- Every number you put in set_budget, set_running_cost_limit or set_needs must be written in the LATEST
+  message; copy the words that contain them into `constraints_evidence`. Never take them from history.
+  Annual mileage → set_annual_km.
 - Race requests: wet/dry, passengers or load (≈75 kg per passenger) → set_race_settings; a guess of
   the winner → set_prediction with the car key.
 - "and for a smart buyer?" after a report → weights_change with set_persona BUYER (ASKED).
 - Answers to a PENDING question fill the corresponding case fields. If PENDING is a variant or
   cost confirmation and the user simply agrees, request is confirm_yes; if they refuse, confirm_no.
+  If the user lets you choose the version ("any", "choose for me", "любой", "выбери сам", "cualquiera"),
+  request is choose_for_me. If the answer does not answer the question (nonsense, another topic, a model
+  you do not know), do NOT guess: leave the delta empty and keep request as it is; never invent a make or model.
+- Who the user is (spec 004): set_profile.family (SINGLE | COUPLE | FAMILY), age_band (UNDER_25 | 25_40 | 40_60 |
+  OVER_60), driving_style (CALM | MIXED | SPORTY) ONLY when the latest message says it, and put the user's
+  verbatim words in set_profile.evidence (e.g. {"family": "two kids and a dog"}). Never guess them.
+- A yearly mileage the user states ("I drive 25,000 km a year", "мало езжу, тысяч 8") → set_annual_km.
+- A gearbox or driven wheels named by the user ("automatic", "manual", "DSG", "4x4", "AWD", "front-wheel
+  drive", "автомат", "механика", "полный привод") go to constraints.gearbox_hint (manual | automatic | dct | cvt |
+  e-cvt | single) and constraints.drive_hint (FWD | RWD | AWD) of that car.
+- A version (equipment level) named by the user ("Homura", "Klass", "GT Line", "base", "top version") goes to
+  constraints.trim_hint of that car.
 - A question about the current cars without new facts → follow_up_question, empty delta.
+- The user is not satisfied with the data and asks to find it or to redo the report ("why is there no data
+  for the Mazda? find it and update the report", "search again", "look deeper", "this is incomplete") →
+  research_more, with `focus_cars` = the car keys they named (empty = all). Never answer such a request with
+  follow_up_question.
+- The user criticises the report ("bad", "useless", "boring", "incomplete", "плохо", "фигня", "скучно",
+  "malo") → critique, with `focus_cars` / `focus_areas` for what they name ("fill in everything for the Mazda"
+  → the Mazda's key, empty areas = all). If they only ask to find data, research_more is fine too.
 - General automotive knowledge ("how does a turbo work?") → general_question, empty delta.
 - language: the language of the latest user message (ru, en, es …).
 

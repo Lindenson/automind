@@ -1,0 +1,25 @@
+# Research benchmark (spec 003 SC-001..SC-006, T010). Cars sold in Spain, built in the last 15 years.
+# `power_ps` is part of the variant's name (its identity), used only to detect values from another
+# variant; it is not a researched fact. `trap` = a sibling generation exists with similar names.
+version: 1
+cars:
+  - {make: Toyota, model: Land Cruiser Prado, generation: J150, variant: "2.8 D-4D 177 CV automático", years: [2015, 2023], powertrain: ICE, fuel: diesel, body: SUV, power_ps: 177, class: premium_suv_4x4, trap: true}
+  - {make: Volkswagen, model: Golf, generation: Mk7, variant: "GTI 2.0 TSI 220 CV", years: [2013, 2016], powertrain: ICE, fuel: petrol, body: HATCHBACK, power_ps: 220, class: compact, trap: true}
+  - {make: Volkswagen, model: Golf, generation: Mk8, variant: "GTI 2.0 TSI 245 CV", years: [2020, 2023], powertrain: ICE, fuel: petrol, body: HATCHBACK, power_ps: 245, class: compact, trap: true}
+  - {make: BMW, model: 3 Series, generation: F30, variant: "320d 190 CV", years: [2015, 2018], powertrain: ICE, fuel: diesel, body: SEDAN, power_ps: 190, class: mid_large, trap: true}
+  - {make: BMW, model: 3 Series, generation: G20, variant: "320d 190 CV", years: [2019, 2022], powertrain: MHEV, fuel: diesel, body: SEDAN, power_ps: 190, class: mid_large, trap: true}
+  - {make: BMW, model: 5 Series, generation: G30, variant: "520d 190 CV", years: [2017, 2023], powertrain: ICE, fuel: diesel, body: SEDAN, power_ps: 190, class: mid_large, trap: true}
+  - {make: Mercedes-Benz, model: E-Class, generation: W213, variant: "E 220 d 194 CV", years: [2016, 2023], powertrain: ICE, fuel: diesel, body: SEDAN, power_ps: 194, class: mid_large, trap: true}
+  - {make: Mercedes-Benz, model: E-Class, generation: W212, variant: "E 220 CDI 170 CV", years: [2013, 2016], powertrain: ICE, fuel: diesel, body: SEDAN, power_ps: 170, class: mid_large, trap: true}
+  - {make: Skoda, model: Octavia, generation: Mk3, variant: "2.0 TDI 150 CV", years: [2013, 2019], powertrain: ICE, fuel: diesel, body: HATCHBACK, power_ps: 150, class: compact, trap: true}
+  - {make: Toyota, model: RAV4, generation: XA50, variant: "220H 218 CV", years: [2019, 2024], powertrain: HEV, fuel: petrol, body: SUV, power_ps: 218, class: mid_large, trap: true}
+  - {make: Honda, model: Civic, generation: FL (11th), variant: "e:HEV 184 CV", years: [2022, 2025], powertrain: HEV, fuel: petrol, body: HATCHBACK, power_ps: 184, class: compact, trap: true}
+  - {make: Hyundai, model: i30 N, generation: PDe, variant: "2.0 T-GDi 280 CV", years: [2018, 2024], powertrain: ICE, fuel: petrol, body: HATCHBACK, power_ps: 280, class: compact, trap: false}
+  - {make: Dacia, model: Duster, generation: Mk2, variant: "1.5 Blue dCi 115 CV", years: [2018, 2023], powertrain: ICE, fuel: diesel, body: SUV, power_ps: 115, class: small, trap: true}
+  - {make: SEAT, model: Leon, generation: Mk4, variant: "1.5 TSI 150 CV", years: [2020, 2025], powertrain: ICE, fuel: petrol, body: HATCHBACK, power_ps: 150, class: compact, trap: true}
+  - {make: Audi, model: A4, generation: B9, variant: "35 TDI 163 CV", years: [2019, 2024], powertrain: MHEV, fuel: diesel, body: SEDAN, power_ps: 163, class: mid_large, trap: false}
+  - {make: Renault, model: Clio, generation: V, variant: "TCe 90 CV", years: [2019, 2025], powertrain: ICE, fuel: petrol, body: HATCHBACK, power_ps: 90, class: small, trap: false}
+  - {make: Kia, model: Sportage, generation: NQ5, variant: "1.6 T-GDi HEV 230 CV", years: [2022, 2025], powertrain: HEV, fuel: petrol, body: SUV, power_ps: 230, class: mid_large, trap: false}
+  - {make: Peugeot, model: "308", generation: P5, variant: "1.2 PureTech 130 CV", years: [2021, 2025], powertrain: ICE, fuel: petrol, body: HATCHBACK, power_ps: 130, class: compact, trap: false}
+  - {make: Tesla, model: Model 3, generation: Highland, variant: "Long Range AWD", years: [2024, 2025], powertrain: BEV, fuel: electric, body: SEDAN, power_ps: null, class: mid_large, trap: true}
+  - {make: Volkswagen, model: Tiguan, generation: Mk2, variant: "2.0 TDI 150 CV", years: [2016, 2023], powertrain: ICE, fuel: diesel, body: SUV, power_ps: 150, class: mid_large, trap: true}

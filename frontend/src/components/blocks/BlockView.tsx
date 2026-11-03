@@ -12,7 +12,13 @@ import { Reliability } from "./Reliability";
 import { Reviews } from "./Reviews";
 import { Sources } from "./Sources";
 import { Tco } from "./Tco";
+import { Feasibility } from "./Feasibility";
 import { SpecTable } from "./SpecTable";
+import { QuickReplies } from "./QuickReplies";
+import { Verdict } from "./Verdict";
+import { DataPanel } from "./DataPanel";
+import { ValueRetention } from "./ValueRetention";
+import { Suggestions } from "./Suggestions";
 
 export function BlockView({ block }: { block: Block }) {
   switch (block.type) {
@@ -40,10 +46,22 @@ export function BlockView({ block }: { block: Block }) {
       return <Manufacturer b={block} />;
     case "tco":
       return <Tco b={block} />;
+    case "feasibility":
+      return <Feasibility b={block} />;
     case "reliability":
       return <Reliability b={block} />;
     case "reviews":
       return <Reviews b={block} />;
+    case "suggestions":
+      return <Suggestions b={block} />;
+    case "value_retention":
+      return <ValueRetention b={block} />;
+    case "data_panel":
+      return <DataPanel b={block} />;
+    case "verdict":
+      return <Verdict b={block} />;
+    case "quick_replies":
+      return <QuickReplies b={block} />;
     default:
       return null;
   }

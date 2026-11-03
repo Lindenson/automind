@@ -9,7 +9,7 @@ never guessed.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Literal
 
 RULES_VERSION = "tco-1.0"
@@ -34,6 +34,8 @@ class TcoRates:
     big_ticket_default_eur: float
     road_tax_eur_per_cvf: float | None
     base_reserve: Mapping[str, list[float]]  # class -> per age band [0-4, 5-9, 10-14, 15+]
+    max_maintenance_eur: Mapping[str, float] = field(default_factory=dict)  # sanity cap per class and year
+    real_world_factor: Mapping[str, float] = field(default_factory=dict)  # official cycle → real use, per powertrain
 
     @classmethod
     def from_config(cls, d: Mapping[str, Any], overrides: Mapping[str, float | None] | None = None) -> TcoRates:
@@ -54,6 +56,8 @@ class TcoRates:
             big_ticket_default_eur=float(d["big_ticket_default_eur"]),
             road_tax_eur_per_cvf=d.get("road_tax_eur_per_cvf"),
             base_reserve={k: [float(x) for x in v] for k, v in table.items() if k in CLASSES},
+            max_maintenance_eur={k: float(v) for k, v in (d.get("max_maintenance_eur_per_year") or {}).items()},
+            real_world_factor={k: float(v) for k, v in (d.get("real_world_factor") or {}).items()},
         )
 
 
@@ -83,7 +87,9 @@ class TcoCar:
     label: str
     powertrain: str
     fuel: str | None = None  # petrol | diesel (ICE/hybrids)
-    consumption: float | None = None  # l/100 km or kWh/100 km (BEV)
+    consumption: float | None = None  # official WLTP, l/100 km or kWh/100 km (BEV)
+    consumption_real: float | None = None  # real-world (tests), preferred for the fuel bill
+    consumption_nedc: float | None = None  # old cycle, used only without WLTP and real-world figures
     vehicle_class: str | None = None
     condition: str = "NEW"
     age_years: int | None = None
@@ -137,8 +143,11 @@ def _cls(car: TcoCar) -> tuple[str, list[str]]:
     return "compact", ["class unknown → compact (assumption)"]
 
 
+MIN_INTERVAL_KM = 1000  # shorter "intervals" are extraction errors (e.g. 16 for 16,000 km), never a schedule
+
+
 def _services_per_year(interval_km: float | None, interval_months: float | None, km: int) -> float:
-    by_km = km / interval_km if interval_km else 0.0
+    by_km = km / interval_km if interval_km and interval_km >= MIN_INTERVAL_KM else 0.0
     by_time = 12 / interval_months if interval_months else 0.0
     return max(by_km, by_time)
 
@@ -146,22 +155,40 @@ def _services_per_year(interval_km: float | None, interval_months: float | None,
 def _maintenance(car: TcoCar, r: TcoRates, km: int, years: int) -> TcoItem:
     pt = car.powertrain if car.powertrain in r.service_hours else "ICE"
     assumed = r.service_hours[pt] * r.labour_eur_per_h + r.service_parts_eur[pt]
-    if not car.maintenance:
-        per_year = km / r.default_interval_km.get(pt, 15000)
-        return _item(
-            "MAINTENANCE",
-            "Scheduled maintenance",
-            per_year * assumed,
-            "ASSUMPTION",
-            [
-                f"no published schedule: 1 service / {r.default_interval_km.get(pt, 15000):.0f} km",
-                f"labour {r.service_hours[pt]} h × €{r.labour_eur_per_h:.0f}/h + parts €{r.service_parts_eur[pt]:.0f}",
-                f"{km:,} km/year",
-            ],
-            years,
-        )
+    sourced = _sourced_maintenance(car, r, km, years, assumed, pt) if car.maintenance else None
+    cap = r.max_maintenance_eur.get(car.vehicle_class or "compact")
+    if sourced is not None and cap and (sourced.annual_eur or 0) > cap:
+        default = _default_maintenance(r, km, years, assumed, pt)
+        return replace(default, inputs=[
+            f"published schedule gave €{sourced.annual_eur:,.0f}/year — implausible for this class "
+            f"(cap €{cap:,.0f}); estimate used instead", *default.inputs])  # fmt: skip
+    return sourced if sourced is not None else _default_maintenance(r, km, years, assumed, pt)
+
+
+def _default_maintenance(r: TcoRates, km: int, years: int, assumed: float, pt: str) -> TcoItem:
+    per_year = km / r.default_interval_km.get(pt, 15000)
+    return _item(
+        "MAINTENANCE",
+        "Scheduled maintenance",
+        per_year * assumed,
+        "ASSUMPTION",
+        [
+            f"no published schedule: 1 service / {r.default_interval_km.get(pt, 15000):.0f} km",
+            f"labour {r.service_hours[pt]} h × €{r.labour_eur_per_h:.0f}/h + parts €{r.service_parts_eur[pt]:.0f}",
+            f"{km:,} km/year",
+        ],
+        years,
+    )
+
+
+def _sourced_maintenance(car: TcoCar, r: TcoRates, km: int, years: int, assumed: float, pt: str) -> TcoItem:
     total, basis, inputs, ev = 0.0, "SOURCED", [], []
+    seen: set[tuple[int, int]] = set()
     for m in car.maintenance:
+        sig = (round((m.interval_km or 0) / 1000), int(m.interval_months or 0))
+        if sig != (0, 0) and sig in seen:  # the same job listed twice (e.g. in two languages)
+            continue
+        seen.add(sig)
         n = _services_per_year(m.interval_km, m.interval_months, km)
         if n == 0:
             continue
@@ -180,8 +207,26 @@ def _maintenance(car: TcoCar, r: TcoRates, km: int, years: int) -> TcoItem:
     return _item("MAINTENANCE", "Scheduled maintenance", total, basis, inputs, years, ev)  # type: ignore[arg-type]
 
 
+def energy_consumption(car: TcoCar, r: TcoRates) -> tuple[float | None, str]:
+    """Consumption for the fuel bill: real-world when sourced, else the official figure × a real-use allowance
+    per powertrain (labelled). WLTP before NEDC; NEDC only when nothing else exists (spec 004 FR-027)."""
+    if car.consumption_real:
+        return car.consumption_real, f"real-world {car.consumption_real:g} (sourced test)"
+    pt = (car.powertrain or "ICE").upper()
+    if car.consumption:
+        f = r.real_world_factor.get(pt, r.real_world_factor.get("ICE", 1.0))
+        return round(car.consumption * f, 2), f"WLTP {car.consumption:g} × {f:g} real-use allowance (assumption)"
+    if car.consumption_nedc:
+        f = r.real_world_factor.get("NEDC", 1.0)
+        return round(
+            car.consumption_nedc * f, 2
+        ), f"NEDC {car.consumption_nedc:g} × {f:g} real-use allowance (assumption)"
+    return None, ""
+
+
 def _energy(car: TcoCar, r: TcoRates, km: int, years: int) -> TcoItem:
-    if not car.consumption:
+    used, how = energy_consumption(car, r)
+    if not used:
         return _item(
             "ENERGY",
             "Energy: not included (consumption not found)",
@@ -196,14 +241,14 @@ def _energy(car: TcoCar, r: TcoRates, km: int, years: int) -> TcoItem:
         price, unit, what = r.diesel_eur_per_l, "l", "diesel"
     else:
         price, unit, what = r.fuel_eur_per_l, "l", "petrol"
-    annual = car.consumption * km / 100 * price
+    annual = used * km / 100 * price
     return _item(
         "ENERGY",
         f"Energy ({what})",
         annual,
         "ASSUMPTION",
         [
-            f"consumption {car.consumption} {unit}/100 km (sourced)",
+            f"consumption {used:g} {unit}/100 km: {how}",
             f"{what} €{price:.2f}/{unit} (assumption)",
             f"{km:,} km/year",
         ],

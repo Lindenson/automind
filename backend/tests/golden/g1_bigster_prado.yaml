@@ -44,7 +44,7 @@ turns:
       action: REPORT
       status: DONE
       no_search: true
-      block_order_starts_with: [case_summary, criteria_scores, tco]
+      block_order_starts_with: [verdict, suggestions, case_summary, criteria_scores, tco]
       variants: [{car: "car#1", model: Bigster}, {car: "car#2", generation: J150}]
       case:
         cars[1].resolution: CONFIRMED

@@ -1,0 +1,81 @@
+# Short, editorial explanations of drivetrain technologies (spec 004 FR-004; research R6). Config, not web
+# text: shown next to sourced values so the report can say what a difference means. match: lowercase words
+# found in the car's transmission / engine / powertrain text.
+version: 1
+explainers:
+  power_split_hybrid:
+    match: [e-cvt, power-split, power split, hybrid synergy, planetary]
+    title: Power-split full hybrid (e-CVT)
+    text: >-
+      A planetary gear set splits the petrol engine's power between the wheels and a generator; two electric
+      motors add or recover energy. There is no stepped gearbox and no clutch, so there are few wear parts.
+    consumption: Very low in town and in traffic, where the car often runs on electricity; the advantage shrinks on the motorway.
+    reliability: Mechanically simple transmission with a long record (Toyota since 1997).
+    feel: Smooth; the engine revs up under hard acceleration ("rubber-band" feel).
+    source: editorial
+  series_hybrid:
+    match: [e:hev, i-mmd, e-power, series hybrid]
+    title: Series-parallel hybrid (Honda e:HEV and similar)
+    text: >-
+      At low and medium speeds the engine drives a generator and an electric motor drives the wheels; at
+      steady motorway speed a clutch couples the engine to the wheels directly.
+    consumption: Low in town; efficient at steady motorway speeds thanks to the direct drive.
+    reliability: Few mechanical parts; a single fixed ratio instead of a gearbox.
+    feel: Feels like an electric car most of the time; engine sound is simulated as stepped revs.
+    source: editorial
+  torque_converter:
+    match: [automatic, torque converter, skyactiv-drive, steptronic, tiptronic]
+    title: Torque-converter automatic
+    text: A conventional automatic with planetary gear sets and a fluid coupling; shifts are smooth and robust.
+    consumption: Slightly higher than a manual or a DCT in older designs; modern 6–8-speed units are close.
+    reliability: Durable when the fluid is changed as scheduled; well suited to towing.
+    feel: Smooth starts and shifts; less direct than a DCT.
+    source: editorial
+  dct:
+    match: [dct, dsg, dual-clutch, dual clutch, s tronic, edc]
+    title: Dual-clutch gearbox
+    text: Two clutches preselect the next gear, so shifts are very fast without interrupting power.
+    consumption: Efficient; close to a manual.
+    reliability: Clutch packs and mechatronics are wear and repair items; dry-clutch types dislike stop-and-go.
+    feel: Quick and direct; can be jerky when manoeuvring.
+    source: editorial
+  cvt:
+    match: [cvt, continuously variable]
+    title: CVT (belt or chain)
+    text: A belt or chain between two variable pulleys gives a continuous range of ratios.
+    consumption: Keeps the engine at its most efficient speed.
+    reliability: Belt and fluid need care; limited torque capacity.
+    feel: The engine speed stays high while the car accelerates.
+    source: editorial
+  manual:
+    match: [manual]
+    title: Manual gearbox
+    text: A clutch pedal and a hand-shifted gearbox.
+    consumption: Depends on the driver; usually close to WLTP.
+    reliability: Simple and cheap to maintain; the clutch is a wear part.
+    feel: Most engaging; tiring in traffic.
+    source: editorial
+  mild_hybrid:
+    match: [mhev, mild hybrid, m hybrid, e-skyactiv, 48v, 24v]
+    title: Mild hybrid (MHEV)
+    text: A belt starter-generator and a small battery help at start and recover braking energy; the car cannot drive on electricity.
+    consumption: A small saving (around 5–10%), mostly in town.
+    reliability: Adds a starter-generator and a battery; otherwise a conventional powertrain.
+    feel: Smoother engine restarts.
+    source: editorial
+  phev:
+    match: [phev, plug-in, plug in]
+    title: Plug-in hybrid (PHEV)
+    text: A larger battery charged from the grid gives an electric range (typically 40–100 km) before it works as a normal hybrid.
+    consumption: Very low when charged daily; higher than a full hybrid when never charged (extra weight).
+    reliability: More components (charger, large battery); battery warranty matters.
+    feel: Electric in town; strong combined power.
+    source: editorial
+  bev_single_speed:
+    match: [single-speed, single speed, reduction, bev]
+    title: Electric drive with a single-speed reduction
+    text: An electric motor drives the wheels through a fixed reduction; there is no gearbox.
+    consumption: Measured in kWh/100 km; cost depends on where you charge.
+    reliability: Very few moving parts; the battery is the main long-term question.
+    feel: Instant torque and silence.
+    source: editorial

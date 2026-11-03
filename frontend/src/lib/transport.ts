@@ -23,6 +23,15 @@ export function loadLastSeq(chatId: string): number {
   }
 }
 
+/** Forget the replay position of a deleted chat. */
+export function clearLastSeq(chatId: string): void {
+  try {
+    sessionStorage.removeItem(seqKey(chatId));
+  } catch {
+    /* storage unavailable */
+  }
+}
+
 function saveLastSeq(chatId: string, seq: number): void {
   try {
     sessionStorage.setItem(seqKey(chatId), String(seq));
@@ -77,10 +86,15 @@ export function createWsTransport(chatId: string, h: TransportHandlers, initialS
       }
       h.onMessage(data);
     };
-    sock.onclose = () => {
+    sock.onclose = (ev) => {
       if (ws !== sock) return;
       ws = null;
       if (closed) return;
+      if (ev.code === 4410) {
+        closed = true; // the chat was deleted: do not reconnect
+        h.onState("closed");
+        return;
+      }
       h.onState("closed");
       schedule();
     };

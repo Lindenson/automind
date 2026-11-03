@@ -6,7 +6,18 @@ import { useChat } from "./chat";
 export type CasePatch = Partial<{
   persona: CaseFile["persona"];
   usage: string[];
-  budget: { max_eur: number | null };
+  budget: Partial<{
+    max_eur: number | null;
+    intent: "NEW" | "USED" | "ANY" | "UNKNOWN";
+  }>;
+  running_cost_limit: { amount_eur: number; period: "MONTH" | "YEAR" };
+  clear_running_cost_limit: boolean;
+  needs: Partial<{
+    passengers: number | null;
+    luggage: "LOW" | "MEDIUM" | "HIGH";
+    towing_kg: number | null;
+    daily_km: number | null;
+  }>;
   annual_km: number;
   rates_override: Record<string, number | null>;
   depth: CaseFile["depth"];

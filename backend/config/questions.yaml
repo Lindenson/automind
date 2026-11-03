@@ -6,3 +6,8 @@ CAR_IDENTITY: "Which exact car do you mean by \"{car}\"? Make and model (and the
 USED_AGE: "For the {car}: roughly how old, or which generation ({options})? The answer changes the reliability and running costs a lot."
 TRIM: "Which version of the {car} do you mean ({options})?"
 PERSONA: "So I can tailor the answer: what matters most to you — low running costs and reliability, driving performance, or the engineering details?"
+BUDGET_INTENT: "With a budget of {options}: are you looking for a new car, a used one, or either?"
+UNKNOWN_MODEL: "I don't know a car called \"{car}\". Did you mean one of these: {options}? Or tell me the make and model again."
+GEARBOX: "The {car} is sold with several gearboxes or drives ({options}). Which one do you mean?"
+KM_PER_YEAR: "Roughly how many kilometres a year do you drive? With these cars it changes which one is cheaper to run."
+FAMILY_SIZE: "Who usually travels in the car (just you, two of you, a family with children)? The cars differ in size."

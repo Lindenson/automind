@@ -1,0 +1,18 @@
+# Feasibility rules (spec 003 FR-019..FR-023, research R11). All values are labelled ASSUMPTION
+# when shown; the operator reviews and updates them.
+version: 1
+# Share of the official new price left at a given age (years), by TCO class. Interpolated linearly.
+depreciation:
+  small:           {0: 1.0, 1: 0.80, 3: 0.62, 5: 0.48, 8: 0.33, 12: 0.20, 15: 0.14, 20: 0.10}
+  compact:         {0: 1.0, 1: 0.78, 3: 0.60, 5: 0.47, 8: 0.33, 12: 0.20, 15: 0.14, 20: 0.10}
+  mid_large:       {0: 1.0, 1: 0.75, 3: 0.55, 5: 0.42, 8: 0.28, 12: 0.17, 15: 0.12, 20: 0.09}
+  premium_suv_4x4: {0: 1.0, 1: 0.80, 3: 0.63, 5: 0.50, 8: 0.36, 12: 0.24, 15: 0.18, 20: 0.14}
+# When the budget fits only an older car, the age range reported is [first age that fits, first age + span].
+used_age_span_years: 3
+max_used_age_years: 20
+usage:
+  boot_l_per_passenger: {LOW: 60, MEDIUM: 100, HIGH: 140}   # boot litres needed per person with luggage
+  min_kw_per_t: {mountains: 60, towing: 45}                 # kW per tonne (towing: car + trailer mass)
+  bev_range_margin: 1.6                                     # daily_km × margin must be ≤ WLTP range
+currency_to_eur: {EUR: 1.0, GBP: 1.17, USD: 0.92}
+monthly_budget_months: 48     # a MONTHLY budget is compared as amount × months (financing, labelled)

@@ -1,3 +1,4 @@
+import { useBlockTitle, useT } from "../../i18n";
 /**
  * Criteria scores (FR-025..FR-028): 0–100 indices per criterion with visible weights. Each car's total
  * bar is split into the weighted contribution of every criterion. Missing data is shown, never guessed.
@@ -11,12 +12,13 @@ import { TrophyIcon } from "../icons";
 const SHADES = [1, 0.8, 0.62, 0.48, 0.36, 0.27, 0.2];
 
 export function CriteriaScores({ b }: { b: BlockOf<"criteria_scores"> }) {
+  const t = useT();
   const color = useCarColor();
   const cars = [...b.cars].sort((x, y) => (y.total ?? -1) - (x.total ?? -1));
   const weightSum = b.criteria.reduce((a, c) => a + c.weight, 0) || 1;
   return (
     <BlockCard
-      title={b.title}
+      title={useBlockTitle(b.type, b.title)}
       icon={<TrophyIcon />}
       right={<span className="chip">scores, not measurements</span>}
     >
@@ -97,7 +99,17 @@ export function CriteriaScores({ b }: { b: BlockOf<"criteria_scores"> }) {
                           {insufficient ? (
                             <i className="text-warn/90">insufficient data</i>
                           ) : (
-                            fmtNum(part!.score, 0)
+                            <>
+                              {fmtNum(part!.score, 0)}
+                              {b.relative?.[cr.key]?.[car.car_id] !== undefined && (
+                                <span
+                                  className="ml-1 text-muted"
+                                  title="relative to the best of the compared cars (= 100)"
+                                >
+                                  ({fmtNum(b.relative[cr.key]![car.car_id]!, 0)}% {t("scores.ofBest")})
+                                </span>
+                              )}
+                            </>
                           )}
                         </span>
                       </div>
@@ -131,6 +143,34 @@ export function CriteriaScores({ b }: { b: BlockOf<"criteria_scores"> }) {
           </span>
         ))}
       </div>
+      {(b.tie ||
+        (b.compared_on && b.compared_on.length < b.criteria.length)) && (
+        <p className="mt-2 text-xs text-muted">
+          {b.tie ? "Too close to call: no winner. " : ""}
+          {b.compared_on && b.compared_on.length < b.criteria.length
+            ? `Totals compare only what every car has data for: ${
+                b.criteria
+                  .filter((c) => b.compared_on?.includes(c.key))
+                  .map((c) => c.label)
+                  .join(", ") || "—"
+              }.`
+            : ""}
+        </p>
+      )}
+      {b.not_compared && b.not_compared.length > 0 && (
+        <p className="mt-2 text-xs text-muted" data-testid="not-compared">
+          {t("scores.notCompared")}
+          {b.criteria
+            .filter((c) => b.not_compared?.includes(c.key))
+            .map((c) => c.label)
+            .join(", ")}
+        </p>
+      )}
+      {b.single && (
+        <p className="mt-2 text-xs text-muted">
+          {t("scores.single")}
+        </p>
+      )}
       {b.unmapped_wishes.length > 0 && (
         <p className="mt-2 text-xs text-muted">
           Not assessable with data: {b.unmapped_wishes.join(", ")}

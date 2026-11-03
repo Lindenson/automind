@@ -34,3 +34,19 @@ def test_patch_rates_can_be_cleared_back_to_default():
     assert a.rates_override.fuel_eur_per_l == 1.7
     b, changes = apply_patch(a, CasePatch(rates_override={"fuel_eur_per_l": None}), current_year=2026)
     assert b.rates_override.fuel_eur_per_l is None and changes == ["rates: defaults"]
+
+
+def test_patch_constraints_partial_and_clear():
+    from automind.api.rest import CasePatch, apply_patch
+    from automind.domain.casefile import Budget, CaseFile
+
+    c = CaseFile(budget=Budget(max_eur=25000, intent="USED"))
+    new, ch = apply_patch(c, CasePatch.model_validate({"budget": {"intent": "NEW"}}), current_year=2026)
+    assert new.budget.max_eur == 25000 and new.budget.intent == "NEW" and ch
+    new, _ = apply_patch(new, CasePatch.model_validate({"budget": {"max_eur": None}}), current_year=2026)
+    assert new.budget.max_eur is None
+    new, _ = apply_patch(new, CasePatch.model_validate({"running_cost_limit": {"amount_eur": 200},
+                                                        "needs": {"passengers": 5}}), current_year=2026)  # fmt: skip
+    assert new.running_cost_limit.per_month == 200 and new.needs.passengers == 5
+    new, _ = apply_patch(new, CasePatch.model_validate({"clear_running_cost_limit": True}), current_year=2026)
+    assert new.running_cost_limit is None

@@ -64,6 +64,20 @@ BudgetFactory = Callable[[str, str], TurnBudget]
 InputHook = Callable[[str, str, str], Awaitable[dict[str, Any]]]
 
 
+_PROVIDER_BUSY = ("503", "UNAVAILABLE", "high demand", "overloaded", "RESOURCE_EXHAUSTED", "429",
+                  "ProviderUnavailable", "RateLimit", "insufficient_quota")  # fmt: skip
+
+
+def user_error_text(e: BaseException) -> str:
+    """A plain message for the user; technical details stay in the event's `detail` and in the logs."""
+    raw = f"{type(e).__name__}: {e}"
+    if any(k in raw for k in _PROVIDER_BUSY):
+        return ("The AI service is overloaded or out of quota right now. Nothing is lost: send the message "
+                "again in a minute. / Сервис ИИ сейчас перегружен или исчерпал квоту. Ничего не потеряно — "
+                "отправьте сообщение ещё раз через минуту.")  # fmt: skip
+    return "Something went wrong on my side. Please try again. / Что-то пошло не так. Попробуйте ещё раз."
+
+
 class ChatRunner:
     def __init__(
         self,
@@ -87,8 +101,11 @@ class ChatRunner:
 
     # --- public API ---------------------------------------------------------------------------
 
-    async def run_turn(self, chat_id: str, text: str, message_id: str | None = None) -> TurnResult:
-        """Handle a user message: resume a pending confirmation, or start a new turn."""
+    async def run_turn(
+        self, chat_id: str, text: str, message_id: str | None = None, preset: dict[str, Any] | None = None
+    ) -> TurnResult:
+        """Handle a user message: resume a pending confirmation, or start a new turn. `preset` is a request a
+        button already knows (e.g. "find it": research_more for given cars and areas): no interpretation call."""
         active = await self.ports.turns.active(chat_id)
         if active is not None and active.status == "RUNNING":
             raise Busy("a turn is already running in this chat")
@@ -100,7 +117,7 @@ class ChatRunner:
             return await self._spawn(chat_id, active.id, Command(resume={"choice": "text", "text": text}))
         version, _, _ = await self.ports.cases.latest(chat_id)
         turn = await self.ports.turns.start(chat_id, msg.id, version)
-        inputs: dict[str, Any] = {"chat_id": chat_id, "turn_id": turn.id, "user_text": text}
+        inputs: dict[str, Any] = {"chat_id": chat_id, "turn_id": turn.id, "user_text": text, "preset": preset}
         if self.prepare_input is not None:
             inputs |= await self.prepare_input(chat_id, turn.id, text)
         return await self._spawn(chat_id, turn.id, inputs)
@@ -163,12 +180,15 @@ class ChatRunner:
         if not isinstance(inputs, dict):  # resume (Command) or restart (None): keep usage counted so far
             stored = await self.ports.turns.get(turn_id)
             budget.restore(stored.usage if stored is not None else None)
+            snap = await self.graph.aget_state(self._config(chat_id, turn_id))
+            budget.extend(int((snap.values or {}).get("limit_extensions") or 0))  # earlier "continue" answers
         ctx = TurnContext(self.ports, chat_id, turn_id, budget)
         token = current_budget.set(budget)
         started = time.monotonic()
         await self.ports.turns.update(turn_id, status="RUNNING")
         try:
-            async with asyncio.timeout(budget.limits.turn_timeout_s):
+            # safety net only: research pauses (and asks) at 85% of the turn time, see TurnBudget.research_pause
+            async with asyncio.timeout(budget.limits.turn_timeout_s * 1.5):
                 final = await self.graph.ainvoke(inputs, self._config(chat_id, turn_id), context=ctx)
             snapshot = await self.graph.aget_state(self._config(chat_id, turn_id))
             if snapshot.interrupts:
@@ -186,7 +206,7 @@ class ChatRunner:
             return await self._done(ctx, final, started)
         except Exception as e:
             await self.ports.turns.update(turn_id, status="FAILED", usage=budget.snapshot())
-            await ctx.emit("error", {"text": f"{type(e).__name__}: {e}"[:500]})
+            await ctx.emit("error", {"text": user_error_text(e), "detail": f"{type(e).__name__}: {e}"[:500]})
             raise
         finally:
             current_budget.reset(token)
@@ -242,6 +262,7 @@ class ChatRunner:
                 "blocks": blocks,
                 "action": action,
                 "role": "assistant",
+                "language": final.get("language"),  # spec 004 FR-024: the interface follows the conversation
             },
         )
         await ctx.emit("usage", usage)

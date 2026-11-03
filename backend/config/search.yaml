@@ -1,0 +1,24 @@
+# Web search (research R1–R3, R16). The provider is chosen here; env SEARCH_PROVIDER overrides it.
+# Results are hits only (url, title, snippet); page text always comes from our own page store.
+version: 1
+provider: serper            # serper | serpapi | tavily
+fallback: [tavily]          # tried in order when the provider fails, has no key or no credit
+num: 10                     # results per query
+cache_ttl_days: {default: 7, price: 3}
+markets:                    # case market → provider locale
+  ES: {gl: es, hl: es}
+  EN: {gl: gb, hl: en}
+  DE: {gl: de, hl: de}
+default_markets: [ES, EN]   # markets searched when the case does not name one (cars are priced for Spain)
+area_markets:               # markets searched per area (German instrumented tests and breakdown statistics help)
+  measured: [ES, EN, DE]
+  reliability: [ES, EN, DE]
+  used_issues: [ES, EN, DE]
+  used_price: [ES, EN]
+  depreciation: [ES, EN]   # residual values: Spanish and UK analysts (spec 004)
+sites_per_query: 4          # favourite sites grouped into one `site:a OR site:b` query
+ai_followup: {max_queries_per_area: 3, depths: [DEEP, STANDARD]}
+limits: {max_pages_per_job: 6, max_fetch_bytes_per_turn: 40000000}
+# Parallel research (spec 004 FR-032): pages of a job run as independent pipelines (relevance → extraction →
+# validation → storage). llm_per_job bounds model calls of one job; llm_total bounds them across all jobs.
+concurrency: {llm_per_job: 6, llm_total: 16}

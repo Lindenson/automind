@@ -6,6 +6,7 @@ only translates them into the user's language and adds one sentence acknowledgin
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from automind.application.ports import LLM
@@ -26,21 +27,56 @@ def fill_questions(
         if kind == "TOO_MANY_CARS":
             opts = ", ".join(f"{c.key}: {c.request_text}" for c in case.cars)
             items.append({"kind": kind, "car": None, "text": tpl.format(options=opts, car="", count=len(case.cars))})
-        elif kind in ("CAR_IDENTITY", "USED_AGE", "TRIM"):
+        elif kind in ("CAR_IDENTITY", "USED_AGE", "TRIM", "UNKNOWN_MODEL", "GEARBOX"):
             for key in concerned:
                 car = cars.get(key)
                 if car is None or not _concerns(kind, car):
                     continue
-                opts = ", ".join(generations.get(key, [])) or "year or generation"
+                if kind == "UNKNOWN_MODEL":
+                    opts = ", ".join(_closest(car)) or "make and model"
+                else:
+                    opts = ", ".join(generations.get(key, [])) or "year or generation"
                 items.append(
                     {"kind": kind, "car": key, "text": tpl.format(car=car.request_text, options=opts, count=1)}
                 )
+        elif kind == "BUDGET_INTENT":
+            b = case.budget
+            amount = f"{b.max_eur:,} {b.currency}" + (" a month" if b.kind == "MONTHLY" else "")
+            items.append({"kind": kind, "car": None, "text": tpl.format(car="", options=amount, count=0)})
         else:
             items.append({"kind": kind, "car": None, "text": tpl.format(car="", options="", count=0)})
     return items[:3]
 
 
+def _closest(car: Any) -> list[str]:
+    return [str(a.get("model")) for a in (car.alternatives or []) if isinstance(a, dict) and a.get("model")]
+
+
+def quick_replies(
+    items: list[dict[str, Any]], case: CaseFile, remove_label: Callable[[str], str], choose_label: str
+) -> list[dict[str, str]]:
+    """One-tap answers under a question (spec 004 FR-031): the closest known models for an unknown one,
+    and "remove this car" for every car question. Labels come from the caller in the user's language."""
+    out: list[dict[str, str]] = []
+    cars = {c.key: c for c in case.cars}
+    for q in items:
+        car = cars.get(str(q.get("car") or ""))
+        if car is None:
+            continue  # questions about the user, not a car, get their replies below
+        if q["kind"] == "UNKNOWN_MODEL":
+            out += [{"label": m, "text": m} for m in _closest(car)]
+        if q["kind"] in ("CAR_IDENTITY", "UNKNOWN_MODEL", "TRIM", "GEARBOX", "USED_AGE"):
+            label = remove_label(car.request_text)
+            out.append({"label": label, "text": label})
+        if q["kind"] in ("TRIM", "GEARBOX"):
+            out.append({"label": choose_label, "text": choose_label})
+
+    return out[:6]
+
+
 def _concerns(kind: str, car: Any) -> bool:
+    if kind == "UNKNOWN_MODEL":
+        return car.resolution == "UNKNOWN_MODEL"
     if kind == "USED_AGE":
         return car.condition == "USED" and car.year is None
     if kind == "CAR_IDENTITY":

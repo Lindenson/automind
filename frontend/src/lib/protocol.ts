@@ -22,9 +22,21 @@ export type Confidence = z.infer<typeof ConfidenceSchema>;
 export const SourceRefSchema = z.object({
   name: z.string(),
   url: z.string(),
-  type: z.enum(["MANUFACTURER", "INSTRUMENTED_TEST", "PUBLICATION", "ENCYCLOPEDIA", "SPEC_DATABASE"]),
+  type: z.enum([
+    "MANUFACTURER",
+    "INSTRUMENTED_TEST",
+    "PUBLICATION",
+    "ENCYCLOPEDIA",
+    "SPEC_DATABASE",
+  ]),
   retrieved_at: z.string(),
   excerpt: z.string().nullish(),
+  // spec 003 (FR-012): favourite source, values read from the site's table, or rejected for another variant
+  favourite: z.boolean().nullish(),
+  extracted_by: z.enum(["READER", "LLM"]).nullish(),
+  rejected: z
+    .object({ reason: z.string(), other: z.string().nullish() })
+    .nullish(),
 });
 export type SourceRef = z.infer<typeof SourceRefSchema>;
 
@@ -45,6 +57,8 @@ const SpecValueSchema = z.object({
   provenance: ProvenanceSchema.nullable(),
   confidence: ConfidenceSchema.nullable(),
   sources: z.array(SourceRefSchema),
+  missing: z.boolean().nullish(), // spec 004 FR-016
+  better: z.boolean().nullish(), // the clearly best car of a meaningful difference
 });
 export type SpecValue = z.infer<typeof SpecValueSchema>;
 
@@ -58,6 +72,7 @@ export const SpecTableBlockSchema = z.object({
       label: z.string(),
       unit: z.string().nullable(),
       values: z.array(SpecValueSchema),
+      meaningful: z.boolean().nullish(),
     }),
   ),
 });
@@ -71,7 +86,13 @@ export const MetricBarsBlockSchema = z.object({
       label: z.string(),
       unit: z.string(),
       better: z.enum(["higher", "lower"]),
-      values: z.array(z.object({ car_id: z.string(), label: z.string(), value: z.number().nullable() })),
+      values: z.array(
+        z.object({
+          car_id: z.string(),
+          label: z.string(),
+          value: z.number().nullable(),
+        }),
+      ),
     }),
   ),
 });
@@ -109,12 +130,18 @@ export const RaceChartBlockSchema = z.object({
       claimed_0_100: z.number().nullable(),
     }),
   ),
-  excluded: z.array(z.object({ car_id: z.string(), label: z.string(), reason: z.string() })),
+  excluded: z.array(
+    z.object({ car_id: z.string(), label: z.string(), reason: z.string() }),
+  ),
   assumptions: z.array(
     z.object({
       car_id: z.string(),
       items: z.array(
-        z.object({ name: z.string(), value: z.union([z.number(), z.string()]), unit: z.string().nullable() }),
+        z.object({
+          name: z.string(),
+          value: z.union([z.number(), z.string()]),
+          unit: z.string().nullable(),
+        }),
       ),
     }),
   ),
@@ -124,7 +151,9 @@ export const ProfileScoresBlockSchema = z.object({
   type: z.literal("profile_scores"),
   title: z.string(),
   profile: z.enum(["performance", "smart_buyer", "tech"]),
-  criteria: z.array(z.object({ key: z.string(), label: z.string(), weight: z.number() })),
+  criteria: z.array(
+    z.object({ key: z.string(), label: z.string(), weight: z.number() }),
+  ),
   scores: z.array(
     z.object({
       car_id: z.string(),
@@ -165,7 +194,12 @@ export const NoticeBlockSchema = z.object({
 });
 
 export const BasisSchema = z.enum(["SOURCED", "ASSUMPTION"]);
-export const PersonaSchema = z.enum(["EXPERT", "PERFORMANCE", "BUYER", "UNKNOWN"]);
+export const PersonaSchema = z.enum([
+  "EXPERT",
+  "PERFORMANCE",
+  "BUYER",
+  "UNKNOWN",
+]);
 export type Persona = z.infer<typeof PersonaSchema>;
 export const ConditionSchema = z.enum(["NEW", "USED", "UNKNOWN"]);
 
@@ -173,14 +207,28 @@ export const CaseSummaryBlockSchema = z.object({
   type: z.literal("case_summary"),
   persona: PersonaSchema,
   facts: z.array(z.string()),
-  cars: z.array(z.object({ key: z.string(), label: z.string(), condition: ConditionSchema, year: z.number().nullable() })),
+  cars: z.array(
+    z.object({
+      key: z.string(),
+      label: z.string(),
+      condition: ConditionSchema,
+      year: z.number().nullable(),
+    }),
+  ),
 });
 
 export const CriteriaScoresBlockSchema = z.object({
   type: z.literal("criteria_scores"),
   title: z.string(),
   criteria_version: z.number(),
-  criteria: z.array(z.object({ key: z.string(), label: z.string(), weight: z.number(), definition: z.string() })),
+  criteria: z.array(
+    z.object({
+      key: z.string(),
+      label: z.string(),
+      weight: z.number(),
+      definition: z.string(),
+    }),
+  ),
   cars: z.array(
     z.object({
       car_id: z.string(),
@@ -190,12 +238,21 @@ export const CriteriaScoresBlockSchema = z.object({
       coverage: z.number(),
       parts: z.record(
         z.string(),
-        z.object({ score: z.number().nullable(), insufficient: z.boolean(), inputs: z.array(z.string()) }),
+        z.object({
+          score: z.number().nullable(),
+          insufficient: z.boolean(),
+          inputs: z.array(z.string()),
+        }),
       ),
     }),
   ),
   winner_car_id: z.string().nullable(),
   unmapped_wishes: z.array(z.string()),
+  compared_on: z.array(z.string()).nullish(), // criteria every car has data for (the ranking basis)
+  relative: z.record(z.string(), z.record(z.string(), z.number())).nullish(), // spec 004: best car = 100
+  not_compared: z.array(z.string()).nullish(), // criteria some car has no data for
+  single: z.boolean().nullish(),
+  tie: z.boolean().nullish(),
 });
 
 export const TcoBlockSchema = z.object({
@@ -212,7 +269,14 @@ export const TcoBlockSchema = z.object({
       five_year_total: z.number(),
       items: z.array(
         z.object({
-          kind: z.enum(["MAINTENANCE", "ENERGY", "TYRES", "ROAD_TAX", "BIG_TICKET", "BASE_RESERVE"]),
+          kind: z.enum([
+            "MAINTENANCE",
+            "ENERGY",
+            "TYRES",
+            "ROAD_TAX",
+            "BIG_TICKET",
+            "BASE_RESERVE",
+          ]),
           label: z.string(),
           annual_eur: z.number().nullable(),
           five_year_eur: z.number().nullable(),
@@ -244,7 +308,13 @@ export const ReliabilityBlockSchema = z.object({
         }),
       ),
       stats: z.array(
-        z.object({ source: z.string(), metric: z.string(), value: z.string(), year: z.number().nullable(), url: z.string() }),
+        z.object({
+          source: z.string(),
+          metric: z.string(),
+          value: z.string(),
+          year: z.number().nullable(),
+          url: z.string(),
+        }),
       ),
       none_found: z.boolean(),
     }),
@@ -290,6 +360,20 @@ export const EngineeringBlockSchema = z.object({
           sources: z.array(SourceRefSchema),
         }),
       ),
+      // spec 004 FR-004: what the drivetrain technology means (editorial config text)
+      explainers: z
+        .array(
+          z.object({
+            key: z.string(),
+            title: z.string(),
+            text: z.string(),
+            consumption: z.string().nullish(),
+            reliability: z.string().nullish(),
+            feel: z.string().nullish(),
+            source: z.string(),
+          }),
+        )
+        .default([]),
     }),
   ),
 });
@@ -302,16 +386,167 @@ export const ManufacturerBlockSchema = z.object({
       make: z.string(),
       facts: z.array(
         z.object({
-          kind: z.enum(["HISTORY", "KEY_MODEL", "MARKET_POSITION"]),
+          kind: z.string(), // HISTORY | KEY_MODEL | MARKET_POSITION | MARKET_SHARE | FINANCIAL | … (spec 004)
           text: z.string(),
+          year: z.number().nullish(),
           sources: z.array(SourceRefSchema),
+        }),
+      ),
+      insufficient: z.boolean().nullish(),
+    }),
+  ),
+});
+
+// spec 004 FR-005: value left after 3 and 5 years, sourced or the labelled depreciation curve
+export const ValueRetentionBlockSchema = z.object({
+  type: z.literal("value_retention"),
+  title: z.string(),
+  cars: z.array(
+    z.object({
+      car_id: z.string(),
+      label: z.string(),
+      points: z.array(
+        z.object({
+          years: z.number(),
+          share: z.number().nullable(),
+          eur: z.number().nullable(),
+          basis: z.enum(["SOURCED", "ASSUMPTION"]),
+          market: z.string(),
+          sources: z.array(SourceRefSchema.partial().passthrough()).default([]),
+          low: z.number().nullish(),
+          high: z.number().nullish(),
         }),
       ),
     }),
   ),
 });
 
+// spec 003 US3: does the request fit the user's budget and needs?
+export const FeasibilityBlockSchema = z.object({
+  type: z.literal("feasibility"),
+  title: z.string(),
+  constraints: z.array(z.string()),
+  cars: z.array(
+    z.object({
+      car_id: z.string(),
+      label: z.string(),
+      checks: z.array(
+        z.object({
+          check: z.enum([
+            "BUDGET",
+            "RUNNING_COST",
+            "USAGE_SPACE",
+            "USAGE_POWER",
+            "USAGE_RANGE",
+          ]),
+          label: z.string(),
+          verdict: z.enum([
+            "FITS",
+            "DOES_NOT_FIT",
+            "USED_ONLY",
+            "OTHER_CLASS",
+            "UNKNOWN",
+          ]),
+          summary: z.string(),
+          compared: z.array(
+            z.object({
+              label: z.string(),
+              value: z.number().nullable(),
+              unit: z.string(),
+              basis: BasisSchema,
+              sources: z.array(SourceRefSchema),
+              inputs: z.array(z.string()),
+            }),
+          ),
+          used_age: z
+            .object({
+              from_years: z.number(),
+              to_years: z.number(),
+              basis: z.enum(["EDITORIAL", "ASSUMPTION"]),
+            })
+            .nullish(),
+          missing: z.array(z.string()).nullish(),
+        }),
+      ),
+    }),
+  ),
+});
+
+// spec 004 FR-031: one-tap answers under a question (closest models, "remove this car", "choose for me")
+export const QuickRepliesBlockSchema = z.object({
+  type: z.literal("quick_replies"),
+  question: z.string().nullish(), // spec 004 FR-018: a question about the user under the report
+  items: z.array(z.object({ label: z.string(), text: z.string() })),
+});
+
+// spec 004 FR-001: the verdict card, built by code (contracts/report-blocks-and-protocol.md)
+export const VerdictBlockSchema = z.object({
+  type: z.literal("verdict"),
+  headline: z.string(),
+  pick_car_id: z.string().nullable(),
+  tie: z.boolean(),
+  reasons: z.array(z.object({ text: z.string(), insight_id: z.string() })).default([]),
+  trade_off: z
+    .object({
+      text: z.string(),
+      numbers: z
+        .array(z.object({ label: z.string(), value: z.number(), unit: z.string() }))
+        .default([]),
+    })
+    .nullable()
+    .default(null),
+  confidence: z.enum(["HIGH", "MEDIUM", "LOW"]),
+  confidence_reason: z.string(),
+  would_change: z.string().nullable().default(null),
+  gaps: z.array(z.string()).default([]),
+});
+
+// spec 004 FR-014: one "what we know" panel per report
+export const DataPanelBlockSchema = z.object({
+  type: z.literal("data_panel"),
+  cars: z.array(
+    z.object({
+      car_id: z.string(),
+      car_key: z.string(),
+      label: z.string(),
+      values: z.number(),
+      areas: z.array(
+        z.object({
+          area: z.string(),
+          status: z.enum(["COMPLETE", "PARTIAL", "MISSING", "UNAVAILABLE"]),
+          reason: z.string().nullable(),
+          findable: z.boolean(),
+        }),
+      ),
+    }),
+  ),
+  changed: z.string().nullable(),
+});
+
+// spec 004 FR-020: next steps
+export const SuggestionsBlockSchema = z.object({
+  type: z.literal("suggestions"),
+  items: z.array(
+    z.object({
+      id: z.string(),
+      label: z.string(),
+      request: z.object({
+        kind: z.string(),
+        text: z.string(),
+        focus_cars: z.array(z.string()).nullish(),
+        areas: z.array(z.string()).nullish(),
+      }),
+    }),
+  ),
+});
+
 export const BlockSchema = z.discriminatedUnion("type", [
+  SuggestionsBlockSchema,
+  ValueRetentionBlockSchema,
+  DataPanelBlockSchema,
+  VerdictBlockSchema,
+  QuickRepliesBlockSchema,
+  FeasibilityBlockSchema,
   SpecTableBlockSchema,
   MetricBarsBlockSchema,
   RaceChartBlockSchema,
@@ -327,10 +562,14 @@ export const BlockSchema = z.discriminatedUnion("type", [
   EngineeringBlockSchema,
   ManufacturerBlockSchema,
 ]);
-export type Block = z.infer<typeof BlockSchema>;
+/** Layout of a block for the user's profile (spec 004 FR-002): its collapsible section and depth. */
+export type BlockMeta = { section?: string; open?: boolean; depth?: string };
+export type Block = z.infer<typeof BlockSchema> & BlockMeta;
 export type BlockOf<T extends Block["type"]> = Extract<Block, { type: T }>;
 
-const KNOWN_BLOCK_TYPES = new Set<string>(BlockSchema.options.map((o) => o.shape.type.value));
+const KNOWN_BLOCK_TYPES = new Set<string>(
+  BlockSchema.options.map((o) => o.shape.type.value),
+);
 
 /**
  * Parse a raw block list. Unknown block types are silently dropped; known
@@ -341,11 +580,25 @@ export function parseBlocks(raw: unknown): Block[] {
   if (!Array.isArray(raw)) return [];
   const out: Block[] = [];
   for (const item of raw) {
-    const type = typeof item === "object" && item !== null ? (item as { type?: unknown }).type : undefined;
+    const type =
+      typeof item === "object" && item !== null
+        ? (item as { type?: unknown }).type
+        : undefined;
     if (typeof type !== "string" || !KNOWN_BLOCK_TYPES.has(type)) continue;
     const res = BlockSchema.safeParse(item);
-    if (res.success) out.push(res.data);
-    else console.warn(`[automind] dropped invalid ${type} block`, res.error.issues);
+    if (res.success) {
+      const m = item as BlockMeta;
+      const meta: BlockMeta = {};
+      if (typeof m.section === "string") meta.section = m.section;
+      if (typeof m.open === "boolean") meta.open = m.open;
+      if (typeof m.depth === "string") meta.depth = m.depth;
+      out.push({ ...res.data, ...meta });
+    }
+    else
+      console.warn(
+        `[automind] dropped invalid ${type} block`,
+        res.error.issues,
+      );
   }
   return out;
 }
@@ -359,8 +612,12 @@ export const StageSchema = z.enum([
   "resolving",
   "cache",
   "researching",
+  "searching",
+  "reading",
+  "relevance",
   "validating",
   "followup",
+  "feasibility",
   "estimating",
   "computing",
   "analyzing",
@@ -403,6 +660,7 @@ export const AssistantMsgSchema = z.object({
   text: z.string(),
   blocks: RawBlocks,
   action: ActionSchema.nullish(),
+  language: z.string().nullish(), // spec 004 FR-024: drives the interface language
 });
 
 export const UserAckSchema = z.object({
@@ -412,7 +670,12 @@ export const UserAckSchema = z.object({
   created_at: z.string(),
 });
 
-export const ErrorMsgSchema = z.object({ ...Envelope, type: z.literal("error"), text: z.string() });
+export const ErrorMsgSchema = z.object({
+  ...Envelope,
+  type: z.literal("error"),
+  text: z.string(),
+  code: z.string().nullish(), // e.g. "chat_deleted"
+});
 
 /** The case file is rendered by the case panel; its inner shape is validated loosely (data-model §2). */
 export const CaseCarSchema = z.object({
@@ -424,23 +687,55 @@ export const CaseCarSchema = z.object({
   mileage_km: z.number().nullish(),
   variant_id: z.string().nullish(),
   label: z.string().nullish(),
-  resolution: z.enum(["UNRESOLVED", "PROPOSED", "CONFIRMED", "AUTO_OK"]).default("UNRESOLVED"),
+  resolution: z
+    .enum(["UNRESOLVED", "PROPOSED", "CONFIRMED", "AUTO_OK", "UNKNOWN_MODEL"])
+    .catch("UNRESOLVED"),
 });
 export const CaseSchema = z
   .object({
     persona: PersonaSchema.default("UNKNOWN"),
     usage: z.array(z.string()).default([]),
-    budget: z.object({ max_eur: z.number().nullish(), note: z.string().nullish() }).partial().default({}),
+    budget: z
+      .object({
+        max_eur: z.number().nullish(),
+        note: z.string().nullish(),
+        intent: z.enum(["NEW", "USED", "ANY", "UNKNOWN"]),
+        currency: z.enum(["EUR", "GBP", "USD"]),
+        kind: z.enum(["TOTAL", "MONTHLY"]),
+      })
+      .partial()
+      .default({}),
+    running_cost_limit: z
+      .object({ amount_eur: z.number(), period: z.enum(["MONTH", "YEAR"]) })
+      .nullish(),
+    needs: z
+      .object({
+        passengers: z.number().nullish(),
+        luggage: z.enum(["LOW", "MEDIUM", "HIGH"]),
+        towing_kg: z.number().nullish(),
+        daily_km: z.number().nullish(),
+      })
+      .partial()
+      .default({}),
     annual_km: z.number().default(15000),
     depth: z.enum(["QUICK", "STANDARD", "DEEP"]).default("STANDARD"),
     priorities: z
-      .array(z.object({ criterion: z.string(), strength: z.enum(["LOW", "MEDIUM", "HIGH"]), source: z.string() }))
+      .array(
+        z.object({
+          criterion: z.string(),
+          strength: z.enum(["LOW", "MEDIUM", "HIGH"]),
+          source: z.string(),
+        }),
+      )
       .default([]),
     weights: z.record(z.string(), z.number()).default({}),
     weights_overridden: z.boolean().default(false),
     unmapped_wishes: z.array(z.string()).default([]),
     rates_override: z.record(z.string(), z.number().nullish()).default({}),
     cars: z.array(CaseCarSchema).default([]),
+    // spec 004 FR-029: the equipment level all cars are compared at
+    compare_level: z.enum(["BASE", "MID", "TOP"]).catch("BASE").default("BASE"),
+    compare_level_source: z.enum(["DEFAULT", "USER_TRIM"]).catch("DEFAULT").default("DEFAULT"),
   })
   .passthrough();
 export type CaseFile = z.infer<typeof CaseSchema>;
@@ -457,11 +752,25 @@ export const ConfirmRequestSchema = z.object({
   ...Envelope,
   type: z.literal("confirm_request"),
   request_id: z.string().optional(),
-  kind: z.enum(["variants", "cost"]),
+  // known: variants | cost | limit | feasibility; unknown kinds are shown with their option buttons
+  kind: z.string(),
   text: z.string(),
-  options: z.array(z.object({ id: z.string(), label: z.string(), detail: z.string().nullish() })).default([]),
+  options: z
+    .array(
+      z.object({
+        id: z.string(),
+        label: z.string(),
+        detail: z.string().nullish(),
+      }),
+    )
+    .default([]),
   estimate: z
-    .object({ eur: z.number(), cars: z.number(), areas: z.array(z.string()), depth: z.string() })
+    .object({
+      eur: z.number(),
+      cars: z.number(),
+      areas: z.array(z.string()),
+      depth: z.string(),
+    })
     .nullish(),
 });
 export type ConfirmRequest = z.infer<typeof ConfirmRequestSchema>;
@@ -477,9 +786,41 @@ export const UsageMsgSchema = z.object({
 });
 export type Usage = z.infer<typeof UsageMsgSchema>;
 
-export const TurnCancelledSchema = z.object({ ...Envelope, type: z.literal("turn_cancelled") });
+export const TurnCancelledSchema = z.object({
+  ...Envelope,
+  type: z.literal("turn_cancelled"),
+});
+
+// spec 004 FR-022: the result of "this is wrong" on a value
+export const ChallengeResultSchema = z.object({
+  ...Envelope,
+  type: z.literal("challenge_result"),
+  outcome: z.enum(["CONFIRMED", "CORRECTED", "REMOVED", "UNRESOLVED"]),
+  attribute: z.string(),
+  car_id: z.string().nullish(),
+  area: z.string().nullish(),
+  before: z.string().nullish(),
+  after: z.string().nullish(),
+  sources: z.array(z.string()).default([]),
+  rejected: z.array(z.object({ source: z.string(), value: z.string(), why: z.string() })).default([]),
+});
+
+// spec 004 FR-023: one cell of the car × area research grid
+export const ProgressMsgSchema = z.object({
+  ...Envelope,
+  type: z.literal("progress"),
+  car: z.string(),
+  car_key: z.string(),
+  area: z.string(),
+  state: z.enum(["queued", "searching", "reading", "done", "partial", "failed", "paused"]),
+  accepted: z.number().nullish(),
+  round: z.number().default(0),
+});
+export type ProgressMsg = z.infer<typeof ProgressMsgSchema>;
 
 export const ServerMsgSchema = z.discriminatedUnion("type", [
+  ProgressMsgSchema,
+  ChallengeResultSchema,
   StatusMsgSchema,
   AssistantMsgSchema,
   UserAckSchema,
@@ -491,13 +832,18 @@ export const ServerMsgSchema = z.discriminatedUnion("type", [
 ]);
 export type ServerMsg = z.infer<typeof ServerMsgSchema>;
 
-const KNOWN_MSG_TYPES = new Set<string>(ServerMsgSchema.options.map((o) => o.shape.type.value));
+const KNOWN_MSG_TYPES = new Set<string>(
+  ServerMsgSchema.options.map((o) => o.shape.type.value),
+);
 
 /** Validate one incoming server message. Returns null for unknown or invalid messages. */
 export function parseServerMsg(raw: unknown): ServerMsg | null {
   const res = ServerMsgSchema.safeParse(raw);
   if (res.success) return res.data;
-  const type = typeof raw === "object" && raw !== null ? (raw as { type?: unknown }).type : undefined;
+  const type =
+    typeof raw === "object" && raw !== null
+      ? (raw as { type?: unknown }).type
+      : undefined;
   if (typeof type === "string" && KNOWN_MSG_TYPES.has(type)) {
     console.warn(`[automind] invalid ${type} message`, res.error.issues);
   }
@@ -523,8 +869,26 @@ export const HistorySchema = z.object({
   ),
 });
 
-export type UserMessageOut = { type: "user_message"; message_id: string; text: string };
+export type UserMessageOut = {
+  type: "user_message";
+  message_id: string;
+  text: string;
+};
 export type HelloOut = { type: "hello"; last_seq: number };
-export type ConfirmOut = { type: "confirm"; request_id?: string; choice: string; text?: string | null };
+export type ConfirmOut = {
+  type: "confirm";
+  request_id?: string;
+  choice: string;
+  text?: string | null;
+};
 export type CancelOut = { type: "cancel"; turn_id?: string | null };
-export type ClientMsg = UserMessageOut | HelloOut | ConfirmOut | CancelOut;
+export type FindOut = {
+  type: "find";
+  focus_cars: string[];
+  areas: string[];
+  text?: string;
+  message_id?: string;
+};
+export type RatingOut = { type: "rating"; message_id: string; rating: number; note: string };
+export type ChallengeOut = { type: "challenge"; car_id: string; attribute: string; text: string };
+export type ClientMsg = UserMessageOut | HelloOut | ConfirmOut | CancelOut | FindOut | RatingOut | ChallengeOut;

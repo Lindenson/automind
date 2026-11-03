@@ -1,0 +1,117 @@
+BMW 520d Berlina (2016-2018) | Precio y ficha técnica
+| Precio (con descuento y equipamiento seleccionado)49.400 € | 49.400 € | 
+|---|---|
+| Descuento oficial | 0 € | 
+| Precio sin impuestos | 40.826 € | 
+| IVA | 21 % | 
+| Impuesto de matriculación | 0 % | 
+| Tarifa de | 02/2017 | 
+
+| Prestaciones y consumos homologados |  |  | 
+|---|---|---|
+| Velocidad máxima | 238 km/h |  | 
+|---|---|---|
+| Aceleración 0-100 km/h | 7,7 s |  | 
+| Consumo NEDC |  |  | 
+| Extraurbano | 3,7 l/100 km |  | 
+| Urbano | 4,9 l/100 km |  | 
+| Medio | 4,2 l/100 km |  | 
+| Emisiones de CO₂ NEDC | 109 gr/km |  | 
+| Normativa de emisiones | Euro 6 |  | 
+| Distintivo ambiental DGT | C |  | 
+
+| Dimensiones, peso, capacidades |  |  | 
+|---|---|---|
+| Tipo de Carrocería | Turismo |  | 
+|---|---|---|
+| Número de puertas | 4 |  | 
+| Longitud | 4.936 mm |  | 
+| Anchura | 1.868 mm |  | 
+| Altura | 1.479 mm |  | 
+| Batalla | 2.975 mm |  | 
+| Vía delantera | 1.605 mm |  | 
+| Vía trasera | 1.630 mm |  | 
+| Coeficiente Cx | 0,24 |  | 
+| Superficie frontal | 2,35 m² |  | 
+| Factor de resistencia | 0,56 |  | 
+| Peso | 1.615 kg |  | 
+| Depósito de combustible |  |  | 
+| Gasóleo | 66 l |  | 
+| Filtro de partículas | No |  | 
+| Volúmenes de maletero |  |  | 
+| Volumen mínimo con dos filas de asientos disponibles | 530 litros |  | 
+| Número de plazas | 5 |  | 
+| Distribución de asientos | 2 + 3 |  | 
+
+| Resumen del sistema de propulsión |  | 
+|---|---|
+| Potencia máxima | 190 CV / 140 kW | 
+|---|---|
+| Par máximo | 400 Nm | 
+
+| Motor de Combustión |  |  | 
+|---|---|---|
+| Propósito | Impulsar el vehículo |  | 
+|---|---|---|
+| Combustible | Gasóleo |  | 
+| Potencia máxima | 190 CV / 140 kW |  | 
+| Revoluciones potencia máxima | 4.000 rpm |  | 
+| Par máximo | 400 Nm |  | 
+| Revoluciones par máximo | 1.750 - 2.500 rpm |  | 
+| Situación | Delantero longitudinal |  | 
+| Número de cilindros | 4 |  | 
+| Disposición de los cilindros | En línea |  | 
+| Material del bloque | Aluminio |  | 
+| Material de la culata | Aluminio |  | 
+| Diámetro | 84 mm |  | 
+| Carrera | 90 mm |  | 
+| Cilindrada | 1.995 cm³ |  | 
+| Relación de compresión | 16,5 a 1 |  | 
+| Distribución |  |  | 
+| Válvulas por cilindro | 4 |  | 
+| Tipo de distribución | Dos árboles de levas en la culata |  | 
+| Alimentación | Inyección directa por conducto común. Admisión Variable. Turbo. Geometría variable. Intercooler |  | 
+| Automatismo de parada y arranque del motor ("Stop/Start") | Sí |  | 
+
+| Transmisión |  |  | 
+|---|---|---|
+| Tracción | Trasera |  | 
+|---|---|---|
+| Caja de cambios | Manual |  | 
+| Número de velocidades | 6 |  | 
+| Tipo de mando | No disponible |  | 
+| Tipo de Embrague | Embrague monodisco en seco |  | 
+| Tipo de mecanismo | Pares de engranajes |  | 
+| Desarrollos (km/h cada 1.000 rpm) |  |  | 
+| 1ª | 9,4 |  | 
+| 2ª | 17,1 |  | 
+| 3ª | 27,4 |  | 
+| 4ª | 38,5 |  | 
+| 5ª | 48,0 |  | 
+| 6ª | 58,4 |  | 
+| Marcha atrás | 10,3 |  | 
+
+| Chasis |  |  | 
+|---|---|---|
+| Estructura suspensión delantera | Paralelogramo deformable |  | 
+|---|---|---|
+| Muelle suspensión delantera | Resorte helicoidal |  | 
+| Estructura suspensión trasera | Paralelogramo deformable |  | 
+| Muelle suspensión trasera | Resorte helicoidal |  | 
+| Barra estabilizadora delantera | Sí |  | 
+| Barra estabilizadora trasera | Sí |  | 
+| Tipo de frenos delanteros | Disco ventilado |  | 
+| Tipo de frenos traseros | Disco ventilado |  | 
+| Dirección |  |  | 
+| Tipo | Cremallera |  | 
+| Tipo de asistencia | Eléctrica |  | 
+| Asistencia en función de la velocidad | Sí |  | 
+| Desmultiplicacion en función de la velocidad | No |  | 
+| Desmultiplicación no lineal | No |  | 
+| Desmultiplicación de la dirección | 16,3 |  | 
+| Dirección a las cuatro ruedas | No |  | 
+| Diámetro de giro entre paredes | 12,05 m |  | 
+| Neumáticos delanteros | 225/55 R17 97Y |  | 
+| Neumáticos traseros | 225/55 R17 97Y |  | 
+| Llantas delanteras | 7.5 x 17 |  | 
+| Llantas Traseras | 7.5 x 17 |  |

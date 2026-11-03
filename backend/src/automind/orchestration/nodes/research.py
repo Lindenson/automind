@@ -10,6 +10,8 @@ never fails the turn (FR-023). Areas still below their minimum after the last ro
 from __future__ import annotations
 
 import asyncio
+import time
+import uuid
 from typing import Any
 
 from langgraph.runtime import Runtime
@@ -19,6 +21,7 @@ from automind.application import research
 from automind.application.research import JobSpec
 from automind.application.usage import BudgetExceeded
 from automind.domain import research_plan as rp
+from automind.orchestration.phrases import t, yes_or_no
 from automind.orchestration.runner import TurnContext
 from automind.orchestration.state import RESET, TurnState
 
@@ -27,7 +30,7 @@ from .common import ctx, load_case, notice
 
 def _plan(state: TurnState) -> rp.ResearchPlan:
     p = state.get("research_plan") or {}
-    jobs = [rp.Job(k, v, a) for k, v, a in p.get("jobs", [])]
+    jobs = [rp.Job(j[0], j[1], j[2], fresh=bool(j[3]) if len(j) > 3 else False) for j in p.get("jobs", [])]
     return rp.ResearchPlan(jobs=jobs, rounds=int(p.get("rounds", 0)))
 
 
@@ -36,8 +39,14 @@ async def _create(c: TurnContext, jobs: list[rp.Job]) -> list[dict[str, Any]]:
     for j in jobs:
         row = await c.ports.jobs.create(c.chat_id, c.turn_id, j.variant_id, j.area, j.round)
         out.append(
-            {"job_id": row.id, "car_key": j.car_key, "variant_id": j.variant_id, "area": j.area, "round": j.round}
-        )
+            {"job_id": row.id, "car_key": j.car_key, "variant_id": j.variant_id, "area": j.area, "round": j.round,
+             "fresh": j.fresh}
+        )  # fmt: skip
+    _, case = await load_case(c)
+    for j in jobs:  # spec 004 FR-023: every cell of the grid appears at once, as queued
+        car = next((x for x in case.cars if x.key == j.car_key), None)
+        await c.emit("progress", {"car": (car.label or car.request_text) if car else j.car_key, "car_key": j.car_key,
+                                  "area": j.area, "state": "queued", "accepted": None, "round": j.round})  # fmt: skip
     return out
 
 
@@ -61,26 +70,47 @@ async def research_job(job: dict[str, Any], runtime: Runtime[TurnContext]) -> di
     if row is not None and row.status == "DONE":  # resumed after a restart: never redo finished work
         return {"research_results": [{**job, "ok": True, "reused": True, "minimum_met": None}]}
     _, case = await load_case(c)
-    label = next((x.label or x.request_text for x in case.cars if x.key == job["car_key"]), job["car_key"])
+    car = next((x for x in case.cars if x.key == job["car_key"]), None)
+    label = (car.label or car.request_text) if car else job["car_key"]
+
+    async def progress(state_: str, accepted: int | None = None) -> None:  # spec 004 FR-023: car × area grid
+        await c.emit("progress", {"car": label, "car_key": job["car_key"], "area": job["area"], "state": state_,
+                                  "accepted": accepted, "round": job.get("round", 0)})  # fmt: skip
 
     async def emit(stage: str, text: str) -> None:
         await c.status(stage, text, car=label, area=job["area"])
+        if stage in ("searching", "researching", "reading", "relevance", "validating"):
+            await progress("reading" if stage in ("reading", "relevance", "validating") else "searching")
 
+    pause = c.budget.research_pause()
+    if pause is not None:  # near a limit: do not start, ask the user whether to continue (never cancel)
+        await progress("paused")
+        await c.ports.jobs.mark(job["job_id"], "FAILED", error=f"paused at the {pause} limit")
+        return {"research_results": [{**job, "ok": False, "error": f"paused: {pause}", "limit": pause}]}
     await c.ports.jobs.mark(job["job_id"], "RUNNING")
+    await progress("searching")
     try:
         async with asyncio.timeout(c.budget.limits.job_timeout_s):
             res = await research.run_job(
-                c.ports, JobSpec(job["job_id"], job["variant_id"], job["area"], job["round"]), emit
+                c.ports,
+                JobSpec(
+                    job["job_id"], job["variant_id"], job["area"], job["round"], car_year=car.year if car else None
+                ),
+                emit,
             )
     except BudgetExceeded as e:
+        await progress("paused")
         await c.ports.jobs.mark(job["job_id"], "FAILED", error=str(e))
-        return {"research_results": [{**job, "ok": False, "error": str(e), "limit": True}]}
+        return {"research_results": [{**job, "ok": False, "error": str(e), "limit": e.limit}]}
     except TimeoutError:
+        await progress("failed")
         if "job_timeout" not in c.budget.limits_reached:
             c.budget.limits_reached.append("job_timeout")
         await c.ports.jobs.mark(job["job_id"], "FAILED", error="timeout")
-        return {"research_results": [{**job, "ok": False, "error": "timeout"}]}
+        return {"research_results": [{**job, "ok": False, "error": "timeout", "limit": "time"}]}
     status = "DONE" if res.ok else "FAILED"
+    await progress("done" if res.ok and res.minimum_met else ("partial" if res.ok and res.accepted else "failed"),
+                   res.accepted)  # fmt: skip
     await c.ports.jobs.mark(
         job["job_id"], status, docs=res.docs, accepted=res.accepted, rejected=res.rejected, error=res.error
     )
@@ -111,8 +141,12 @@ def _met(results: list[dict[str, Any]]) -> dict[tuple[str, str], bool]:
 async def collect_round(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
     c = ctx(runtime)
     results = state.get("research_results", [])
-    if any(r.get("limit") for r in results):
-        return {"jobs": []}  # a limit was reached: stop researching, answer with what we have
+    current = {j["job_id"] for j in state.get("jobs", [])}
+    stopped = [r for r in results if r.get("limit") and r.get("job_id") in current]
+    if stopped:  # a limit was reached in this round: ask the user (continue or answer with what exists)
+        reasons = sorted({str(r["limit"]) for r in stopped if r["limit"] is not True} or {"calls"})
+        todo = [{k: r.get(k) for k in ("car_key", "variant_id", "area", "round", "fresh")} for r in stopped]
+        return {"jobs": [], "limit_hit": {"reasons": reasons, "jobs": todo}}
     gaps = rp.gaps(_plan(state), _met(results), round_done=int(state.get("round", 0)))
     if not gaps:
         return {"jobs": []}
@@ -121,6 +155,63 @@ async def collect_round(state: TurnState, runtime: Runtime[TurnContext]) -> dict
 
 
 def route_round(state: TurnState) -> str:
+    if state.get("limit_hit"):
+        return "prepare_limit"
+    return "next_round" if state.get("jobs") else "after_research"
+
+
+async def prepare_limit(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
+    """Research paused at a limit: offer to continue with one more allowance, or answer now."""
+    c = ctx(runtime)
+    hit = state.get("limit_hit") or {}
+    b = c.budget
+    lang = state.get("language")
+    reasons = ", ".join(t(f"limit_{r}", lang) for r in hit.get("reasons", []))
+    minutes = (time.monotonic() - b.started) / 60
+    text = t("limit_reached", lang, reasons=reasons, eur=f"{b.cost_eur:.2f}", calls=b.calls,
+             minutes=f"{minutes:.0f}", left=len(hit.get("jobs", [])), more=f"{b.limits.hard_cap_eur:.2f}")  # fmt: skip
+    payload = {
+        "kind": "limit",
+        "action": "CONFIRM_LIMIT",
+        "request_id": str(uuid.uuid4()),
+        "text": text,
+        "options": [
+            {"id": "continue", "label": t("limit_continue", lang)},
+            {"id": "stop", "label": t("limit_stop", lang)},
+        ],
+    }
+    await c.status("estimating", text)
+    return {"confirm_payload": payload}
+
+
+async def apply_limit(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
+    c = ctx(runtime)
+    answer = state.get("resume") or {}
+    choice = str(answer.get("choice") or "")
+    hit = state.get("limit_hit") or {}
+    if choice in ("text", "edit", "") and answer.get("text"):
+        typed = yes_or_no(answer.get("text"))  # "Continue", "да", "продолжай" … or a new request
+        if typed is None:
+            c.budget.allow_answer()
+            return {"jobs": [], "limit_hit": None, "confirm_payload": None, "resume": None,
+                    "user_text": answer.get("text") or "", "route": "interpret"}  # fmt: skip
+        choice = "continue" if typed == "yes" else "stop"
+    if choice in ("continue", "run", "yes", "confirm"):
+        n = int(state.get("limit_extensions") or 0) + 1
+        c.budget.extend(n)
+        await c.status("researching", f"Continuing: {len(hit.get('jobs', []))} research task(s) left")
+        jobs = [rp.Job(j["car_key"], j["variant_id"], j["area"], int(j["round"]), bool(j.get("fresh")))
+                for j in hit.get("jobs", [])]  # fmt: skip
+        return {"jobs": await _create(c, jobs), "limit_hit": None, "limit_extensions": n, "confirm_payload": None,
+                "resume": None, "route": None}  # fmt: skip
+    # "stop", a typed reply or anything else: answer with what was collected (nothing is lost)
+    c.budget.allow_answer()
+    return {"jobs": [], "limit_hit": None, "confirm_payload": None, "resume": None, "route": None}
+
+
+def route_after_limit(state: TurnState) -> str:
+    if state.get("route") == "interpret":
+        return "interpret"
     return "next_round" if state.get("jobs") else "after_research"
 
 

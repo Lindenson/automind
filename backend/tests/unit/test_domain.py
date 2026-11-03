@@ -182,3 +182,17 @@ def test_variant_match_uncertain_detects_sibling_codes_without_config():
     assert u("Racer Mk1 specs. The later Mk2 is heavier.", "", "Mk1", [], (2024, None))
     assert not u("Racer Mk1 specs.", "", "Mk1", [], (2024, None))
     assert u("Prado J150 vs J250", "", "J150", [], (2009, 2023))
+
+
+def test_transmission_is_normalised_and_cvt_is_not_one_speed():
+    from automind.domain.specs import normalize_transmission as n
+
+    assert n("1 speed CVT") == "CVT"
+    assert n("1 velocidades CVT") == "CVT"
+    assert n("e-CVT") == "e-CVT (power-split hybrid)"
+    assert n("6 speed Automatic") == "automatic 6-speed"
+    assert n("six-speed automatic") == "automatic 6-speed"
+    assert n("caja de cambios manual de seis velocidades") == "manual 6-speed"
+    assert n("Manual") == "manual"
+    assert n("7-speed DSG") == "dual-clutch 7-speed"
+    assert n("blue") is None

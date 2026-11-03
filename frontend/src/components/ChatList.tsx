@@ -1,5 +1,6 @@
 /** Past chats (FR-045): a drawer to reopen and continue earlier conversations. */
 import { useEffect, useState } from "react";
+import { deleteChats } from "../lib/chats";
 import { cx } from "../lib/util";
 import { useChat } from "../store/chat";
 
@@ -20,7 +21,37 @@ export function ChatList({
 }) {
   const current = useChat((s) => s.chatId);
   const openChat = useChat((s) => s.openChat);
+  const newChat = useChat((s) => s.newChat);
   const [rows, setRows] = useState<ChatRow[] | null>(null);
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [error, setError] = useState<string | null>(null);
+
+  const remove = async (ids: string[]) => {
+    if (ids.length === 0) return;
+    const what = ids.length === 1 ? "this chat" : `${ids.length} chats`;
+    if (!window.confirm(`Delete ${what}? This cannot be undone. Researched car data is kept.`)) return;
+    const before = rows;
+    setRows((r) => (r ? r.filter((c) => !ids.includes(c.id)) : r)); // optimistic
+    setError(null);
+    try {
+      await deleteChats(ids);
+      setSelected(new Set());
+      setSelecting(false);
+      if (ids.includes(current)) newChat();
+    } catch {
+      setRows(before); // roll back
+      setError("Could not delete. Try again.");
+    }
+  };
+
+  const toggle = (id: string) =>
+    setSelected((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
 
   useEffect(() => {
     if (!open) return;
@@ -52,14 +83,35 @@ export function ChatList({
       <aside className="scroll-thin absolute inset-y-0 left-0 w-80 max-w-[85vw] overflow-y-auto border-r border-line/60 bg-bg p-4">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="font-display text-sm font-bold">Your chats</h2>
+          <div className="flex items-center gap-3">
+            {rows && rows.length > 0 && (
+              <button
+                type="button"
+                className="text-xs text-muted hover:text-fg"
+                onClick={() => {
+                  setSelecting(!selecting);
+                  setSelected(new Set());
+                }}
+              >
+                {selecting ? "Cancel" : "Select"}
+              </button>
+            )}
+            <button type="button" className="text-sm text-muted" onClick={onClose}>
+              Close
+            </button>
+          </div>
+        </div>
+        {selecting && (
           <button
             type="button"
-            className="text-sm text-muted"
-            onClick={onClose}
+            disabled={selected.size === 0}
+            onClick={() => void remove([...selected])}
+            className="mb-3 w-full rounded-lg bg-bad/80 px-3 py-1.5 text-sm font-semibold text-bg disabled:opacity-40"
           >
-            Close
+            Delete selected ({selected.size})
           </button>
-        </div>
+        )}
+        {error && <p className="mb-2 text-xs text-bad">{error}</p>}
         {rows === null ? (
           <p className="text-sm text-muted">Loading…</p>
         ) : rows.length === 0 ? (
@@ -67,15 +119,24 @@ export function ChatList({
         ) : (
           <ul className="space-y-1.5">
             {rows.map((c) => (
-              <li key={c.id}>
+              <li key={c.id} className="group flex items-center gap-2">
+                {selecting && (
+                  <input
+                    type="checkbox"
+                    aria-label={`Select ${c.title}`}
+                    checked={selected.has(c.id)}
+                    onChange={() => toggle(c.id)}
+                  />
+                )}
                 <button
                   type="button"
                   onClick={() => {
+                    if (selecting) return toggle(c.id);
                     openChat(c.id);
                     onClose();
                   }}
                   className={cx(
-                    "w-full rounded-lg border px-3 py-2 text-left text-sm transition hover:border-accent/60",
+                    "min-w-0 flex-1 rounded-lg border px-3 py-2 text-left text-sm transition hover:border-accent/60",
                     c.id === current
                       ? "border-accent/60 bg-accent/5"
                       : "border-line/50",
@@ -87,6 +148,17 @@ export function ChatList({
                     {new Date(c.updated_at).toLocaleDateString()}
                   </div>
                 </button>
+                {!selecting && (
+                  <button
+                    type="button"
+                    aria-label={`Delete ${c.title}`}
+                    title="Delete chat"
+                    onClick={() => void remove([c.id])}
+                    className="shrink-0 rounded p-1 text-xs text-muted opacity-60 hover:text-bad hover:opacity-100 group-hover:opacity-100"
+                  >
+                    ✕
+                  </button>
+                )}
               </li>
             ))}
           </ul>

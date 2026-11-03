@@ -3,6 +3,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ROOT = Path(__file__).resolve().parents[3]  # repo root (carexepert/)
@@ -15,15 +16,23 @@ class Settings(BaseSettings):
 
     openai_api_key: str | None = None
     anthropic_api_key: str | None = None
+    # Gemini: GOOGLE_API_KEY, GEMINI_API_KEY or (as written in this project's .env) GEMENI_API_KEY
+    google_api_key: str | None = Field(
+        default=None, validation_alias=AliasChoices("GOOGLE_API_KEY", "GEMINI_API_KEY", "GEMENI_API_KEY")
+    )
     tavily_api_key: str | None = None
+    serper_api_key: str | None = None
+    serpapi_api_key: str | None = None
+    # overrides `provider` in config/search.yaml (e.g. SEARCH_PROVIDER=tavily for the baseline eval)
+    search_provider: str | None = None
 
     # Per-turn limits (FR-041). Models per role live in config/models.yaml (constitution VII).
-    max_llm_calls_per_turn: int = 80
+    max_llm_calls_per_turn: int = 160  # spec 003: more pages per area; the €1 cost cap still bounds a turn
     cost_confirm_threshold_eur: float = 0.30
     cost_hard_cap_eur: float = 1.00
     max_concurrency: int = 4
-    job_timeout_s: float = 90.0
-    turn_timeout_s: float = 300.0
+    job_timeout_s: float = 180.0  # one car × area; a slow source no longer cuts a job short
+    turn_timeout_s: float = 900.0  # research pauses (and asks) at 85% of it; 300 s paused 3-car research
     max_docs_per_car: int = 8
     max_doc_chars: int = 14000
     request_timeout_s: int = 30
@@ -33,6 +42,11 @@ class Settings(BaseSettings):
     fresh_specs_days: int = 365
     fresh_price_days: int = 30
     fresh_maintenance_days: int = 365
+
+    # API bind address: 127.0.0.1 = this machine only; 0.0.0.0 = reachable from the local network
+    # (there is no login yet: anyone on the network can use the hub and spend the API budget).
+    api_host: str = "127.0.0.1"
+    api_port: int = 8000
 
     frontend_dist: Path = ROOT / "frontend" / "dist"
     config_dir: Path = ROOT / "backend" / "config"

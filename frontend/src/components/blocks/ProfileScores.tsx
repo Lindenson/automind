@@ -1,3 +1,4 @@
+import { useBlockTitle } from "../../i18n";
 import type { BlockOf } from "../../lib/protocol";
 import { cx, fmtNum } from "../../lib/util";
 import { BlockCard } from "../badges";
@@ -21,7 +22,7 @@ export function ProfileScores({ b }: { b: BlockOf<"profile_scores"> }) {
 
   return (
     <BlockCard
-      title={b.title}
+      title={useBlockTitle(b.type, b.title)}
       icon={<TrophyIcon />}
       right={<span className="chip">{PROFILE_LABEL[b.profile]}</span>}
     >
