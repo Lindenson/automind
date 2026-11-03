@@ -1,3 +1,4 @@
+import { useBlockTitle } from "../../i18n";
 import { useState } from "react";
 import type { BlockOf, SourceRef } from "../../lib/protocol";
 import { BlockCard, SourceItem } from "../badges";
@@ -27,7 +28,7 @@ export function Sources({ b }: { b: BlockOf<"sources"> }) {
   const [open, setOpen] = useState(false);
   return (
     <BlockCard
-      title={b.title}
+      title={useBlockTitle(b.type, b.title)}
       icon={<BookIcon />}
       right={
         <span className="text-[11px] text-muted">

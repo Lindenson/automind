@@ -1,3 +1,4 @@
+import { useT } from "../i18n";
 import { memo, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -43,18 +44,10 @@ export const Message = memo(function Message({ m }: { m: UiMessage }) {
   return <AssistantMessage m={m} />;
 });
 
-const SECTION_TITLES: Record<string, string> = {
-  comparison: "Comparison",
-  engineering: "Engineering and technology",
-  performance: "Performance",
-  cost_over_time: "Cost of ownership",
-  value_retention: "Value over time",
-  reliability: "Reliability",
-  reviews: "Reviews",
-  manufacturer: "Manufacturer",
-  data_panel: "What we know",
-  sources: "Specifications and sources",
-};
+const SECTIONS = new Set([
+  "comparison", "engineering", "performance", "cost_over_time", "value_retention", "reliability", "reviews",
+  "manufacturer", "data_panel", "sources",
+]);
 
 /** Consecutive blocks of one section become one collapsible part (spec 004 FR-002). */
 function groupSections(blocks: Block[]): { section?: string; open: boolean; blocks: Block[] }[] {
@@ -69,6 +62,7 @@ function groupSections(blocks: Block[]): { section?: string; open: boolean; bloc
 
 function AssistantMessage({ m }: { m: ChatMessage }) {
   const colors = useMemo(() => buildCarColors(m.blocks), [m.blocks]);
+  const t = useT();
   // spec 004 FR-001: the verdict card comes first, before the explanation
   const lead = m.blocks.filter((b) => b.type === "verdict");
   const rest = m.blocks.filter((b) => b.type !== "verdict");
@@ -107,7 +101,7 @@ function AssistantMessage({ m }: { m: ChatMessage }) {
             g.section ? (
               <details key={i} open={g.open} className="group rounded-xl border border-line/40 p-2 sm:p-3">
                 <summary className="min-h-11 cursor-pointer select-none py-2 text-sm font-semibold capitalize">
-                  {SECTION_TITLES[g.section] ?? g.section.replace(/_/g, " ")}
+                  {SECTIONS.has(g.section) ? t(`section.${g.section}` as "section.comparison") : g.section.replace(/_/g, " ")}
                 </summary>
                 <div className="mt-2 space-y-3">
                   {g.blocks.map((b, j) => (

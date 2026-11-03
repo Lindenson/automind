@@ -1,3 +1,4 @@
+import { useBlockTitle } from "../../i18n";
 /** Review summary (FR-037): recurring points (≥2 sources) first, isolated opinions marked as such. */
 import type { BlockOf } from "../../lib/protocol";
 import { cx } from "../../lib/util";
@@ -53,7 +54,7 @@ function Points({
 export function Reviews({ b }: { b: BlockOf<"reviews"> }) {
   const color = useCarColor();
   return (
-    <BlockCard title={b.title} icon={<BookIcon />}>
+    <BlockCard title={useBlockTitle(b.type, b.title)} icon={<BookIcon />}>
       <div className="grid gap-3 lg:grid-cols-2">
         {b.cars.map((car) => (
           <div

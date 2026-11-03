@@ -9,6 +9,7 @@ import {
   type ProgressMsg,
 } from "../lib/protocol";
 import type { ConnState, Transport } from "../lib/transport";
+import { asLang, storeLang, storedLang, type Lang } from "../i18n/lang";
 import { loadChatId, saveChatId, uuid } from "../lib/util";
 
 export type ErrorEntry = {
@@ -53,6 +54,9 @@ interface ChatState {
   setHistoryLoading: (v: boolean) => void;
   handleRaw: (raw: unknown) => void;
   send: (text: string) => void;
+  manualLang: Lang | null; // the user's choice in the header (kept in this browser)
+  convoLang: Lang | null; // the conversation's language, from the latest reply
+  setLang: (lang: Lang | null) => void;
   find: (focusCars: string[], areas: string[], text: string) => void;
   rate: (messageId: string, rating: number, note: string) => void;
   challenge: (carId: string, attribute: string) => void;
@@ -69,6 +73,8 @@ export const useChat = create<ChatState>((set, get) => ({
   chatId: loadChatId(),
   conn: "connecting",
   messages: [],
+  manualLang: storedLang(),
+  convoLang: null,
   pending: null,
   turnId: null,
   confirm: null,
@@ -195,6 +201,7 @@ export const useChat = create<ChatState>((set, get) => ({
             pending: null,
             confirm: null,
             turnId: null,
+            convoLang: asLang(msg.language) ?? s.convoLang,
             messages: [
               ...s.messages,
               {
@@ -259,6 +266,11 @@ export const useChat = create<ChatState>((set, get) => ({
 
   challenge: (carId, attribute) => {
     get().transport?.send({ type: "challenge", car_id: carId, attribute, text: "this is wrong" });
+  },
+
+  setLang: (lang) => {
+    storeLang(lang);
+    set({ manualLang: lang });
   },
 
   rate: (messageId, rating, note) => {

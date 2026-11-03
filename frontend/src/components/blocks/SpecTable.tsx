@@ -1,3 +1,4 @@
+import { useBlockTitle, useT } from "../../i18n";
 import type { BlockOf } from "../../lib/protocol";
 import { fmtDate } from "../../lib/util";
 import {
@@ -13,14 +14,15 @@ import { ChallengeButton } from "../ChallengeButton";
 
 export function SpecTable({ b }: { b: BlockOf<"spec_table"> }) {
   const color = useCarColor();
+  const t = useT();
   return (
-    <BlockCard title={b.title} icon={<TableIcon />}>
+    <BlockCard title={useBlockTitle(b.type, b.title)} icon={<TableIcon />}>
       <div className="-mx-4 -my-4 overflow-x-auto scroll-thin">
         <table className="w-full min-w-[480px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-line/60 bg-panel2/50">
               <th className="sticky left-0 z-10 w-[28%] bg-panel px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted">
-                Spec
+                {t("table.spec")}
               </th>
               {b.cars.map((c) => (
                 <th

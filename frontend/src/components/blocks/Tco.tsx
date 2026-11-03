@@ -1,3 +1,4 @@
+import { useBlockTitle } from "../../i18n";
 /**
  * Ownership cost (FR-033..FR-035): annual and 5-year totals per car, a stacked bar by item, every item
  * labelled SOURCED or ASSUMPTION with its inputs. For used cars the repair reserve is shown in two
@@ -177,7 +178,7 @@ export function Tco({ b }: { b: BlockOf<"tco"> }) {
   const max = Math.max(1, ...b.cars.map((c) => c.annual_total));
   return (
     <BlockCard
-      title={b.title}
+      title={useBlockTitle(b.type, b.title)}
       icon={<WrenchIcon />}
       right={<span className="chip">{fmtNum(b.annual_km, 0)} km/yr</span>}
     >

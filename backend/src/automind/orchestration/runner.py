@@ -262,6 +262,7 @@ class ChatRunner:
                 "blocks": blocks,
                 "action": action,
                 "role": "assistant",
+                "language": final.get("language"),  # spec 004 FR-024: the interface follows the conversation
             },
         )
         await ctx.emit("usage", usage)

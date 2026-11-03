@@ -1,3 +1,4 @@
+import { useT } from "../i18n";
 /**
  * Confirmation before research (FR-006 variants, FR-041 cost). Buttons answer directly; a typed
  * message in the composer also answers (the hub interprets it, e.g. as a correction).
@@ -7,6 +8,7 @@ import type { ConfirmRequest } from "../lib/protocol";
 import { useChat } from "../store/chat";
 
 export function ConfirmCard({ req }: { req: ConfirmRequest }) {
+  const t = useT();
   const answer = useChat((s) => s.answerConfirm);
   const isCost = req.kind === "cost";
   // every kind except variants/cost: the options are the answers (also kinds added later)
@@ -23,21 +25,21 @@ export function ConfirmCard({ req }: { req: ConfirmRequest }) {
       {isCost && req.estimate && (
         <dl className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs sm:grid-cols-4">
           <div>
-            <dt className="text-muted">Estimate</dt>
+            <dt className="text-muted">{t("confirm.estimate")}</dt>
             <dd className="tabular font-semibold">
               €{req.estimate.eur.toFixed(2)}
             </dd>
           </div>
           <div>
-            <dt className="text-muted">Cars</dt>
+            <dt className="text-muted">{t("confirm.cars")}</dt>
             <dd className="tabular">{req.estimate.cars}</dd>
           </div>
           <div>
-            <dt className="text-muted">Depth</dt>
+            <dt className="text-muted">{t("confirm.depth")}</dt>
             <dd>{req.estimate.depth.toLowerCase()}</dd>
           </div>
           <div>
-            <dt className="text-muted">Areas</dt>
+            <dt className="text-muted">{t("confirm.areas")}</dt>
             <dd>{req.estimate.areas.join(", ")}</dd>
           </div>
         </dl>

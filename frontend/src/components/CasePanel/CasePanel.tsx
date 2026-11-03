@@ -1,3 +1,4 @@
+import { useT } from "../../i18n";
 /**
  * The case file: what AutoMind understood about you and the cars (FR-002, FR-009).
  * Desktop: a collapsible right sidebar. Phones (<768 px): a bottom sheet.
@@ -90,6 +91,7 @@ export function CaseBody() {
   const cf = useChat((s) => s.caseFile);
   const running = useChat((s) => s.pending !== null);
   const [error, setError] = useState<string | null>(null);
+  const t = useT();
   const c = cf?.data;
 
   const save = async (p: CasePatch) => {
@@ -131,14 +133,12 @@ export function CaseBody() {
 
       <AboutYou profile={(c as Record<string, unknown>).profile} annualKm={c.annual_km} />
 
-      <Section title="Cars">
-        {c.cars.length === 0 && <p className="text-sm text-muted">None yet.</p>}
+      <Section title={t("case.cars")}>
+        {c.cars.length === 0 && <p className="text-sm text-muted">{t("case.none")}</p>}
         {c.cars.length > 1 && (
           <p className="mb-1.5 text-xs text-muted" data-testid="compare-level">
-            Compared at the {c.compare_level.toLowerCase()} equipment level
-            {c.compare_level_source === "USER_TRIM"
-              ? " (the version you named)"
-              : " (cheapest version on sale)"}
+            {t("case.level", { level: t(`case.level.${c.compare_level}` as "case.level.BASE") })}
+            {c.compare_level_source === "USER_TRIM" ? t("case.level.user") : t("case.level.default")}
           </p>
         )}
         <ul className="space-y-1.5">
@@ -450,13 +450,14 @@ const PROFILE_LABELS: Record<string, string> = {
 
 /** What the hub inferred about the user, with the words it came from (spec 004 FR-017). */
 function AboutYou({ profile, annualKm }: { profile: unknown; annualKm: number }) {
+  const t = useT();
   const p = (profile ?? {}) as Record<string, unknown>;
   const evidence = (p.evidence ?? {}) as Record<string, string>;
   const rows = Object.keys(PROFILE_LABELS).filter((k) => p[k] != null && p[k] !== "");
   return (
-    <Section title="About you">
+    <Section title={t("case.about")}>
       {rows.length === 0 ? (
-        <p className="text-sm text-muted">Nothing inferred yet — tell me who will drive the car.</p>
+        <p className="text-sm text-muted">{t("case.about.none")}</p>
       ) : (
         <dl className="space-y-1 text-sm">
           {rows.map((k) => (
@@ -470,7 +471,7 @@ function AboutYou({ profile, annualKm }: { profile: unknown; annualKm: number })
           ))}
         </dl>
       )}
-      <p className="mt-1 text-xs text-muted">{annualKm.toLocaleString()} km a year</p>
+      <p className="mt-1 text-xs text-muted">{t("case.kmYear", { km: annualKm.toLocaleString() })}</p>
     </Section>
   );
 }

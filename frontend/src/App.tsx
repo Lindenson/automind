@@ -18,10 +18,12 @@ import {
 import { isMockMode } from "./lib/util";
 import { loadCase } from "./store/case";
 import { useChat } from "./store/chat";
+import { useT } from "./i18n";
 
 const MOCK = isMockMode();
 
 export default function App() {
+  const t = useT();
   const {
     chatId,
     conn,
@@ -119,9 +121,9 @@ export default function App() {
   const busy = pending !== null;
   const empty = messages.length === 0 && !pending;
 
-  const doSend = (t: string) => {
+  const doSend = (text: string) => {
     stick.current = true;
-    send(t);
+    send(text);
   };
 
   return (
@@ -177,11 +179,7 @@ export default function App() {
           disabled={!ready || busy}
           busy={busy}
           placeholder={
-            busy
-              ? "AutoMind is working…"
-              : ready
-                ? "Ask about cars, e.g. “Compare Golf GTI and i30 N”"
-                : "Connecting to AutoMind…"
+            busy ? t("composer.busy") : ready ? t("composer.placeholder") : t("composer.connecting")
           }
         />
       </div>

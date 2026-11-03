@@ -1,3 +1,4 @@
+import { useBlockTitle, useT } from "../../i18n";
 /** Sourced manufacturer background (history, key models, market position). */
 import type { BlockOf } from "../../lib/protocol";
 import { BlockCard, SourcesButton } from "../badges";
@@ -14,8 +15,9 @@ const KIND: Record<string, string> = {
 };
 
 export function Manufacturer({ b }: { b: BlockOf<"manufacturer"> }) {
+  const t = useT();
   return (
-    <BlockCard title={b.title} icon={<BookIcon />}>
+    <BlockCard title={useBlockTitle(b.type, b.title)} icon={<BookIcon />}>
       <div className="space-y-3">
         {b.makes.map((m) => (
           <div key={m.make}>
@@ -26,7 +28,7 @@ export function Manufacturer({ b }: { b: BlockOf<"manufacturer"> }) {
               {m.facts.map((f, i) => (
                 <li key={i} className="flex items-start gap-2">
                   <span className="chip shrink-0 text-[10px]">
-                    {KIND[f.kind] ?? f.kind}
+                    {KIND[f.kind] ? t(`maker.${f.kind}` as "maker.HISTORY") : f.kind}
                     {f.year ? ` ${f.year}` : ""}
                   </span>
                   <span className="min-w-0 flex-1">{f.text}</span>
@@ -38,7 +40,7 @@ export function Manufacturer({ b }: { b: BlockOf<"manufacturer"> }) {
             </ul>
             {m.insufficient && (
               <p className="mt-1 text-xs text-warn">
-                Insufficient data on the manufacturer — use “Find it” in the data panel.
+                {t("maker.insufficient")}
               </p>
             )}
           </div>

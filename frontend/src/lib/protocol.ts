@@ -660,6 +660,7 @@ export const AssistantMsgSchema = z.object({
   text: z.string(),
   blocks: RawBlocks,
   action: ActionSchema.nullish(),
+  language: z.string().nullish(), // spec 004 FR-024: drives the interface language
 });
 
 export const UserAckSchema = z.object({

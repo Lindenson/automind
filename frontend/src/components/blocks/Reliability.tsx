@@ -1,3 +1,4 @@
+import { useBlockTitle } from "../../i18n";
 /**
  * Known technical issues (FR-036): recurring (≥2 independent sources) vs isolated, severity from
  * fixed rules, sources per issue. "No documented issues found" never means "has no issues".
@@ -17,7 +18,7 @@ const SEV: Record<string, string> = {
 export function Reliability({ b }: { b: BlockOf<"reliability"> }) {
   const color = useCarColor();
   return (
-    <BlockCard title={b.title} icon={<WarnIcon />}>
+    <BlockCard title={useBlockTitle(b.type, b.title)} icon={<WarnIcon />}>
       <div className="grid gap-3 lg:grid-cols-2">
         {b.cars.map((car) => (
           <div

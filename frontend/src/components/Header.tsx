@@ -1,3 +1,5 @@
+import { useChat } from "../store/chat";
+import { LANGS, asLang, useLang } from "../i18n";
 import type { ConnState } from "../lib/transport";
 import { cx } from "../lib/util";
 import { useCasePanel } from "../store/case";
@@ -38,6 +40,7 @@ export function Header({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          <LangSwitch />
           <span
             className="flex items-center gap-1.5 rounded-full border border-line/70 bg-panel/70 px-2.5 py-1 text-xs text-muted"
             role="status"
@@ -84,5 +87,28 @@ function CaseToggle() {
     >
       Your case
     </button>
+  );
+}
+
+/** Interface language (spec 004 FR-024): follows the conversation unless chosen here. */
+function LangSwitch() {
+  const lang = useLang();
+  const manual = useChat((s) => s.manualLang);
+  const setLang = useChat((s) => s.setLang);
+  return (
+    <select
+      aria-label="Language"
+      value={manual ?? ""}
+      onChange={(e) => setLang(asLang(e.target.value))}
+      className="min-h-9 rounded-full border border-line/70 bg-panel/70 px-2 text-xs"
+      title={lang.toUpperCase()}
+    >
+      <option value="">{`Auto (${lang.toUpperCase()})`}</option>
+      {LANGS.map((l) => (
+        <option key={l} value={l}>
+          {l.toUpperCase()}
+        </option>
+      ))}
+    </select>
   );
 }

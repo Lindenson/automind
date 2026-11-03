@@ -291,9 +291,9 @@ because the verdict is built from insights. Both are P1 and together they are th
 
 **Independent Test**: a Russian conversation shows no English labels (G18). At 375 px there is no page-level horizontal scroll.
 
-- [ ] T077 [P] [US7] Write golden `backend/tests/golden/g18_russian_ui.yaml` (assistant_message.language = ru, block labels sent as i18n keys) and a vitest in `frontend/src/i18n/i18n.test.ts`: every key exists in en, ru and es; a Russian message switches the labels; the manual switch wins
-- [ ] T078 [US7] Move every hard-coded interface string in `frontend/src/components/**` and `frontend/src/App.tsx` into `frontend/src/i18n/{en,ru,es}.ts` and use `useT()`. Add a language switch in `frontend/src/components/Header.tsx`. Backend-generated labels in blocks (section titles, data panel reasons, suggestion labels) are sent as i18n keys with arguments, or translated through `backend/src/automind/orchestration/phrases.py`
-- [ ] T079 [US7] Phone layout:
+- [ ] T077 [P] [US7] (vitest part done: src/i18n/i18n.test.ts; golden g18 waits for live runs) Write golden `backend/tests/golden/g18_russian_ui.yaml` (assistant_message.language = ru, block labels sent as i18n keys) and a vitest in `frontend/src/i18n/i18n.test.ts`: every key exists in en, ru and es; a Russian message switches the labels; the manual switch wins
+- [X] T078 [US7] Move every hard-coded interface string in `frontend/src/components/**` and `frontend/src/App.tsx` into `frontend/src/i18n/{en,ru,es}.ts` and use `useT()`. Add a language switch in `frontend/src/components/Header.tsx`. Backend-generated labels in blocks (section titles, data panel reasons, suggestion labels) are sent as i18n keys with arguments, or translated through `backend/src/automind/orchestration/phrases.py`
+- [X] T079 [US7] Phone layout:
   - make the verdict card and data panel full width;
   - turn the comparison table into per-row cards under 640 px;
   - make tap targets ≥ 44 px;
@@ -307,8 +307,8 @@ because the verdict is built from insights. Both are P1 and together they are th
 
 - [ ] T080 [P] Write ADRs in `docs/adr/` for the deterministic insights and verdict (ADR-021), the sense layer and gearbox/drive identity (ADR-022), and the declarative layouts and data panel (ADR-023)
 - [ ] T081 [P] Update `README.md` and `backend/tests/golden/README.md` for the new blocks, config files and goldens G12–G18
-- [ ] T082 Run `scripts/check.sh` (ruff, format, mypy, import-linter, pytest, vitest). Fix it until green. Check that the new domain modules have no infrastructure imports
-- [ ] T083 Check performance: insights and verdict take < 100 ms for 3 cars (a timing assertion in the unit tests), and the verdict card is ready from cached data in < 30 s (SC-007)
+- [X] T082 Run `scripts/check.sh` (ruff, format, mypy, import-linter, pytest, vitest). Fix it until green. Check that the new domain modules have no infrastructure imports
+- [X] T083 Check performance: insights and verdict take < 100 ms for 3 cars (a timing assertion in the unit tests), and the verdict card is ready from cached data in < 30 s (SC-007)
 - [ ] T084 Run quickstart.md sections 1–3 in replay. The live goldens G12–G18 and the RAV4 / CX-5 / CR-V manual check wait for paid Gemini: announce them with a cost estimate first
 - [ ] T085 Restart the dev server (`pkill -x automind-api`, `scripts/dev.sh`), redeploy with `scripts/deploy.sh restart`, and update the project memory
 

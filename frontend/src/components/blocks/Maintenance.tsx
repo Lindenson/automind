@@ -1,3 +1,4 @@
+import { useBlockTitle } from "../../i18n";
 import type { BlockOf } from "../../lib/protocol";
 import { fmtNum } from "../../lib/util";
 import { AssumptionBadge, BlockCard, CarSwatch } from "../badges";
@@ -7,7 +8,7 @@ import { WrenchIcon } from "../icons";
 export function Maintenance({ b }: { b: BlockOf<"maintenance"> }) {
   const color = useCarColor();
   return (
-    <BlockCard title={b.title} icon={<WrenchIcon />}>
+    <BlockCard title={useBlockTitle(b.type, b.title)} icon={<WrenchIcon />}>
       <div className="grid gap-3 sm:grid-cols-2">
         {b.items.map((it) => {
           const interval = [

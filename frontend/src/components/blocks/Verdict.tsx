@@ -1,21 +1,23 @@
+import { useT } from "../../i18n";
 import type { BlockOf } from "../../lib/protocol";
 import { cx } from "../../lib/util";
 import { useChat } from "../../store/chat";
 import { useCarColor } from "../carColors";
 
-const CONF: Record<string, { label: string; cls: string }> = {
-  HIGH: { label: "High confidence", cls: "border-good/40 text-good" },
-  MEDIUM: { label: "Medium confidence", cls: "border-warn/40 text-warn" },
-  LOW: { label: "Low confidence", cls: "border-bad/40 text-bad" },
+const CONF: Record<string, { cls: string }> = {
+  HIGH: { cls: "border-good/40 text-good" },
+  MEDIUM: { cls: "border-warn/40 text-warn" },
+  LOW: { cls: "border-bad/40 text-bad" },
 };
 
 /** The verdict card: first block of every report (spec 004 FR-001). Built by code; every number is sourced. */
 export function Verdict({ b }: { b: BlockOf<"verdict"> }) {
+  const t = useT();
   const color = useCarColor();
   const conf = CONF[b.confidence] ?? CONF.MEDIUM!;
   return (
     <section
-      aria-label="Verdict"
+      aria-label={t("verdict.aria")}
       className="card animate-fadeUp space-y-3 border-accent/50 p-3 sm:p-4"
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -33,7 +35,7 @@ export function Verdict({ b }: { b: BlockOf<"verdict"> }) {
           className={cx("shrink-0 rounded-full border px-2 py-0.5 text-xs", conf.cls)}
           title={b.confidence_reason}
         >
-          {conf.label}
+          {t(`verdict.conf.${b.confidence}` as "verdict.conf.HIGH")}
         </span>
       </div>
       {b.reasons.length > 0 && (
@@ -50,7 +52,7 @@ export function Verdict({ b }: { b: BlockOf<"verdict"> }) {
       )}
       {b.trade_off && (
         <p className="rounded-lg bg-accent/10 px-3 py-2 text-sm">
-          <span className="font-medium">Trade-off: </span>
+          <span className="font-medium">{t("verdict.tradeoff")}</span>
           {b.trade_off.text}
         </p>
       )}
@@ -63,16 +65,17 @@ export function Verdict({ b }: { b: BlockOf<"verdict"> }) {
 
 /** "Find it": research the missing key data and rebuild the report (spec 004 US1 scenario 4, US4). */
 function FindIt() {
+  const t = useT();
   const send = useChat((s) => s.send);
   const busy = useChat((s) => Boolean(s.pending));
   return (
     <button
       type="button"
       disabled={busy}
-      onClick={() => send("Find the missing data and update the report")}
+      onClick={() => send(t("verdict.find.text"))}
       className="min-h-11 rounded-full border border-accent/50 bg-accent/10 px-4 py-2 text-sm hover:bg-accent/20 disabled:opacity-50"
     >
-      Find the missing data
+      {t("verdict.find")}
     </button>
   );
 }

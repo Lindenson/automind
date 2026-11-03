@@ -1,3 +1,4 @@
+import { useBlockTitle } from "../../i18n";
 /**
  * Does the request fit the user's case? (spec 003 US3, FR-019..FR-023). One verdict per car and check,
  * the numbers compared with their basis (sourced or assumption), and the used-car age range with its
@@ -79,7 +80,7 @@ function CheckRow({ c }: { c: Check }) {
 
 export function Feasibility({ b }: { b: BlockOf<"feasibility"> }) {
   return (
-    <BlockCard title={b.title} icon={<WarnIcon />}>
+    <BlockCard title={useBlockTitle(b.type, b.title)} icon={<WarnIcon />}>
       {b.constraints.length > 0 && (
         <p className="mb-3 text-xs text-muted">
           Your case: {b.constraints.join(" · ")}

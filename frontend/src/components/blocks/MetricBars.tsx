@@ -1,3 +1,4 @@
+import { useBlockTitle } from "../../i18n";
 import type { BlockOf } from "../../lib/protocol";
 import { fmtNum } from "../../lib/util";
 import { BlockCard } from "../badges";
@@ -7,7 +8,7 @@ import { GaugeIcon } from "../icons";
 export function MetricBars({ b }: { b: BlockOf<"metric_bars"> }) {
   const color = useCarColor();
   return (
-    <BlockCard title={b.title} icon={<GaugeIcon />}>
+    <BlockCard title={useBlockTitle(b.type, b.title)} icon={<GaugeIcon />}>
       <div className="grid gap-5 sm:grid-cols-2">
         {b.metrics.map((m) => {
           const nums = m.values

@@ -1,3 +1,4 @@
+import { useBlockTitle } from "../../i18n";
 import { useMemo } from "react";
 import ReactEChartsCore from "echarts-for-react/lib/core";
 import * as echarts from "echarts/core";
@@ -129,7 +130,7 @@ export function RaceChart({ b }: { b: BlockOf<"race_chart"> }) {
 
   return (
     <BlockCard
-      title={b.title}
+      title={useBlockTitle(b.type, b.title)}
       icon={<FlagIcon />}
       right={
         <span className="flex items-center gap-1.5 text-[11px] text-muted">
