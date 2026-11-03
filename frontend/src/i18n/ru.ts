@@ -152,6 +152,8 @@ export const ru: Record<Key, string> = {
   "block.criteria_scores": "Критерии и оценки (индексы 0–100, не измерения)",
   "tco.over": "за {years}",
   "tco.depreciation": "Потеря стоимости (входит в итог за срок, не в расходы за год)",
+  "panel.updating": "Обновляю отчёт…",
+  "panel.rescore_failed": "Отчёт не обновился. Измените ещё раз или спросите в чате.",
   "block.tco": "Стоимость владения",
   "block.reliability": "Надёжность",
   "block.reviews": "Отзывы",

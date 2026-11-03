@@ -37,3 +37,54 @@ def test_at_most_one_question_the_most_decisive():
 
 def test_a_tie_change_counts():
     assert ask_value.questions(CaseFile(), lambda c: (None, c.annual_km < 10000), PROBES) == ["KM_PER_YEAR"]
+
+
+# --- spec 007 J (T077): an inferred field that decides the winner is shown and confirmed, never silent ----------
+
+
+def _guessing_outcome(case):
+    counts = case.basis.get("family") != "ASSUMED" and case.profile.family == "FAMILY"
+    return ("tiguan", False) if counts else ("golf", False)
+
+
+def test_inferred_field_that_flips_the_winner_is_found():
+    from automind.domain.ask_value import inferred_flip
+    from automind.domain.casefile import CaseFile
+
+    c = CaseFile(profile={"family": "FAMILY", "evidence": {"family": "вожу детей"}})
+    c.basis["family"] = "INFERRED"
+    assert inferred_flip(c, _guessing_outcome) == ("family", ("golf", False))
+    c.basis["family"] = "STATED"  # confirmed: nothing to ask
+    assert inferred_flip(c, _guessing_outcome) is None
+
+
+def test_inferred_field_that_changes_nothing_is_not_asked():
+    from automind.domain.ask_value import inferred_flip
+    from automind.domain.casefile import CaseFile
+
+    c = CaseFile(profile={"family": "FAMILY", "evidence": {"family": "x"}})
+    c.basis["family"] = "INFERRED"
+    assert inferred_flip(c, lambda _case: ("golf", False)) is None
+
+
+def test_report_shows_the_assumption_and_asks_once():
+    from types import SimpleNamespace
+
+    from automind.domain.casefile import CaseFile
+    from automind.orchestration.nodes.report import _confirm_inferred
+
+    def car(i, name):
+        return {"variant": SimpleNamespace(id=i, label=name, make="", model=name, variant_name=name,
+                                           generation=None, model_year_from=None, model_year_to=None)}  # fmt: skip
+
+    c = CaseFile(profile={"family": "FAMILY", "evidence": {"family": "вожу детей в школу"}})
+    c.basis["family"] = "INFERRED"
+    comp = SimpleNamespace(outcome=_guessing_outcome, cars=[car("tiguan", "Tiguan"), car("golf", "Golf")])
+    blocks = [{"type": "verdict", "profile_notes": []}]
+    q = _confirm_inferred(c, comp, blocks, "ru")
+    assert q and q[0]["type"] == "quick_replies" and "победитель" in q[0]["question"]
+    note = blocks[0]["profile_notes"][0]
+    assert "вожу детей в школу" in note and "не подтверждено" in note
+    again = [{"type": "verdict", "profile_notes": []}]
+    assert _confirm_inferred(c, comp, again, "ru") == []  # asked once; the note stays
+    assert again[0]["profile_notes"]

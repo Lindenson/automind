@@ -32,7 +32,7 @@ async def save_case(c: TurnContext, case: CaseFile, changes: list[str], *, publi
 
 
 async def history(c: TurnContext, limit: int = 12) -> list[dict[str, str]]:
-    msgs = await c.ports.messages.history(c.chat_id)
+    msgs = [m for m in await c.ports.messages.history(c.chat_id) if m.role != "edit"]  # panel edits: not words
     prior = msgs[:-1] if msgs and msgs[-1].role == "user" else msgs
     return [{"role": m.role, "text": m.text} for m in prior[-limit:]]
 

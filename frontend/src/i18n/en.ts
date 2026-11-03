@@ -151,6 +151,8 @@ export const en = {
   "block.criteria_scores": "Criteria and scores (0–100 indices, not measurements)",
   "tco.over": "over {years}",
   "tco.depreciation": "Depreciation (in the total, not in the yearly running cost)",
+  "panel.updating": "Updating the report…",
+  "panel.rescore_failed": "The report was not updated. Edit again or ask in the chat.",
   "block.tco": "Cost of ownership",
   "block.reliability": "Reliability",
   "block.reviews": "Reviews",

@@ -107,14 +107,20 @@ class ChatRunner:
         self, chat_id: str, text: str, message_id: str | None = None, preset: dict[str, Any] | None = None
     ) -> TurnResult:
         """Handle a user message: resume a pending confirmation, or start a new turn. `preset` is a request a
-        button already knows (e.g. "find it": research_more for given cars and areas): no interpretation call."""
+        button already knows (e.g. "find it": research_more for given cars and areas): no interpretation call.
+        A rescore preset (a panel edit) is stored with the hidden role `edit`: it is not the user's words, so the
+        chat does not show it and the interpreter never reads it (spec 007 J, T073)."""
         active = await self.ports.turns.active(chat_id)
         if active is not None and active.status == "RUNNING":
             raise Busy("a turn is already running in this chat")
-        msg = await self.messages.save(chat_id, "user", text, message_id=message_id)
-        await self.ports.events.publish(
-            chat_id, None, "user_message_ack", {"message_id": msg.id, "created_at": msg.created_at.isoformat()}
-        )
+        edit = (preset or {}).get("kind") == "rescore"
+        if edit and active is not None:
+            raise Busy("a question is open: the edit is used when the user answers")
+        msg = await self.messages.save(chat_id, "edit" if edit else "user", text, message_id=message_id)
+        if not edit:
+            await self.ports.events.publish(
+                chat_id, None, "user_message_ack", {"message_id": msg.id, "created_at": msg.created_at.isoformat()}
+            )
         if active is not None and active.status == "WAITING_CONFIRMATION":
             return await self._spawn(chat_id, active.id, Command(resume={"choice": "text", "text": text}))
         version, _, _ = await self.ports.cases.latest(chat_id)

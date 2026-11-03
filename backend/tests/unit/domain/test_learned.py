@@ -38,3 +38,36 @@ def test_look_alike_brand_domain_is_never_manufacturer():
 def test_domain_key_strips_www_and_keeps_subdomains():
     assert learned.domain_key("https://www.autobild.de/artikel/x") == "autobild.de"
     assert learned.domain_key("https://m.km77.com/x") == "m.km77.com"
+
+
+# --- spec 007 J (T078): no self-reinforcement ---------------------------------------------------------------------
+
+
+def test_acceptance_through_its_own_learned_query_is_neutral():
+    r = learned.LearnedRow("site.es", "specs", "ES", "PUBLICATION", accepted_runs=3, misses=4)
+    same = learned.update_row(r, accepted=True, independent=False)
+    assert same == r  # no new run, the misses are not cleared
+    expired = learned.update_row(same, accepted=False)
+    assert not learned.is_active(expired, learned.Config(min_runs=3, max_misses=5), favourites=set())
+    back = learned.update_row(r, accepted=True, independent=True)
+    assert back.accepted_runs == 4 and back.misses == 0
+
+
+async def test_only_searched_pages_count_and_learned_only_hits_are_not_independent():
+    from types import SimpleNamespace
+
+    from automind.application import research
+
+    got = []
+
+    class Store:
+        async def record(self, area, outcomes):
+            got.extend(outcomes)
+
+    ports = SimpleNamespace(learned=Store())
+    pages = [SimpleNamespace(url="https://a.es/x"), SimpleNamespace(url="https://b.es/y"),
+             SimpleNamespace(url="https://pasted.es/z")]  # fmt: skip
+    market = {"https://a.es/x": "ES", "https://b.es/y": "ES"}  # the pasted page was never a search hit
+    accepted = {p.url: 1 for p in pages}
+    await research._record_learned(ports, "specs", pages, accepted, market, independent={"https://a.es/x"})
+    assert [(d, ok, ind) for d, _, ok, ind in got] == [("a.es", True, True), ("b.es", True, False)]

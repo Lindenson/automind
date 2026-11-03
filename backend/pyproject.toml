@@ -24,7 +24,6 @@ dependencies = [
     "rapidfuzz>=3.14.6",
     "selectolax>=1.0,<2",
     "sqlalchemy[asyncio]>=2",
-    "structlog>=26.1.0",
     "tavily-python>=0.8.5",
     "trafilatura>=2.3,<3",
     "uvicorn[standard]>=0.54.0",

@@ -211,11 +211,15 @@ async def learned_sites(ports: Ports, area: str) -> dict[str, list[str]]:
 
 
 async def _record_learned(ports: Ports, area: str, pages: list[Page], accepted_by_url: dict[str, int],
-                          url_market: dict[str, str]) -> None:  # fmt: skip
+                          url_market: dict[str, str], independent: set[str] | None = None) -> None:  # fmt: skip
+    """Only pages that came from a search count (never a pasted URL); `independent` are the URLs a normal (not
+    learned) query also found (spec 007 J, T078)."""
     if ports.learned is None or not pages:
         return
-    outcomes = [(learned_rules.domain_key(p.url), url_market.get(p.url, "ES"), accepted_by_url.get(p.url, 0) > 0)
-                for p in pages if not ev.is_denied(p.url)]  # fmt: skip
+    indep = independent if independent is not None else set(url_market)
+    outcomes = [(learned_rules.domain_key(p.url), url_market[p.url], accepted_by_url.get(p.url, 0) > 0,
+                 p.url in indep)
+                for p in pages if p.url in url_market and not ev.is_denied(p.url)]  # fmt: skip
     try:
         await ports.learned.record(area, outcomes)
     except Exception:  # noqa: BLE001 - never fail a job over the hint table
@@ -282,7 +286,8 @@ async def _run(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
         accepted_by_url[p.url] += a
 
     await asyncio.gather(*(one(p) for p in pages))
-    await _record_learned(ports, job.area, pages, accepted_by_url, stats.get("url_market", {}))
+    await _record_learned(ports, job.area, pages, accepted_by_url, stats.get("url_market", {}),
+                          stats.get("independent_urls"))  # fmt: skip
     for k, n in gate.items():
         stats["pages_rejected"][k] = stats["pages_rejected"].get(k, 0) + n
     if gate:
@@ -337,14 +342,16 @@ def favourite_priority(ports: Ports, v: db.Variant | None, url: str) -> int | No
 
 def _rank_hits(
     ports: Ports, v: db.Variant | None, planned: list[search_plan.PlannedQuery], results: list[Any], seen: set[str]
-) -> tuple[dict[str, tuple[int, int, int]], dict[str, str], list[search_plan.PlannedQuery], int]:
-    """Favourites first, then by authority and rank; also which market found a URL and which queries were empty."""
+) -> tuple[dict[str, tuple[int, int, int]], dict[str, str], list[search_plan.PlannedQuery], int, set[str]]:
+    """Favourites first, then by authority and rank; also which market found a URL, which queries were empty and
+    which URLs a normal (not learned) query found."""
     from automind.application.usage import BudgetExceeded as _BE  # noqa: PLC0415
 
     ranked: dict[str, tuple[int, int, int]] = {}
     url_market: dict[str, str] = {}
     empty: list[search_plan.PlannedQuery] = []
     failures = 0
+    independent: set[str] = set()  # found by a normal (not learned) query
     for q, r in zip(planned, results, strict=True):
         if isinstance(r, _BE):
             raise r
@@ -355,12 +362,14 @@ def _rank_hits(
             empty.append(q)
         for h in r:
             url_market.setdefault(h.url, q.market)
+            if not getattr(q, "learned", False):
+                independent.add(h.url)
             if h.url in seen or ev.is_denied(h.url):
                 continue
             fav = favourite_priority(ports, v, h.url)
             key = (NO_FAVOURITE if fav is None else fav, ev.AUTHORITY.index(ev.classify_source(h.url)), h.rank)
             ranked[h.url] = min(ranked.get(h.url, key), key)
-    return ranked, url_market, empty, failures
+    return ranked, url_market, empty, failures, independent
 
 
 async def _collect(
@@ -379,7 +388,7 @@ async def _collect(
         *(ports.search.search(q.text, market=q.market, area=area, fresh=fresh) for q in planned),
         return_exceptions=True,
     )
-    ranked, url_market, empty, failures = _rank_hits(ports, v, planned, results, seen)
+    ranked, url_market, empty, failures, independent = _rank_hits(ports, v, planned, results, seen)
     order = sorted(ranked, key=lambda u: ranked[u])
     limit = int(((ports.ref.search or {}).get("limits") or {}).get("max_pages_per_job", MAX_DOCS_PER_JOB))
     store = ports.page_store
@@ -405,6 +414,7 @@ async def _collect(
         "search_failures": failures,
         "url_market": url_market,
         "empty_queries": empty,
+        "independent_urls": independent,
     }
     return pages, stats
 
@@ -491,6 +501,7 @@ def _merge_stats(a: dict[str, Any], b: dict[str, Any]) -> dict[str, Any]:
         "search_failures": a["search_failures"] + b["search_failures"],
         "url_market": {**b.get("url_market", {}), **a.get("url_market", {})},
         "empty_queries": [*a.get("empty_queries", []), *b.get("empty_queries", [])],
+        "independent_urls": set(a.get("independent_urls", ())) | set(b.get("independent_urls", ())),
     }
 
 

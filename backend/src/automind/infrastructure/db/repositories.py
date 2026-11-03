@@ -12,7 +12,7 @@ from typing import Any
 from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.exc import IntegrityError
 
-from automind.application.ports import TurnBusy
+from automind.application.ports import TurnBusy, VersionConflict
 from automind.domain.metrics import intake_summary
 
 from .models import (
@@ -143,6 +143,28 @@ class CaseRepo:
             )
             await s.commit()
             return version
+
+    async def save_if_idle(
+        self, chat_id: str, data: dict[str, Any], changed_by: str, change_log: list[str], *, expected_version: int
+    ) -> int:
+        """A panel edit (spec 007 J, T076): under the same per-chat lock as a turn start, so no turn can start
+        between the read and the write. Raises TurnBusy when a turn runs (the edit is queued and applied after
+        it) and VersionConflict when the case moved on since `expected_version` (re-read and apply again)."""
+        async with sessionmaker()() as s:
+            await s.execute(text("SELECT pg_advisory_xact_lock(hashtext(:k))"), {"k": f"turns:{chat_id}"})
+            running = await s.execute(select(Turn.id).where(Turn.chat_id == chat_id, Turn.status == "RUNNING").limit(1))
+            if running.scalar_one_or_none() is not None:
+                raise TurnBusy("a turn is running in this chat")
+            current = int(
+                (await s.execute(select(func.max(CaseFileRow.version)).where(CaseFileRow.chat_id == chat_id))).scalar()
+                or 0
+            )
+            if current != expected_version:
+                raise VersionConflict(current)
+            s.add(CaseFileRow(chat_id=chat_id, version=current + 1, data=data, changed_by=changed_by,
+                              change_log=change_log))  # fmt: skip
+            await s.commit()
+            return current + 1
 
 
 class TurnRepo:
@@ -529,16 +551,18 @@ class LearnedSourceRepo:
         rows = [LearnedRow(r.domain, r.area, r.market, r.source_type, r.accepted_runs, r.misses) for r in got]
         return sorted(rows, key=lambda r: (-r.accepted_runs, r.domain))
 
-    async def record(self, area: str, outcomes: list[tuple[str, str, bool]]) -> None:
+    async def record(self, area: str, outcomes: list[tuple[str, str, bool, bool]]) -> None:
         from automind.domain import learned  # noqa: PLC0415
 
         from .models import LearnedSource  # noqa: PLC0415
 
-        # one outcome per (domain, market): accepted if any page of that domain gave an accepted value
-        merged: dict[tuple[str, str], bool] = {}
-        for d, m, ok in outcomes:
+        # one outcome per (domain, market): accepted if any page of that domain gave an accepted value; independent
+        # if such a page was also found by a normal (not learned) query
+        merged: dict[tuple[str, str], tuple[bool, bool]] = {}
+        for d, m, ok, indep in outcomes:
             if d:
-                merged[(d, m)] = merged.get((d, m), False) or ok
+                a, i = merged.get((d, m), (False, False))
+                merged[(d, m)] = (a or ok, i or (ok and indep))
         if not merged:
             return
         async with sessionmaker()() as s:
@@ -546,16 +570,16 @@ class LearnedSourceRepo:
                 (r.domain, r.market): r
                 for r in (await s.execute(select(LearnedSource).where(LearnedSource.area == area))).scalars()
             }
-            for (d, m), ok in merged.items():
+            for (d, m), (ok, indep) in merged.items():
                 row = have.get((d, m))
                 if row is None:
-                    if not ok:
+                    if not (ok and indep):
                         continue  # new rows only from accepted values
                     row = LearnedSource(domain=d, area=area, market=m, accepted_runs=0, misses=0,
                                         source_type=learned.source_type_of(f"https://{d}/"))  # fmt: skip
                     s.add(row)
-                lr = learned.update_row(learned.LearnedRow(d, area, m, row.source_type, row.accepted_runs or 0,
-                                                           row.misses or 0), accepted=ok)  # fmt: skip
+                old = learned.LearnedRow(d, area, m, row.source_type, row.accepted_runs or 0, row.misses or 0)
+                lr = learned.update_row(old, accepted=ok, independent=indep)
                 row.accepted_runs, row.misses = lr.accepted_runs, lr.misses
                 if ok:
                     row.last_seen = now()

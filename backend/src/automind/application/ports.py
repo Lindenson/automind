@@ -23,6 +23,14 @@ class TurnBusy(RuntimeError):
     """A turn of this chat is already running: the turn store checks it under a per-chat lock."""
 
 
+class VersionConflict(RuntimeError):
+    """The case changed since it was read (spec 007 J, T076): re-read and apply again."""
+
+    def __init__(self, current: int) -> None:
+        super().__init__(f"the case is at version {current}")
+        self.current = current
+
+
 @dataclass(frozen=True)
 class Reference:
     """Static reference data from config/*.yaml, loaded by infrastructure and passed in."""

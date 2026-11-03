@@ -4,6 +4,11 @@ A domain whose values were accepted in several research runs becomes a round-0 s
 after the configured favourites. It expires when it keeps giving nothing. It is only a search hint: its pages pass
 the same relevance, excerpt and sense checks, and its authority comes from `classify_source` (so a fan club or a
 look-alike brand domain is never MANUFACTURER). Deny-listed domains are never used.
+
+No self-reinforcement (spec 007 J, T078): a learned domain is searched first, so it finds accepted values more
+often. Only an acceptance of a page that a normal (not learned) query also found counts as a new run and clears
+the misses; an acceptance through the domain's own learned query is neutral. Pages that did not come from a
+search (e.g. a URL the user pasted) never count.
 """
 
 from __future__ import annotations
@@ -45,9 +50,11 @@ def source_type_of(url: str) -> str:
     return classify_source(url)
 
 
-def update_row(row: LearnedRow, *, accepted: bool) -> LearnedRow:
-    if accepted:
+def update_row(row: LearnedRow, *, accepted: bool, independent: bool = True) -> LearnedRow:
+    if accepted and independent:
         return replace(row, accepted_runs=row.accepted_runs + 1, misses=0)
+    if accepted:  # found only through its own learned query: keeps it, proves nothing new
+        return row
     return replace(row, misses=row.misses + 1)
 
 

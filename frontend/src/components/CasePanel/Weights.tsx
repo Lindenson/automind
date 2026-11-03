@@ -3,7 +3,7 @@
  * reasons (persona, profile, wishes, the user's own change). Releasing a slider sends the whole set (PATCH); it is
  * kept as an adjustment on top of the automatic weights, and "back to automatic" removes it.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { patchCase } from "../../store/case";
 import { useT } from "../../i18n";
 import { useChat } from "../../store/chat";
@@ -96,6 +96,8 @@ export function ReasonLine({ line }: { line: WeightLine }) {
   );
 }
 
+const DEBOUNCE_MS = 600;
+
 export function Weights({ onError }: { onError: (e: string | null) => void }) {
   const t = useT();
   const chatId = useChat((s) => s.chatId);
@@ -110,10 +112,21 @@ export function Weights({ onError }: { onError: (e: string | null) => void }) {
   const shown = criteria.filter((c) => (draft[c.key] ?? 0) > 0);
   const others = criteria.filter((c) => !((draft[c.key] ?? 0) > 0));
 
-  const commit = async (next: Record<string, number>) => {
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
+  // spec 007 J (T075): one PATCH after the slider settles, not one per movement
+  const commit = (next: Record<string, number>) => {
     // zeros are sent too: a criterion set to 0 is excluded until "back to automatic" (spec 007 FR-010)
     if (!Object.values(next).some((v) => v > 0)) return;
-    onError(await patchCase(chatId, { weights: next }));
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      void patchCase(chatId, { weights: next }).then(onError);
+    }, DEBOUNCE_MS);
   };
 
   if (criteria.length === 0 || Object.keys(effective).length === 0) {
@@ -160,8 +173,8 @@ export function Weights({ onError }: { onError: (e: string | null) => void }) {
             onChange={(e) =>
               setDraft({ ...draft, [c.key]: Number(e.target.value) })
             }
-            onPointerUp={() => void commit(draft)}
-            onKeyUp={() => void commit(draft)}
+            onPointerUp={() => commit(draft)}
+            onKeyUp={() => commit(draft)}
           />
           {view?.weights[c.key] && <ReasonLine line={view.weights[c.key]!} />}
         </label>
@@ -173,7 +186,7 @@ export function Weights({ onError }: { onError: (e: string | null) => void }) {
           onChange={(e) => {
             const key = e.target.value;
             setAdding("");
-            if (key) void commit({ ...draft, [key]: 15 });
+            if (key) commit({ ...draft, [key]: 15 });
           }}
         >
           <option value="">+ add a criterion…</option>

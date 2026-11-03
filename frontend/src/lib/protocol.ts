@@ -848,6 +848,13 @@ export const TurnCancelledSchema = z.object({
   type: z.literal("turn_cancelled"),
 });
 
+// spec 007 J (T074): a panel edit could not recompute the report
+export const RescoreFailedSchema = z.object({
+  ...Envelope,
+  type: z.literal("rescore_failed"),
+  reason: z.string().default(""),
+});
+
 // spec 004 FR-022: the result of "this is wrong" on a value
 export const ChallengeResultSchema = z.object({
   ...Envelope,
@@ -896,6 +903,7 @@ export const ServerMsgSchema = z.discriminatedUnion("type", [
   ConfirmRequestSchema,
   UsageMsgSchema,
   TurnCancelledSchema,
+  RescoreFailedSchema,
 ]);
 export type ServerMsg = z.infer<typeof ServerMsgSchema>;
 
