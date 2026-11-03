@@ -475,6 +475,7 @@ export const FeasibilityBlockSchema = z.object({
 // spec 004 FR-031: one-tap answers under a question (closest models, "remove this car", "choose for me")
 export const QuickRepliesBlockSchema = z.object({
   type: z.literal("quick_replies"),
+  question: z.string().nullish(), // spec 004 FR-018: a question about the user under the report
   items: z.array(z.object({ label: z.string(), text: z.string() })),
 });
 

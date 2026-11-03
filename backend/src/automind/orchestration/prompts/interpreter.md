@@ -59,6 +59,9 @@ Rules
   for the Mazda? find it and update the report", "search again", "look deeper", "this is incomplete") →
   research_more, with `focus_cars` = the car keys they named (empty = all). Never answer such a request with
   follow_up_question.
+- The user criticises the report ("bad", "useless", "boring", "incomplete", "плохо", "фигня", "скучно",
+  "malo") → critique, with `focus_cars` / `focus_areas` for what they name ("fill in everything for the Mazda"
+  → the Mazda's key, empty areas = all). If they only ask to find data, research_more is fine too.
 - General automotive knowledge ("how does a turbo work?") → general_question, empty delta.
 - language: the language of the latest user message (ru, en, es …).
 

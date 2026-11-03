@@ -145,7 +145,7 @@ async def assess_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[s
     out: dict[str, Any] = {}
     if changed:
         out["case_version"] = await save_case(c, case, changed)
-    more = state.get("request_kind") == "research_more" and not state.get("research_done")
+    more = state.get("request_kind") in ("research_more", "critique") and not state.get("research_done")
     interp = state.get("interpretation") or {}
     plan = await _plan(
         c, case, research_more=more, focus=list(interp.get("focus_cars") or []),

@@ -7,6 +7,29 @@ free, instant and testable. Unknown languages fall back to English.
 from __future__ import annotations
 
 PHRASES: dict[str, dict[str, str]] = {
+    "profile_KM_PER_YEAR": {
+        "en": "To sharpen this: how many km a year do you drive? (I assumed {km} km.)",
+        "ru": "Чтобы уточнить: сколько километров в год вы проезжаете? (Я принял {km} км.)",
+        "es": "Para afinar: ¿cuántos km al año conduces? (He supuesto {km} km.)",
+    },
+    "profile_FAMILY_SIZE": {
+        "en": "To sharpen this: who usually travels in the car?",
+        "ru": "Чтобы уточнить: кто обычно ездит в машине?",
+        "es": "Para afinar: ¿quién suele viajar en el coche?",
+    },
+    "family_single": {"en": "Mostly just me", "ru": "В основном я один", "es": "Sobre todo yo solo"},
+    "family_couple": {"en": "The two of us", "ru": "Нас двое", "es": "Somos dos"},
+    "family_kids": {"en": "A family with children", "ru": "Семья с детьми", "es": "Una familia con niños"},
+    "critique_researched": {
+        "en": "I went back to the sources for what was missing ({areas}) and rebuilt the report.",
+        "ru": "Я заново поискал недостающее ({areas}) и пересобрал отчёт.",
+        "es": "He vuelto a buscar lo que faltaba ({areas}) y he rehecho el informe.",
+    },
+    "critique_reworked": {
+        "en": "Nothing new was found in the sources, so I reworked the report around what you asked: {what}.",
+        "ru": "Новых данных в источниках нет, поэтому я переработал отчёт с упором на то, что вы просили: {what}.",
+        "es": "No hay datos nuevos en las fuentes, así que he rehecho el informe centrado en lo que pediste: {what}.",
+    },
     "not_understood": {
         "en": "I did not understand “{answer}” for {car}.",
         "ru": "Я не понял ответ «{answer}» для {car}.",

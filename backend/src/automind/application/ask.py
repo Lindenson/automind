@@ -62,7 +62,7 @@ def quick_replies(
     for q in items:
         car = cars.get(str(q.get("car") or ""))
         if car is None:
-            continue
+            continue  # questions about the user, not a car, get their replies below
         if q["kind"] == "UNKNOWN_MODEL":
             out += [{"label": m, "text": m} for m in _closest(car)]
         if q["kind"] in ("CAR_IDENTITY", "UNKNOWN_MODEL", "TRIM", "GEARBOX", "USED_AGE"):
@@ -70,6 +70,7 @@ def quick_replies(
             out.append({"label": label, "text": label})
         if q["kind"] in ("TRIM", "GEARBOX"):
             out.append({"label": choose_label, "text": choose_label})
+
     return out[:6]
 
 

@@ -129,6 +129,8 @@ export function CaseBody() {
         </select>
       </Section>
 
+      <AboutYou profile={(c as Record<string, unknown>).profile} annualKm={c.annual_km} />
+
       <Section title="Cars">
         {c.cars.length === 0 && <p className="text-sm text-muted">None yet.</p>}
         {c.cars.length > 1 && (
@@ -435,5 +437,40 @@ export function CaseSheet() {
         <CaseBody />
       </div>
     </div>
+  );
+}
+
+const PROFILE_LABELS: Record<string, string> = {
+  age: "Age",
+  experience: "Experience",
+  family: "Travels as",
+  age_band: "Age band",
+  driving_style: "Driving style",
+};
+
+/** What the hub inferred about the user, with the words it came from (spec 004 FR-017). */
+function AboutYou({ profile, annualKm }: { profile: unknown; annualKm: number }) {
+  const p = (profile ?? {}) as Record<string, unknown>;
+  const evidence = (p.evidence ?? {}) as Record<string, string>;
+  const rows = Object.keys(PROFILE_LABELS).filter((k) => p[k] != null && p[k] !== "");
+  return (
+    <Section title="About you">
+      {rows.length === 0 ? (
+        <p className="text-sm text-muted">Nothing inferred yet — tell me who will drive the car.</p>
+      ) : (
+        <dl className="space-y-1 text-sm">
+          {rows.map((k) => (
+            <div key={k} className="flex flex-wrap justify-between gap-x-2">
+              <dt className="text-muted">{PROFILE_LABELS[k]}</dt>
+              <dd className="text-right">
+                {String(p[k]).toLowerCase().replace("_", " ")}
+                {evidence[k] && <span className="block text-xs text-muted">“{evidence[k]}”</span>}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      <p className="mt-1 text-xs text-muted">{annualKm.toLocaleString()} km a year</p>
+    </Section>
   );
 }

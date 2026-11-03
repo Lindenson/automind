@@ -9,3 +9,5 @@ PERSONA: "So I can tailor the answer: what matters most to you — low running c
 BUDGET_INTENT: "With a budget of {options}: are you looking for a new car, a used one, or either?"
 UNKNOWN_MODEL: "I don't know a car called \"{car}\". Did you mean one of these: {options}? Or tell me the make and model again."
 GEARBOX: "The {car} is sold with several gearboxes or drives ({options}). Which one do you mean?"
+KM_PER_YEAR: "Roughly how many kilometres a year do you drive? With these cars it changes which one is cheaper to run."
+FAMILY_SIZE: "Who usually travels in the car (just you, two of you, a family with children)? The cars differ in size."

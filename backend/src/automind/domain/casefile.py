@@ -49,7 +49,8 @@ Condition = Literal["NEW", "USED", "UNKNOWN"]
 Resolution = Literal["UNRESOLVED", "PROPOSED", "CONFIRMED", "AUTO_OK", "UNKNOWN_MODEL"]
 Strength = Literal["LOW", "MEDIUM", "HIGH"]
 QuestionKind = Literal[
-    "TOO_MANY_CARS", "CAR_IDENTITY", "USED_AGE", "TRIM", "PERSONA", "BUDGET_INTENT", "UNKNOWN_MODEL", "GEARBOX"
+    "TOO_MANY_CARS", "CAR_IDENTITY", "USED_AGE", "TRIM", "PERSONA", "BUDGET_INTENT", "UNKNOWN_MODEL", "GEARBOX",
+    "KM_PER_YEAR", "FAMILY_SIZE",
 ]  # fmt: skip
 BudgetIntent = Literal["NEW", "USED", "ANY", "UNKNOWN"]
 
@@ -59,6 +60,11 @@ MAX_CARS = 3
 class Profile(BaseModel):
     age: int | None = Field(default=None, ge=14, le=100)
     experience: str | None = None
+    # spec 004 FR-017: inferred only from the user's words; `evidence` keeps those words per field
+    family: Literal["SINGLE", "COUPLE", "FAMILY"] | None = None
+    age_band: Literal["UNDER_25", "25_40", "40_60", "OVER_60"] | None = None
+    driving_style: Literal["CALM", "MIXED", "SPORTY"] | None = None
+    evidence: dict[str, str] = Field(default_factory=dict)
 
 
 class Budget(BaseModel):
@@ -161,6 +167,7 @@ class CaseFile(BaseModel):
     needs: Needs = Field(default_factory=Needs)
     feasibility_ack: str | None = None  # fingerprint of the feasibility verdict the user answered (spec 003)
     annual_km: int = Field(default=15000, ge=1000, le=200000)
+    annual_km_stated: bool = False  # the user said it (spec 004: otherwise it may be asked when it matters)
     rates_override: Rates = Field(default_factory=Rates)
     depth: Depth = "STANDARD"
     priorities: list[Priority] = Field(default_factory=list)
@@ -293,6 +300,13 @@ def _apply_persona_profile(c: CaseFile, d: CaseDelta, log: list[str]) -> None:
         if d.set_profile.experience and d.set_profile.experience != c.profile.experience:
             c.profile.experience = d.set_profile.experience
             log.append(f"experience: {c.profile.experience}")
+        for f in ("family", "age_band", "driving_style"):
+            val = getattr(d.set_profile, f)
+            words = d.set_profile.evidence.get(f, "").strip()
+            if val is not None and words and val != getattr(c.profile, f):  # only with the user's own words
+                setattr(c.profile, f, val)
+                c.profile.evidence[f] = words[:120]
+                log.append(f'{f.replace("_", " ")}: {val.lower()} ("{words[:60]}")')
 
 
 def _money(v: int | None) -> str:
@@ -307,6 +321,8 @@ def _apply_settings(c: CaseFile, d: CaseDelta, log: list[str]) -> None:
     if d.set_annual_km is not None and d.set_annual_km != c.annual_km:
         log.append(f"annual mileage: {c.annual_km:,} → {d.set_annual_km:,} km")
         c.annual_km = d.set_annual_km
+    if d.set_annual_km is not None:
+        c.annual_km_stated = True
     if d.set_depth is not None and d.set_depth != c.depth:
         log.append(f"depth: {c.depth} → {d.set_depth}")
         c.depth = d.set_depth

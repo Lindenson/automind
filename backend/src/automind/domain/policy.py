@@ -41,6 +41,7 @@ RequestKind = Literal[
     "confirm_yes",
     "confirm_no",
     "choose_for_me",
+    "critique",
     "chitchat",
 ]
 QUESTION_ORDER: tuple[QuestionKind, ...] = (
@@ -118,6 +119,10 @@ def _answer_or_report(
     # 4b. "find the missing data and update the report": after the research, always a fresh report
     if request == "research_more":
         return Action(kind="REPORT", profile=single, reason="the user asked to research more and update the report")
+    # 4c. critique never gets only an apology (spec 004 FR-021): the gaps were researched above, or the report
+    # is reworked with what the user disliked
+    if request == "critique":
+        return Action(kind="REPORT", profile=single, reason="critique: rework the report")
     # 5. answer from context (a correction that changes nothing is answered, not re-reported)
     if request == "correction" and not case_changed:
         return Action(

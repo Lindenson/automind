@@ -26,6 +26,8 @@ class Interpretation(BaseModel):
         "('why is there no data for X? find it', 'update the report', 'look deeper'); general_question: general "
         "automotive knowledge; confirm_yes/confirm_no: answer to a pending confirmation; choose_for_me: the user "
         "lets the hub pick the version ('any', 'choose for me', 'любой', 'на твой выбор', 'cualquiera'); "
+        "critique: the user is unhappy with the report ('bad', 'useless', 'incomplete', 'плохо', 'фигня', 'malo'), "
+        "with focus_cars / focus_areas when they name what is wrong; "
         "chitchat: greetings/other"
     )
     language: str = Field(description="ISO 639-1 code of the user's message, e.g. 'ru', 'en', 'es'")
