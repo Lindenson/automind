@@ -218,7 +218,7 @@ An option the system offered is always accepted when the user picks it. For a ne
 **Questions by value**
 
 - **FR-006**: Before research, the system MUST ask about a missing or uncertain field only when scoring with 2–3 plausible values of that field changes the winner or the tie status. It MUST ask at most one profile question per turn, with chip answers.
-- **FR-007**: `full_intake` MUST default to false. The total intake path before the first research MUST be no longer than two questions.
+- **FR-007**: The total intake path before the first research MUST be no longer than two questions. *(Amended in increment B: `full_intake` stays on, because new or used is asked together with an identity question and never alone, and the owner named "new or used" as part of the profile.)*
 
 **Weights**
 

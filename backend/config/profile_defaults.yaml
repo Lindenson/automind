@@ -1,0 +1,14 @@
+# What is assumed when the user has not said it (spec 007 FR-003). Shown as "assumed", never as a fact, and
+# replaced as soon as the user says or implies otherwise.
+version: 1
+personas:
+  PERFORMANCE: {ownership_years: 4, annual_km: 12000, condition: NEW}
+  BUYER:       {ownership_years: 7, annual_km: 15000, condition: NEW}
+  EXPERT:      {ownership_years: 5, annual_km: 15000, condition: NEW}
+  UNKNOWN:     {ownership_years: 5, annual_km: 15000, condition: NEW}
+# Values tried by the questions-by-value check (FR-006): a field is asked only when one of these changes the
+# winner or the tie.
+probe:
+  annual_km: [8000, 15000, 30000]
+  ownership_years: [3, 6, 10]
+  persona: [PERFORMANCE, BUYER]

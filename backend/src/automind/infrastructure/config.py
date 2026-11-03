@@ -193,6 +193,7 @@ def reference(prompts: dict[str, str]) -> Reference:
         questions_i18n=questions_i18n(),
         makes=MakeRegistry.from_config(load_yaml("makes.yaml")),
         regions=dict(load_yaml("regions.yaml").get("regions") or {}),
+        profile_defaults=load_yaml("profile_defaults.yaml"),
     )
 
 
@@ -200,3 +201,7 @@ def configure_domain() -> None:
     """Install config-driven policies into the pure domain (call once at startup and in tests)."""
     evidence.configure(source_policy())
     sense.configure(load_yaml("sense.yaml"))
+    from automind.application.interpret import configure_history  # noqa: PLC0415
+
+    win = search_config().get("interpret") or {}
+    configure_history(int(win.get("history_turns", 16)), int(win.get("history_chars", 800)))

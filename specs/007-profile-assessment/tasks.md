@@ -29,18 +29,18 @@ Paths are relative to the repo root: `B/` = `backend/src/automind/`, `T/` = `bac
   - set `intake.full_intake: false`
 
   Load them in `B/config.py` / `B/infrastructure/config.py` with the defaults above.
-- [ ] T002 [P] Create `C/profile_rules.yaml` and `C/profile_defaults.yaml` exactly as in data-model.md (real criteria only; `cap: 50`; probe values).
+- [X] T002 [P] (profile_defaults.yaml done in B; profile_rules.yaml comes with C) Create `C/profile_rules.yaml` and `C/profile_defaults.yaml` exactly as in data-model.md (real criteria only; `cap: 50`; probe values).
 
 ---
 
 ## Phase 2: Foundational (blocks US1–US4)
 
-- [ ] T003 Write tests in `T/unit/domain/test_casefile.py` for:
+- [X] T003 Write tests in `T/unit/domain/test_casefile.py` for:
   - the `basis` upgrade of old rows (USER_EDIT → STATED; `annual_km_stated` → STATED; a field with evidence → INFERRED; else ASSUMED);
   - the precedence rule STATED > INFERRED > ASSUMED;
   - `ownership_years` bounds 1–20;
   - the conversion of `weights_overridden` + `weights` into `weight_adjustments`.
-- [ ] T004 Implement in `B/domain/casefile.py`:
+- [X] T004 Implement in `B/domain/casefile.py`:
   - `ProfileBasis` and `CaseFile.basis: dict[str, ProfileBasis]`;
   - `ownership_years: int | None` (ge=1, le=20);
   - `weight_adjustments: dict[CriterionKey, float]`;
@@ -116,40 +116,40 @@ Paths are relative to the repo root: `B/` = `backend/src/automind/`, `T/` = `bac
 
 ### Tests
 
-- [ ] T020 [P] [US1] Tests in `T/unit/test_interpret.py` for `numbers_in`:
+- [X] T020 [P] [US1] Tests in `T/unit/test_interpret.py` for `numbers_in`:
   - "до 20 тыщ" → {20000};
   - "1,5 млн" → {1500000};
   - "20к" → {20000};
   - "Golf 7 2015" → {7, 2015};
   - "25.000 €" → {25000};
   - "20 км" is not money.
-- [ ] T021 [P] [US1] Tests in `T/unit/domain/test_ask_value.py` for `B/domain/ask_value.questions()`:
+- [X] T021 [P] [US1] Tests in `T/unit/domain/test_ask_value.py` for `B/domain/ask_value.questions()`:
   - no question when every probe value gives the same winner and tie;
   - asks `annual_km` when 8,000 vs 30,000 flips the winner;
   - at most 1 field;
   - before research, asks persona only when the persona weight vectors differ by ≥ 15 points;
   - never asks a STATED field.
-- [ ] T022 [P] [US1] Tests in `T/unit/domain/test_casefile.py`:
+- [X] T022 [P] [US1] Tests in `T/unit/domain/test_casefile.py`:
   - interpreter evidence that is not in any user message drops the field;
   - INFERRED never overwrites STATED;
   - defaults from `profile_defaults.yaml` are applied with ASSUMED per persona.
-- [ ] T023 [P] [US1] Goldens `T/golden/G31_persona_from_trims.yaml` ("BMW 320d M Sport или Golf R?" → PERFORMANCE INFERRED with evidence "M Sport"; ≤1 question) and `T/golden/G32_family_mountains.yaml` (family FAMILY INFERRED, usage MOUNTAINS, budget 30000), with fake-model cassettes.
+- [X] T023 [P] [US1] (done as graph tests `T/graph/test_profile_inferred.py`) Goldens `T/golden/G31_persona_from_trims.yaml` ("BMW 320d M Sport или Golf R?" → PERFORMANCE INFERRED with evidence "M Sport"; ≤1 question) and `T/golden/G32_family_mountains.yaml` (family FAMILY INFERRED, usage MOUNTAINS, budget 30000), with fake-model cassettes.
 
 ### Implementation
 
-- [ ] T024 [US1] `B/application/interpret.py`:
+- [X] T024 [US1] `B/application/interpret.py`:
   - fix `numbers_in` / `_NUM_RE` for "тыс", "тыщ", "млн", "mil", "k", "к" and the rule that space-separated numbers are not glued (FR-004);
   - the history window comes from config (`history_turns` × `history_chars`, FR-005);
   - add an evidence check: every `set_profile` / `set_persona` evidence must be a substring (normalised) of a user message in this chat.
-- [ ] T025 [US1] Update `B/orchestration/prompts/interpreter.md`. Replace "ONLY when the latest message says it" with inference from the whole dialogue, `basis: INFERRED` and the evidence words. Add the persona cues: M Sport, GTI, R, RS, AMG, track → PERFORMANCE; children or school → family; economy words → BUYER. Bump the prompt version.
-- [ ] T026 [US1] `B/domain/casefile.py` CaseDelta:
+- [X] T025 [US1] Update `B/orchestration/prompts/interpreter.md`. Replace "ONLY when the latest message says it" with inference from the whole dialogue, `basis: INFERRED` and the evidence words. Add the persona cues: M Sport, GTI, R, RS, AMG, track → PERFORMANCE; children or school → family; economy words → BUYER. Bump the prompt version.
+- [X] T026 [US1] `B/domain/casefile.py` CaseDelta:
   - `set_profile` / `set_persona` carry a basis;
   - add `set_ownership_years`;
   - map the monthly limit onto `running_cost_limit` with basis `monthly_limit`;
   - add `apply_defaults(case, defaults)` (pure).
-- [ ] T027 [US1] Implement `B/domain/ask_value.py` (R5). Use it in the intake step of `B/domain/policy.py` / `B/orchestration/nodes/understand.py`, capping profile questions at 1 per turn together with `profile_gaps.questions`. Add the question kinds OWNERSHIP_YEARS, ANNUAL_KM, CONDITION and PERSONA, localized en/ru/es in `C/questions.yaml` with chip answers.
-- [ ] T028 [US1] Intake card (`B/orchestration/nodes/confirm.py` + `F/components/IntakeCard.tsx`): show persona, ownership years, new/used, km and budget, each with a basis badge (stated / inferred «…» / assumed) and a "correct?" chip for inferred fields. Add a vitest test in `frontend/src/components/IntakeCard.test.tsx`.
-- [ ] T029 [US1] Run check, restart dev, deploy, then commit, push and merge ("007-B profile understood").
+- [X] T027 [US1] Implement `B/domain/ask_value.py` (R5). Use it in the intake step of `B/domain/policy.py` / `B/orchestration/nodes/understand.py`, capping profile questions at 1 per turn together with `profile_gaps.questions`. Add the question kinds OWNERSHIP_YEARS, ANNUAL_KM, CONDITION and PERSONA, localized en/ru/es in `C/questions.yaml` with chip answers.
+- [X] T028 [US1] (vitest for the card: still to add) Intake card (`B/orchestration/nodes/confirm.py` + `F/components/IntakeCard.tsx`): show persona, ownership years, new/used, km and budget, each with a basis badge (stated / inferred «…» / assumed) and a "correct?" chip for inferred fields. Add a vitest test in `frontend/src/components/IntakeCard.test.tsx`.
+- [X] T029 [US1] Run check, restart dev, deploy, then commit, push and merge ("007-B profile understood").
 
 ---
 

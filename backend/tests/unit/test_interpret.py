@@ -1,6 +1,6 @@
-"""Persona changes need words from the current message (no re-derivation from history)."""
+"""Persona and profile need the user's own words, from this or an earlier message (spec 007 FR-002)."""
 
-from automind.application.interpret import Interpretation, _persona_from_this_message
+from automind.application.interpret import Interpretation, _persona_from_users_words
 
 
 def interp(evidence):
@@ -14,13 +14,38 @@ def interp(evidence):
     )
 
 
-def test_persona_kept_when_this_message_states_it():
-    assert _persona_from_this_message(interp("race enthusiast"), "the same for a race enthusiast").delta.set_persona
+def test_persona_kept_when_the_user_wrote_the_words():
+    assert _persona_from_users_words(interp("race enthusiast"), ["the same for a race enthusiast"]).delta.set_persona
+    # inferred from an earlier message of the dialogue (spec 007 FR-002)
+    said = ["and now?", "compare bmw 320d m sport and golf r, I am a race enthusiast"]
+    assert _persona_from_users_words(interp("race enthusiast"), said).delta.set_persona
 
 
-def test_persona_dropped_without_words_in_this_message():
-    assert _persona_from_this_message(interp("race enthusiast"), "and now?").delta.set_persona is None
-    assert _persona_from_this_message(interp(None), "and now?").delta.set_persona is None
+def test_persona_dropped_without_the_users_words():
+    assert _persona_from_users_words(interp("race enthusiast"), ["and now?"]).delta.set_persona is None
+    assert _persona_from_users_words(interp(None), ["and now?"]).delta.set_persona is None
+
+
+def test_profile_field_dropped_when_the_words_were_never_written():
+    from automind.application.interpret import _profile_from_users_words
+
+    i = Interpretation.model_validate({"request": "compare", "language": "ru", "delta": {"set_profile": {
+        "family": "FAMILY", "driving_style": "CALM",
+        "evidence": {"family": "вожу детей в школу", "driving_style": "езжу спокойно"}}}})  # fmt: skip
+    out = _profile_from_users_words(i, ["вожу детей в школу, по выходным в горы"]).delta.set_profile
+    assert out.family == "FAMILY" and out.driving_style is None and "driving_style" not in out.evidence
+
+
+def test_numbers_with_russian_and_spanish_words():
+    from automind.application.interpret import numbers_in
+
+    assert numbers_in("до 20 тыщ") == {20000}
+    assert numbers_in("1,5 млн") == {1500000}
+    assert numbers_in("бюджет 20к") == {20000}
+    assert numbers_in("Golf 7 2015") == {7, 2015}  # never 72015
+    assert numbers_in("25.000 €") == {25000}
+    assert numbers_in("20 км") == {20}  # a distance, not money
+    assert numbers_in("1,5 millones") == {1500000}
 
 
 def test_constraint_numbers_must_be_in_this_message():

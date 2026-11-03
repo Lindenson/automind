@@ -46,6 +46,7 @@ class Reference:
     questions_i18n: dict[str, Any] = field(default_factory=dict)  # config/questions.yaml v2 (spec 005)
     makes: Any = None  # application.makes.MakeRegistry (config/makes.yaml, spec 005)
     regions: dict[str, Any] = field(default_factory=dict)  # config/regions.yaml (spec 005)
+    profile_defaults: dict[str, Any] = field(default_factory=dict)  # config/profile_defaults.yaml (spec 007)
 
 
 @dataclass

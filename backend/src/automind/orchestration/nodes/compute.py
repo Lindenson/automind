@@ -35,6 +35,7 @@ class Computed:
     insights: Any = None  # domain.insights.InsightSet (spec 004 US3)
     verdict: Any = None  # domain.verdict.Verdict (spec 004 US1)
     check: Any = None  # guard.CheckInput for the report check
+    outcome: Any = None  # (CaseFile) -> (winner, tie) on the same data: questions by value (spec 007 FR-006)
 
 
 def case_facts(case: CaseFile) -> list[str]:
@@ -141,6 +142,17 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
     model = c.ports.ref.criteria
     weights = weights_for(case, model)
     crit = score(facts, weights, model) if facts and weights else None
+
+    def outcome(probe: CaseFile) -> tuple[str | None, bool]:
+        """The same data scored for another profile (pure: no search, no model)."""
+        est = [tco.compute(t, rates, probe.annual_km) for t in tcars]
+        cost = _checked_costs(est, {car["variant"].id: x.age_years for x, car in keyed}, [])
+        fs = [compose.facts(car, sims.get(car["variant"].id), condition=_cond(x.condition), age_years=x.age_years,
+                            annual_cost_eur=cost.get(car["variant"].id)) for x, car in keyed]  # fmt: skip
+        w = weights_for(probe, model)
+        r = score(fs, w, model) if fs and w else None
+        return (r.winner_car_id, r.tie) if r else (None, False)
+
     iset, verdict, vblock, check = await _insights(c, case, keyed, tcars, costs, crit, sims, rates, lang)
     blocks = await _blocks(c, case, keyed, race, crit, estimates, iset)
     out_notices = list(notices)
@@ -176,7 +188,7 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
     summary["insights"] = report_text.insights_for_llm(iset, verdict, names, lang)
     summary["section_depth"] = depths(case.persona, c.ports.ref.layouts or {})  # spec 004 FR-019
     return Computed(blocks=ordered, facts=summary, criteria=crit, cars=cars, tco=estimates, race=race,
-                    insights=iset, verdict=verdict, check=check)  # fmt: skip
+                    insights=iset, verdict=verdict, check=check, outcome=outcome)  # fmt: skip
 
 
 async def _blocks(

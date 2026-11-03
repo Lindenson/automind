@@ -18,7 +18,7 @@ from langgraph.runtime import Runtime
 
 from automind.application import compose
 from automind.application.usage import BudgetExceeded
-from automind.domain import profile_gaps
+from automind.domain import ask_value, profile_gaps
 from automind.domain.casefile import CaseFile, Shown
 from automind.domain.policy import fingerprint
 from automind.orchestration import agents
@@ -99,22 +99,38 @@ async def _report_check(
     return (drop_sentences(again, still), dropped + len(still)) if still else (again, dropped)
 
 
-def _profile_question(case: CaseFile, comp: Any, lang: str | None) -> list[dict[str, Any]]:
-    """One question about the user that would sharpen this comparison (spec 004 FR-018), asked once, under the
-    report — never blocking it. The answer recomputes the report from the same data."""
+_PERSONA_CHIPS = ("PERFORMANCE", "BUYER", "EXPERT")
+_ONCE = ("KM_PER_YEAR", "FAMILY_SIZE", "OWNERSHIP_YEARS", "PERSONA")
+
+
+def _profile_question(case: CaseFile, comp: Any, lang: str | None, probes: Any = None) -> list[dict[str, Any]]:
+    """One question about the user, under the report and never blocking it, and only when the answer would change
+    the winner or the tie on this data (spec 007 FR-006; spec 004 FR-018). The answer recomputes the report."""
     variants = [car["variant"] for car in comp.cars]
-    kinds = profile_gaps.questions(case, [v.powertrain for v in variants], [v.vehicle_class for v in variants])
-    if not kinds or len(variants) < 2:
+    if len(variants) < 2:
+        return []
+    kinds: list[str] = []
+    if comp.outcome is not None:
+        kinds = list(ask_value.questions(case, comp.outcome, probes or {}))
+    if not kinds:
+        gaps = profile_gaps.questions(case, [v.powertrain for v in variants], [v.vehicle_class for v in variants])
+        kinds = [k for k in gaps if k == "FAMILY_SIZE"]
+    if not kinds:
         return []
     kind = kinds[0]
-    case.asked.append(kind)
+    case.asked.append(kind)  # type: ignore[arg-type]
     if kind == "KM_PER_YEAR":
         items = [{"label": x, "text": x} for x in ("8,000 km", "15,000 km", "25,000 km", "40,000 km")]
+    elif kind == "OWNERSHIP_YEARS":
+        items = [{"label": t(f"years_{n}", lang), "text": t(f"years_{n}", lang)} for n in (3, 5, 8, 12)]
+    elif kind == "PERSONA":
+        items = [{"label": t(f"persona_{p}", lang), "text": t(f"persona_{p}", lang)} for p in _PERSONA_CHIPS]
     else:
         items = [
             {"label": t(f"family_{x}", lang), "text": t(f"family_{x}", lang)} for x in ("single", "couple", "kids")
         ]
-    return [{"type": "quick_replies", "question": t(f"profile_{kind}", lang, km=f"{case.annual_km:,}"), "items": items}]
+    q = t(f"profile_{kind}", lang, km=f"{case.annual_km:,}", years=case.ownership_years or "")
+    return [{"type": "quick_replies", "question": q, "items": items}]
 
 
 def _critique_lead(state: TurnState, lang: str | None) -> str:
@@ -167,8 +183,8 @@ def make_report_node():  # noqa: ANN201
                 turn_seq=len(case.shown) + 1, fingerprint=fp, blocks=[b["type"] for b in blocks], persona=case.persona
             )
         )
-        case.asked = [q for q in case.asked if q in ("KM_PER_YEAR", "FAMILY_SIZE")]  # profile questions: once
-        blocks += _profile_question(case, comp, lang)
+        case.asked = [q for q in case.asked if q in _ONCE]  # profile questions: once
+        blocks += _profile_question(case, comp, lang, (c.ports.ref.profile_defaults or {}).get("probe"))
         panel = next((b for b in blocks if b.get("type") == "data_panel"), None)
         if panel is not None:  # what the next "find it" is compared against (spec 004 FR-015)
             case.last_values = {x["car_key"]: int(x["values"]) for x in panel["cars"]}

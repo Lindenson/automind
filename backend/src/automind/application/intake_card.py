@@ -43,6 +43,24 @@ CLIMATE = {"HOT": {"en": "hot climate", "ru": "жаркий климат", "es":
            "MOUNTAIN": {"en": "mountain climate", "ru": "горный климат", "es": "clima de montaña"}}  # fmt: skip
 
 
+PERSONA = {"PERFORMANCE": {"en": "enthusiast: driving and performance", "ru": "энтузиаст: динамика и вождение",
+                           "es": "entusiasta: conducción y prestaciones"},
+           "BUYER": {"en": "family and practical buyer", "ru": "семья и практичный покупатель",
+                     "es": "familia y compra práctica"},
+           "EXPERT": {"en": "expert: engineering", "ru": "эксперт: техника", "es": "experto: ingeniería"},
+           "UNKNOWN": {"en": "not clear yet", "ru": "пока не ясно", "es": "aún no está claro"}}  # fmt: skip
+YEARS = {"en": "{n} years", "ru": "{n} лет", "es": "{n} años"}
+YEAR_OPTIONS = (3, 5, 8, 12)
+
+
+def _years(n: int, lang: str) -> str:
+    if lang == "ru":
+        word = "год" if n % 10 == 1 and n % 100 != 11 else ("года" if 2 <= n % 10 <= 4 and not 12 <= n % 100 <= 14
+                                                             else "лет")  # fmt: skip
+        return f"{n} {word}"
+    return (YEARS.get(lang) or YEARS["en"]).format(n=n)
+
+
 def _w(table: dict[str, dict[str, str]], key: str, lang: str) -> str:
     return table.get(key, {}).get(lang) or table.get(key, {}).get("en") or key.lower()
 
@@ -110,20 +128,27 @@ def _condition_items(car: CaseCar, lang: str) -> list[dict[str, Any]]:
 
 
 def _profile_items(case: CaseFile, lang: str) -> list[dict[str, Any]]:
-    p, ev = case.profile, case.profile.evidence
-    out = []
+    p, ev, b = case.profile, case.profile.evidence, case.basis
+    out = [
+        # spec 007 US1: who the user is and how long they keep a car, with how it is known; chips edit it
+        _item("persona", _w(PERSONA, case.persona, lang), b.get("persona", "ASSUMED"),
+              evidence=ev.get("persona"), options=[_w(PERSONA, x, lang) for x in ("PERFORMANCE", "BUYER", "EXPERT")]),
+        _item("ownership_years", _years(case.ownership_years or 5, lang), b.get("ownership_years", "ASSUMED"),
+              options=[_years(n, lang) for n in YEAR_OPTIONS]),
+    ]  # fmt: skip
     usage = [u for u in case.usage]
     if p.family == "FAMILY" and "FAMILY" not in usage:
         usage.append("FAMILY")
     if usage:
-        out.append(_item("usage", "; ".join(_w(USAGE, u, lang) for u in usage), "INFERRED",
+        out.append(_item("usage", "; ".join(_w(USAGE, u, lang) for u in usage), b.get("usage", "INFERRED"),
                          evidence=ev.get("family") or ev.get("usage")))  # fmt: skip
     if p.annual_km_min and p.annual_km_max and p.annual_km_min != p.annual_km_max:
         out.append(_item("annual_km", f"{p.annual_km_min:,}–{p.annual_km_max:,} km".replace(",", " "), "STATED",
                          evidence=ev.get("annual_km")))  # fmt: skip
     else:
         out.append(_item("annual_km", f"{case.annual_km:,} km".replace(",", " "),
-                         "STATED" if case.annual_km_stated else "ASSUMED", evidence=ev.get("annual_km")))  # fmt: skip
+                         b.get("annual_km", "STATED" if case.annual_km_stated else "ASSUMED"),
+                         evidence=ev.get("annual_km")))  # fmt: skip
     if p.region:
         clim = f" ({_w(CLIMATE, p.climate, lang)})" if p.climate else ""
         out.append(_item("region", p.region + clim, "INFERRED", evidence=ev.get("region")))
@@ -159,13 +184,36 @@ def apply_edit(case: CaseFile, car_key: str | None, field: str, value: str, curr
     car = next((c for c in case.cars if c.key == car_key), None) if car_key else None
     case.intake.card_confirmed = False
     if car is None:
-        if field == "annual_km" and value.strip().replace(" ", "").isdigit():
-            km = int(value.strip().replace(" ", ""))
-            if 1000 <= km <= 200000:
-                case.annual_km, case.annual_km_stated = km, True
-                case.profile.annual_km_min = case.profile.annual_km_max = km
-                return [f"annual km {km:,}"]
+        return _profile_edit(case, field, value)
+    return _car_edit(car, field, value, current_year)
+
+
+def _profile_edit(case: CaseFile, field: str, value: str) -> list[str]:
+    """A profile chip on the card is the user's statement (STATED), applied before research (spec 007 FR-015)."""
+    v = value.strip()
+    if field == "persona":
+        key = next((k for k, tr in PERSONA.items() if v in tr.values() or v.upper() == k), None)
+        if key and key != "UNKNOWN":
+            case.persona, case.persona_source, case.basis["persona"] = key, "USER_EDIT", "STATED"  # type: ignore[assignment]
+            return [f"persona: {key}"]
         return []
+    if field == "ownership_years":
+        n = next((int(x) for x in v.split() if x.isdigit()), None)
+        if n is not None and 1 <= n <= 20:
+            case.ownership_years, case.basis["ownership_years"] = n, "STATED"
+            return [f"ownership: {n} years"]
+        return []
+    if field == "annual_km" and v.replace(" ", "").isdigit():
+        km = int(v.replace(" ", ""))
+        if 1000 <= km <= 200000:
+            case.annual_km, case.annual_km_stated = km, True
+            case.basis["annual_km"] = "STATED"
+            case.profile.annual_km_min = case.profile.annual_km_max = km
+            return [f"annual km {km:,}"]
+    return []
+
+
+def _car_edit(car: CaseCar, field: str, value: str, current_year: int) -> list[str]:
     if field == "variant":
         car.variant_id, car.label, car.resolution = value, None, "PROPOSED"
         car.identify = None

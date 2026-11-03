@@ -80,6 +80,8 @@ export const en = {
   "card.field.region": "Region",
   "card.field.budget": "Budget",
   "card.field.priorities": "Priorities",
+  "card.field.persona": "Who you are",
+  "card.field.ownership_years": "Ownership",
   "case.kmYear": "{km} km a year",
   "case.cars": "Cars",
   "case.none": "None yet.",
