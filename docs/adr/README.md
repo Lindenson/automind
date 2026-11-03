@@ -26,3 +26,4 @@
 - [ADR-024](ADR-024.md) — Open-world vehicle identity: make registry, sourced line-ups, identify every turn (Accepted)
 - [ADR-025](ADR-025.md) — One intake confirmation card (Accepted)
 - [ADR-026](ADR-026.md) — One API process; MANUFACTURER only for official domains; reporter without tools (Accepted)
+- [ADR-027](ADR-027.md) — The profile drives the assessment: basis, weight breakdown, RESCORE, learned sources, intake by code (Accepted)

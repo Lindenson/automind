@@ -390,10 +390,11 @@ Still open from the previous review (already in later increments): SSRF in `fetc
 
 ## Phase 12: Polish
 
-- [ ] T069 [P] Write ADR-027 in `docs/adr/`: profile basis, weight breakdown, RESCORE and learned sources. Index it in `docs/adr/README.md`.
-- [ ] T070 [P] Update `docs/review-2026-11-03.md`: mark the 007 items done with their PR numbers.
-- [ ] T071 [P] Update `docs/next-session.md` for the step after 007 (spec 006 plan).
-- [ ] T072 Run the quickstart.md sections A–I end to end on fakes. The live re-run of chat 757cff3d needs a cost estimate and the owner's approval first.
+- [x] T069 [P] Write ADR-027 in `docs/adr/`: profile basis, weight breakdown, RESCORE and learned sources. Index it in `docs/adr/README.md`.
+- [x] T070 [P] Update `docs/review-2026-11-03.md`: mark the 007 items done with their PR numbers.
+- [x] T071 [P] Update `docs/next-session.md` for the step after 007 (spec 006 plan).
+- [x] T072 Run the quickstart.md sections A–I end to end on fakes. The live re-run of chat 757cff3d needs a cost estimate and the owner's approval first.
+  - Done on fakes. The quickstart A–I set (16 files, 115 tests) passes; the full check passes (648 backend, 28 front). The golden yamls G31/G32/G36 are graph tests: `test_profile_inferred`, `test_profile_intake`, `test_candidates`. The live re-runs of 757cff3d and 0d7fd924 are not done: they are paid and wait for an estimate and the owner's yes.
 
 ---
 
