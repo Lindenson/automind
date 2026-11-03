@@ -142,8 +142,9 @@ def record_asked(case: CaseFile, asked: Iterable[tuple[StepItem, str]]) -> CaseF
 # --- the person: region, new or used (R11) -----------------------------------------------------------------
 
 _NEW = re.compile(r"\b(нов\w*|new|nuev\w*|0 ?km|с нуля|из салона)\b", re.I)
-_USED = re.compile(r"(подержан\w*|\bб/у\b|\bбу\b|с пробегом|\bused\b|second[- ]hand|segunda mano|ocasi[oó]n|seminuev\w*)",
-                   re.I)  # fmt: skip
+_USED = re.compile(
+    r"(подержан\w*|\bб/у\b|\bбу\b|с пробегом|\bused\b|second[- ]hand|segunda mano|ocasi[oó]n|seminuev\w*)", re.I
+)
 
 
 def condition_of(text: str | None) -> str | None:
