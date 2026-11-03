@@ -31,8 +31,8 @@ max_redirects: 5
 favourites:
   # --- Spain ---
   - {domain: km77.com, source_type: SPEC_DATABASE, areas: [specs, engineering, measured, price, maintenance, reviews, reliability, used_issues, used_price], markets: [ES], priority: 1, reader: km77, tos_checked: 2026-11-02}
-  - {domain: motor.es, source_type: PUBLICATION, areas: [specs, reviews, price], markets: [ES], priority: 2, reader: null, tos_checked: null}
-  - {domain: autopista.es, source_type: INSTRUMENTED_TEST, areas: [measured, reviews, reliability, used_issues, used_price], markets: [ES], priority: 1, reader: null, tos_checked: null}
+  - {domain: motor.es, source_type: PUBLICATION, areas: [specs, reviews, price, depreciation, manufacturer], markets: [ES], priority: 2, reader: null, tos_checked: null}
+  - {domain: autopista.es, source_type: INSTRUMENTED_TEST, areas: [measured, reviews, reliability, used_issues, used_price, price, depreciation], markets: [ES], priority: 1, reader: null, tos_checked: null}
   - {domain: fichasmotor.com, source_type: SPEC_DATABASE, areas: [specs], markets: [ES], priority: 3, reader: null, tos_checked: null}
   # --- English ---
   - {domain: ultimatespecs.com, source_type: SPEC_DATABASE, areas: [specs, engineering], markets: [ANY], priority: 1, reader: ultimatespecs, tos_checked: 2026-11-02}
@@ -49,9 +49,9 @@ favourites:
   - {domain: autobild.de, source_type: INSTRUMENTED_TEST, areas: [measured, reviews, reliability, used_issues, used_price], markets: [DE], priority: 1, reader: null, tos_checked: null}
   - {domain: adac.de, source_type: PUBLICATION, areas: [specs, maintenance, reliability, used_issues, used_price], markets: [DE], priority: 1, reader: null, tos_checked: null}
   # --- automotive press (reviews, tests, long-term reports) — added 2026-11-02 ---
-  - {domain: autofacil.es, source_type: PUBLICATION, areas: [reviews, measured, maintenance, used_issues], markets: [ES], priority: 2, reader: null, tos_checked: null}
-  - {domain: motorpasion.com, source_type: PUBLICATION, areas: [reviews, engineering, manufacturer], markets: [ES], priority: 2, reader: null, tos_checked: null}
-  - {domain: diariomotor.com, source_type: PUBLICATION, areas: [reviews, price, engineering, manufacturer], markets: [ES], priority: 2, reader: null, tos_checked: null}
+  - {domain: autofacil.es, source_type: PUBLICATION, areas: [reviews, measured, maintenance, used_issues, price, depreciation, reliability], markets: [ES], priority: 2, reader: null, tos_checked: null}
+  - {domain: motorpasion.com, source_type: PUBLICATION, areas: [reviews, engineering, manufacturer, depreciation, reliability], markets: [ES], priority: 2, reader: null, tos_checked: null}
+  - {domain: diariomotor.com, source_type: PUBLICATION, areas: [reviews, price, engineering, manufacturer, depreciation, reliability], markets: [ES], priority: 2, reader: null, tos_checked: null}
   - {domain: ocu.org, source_type: PUBLICATION, areas: [reliability, maintenance], markets: [ES], priority: 1, reader: null, tos_checked: null}
   - {domain: autocar.co.uk, source_type: INSTRUMENTED_TEST, areas: [measured, reviews, engineering], markets: [EN], priority: 1, reader: null, tos_checked: null}
   - {domain: topgear.com, source_type: PUBLICATION, areas: [reviews], markets: [EN], priority: 2, reader: null, tos_checked: null}
@@ -74,8 +74,25 @@ favourites:
   - {domain: wikipedia.org, source_type: ENCYCLOPEDIA, areas: [engineering, manufacturer], markets: [ANY], priority: 2, reader: null, tos_checked: null}
 
 # Official manufacturer sites by make for the Spanish market (price, specs, maintenance).
+  # --- spec 005 (live chat 2026-11-03): Spanish sources for depreciation, prices, market and reliability ---
+  - {domain: ganvam.es, source_type: PUBLICATION, areas: [depreciation, used_price, manufacturer], markets: [ES], priority: 1, reader: null, tos_checked: null}
+  - {domain: anfac.com, source_type: PUBLICATION, areas: [manufacturer], markets: [ES], priority: 1, reader: null, tos_checked: null}
+  - {domain: faconauto.com, source_type: PUBLICATION, areas: [manufacturer, depreciation], markets: [ES], priority: 2, reader: null, tos_checked: null}
+  - {domain: autobild.es, source_type: PUBLICATION, areas: [reviews, reliability, depreciation, price], markets: [ES], priority: 2, reader: null, tos_checked: null}
+  - {domain: carwow.es, source_type: PUBLICATION, areas: [reviews, price, specs], markets: [ES], priority: 2, reader: null, tos_checked: null}
+  - {domain: quecochemecompro.com, source_type: PUBLICATION, areas: [price, reviews, depreciation], markets: [ES], priority: 2, reader: null, tos_checked: null}
+  - {domain: eleconomista.es, source_type: PUBLICATION, areas: [manufacturer, depreciation], markets: [ES], priority: 3, reader: null, tos_checked: null}
+  - {domain: hibridosyelectricos.com, source_type: PUBLICATION, areas: [specs, reviews, reliability, engineering], markets: [ES], priority: 2, reader: null, tos_checked: null}
+  - {domain: forococheselectricos.com, source_type: PUBLICATION, areas: [specs, reviews, engineering, price], markets: [ES], priority: 2, reader: null, tos_checked: null}
+
 manufacturer_sites:
   Audi: audi.es
+  BYD: byd.com/es
+  MG: mgmotor.es
+  Omoda: omoda.es
+  Jaecoo: jaecoo.es
+  Leapmotor: leapmotor.es
+  Polestar: polestar.com/es
   BMW: bmw.es
   Cupra: cupraofficial.es
   Dacia: dacia.es

@@ -125,3 +125,16 @@ def test_service_interval_from_schedule_takes_the_normal_schedule() -> None:
 )
 def test_maintenance_schedule_must_be_european(url: str, ok: bool) -> None:
     assert sense.market_fits(url, "maintenance").ok is ok
+
+
+def test_price_needs_its_currency_spec_005() -> None:
+    """Live chat 2026-11-03: "150 159 4,75%" (150 CV, 159 g/km CO2, 4.75 % tax) was read as €150,159."""
+    from automind.domain.sense import money_marked, price_outliers
+
+    assert not money_marked("150 159", "1.5 EcoTSI 110kW (150CV) DSG-7 St&Sp FR SPECIAL EDITION 150 159 4,75%").ok
+    assert money_marked("39.302", "1.5 TSI 110kW (150CV) DSG-7 St&Sp FR2026\n\n39.302 €").ok
+    assert money_marked("28.810,00", "1.5 EcoTSI 150 CV DSG-7 S&S Style | 28.810,00 €").ok
+    assert money_marked("37.540", "**28.465 €** P.V.P. 37.540 €").ok
+    assert money_marked("41635", "1.5 TSI 150 CV DSG 7v | 41.635 euros").ok
+    assert price_outliers([29190, 30706, 39302, 150159, 31092]) == {3}
+    assert price_outliers([29190, 30706]) == set()
