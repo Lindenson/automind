@@ -238,7 +238,7 @@ def reason_text(i: Insight, names: Mapping[str, str], lang: str | None) -> str:
               value=fmt(best.value, i.unit, lang), other=names.get(other.car_id, other.car_id),
               other_value=fmt(other.value, i.unit, lang), diff=fmt(i.diff, i.unit, lang))  # fmt: skip
     if i.money_per_year:
-        text += tr("money", lang, eur=f"{i.money_per_year:,.0f}".replace(",", "."))
+        text += tr("money", lang, eur=_thousands(i.money_per_year, lang))
     return text
 
 
