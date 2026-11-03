@@ -16,10 +16,18 @@ from typing import Any
 from langgraph.runtime import Runtime
 
 from automind.application import compose
+from automind.application.usage import BudgetExceeded
 from automind.domain.casefile import CaseFile, Shown
 from automind.domain.policy import fingerprint
 from automind.orchestration import agents
-from automind.orchestration.guard import check_numbers, numbers_in, removal_notice
+from automind.orchestration.guard import (
+    check_numbers,
+    drop_sentences,
+    numbers_in,
+    removal_notice,
+    report_violations,
+    violations_prompt,
+)
 from automind.orchestration.runner import TurnContext
 from automind.orchestration.state import TurnState
 
@@ -65,12 +73,40 @@ async def _explain(
     return text, []
 
 
+async def _report_check(
+    c: TurnContext, system: str, request: str, comp: Any, text: str, allowed: set[float]
+) -> tuple[str, int]:
+    """Text vs blocks (spec 004 FR-012): one regeneration with the violations listed; if the text still
+    contradicts the blocks, the offending sentences are removed. Returns (text, sentences removed)."""
+    if comp.check is None:
+        return text, 0
+    bad = report_violations(text, comp.check)
+    if not bad:
+        return text, 0
+    await c.status("composing", f"Correcting {len(bad)} sentence(s) that contradict the data")
+    try:
+        again = await c.ports.llm.text(
+            "reporter",
+            system + "\nYou have no tools; use only the JSON facts provided.",
+            request + "\n\n" + violations_prompt(bad) + "\n\nPrevious text:\n" + text
+            + "\n\nValidated facts JSON:\n" + json.dumps(comp.facts, ensure_ascii=False, default=str),
+        )  # fmt: skip
+    except BudgetExceeded:
+        raise
+    except Exception:  # noqa: BLE001 - no second text: remove the offending sentences instead
+        return drop_sentences(text, bad), len(bad)
+    again, dropped = check_numbers(again, allowed)
+    still = report_violations(again, comp.check)
+    return (drop_sentences(again, still), dropped + len(still)) if still else (again, dropped)
+
+
 def make_report_node(tools: list[Any]):  # noqa: ANN201
     async def report_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
         c = ctx(runtime)
         _, case = await load_case(c)
         await c.status("computing", "Computing criteria scores, metrics and the drag race")
-        comp = await compute(c, case, list(state.get("notices", [])))
+        lang = state.get("language", "en")
+        comp = await compute(c, case, list(state.get("notices", [])), lang)
         await compose.persist_computations(
             c.turn_id,
             comp.tco,
@@ -95,7 +131,8 @@ def make_report_node(tools: list[Any]):  # noqa: ANN201
             numbers_in(comp.facts) | numbers_in(comp.blocks) | numbers_in(outputs) | numbers_in(_case_summary(case))
         )
         text, dropped = check_numbers(text, allowed)
-        blocks = comp.blocks + ([removal_notice(dropped)] if dropped else [])
+        text, fixed = await _report_check(c, system, request, comp, text, allowed)
+        blocks = comp.blocks + ([removal_notice(dropped + fixed)] if dropped + fixed else [])
         fp = fingerprint(case)
         case.shown.append(
             Shown(
@@ -118,7 +155,7 @@ async def answer_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[s
     c = ctx(runtime)
     _, case = await load_case(c)
     nothing_new = bool(state["decision"].get("nothing_new"))
-    comp = await compute(c, case, list(state.get("notices", [])))
+    comp = await compute(c, case, list(state.get("notices", [])), state.get("language", "en"))
     if state.get("case_changed") and case.race_settings is not None:  # a new race: keep it reproducible
         await compose.persist_computations(
             c.turn_id, [], comp.cars, comp.race, {}, case.prediction.model_dump() if case.prediction else None, {}

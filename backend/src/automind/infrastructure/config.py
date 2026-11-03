@@ -162,6 +162,9 @@ def reference(prompts: dict[str, str]) -> Reference:
         feasibility=feasibility_rules(),
         criteria=CriteriaModel.from_config(load_yaml("criteria.yaml")),
         rates=rates(),
+        insights=load_yaml("insights.yaml"),
+        layouts=load_yaml("report_layouts.yaml"),
+        explainers=load_yaml("tech_explainers.yaml"),
     )
 
 

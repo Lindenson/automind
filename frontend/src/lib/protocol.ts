@@ -246,6 +246,9 @@ export const CriteriaScoresBlockSchema = z.object({
   winner_car_id: z.string().nullable(),
   unmapped_wishes: z.array(z.string()),
   compared_on: z.array(z.string()).nullish(), // criteria every car has data for (the ranking basis)
+  relative: z.record(z.string(), z.record(z.string(), z.number())).nullish(), // spec 004: best car = 100
+  not_compared: z.array(z.string()).nullish(), // criteria some car has no data for
+  single: z.boolean().nullish(),
   tie: z.boolean().nullish(),
 });
 
@@ -432,7 +435,30 @@ export const QuickRepliesBlockSchema = z.object({
   items: z.array(z.object({ label: z.string(), text: z.string() })),
 });
 
+// spec 004 FR-001: the verdict card, built by code (contracts/report-blocks-and-protocol.md)
+export const VerdictBlockSchema = z.object({
+  type: z.literal("verdict"),
+  headline: z.string(),
+  pick_car_id: z.string().nullable(),
+  tie: z.boolean(),
+  reasons: z.array(z.object({ text: z.string(), insight_id: z.string() })).default([]),
+  trade_off: z
+    .object({
+      text: z.string(),
+      numbers: z
+        .array(z.object({ label: z.string(), value: z.number(), unit: z.string() }))
+        .default([]),
+    })
+    .nullable()
+    .default(null),
+  confidence: z.enum(["HIGH", "MEDIUM", "LOW"]),
+  confidence_reason: z.string(),
+  would_change: z.string().nullable().default(null),
+  gaps: z.array(z.string()).default([]),
+});
+
 export const BlockSchema = z.discriminatedUnion("type", [
+  VerdictBlockSchema,
   QuickRepliesBlockSchema,
   FeasibilityBlockSchema,
   SpecTableBlockSchema,

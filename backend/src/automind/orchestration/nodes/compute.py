@@ -9,12 +9,16 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from automind.application import compose
+from automind.application import compose, research
 from automind.application import feasibility as fz_app
+from automind.domain import insights as ins
 from automind.domain import sense, tco
+from automind.domain import verdict as vd
 from automind.domain.casefile import CaseFile
 from automind.domain.criteria import CriteriaScore, score, weights_for
 from automind.domain.report_layout import order_blocks
+from automind.orchestration import report_text
+from automind.orchestration.guard import CheckInput as GuardInput
 from automind.orchestration.runner import TurnContext
 
 from .common import notice
@@ -28,6 +32,9 @@ class Computed:
     cars: list[dict[str, Any]] = field(default_factory=list)
     tco: list[Any] = field(default_factory=list)
     race: Any = None
+    insights: Any = None  # domain.insights.InsightSet (spec 004 US3)
+    verdict: Any = None  # domain.verdict.Verdict (spec 004 US1)
+    check: Any = None  # guard.CheckInput for the report check
 
 
 def case_facts(case: CaseFile) -> list[str]:
@@ -65,16 +72,60 @@ def _checked_costs(
     return out
 
 
-async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]]) -> Computed:
+KEY_AREAS = ("specs", "price", "maintenance", "reliability")
+
+
+async def _insights(
+    c: TurnContext, case: CaseFile, keyed: list[tuple[Any, dict[str, Any]]], tcars: list[tco.TcoCar],
+    costs: dict[str, float], crit: CriteriaScore | None, sims: dict[str, Any], rates: tco.TcoRates, lang: str,
+) -> tuple[Any, Any, dict[str, Any], GuardInput]:  # fmt: skip
+    """Insights → verdict → the verdict card (spec 004 FR-001, FR-009)."""
+    rel = {s.car_id: s.parts.get("reliability") for s in crit.cars} if crit else {}
+    energy = {t.car_id: _energy_price(t, rates) for t in tcars}
+    values = [
+        compose.insight_values(
+            car, annual_cost=costs.get(car["variant"].id),
+            reliability_score=(rel.get(car["variant"].id).score if rel.get(car["variant"].id) else None),
+            energy_eur_per_unit=energy.get(car["variant"].id),
+            accel_0_100=getattr(sims.get(car["variant"].id), "t_0_100", None),
+        )
+        for _, car in keyed
+    ]  # fmt: skip
+    model = c.ports.ref.criteria
+    weights = weights_for(case, model) if model else {}
+    profile = ins.Profile(weights=weights, annual_km=case.annual_km)
+    iset = ins.build(values, profile, ins.rules_from_config(c.ports.ref.insights))
+    names = {car["variant"].id: compose.short_name(car["variant"]) for _, car in keyed}
+    unmet = await research.unmet_areas([car["variant"].id for _, car in keyed])
+    gaps = [f"{names[vid]}: {a}" for vid in names for a in KEY_AREAS if a in unmet.get(vid, set())]
+    classes = [car["variant"].vehicle_class for _, car in keyed]
+    v = vd.build(crit, iset, gaps=gaps, different_needs=vd.very_different(classes))
+    block = report_text.verdict_block(v, iset, names, lang)
+    has = {t for t, ok in (("tco", bool(costs)), ("price", "official_price_es" in _any_values(values)),
+                           ("consumption", "consumption" in _any_values(values))) if ok}  # fmt: skip
+    has |= {i.attribute for i in iset.insights}
+    check = GuardInput(frozenset(has), frozenset(iset.ties), v.tie, tuple(sorted(set(names.values()))))
+    return iset, v, block, check
+
+
+def _any_values(values: list[Any]) -> set[str]:
+    return {k for cv in values for k in cv.values}
+
+
+def _energy_price(t: tco.TcoCar, r: tco.TcoRates) -> float:
+    if t.powertrain == "BEV":
+        return r.electricity_eur_per_kwh
+    return r.diesel_eur_per_l if t.fuel == "diesel" else r.fuel_eur_per_l
+
+
+async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]], lang: str = "en") -> Computed:
     keyed = [(x, await compose.load_car(x.variant_id)) for x in case.cars if x.variant_id]
     cars = [car for _, car in keyed]
     race = compose.run_race(cars, case.race_settings.model_dump() if case.race_settings else None)
     sims = {r.car_id: r for r in race.results}
     rates = tco.TcoRates.from_config(c.ports.ref.rates or {}, case.rates_override.model_dump())
-    estimates = [
-        tco.compute(await compose.tco_car(car, _cond(x.condition), x.age_years, x.mileage_km), rates, case.annual_km)
-        for x, car in keyed
-    ]
+    tcars = [await compose.tco_car(car, _cond(x.condition), x.age_years, x.mileage_km) for x, car in keyed]
+    estimates = [tco.compute(t, rates, case.annual_km) for t in tcars]
     costs = _checked_costs(estimates, {car["variant"].id: x.age_years for x, car in keyed}, notices)
     facts = [
         compose.facts(
@@ -131,7 +182,8 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]])
         label = n["text"].split(":")[0]
         if not any(label in h and "insufficient" in h for h in have):
             out_notices.append(n)
-    ordered = order_blocks(case.persona, out_notices + blocks, cars=len(cars))
+    iset, verdict, vblock, check = await _insights(c, case, keyed, tcars, costs, crit, sims, rates, lang)
+    ordered = [vblock, *order_blocks(case.persona, out_notices + blocks, cars=len(cars))] if cars else []
     summary = compose.summary_for_llm(cars, race, crit)
     summary["ownership_cost"] = [
         {
@@ -142,7 +194,10 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]])
         }
         for e in estimates
     ]
-    return Computed(blocks=ordered, facts=summary, criteria=crit, cars=cars, tco=estimates, race=race)
+    names = {car["variant"].id: compose.short_name(car["variant"]) for car in cars}
+    summary["insights"] = report_text.insights_for_llm(iset, verdict, names, lang)
+    return Computed(blocks=ordered, facts=summary, criteria=crit, cars=cars, tco=estimates, race=race,
+                    insights=iset, verdict=verdict, check=check)  # fmt: skip
 
 
 def _predicted(case: CaseFile) -> str | None:

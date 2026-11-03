@@ -134,24 +134,24 @@ because the verdict is built from insights. Both are P1 and together they are th
 
 ### Tests first
 
-- [ ] T032 [P] [US3] Write `backend/tests/unit/domain/test_insights.py`:
+- [X] T032 [P] [US3] Write `backend/tests/unit/domain/test_insights.py`:
   - 583 L vs 580 L boot is not meaningful (a tie group);
   - 0.8 l/100 km is meaningful, shown in money per year at the user's 15,000 km;
   - the relevance order follows the priorities;
   - trade-off detection: A cheaper by €10,400, B €190/year cheaper to run, so break-even 54.7 years;
   - the same input gives the same output (FR-013);
   - one car gives no comparative insights.
-- [ ] T033 [P] [US3] Write `backend/tests/unit/test_report_check.py` for the four rules: a number not in the facts; "no data" / "нет данных" / "sin datos" for an area that has a block with data; "better/лучше/más" attached to a sub-threshold attribute; a winner named in a tie. One regeneration at most, then the offending sentences are removed and a notice is logged
+- [X] T033 [P] [US3] Write `backend/tests/unit/test_report_check.py` for the four rules: a number not in the facts; "no data" / "нет данных" / "sin datos" for an area that has a block with data; "better/лучше/más" attached to a sub-threshold attribute; a winner named in a tie. One regeneration at most, then the offending sentences are removed and a notice is logged
 
 ### Implementation
 
-- [ ] T034 [US3] Implement `backend/src/automind/domain/insights.py`. It is pure and holds `Insight`, `TradeOff`, `InsightSet {insights, ties}` and `build(cars_facts, profile, thresholds) -> InsightSet`. The fields follow data-model.md: id, attribute, label, cars [{car_id, value, unit, source_ids}], diff, rel_diff, unit, meaningful, better_car, relevance, confidence. Relevance is priority weight × magnitude. Money is converted at the user's km per year and over 5 years. Thresholds load from `config/insights.yaml`. Makes T032 pass
-- [ ] T035 [US3] Extend scoring with its basis in `backend/src/automind/domain/criteria.py` and `backend/src/automind/application/compose.py` (`criteria_block`): `relative {car_id: 0–100, best = 100}` next to the absolute parts, the underlying values per criterion, and `not_compared` (criteria missing for some car). A single car gives absolute scores with the scale explained and no ranking (FR-010, US3 scenario 4)
-- [ ] T036 [US3] Add an `insights_for_llm` to `backend/src/automind/application/compose.py`. It sends the meaningful, relevant insights first and the ties as "about the same", and replaces the flat facts dump in `summary_for_llm`. Keep the allowed-numbers set built from the same facts
-- [ ] T037 [US3] Extend `backend/src/automind/orchestration/guard.py` into `report_check(text, blocks, insights, verdict) -> CheckResult {text, violations}` with the four rules and the multilingual absence and comparison word lists. Makes T033 pass
-- [ ] T038 [US3] Rewire `backend/src/automind/orchestration/nodes/report.py`: facts → insights → (verdict, Phase 4) → reporter → `report_check` → one regeneration that lists the violations → otherwise remove the offending sentences. Persist the insights and violations in the turn's computations (`persist_computations`) for audit
-- [ ] T039 [US3] Rewrite `backend/src/automind/orchestration/prompts/reporter_{buyer,performance,expert,balanced}.md`: write only from the insights given, call sub-threshold differences "about the same", never claim "no data" for an area that is in the facts, no winner in a tie, follow the section depth
-- [ ] T040 [P] [US3] Show the score basis in `frontend/src/components/blocks/CriteriaScores.tsx`: relative bar, absolute value, "not compared: …" line. Add a vitest case
+- [X] T034 [US3] Implement `backend/src/automind/domain/insights.py`. It is pure and holds `Insight`, `TradeOff`, `InsightSet {insights, ties}` and `build(cars_facts, profile, thresholds) -> InsightSet`. The fields follow data-model.md: id, attribute, label, cars [{car_id, value, unit, source_ids}], diff, rel_diff, unit, meaningful, better_car, relevance, confidence. Relevance is priority weight × magnitude. Money is converted at the user's km per year and over 5 years. Thresholds load from `config/insights.yaml`. Makes T032 pass
+- [X] T035 [US3] Extend scoring with its basis in `backend/src/automind/domain/criteria.py` and `backend/src/automind/application/compose.py` (`criteria_block`): `relative {car_id: 0–100, best = 100}` next to the absolute parts, the underlying values per criterion, and `not_compared` (criteria missing for some car). A single car gives absolute scores with the scale explained and no ranking (FR-010, US3 scenario 4)
+- [X] T036 [US3] Add an `insights_for_llm` to `backend/src/automind/application/compose.py`. It sends the meaningful, relevant insights first and the ties as "about the same", and replaces the flat facts dump in `summary_for_llm`. Keep the allowed-numbers set built from the same facts
+- [X] T037 [US3] Extend `backend/src/automind/orchestration/guard.py` into `report_check(text, blocks, insights, verdict) -> CheckResult {text, violations}` with the four rules and the multilingual absence and comparison word lists. Makes T033 pass
+- [X] T038 [US3] Rewire `backend/src/automind/orchestration/nodes/report.py`: facts → insights → (verdict, Phase 4) → reporter → `report_check` → one regeneration that lists the violations → otherwise remove the offending sentences. Persist the insights and violations in the turn's computations (`persist_computations`) for audit
+- [X] T039 [US3] Rewrite `backend/src/automind/orchestration/prompts/reporter_{buyer,performance,expert,balanced}.md`: write only from the insights given, call sub-threshold differences "about the same", never claim "no data" for an area that is in the facts, no winner in a tie, follow the section depth
+- [X] T040 [P] [US3] Show the score basis in `frontend/src/components/blocks/CriteriaScores.tsx`: relative bar, absolute value, "not compared: …" line. Add a vitest case
 
 **Checkpoint**: report text comes from insights and passes `report_check`. Scores show their basis.
 
@@ -165,7 +165,7 @@ because the verdict is built from insights. Both are P1 and together they are th
 
 ### Tests first
 
-- [ ] T041 [P] [US1] Write `backend/tests/unit/domain/test_verdict.py`:
+- [X] T041 [P] [US1] Write `backend/tests/unit/domain/test_verdict.py`:
   - a pick with 2–3 reasons from top insights;
   - totals within 3 points → tie, no pick, and `would_change` filled;
   - confidence: HIGH when common criteria are ≥ 80% of weight and decisive insights come from ≥ 2 sources; MEDIUM at ≥ 60%; LOW otherwise or on a decisive conflict;
@@ -176,10 +176,10 @@ because the verdict is built from insights. Both are P1 and together they are th
 
 ### Implementation
 
-- [ ] T043 [US1] Implement `backend/src/automind/domain/verdict.py`, pure: `build(ranking, insight_set, coverage, profile) -> Verdict {pick_car_id|None, tie, reasons [insight ids], trade_off, confidence, confidence_reason, would_change}`. "Would change" is the insight whose flip changes the pick, written as a condition (e.g. "if you drive more than 25,000 km a year"). Makes T041 pass
-- [ ] T044 [US1] Add a `verdict_block` to `backend/src/automind/application/compose.py`. It renders the Verdict with reason texts and trade-off numbers from the insights. The headline is the only model-written line: one line from the reporter, checked by `report_check`, with a code fallback headline. Put the verdict and its numbers into the reporter facts in `backend/src/automind/orchestration/nodes/report.py`
-- [ ] T045 [US1] Make the verdict block always first, ahead of every other block (including notices) in `backend/src/automind/domain/report_layout.py`
-- [ ] T046 [P] [US1] Create `frontend/src/components/blocks/Verdict.tsx`: headline, pick or "too close to call", reasons, trade-off numbers, confidence badge with its reason, "what would change this", and a "find it" button when the confidence is lowered by gaps. Register it in `BlockView.tsx`. Add vitest cases for pick, tie and low confidence
+- [X] T043 [US1] Implement `backend/src/automind/domain/verdict.py`, pure: `build(ranking, insight_set, coverage, profile) -> Verdict {pick_car_id|None, tie, reasons [insight ids], trade_off, confidence, confidence_reason, would_change}`. "Would change" is the insight whose flip changes the pick, written as a condition (e.g. "if you drive more than 25,000 km a year"). Makes T041 pass
+- [X] T044 [US1] Add a `verdict_block` to `backend/src/automind/application/compose.py`. It renders the Verdict with reason texts and trade-off numbers from the insights. The headline is the only model-written line: one line from the reporter, checked by `report_check`, with a code fallback headline. Put the verdict and its numbers into the reporter facts in `backend/src/automind/orchestration/nodes/report.py`
+- [X] T045 [US1] Make the verdict block always first, ahead of every other block (including notices) in `backend/src/automind/domain/report_layout.py`
+- [X] T046 [P] [US1] Create `frontend/src/components/blocks/Verdict.tsx`: headline, pick or "too close to call", reasons, trade-off numbers, confidence badge with its reason, "what would change this", and a "find it" button when the confidence is lowered by gaps. Register it in `BlockView.tsx`. Add vitest cases for pick, tie and low confidence
 - [ ] T047 [US1] Record the golden G12/G13 cassettes in replay mode (no paid calls). A live run waits for the paid tier and is announced with a cost estimate first
 
 **Checkpoint (MVP)**: a comparison opens with a deterministic, consistent verdict card.

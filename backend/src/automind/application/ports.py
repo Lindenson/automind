@@ -36,6 +36,9 @@ class Reference:
     manufacturer_sites: dict[str, str] = field(default_factory=dict)  # make -> official ES site
     plausibility: dict[str, Any] = field(default_factory=dict)  # config/plausibility.yaml
     feasibility: dict[str, Any] = field(default_factory=dict)  # config/feasibility.yaml
+    insights: dict[str, Any] = field(default_factory=dict)  # config/insights.yaml (spec 004)
+    layouts: dict[str, Any] = field(default_factory=dict)  # config/report_layouts.yaml (spec 004)
+    explainers: dict[str, Any] = field(default_factory=dict)  # config/tech_explainers.yaml (spec 004)
 
 
 @dataclass

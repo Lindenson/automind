@@ -102,4 +102,4 @@ async def test_persona_changed_in_panel_reorders_and_is_not_overwritten(saver, c
     _, data, _ = await repo.latest(chat_id)
     assert data["persona"] == "BUYER"
     types = [b["type"] for b in r.blocks if b["type"] != "notice"]
-    assert types[:3] == ["case_summary", "criteria_scores", "tco"] and r.usage["search_calls"] == 0
+    assert types[:4] == ["verdict", "case_summary", "criteria_scores", "tco"] and r.usage["search_calls"] == 0

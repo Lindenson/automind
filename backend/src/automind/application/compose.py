@@ -12,6 +12,7 @@ from sqlalchemy import select
 
 from automind.domain import dragrace, reliability, reviews, specs, tco, units
 from automind.domain import evidence as evidence_rules
+from automind.domain import insights as ins
 from automind.domain import metrics as scoring  # noqa: F401 (CarFacts, metrics, ownership)
 from automind.domain.criteria import CriteriaModel, CriteriaScore
 from automind.domain.metrics import ReliabilitySummary, ReviewSummary
@@ -530,7 +531,25 @@ def criteria_block(sc: CriteriaScore, model: CriteriaModel, unmapped: list[str])
         "unmapped_wishes": list(unmapped),
         "compared_on": list(sc.common),
         "tie": sc.tie,
+        # spec 004 FR-010: the basis of each score: relative to the best compared car (= 100) and what could
+        # not be compared because a car has no data for it
+        "relative": _relative(sc),
+        "not_compared": sorted(k for k in sc.weights if sc.weights[k] > 0 and k not in sc.common),
+        "single": len(sc.cars) == 1,
     }
+
+
+def _relative(sc: CriteriaScore) -> dict[str, dict[str, float]]:
+    """Per criterion: each car's score relative to the best compared car (best = 100)."""
+    out: dict[str, dict[str, float]] = {}
+    if len(sc.cars) < 2:
+        return out
+    for k in sc.weights:
+        scores = {c.car_id: c.parts[k].score for c in sc.cars if k in c.parts and c.parts[k].score is not None}
+        best = max(scores.values(), default=None)
+        if best and len(scores) >= 2:
+            out[k] = {cid: round(100 * (v or 0) / best, 0) for cid, v in scores.items()}
+    return out
 
 
 def case_summary_block(persona: str, facts_list: list[str], cars: list[dict]) -> dict:
@@ -862,3 +881,43 @@ def reviews_block(cars: list[dict]) -> dict | None:
     if not out:
         return None
     return {"type": "reviews", "title": "What reviewers and owners say", "cars": out}
+
+
+# --- insights input (spec 004 FR-009) -----------------------------------------------------------------------
+
+INSIGHT_ATTRS = ("boot_volume", "consumption", "measured_0_100", "max_power", "max_torque", "curb_mass",
+                 "official_price_es", "ground_clearance", "rear_legroom", "euro_ncap_stars", "top_speed")  # fmt: skip
+
+
+def short_name(v: db.Variant) -> str:
+    """The name the text uses for a car: make and model (the full label is in the blocks)."""
+    return f"{v.make} {v.model}".strip()
+
+
+def insight_values(
+    car: dict,
+    *,
+    annual_cost: float | None,
+    reliability_score: float | None,
+    energy_eur_per_unit: float | None,
+    accel_0_100: float | None = None,
+) -> ins.CarValues:
+
+    v = car["variant"]
+    values: dict[str, float] = {}
+    conf: dict[str, str] = {}
+    srcs: dict[str, list[str]] = {}
+    for k in INSIGHT_ATTRS:
+        sv = car["values"].get(k)
+        if sv is not None and sv.available and sv.value_num is not None:
+            values[k], conf[k], srcs[k] = float(sv.value_num), str(sv.confidence or "MEDIUM"), list(sv.claim_ids or [])
+    claimed = car["values"].get("claimed_0_100")
+    if claimed is not None and claimed.available and claimed.value_num is not None:
+        values["accel_0_100"], conf["accel_0_100"] = float(claimed.value_num), str(claimed.confidence or "MEDIUM")
+    elif accel_0_100 is not None:
+        values["accel_0_100"], conf["accel_0_100"] = accel_0_100, "LOW"  # simulated
+    if annual_cost is not None:
+        values["tco_per_year"], conf["tco_per_year"] = annual_cost, "MEDIUM"
+    if reliability_score is not None:
+        values["reliability_score"], conf["reliability_score"] = reliability_score, "MEDIUM"
+    return ins.CarValues(v.id, short_name(v), values, conf, srcs, energy_eur_per_unit)

@@ -97,7 +97,17 @@ export function CriteriaScores({ b }: { b: BlockOf<"criteria_scores"> }) {
                           {insufficient ? (
                             <i className="text-warn/90">insufficient data</i>
                           ) : (
-                            fmtNum(part!.score, 0)
+                            <>
+                              {fmtNum(part!.score, 0)}
+                              {b.relative?.[cr.key]?.[car.car_id] !== undefined && (
+                                <span
+                                  className="ml-1 text-muted"
+                                  title="relative to the best of the compared cars (= 100)"
+                                >
+                                  ({fmtNum(b.relative[cr.key]![car.car_id]!, 0)}% of best)
+                                </span>
+                              )}
+                            </>
                           )}
                         </span>
                       </div>
@@ -143,6 +153,20 @@ export function CriteriaScores({ b }: { b: BlockOf<"criteria_scores"> }) {
                   .join(", ") || "—"
               }.`
             : ""}
+        </p>
+      )}
+      {b.not_compared && b.not_compared.length > 0 && (
+        <p className="mt-2 text-xs text-muted" data-testid="not-compared">
+          Not compared (data missing for a car):{" "}
+          {b.criteria
+            .filter((c) => b.not_compared?.includes(c.key))
+            .map((c) => c.label)
+            .join(", ")}
+        </p>
+      )}
+      {b.single && (
+        <p className="mt-2 text-xs text-muted">
+          One car: absolute scores on fixed scales, no ranking.
         </p>
       )}
       {b.unmapped_wishes.length > 0 && (
