@@ -13,7 +13,7 @@ from langgraph.runtime import Runtime
 from langgraph.types import interrupt
 
 from automind.application import ask as asking
-from automind.application import intake_card, resolve
+from automind.application import candidates, intake_card, resolve
 from automind.config import settings
 from automind.domain import intake
 from automind.domain.casefile import Choice, Pending
@@ -264,6 +264,37 @@ def _areas(state: TurnState) -> list[str]:
 # --- the intake card (spec 005 US5) -------------------------------------------------------------------------
 
 
+async def select_candidates(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
+    """Spec 007 US7: no car named, a need and a budget → 2–3 candidates become the case's cars."""
+    c = ctx(runtime)
+    _, case = await load_case(c)
+    await c.status("resolving", "Choosing candidates for you")
+    proposed = await candidates.propose(c.ports, case)
+    if not proposed:
+        return {"route": "general"}
+    names = ", ".join(f"{x['make']} {x['model']}" for x in proposed)
+    version = await save_case(c, case, [f"candidates: {names}"])
+    return {"route": "identify", "case_version": version}
+
+
+def route_after_candidates(state: TurnState) -> str:
+    return "identify" if state.get("route") == "identify" else "general"
+
+
+def _candidate_lines(case: Any, lang: str) -> str:
+    """One line per proposed candidate still in the case: the reason by code, the price or "price to check"."""
+    keys = {x.key for x in case.cars}
+    lines = []
+    for x in case.candidates:
+        if x.get("key") not in keys:
+            continue
+        why = "; ".join(t(f"why_{k}", lang) for k in x.get("why") or [] if f"why_{k}" in PHRASES)
+        price = x.get("price_from_eur")
+        cost = t("cand_price", lang, eur=f"{int(price):,}".replace(",", " ")) if price else t("cand_price_check", lang)
+        lines.append(f"• {x['make']} {x['model']} — {why or t('cand_fits', lang)}; {cost}")
+    return (t("cand_intro", lang) + "\n" + "\n".join(lines)) if lines else ""
+
+
 async def prepare_intake(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
     """One card: the cars as resolved, the person, the research cost; edited by chips, confirmed by one "yes"."""
     c = ctx(runtime)
@@ -291,7 +322,14 @@ async def prepare_intake(state: TurnState, runtime: Runtime[TurnContext]) -> dic
         "kind": "intake",
         "action": "CONFIRM_INTAKE",
         "request_id": str(uuid.uuid4()),
-        "text": t("intake_card", lang, eur=f"{eur:.2f}") + (f" {over}" if over else ""),
+        "text": "\n\n".join(
+            x
+            for x in (
+                _candidate_lines(case, lang),
+                t("intake_card", lang, eur=f"{eur:.2f}") + (f" {over}" if over else ""),
+            )
+            if x
+        ),
         "options": [{"id": "yes", "label": t("card_yes", lang)}, {"id": "stop", "label": t("card_stop", lang)}],
         "estimate": estimate,
         "card": card,

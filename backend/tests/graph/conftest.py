@@ -12,6 +12,7 @@ from automind.infrastructure.config import reference
 from automind.infrastructure.db import init_db
 from automind.infrastructure.db.repositories import CaseRepo, EventRepo, FeasibilityRepo, JobRepo, MessageRepo, TurnRepo
 from automind.infrastructure.events import EventBus
+from automind.infrastructure.models_on_sale import models_on_sale
 from automind.orchestration.prompts import load_all
 from tests.fakes.fake_llm import FakeLLM, FixedEstimator
 
@@ -53,6 +54,7 @@ def make_ports(llm=None, search=None, events=None) -> Ports:
         messages=MessageRepo(),
         estimator=FixedEstimator(),
         feasibility=FeasibilityRepo(),
+        models_on_sale=models_on_sale,
     )
 
 

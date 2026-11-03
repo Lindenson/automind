@@ -57,6 +57,7 @@ def build_graph(checkpointer: Any = None, tools: list[Any] | None = None) -> Any
     g.add_node("wait_limit", confirm.wait_confirm)
     g.add_node("apply_limit", research.apply_limit)
     g.add_node("prepare_intake", confirm.prepare_intake)
+    g.add_node("select_candidates", confirm.select_candidates)
     g.add_node("wait_intake", confirm.wait_confirm)
     g.add_node("apply_intake", confirm.apply_intake)
     g.add_node("answer", report.answer_node, retry_policy=LLM_RETRY)
@@ -81,8 +82,12 @@ def build_graph(checkpointer: Any = None, tools: list[Any] | None = None) -> Any
             "report",
             "prepare_feasibility",
             "prepare_intake",
+            "select_candidates",
         ],
     )
+    # spec 007 US7: candidates become the case's cars and go through identification and the card
+    g.add_conditional_edges("select_candidates", confirm.route_after_candidates,
+                            {"identify": "identify", "general": "general"})  # fmt: skip
     g.add_edge("prepare_intake", "wait_intake")  # spec 005: one card for the cars, the person and the cost
     g.add_edge("wait_intake", "apply_intake")
     g.add_conditional_edges(

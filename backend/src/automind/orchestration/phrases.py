@@ -218,6 +218,18 @@ PHRASES: dict[str, dict[str, str]] = {
     "card_yes": {"en": "Yes, research", "ru": "Да, исследовать", "es": "Sí, investigar"},
     "card_stop": {"en": "Not now", "ru": "Пока не надо", "es": "Ahora no"},
     "suggested": {"en": "suggestion", "ru": "предложение", "es": "sugerencia"},
+    "cand_intro": {
+        "en": "You did not name a car, so I picked candidates for your need and budget:",
+        "ru": "Вы не назвали машину, поэтому я подобрал кандидатов под вашу задачу и бюджет:",
+        "es": "No nombraste un coche, así que elegí candidatos para tu necesidad y presupuesto:",
+    },
+    "cand_price": {"en": "from €{eur}", "ru": "от {eur} €", "es": "desde {eur} €"},
+    "cand_price_check": {"en": "price to check", "ru": "цену нужно уточнить", "es": "precio por confirmar"},
+    "cand_fits": {
+        "en": "fits the class and the budget",
+        "ru": "подходит по классу и бюджету",
+        "es": "encaja en la clase y el presupuesto",
+    },
     "why_family_body": {"en": "family-size body", "ru": "семейный кузов", "es": "carrocería familiar"},
     "why_phev_low_running_cost": {
         "en": "plug-in hybrid: low running cost at your km",
