@@ -650,7 +650,10 @@ def _check(
 
 
 def _sense_before(c: Any, v: db.Variant, source_type: str | None) -> tuple[Any, tuple[str, None, None, str] | None]:
-    """Re-file a claim under the attribute its value really is (WLTP / NEDC / real-world consumption)."""
+    """Re-file a claim under the attribute its value really is (WLTP / NEDC / real-world consumption); a boot
+    volume with the seats folded is not the boot volume."""
+    if c.attribute == "boot_volume" and not (b := sense.boot_seats_up(c.raw_value, c.excerpt)).ok:
+        return c, ("REJECTED_IMPLAUSIBLE", None, None, b.rule_id or "sense.boot")
     if c.attribute != "consumption":
         return c, None
     r = sense.classify_consumption(c.raw_value, c.excerpt, v.generation_years_from, source_type)

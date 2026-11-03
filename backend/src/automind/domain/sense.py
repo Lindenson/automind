@@ -271,6 +271,35 @@ def money_marked(raw_value: str, excerpt: str) -> SenseResult:
     return SenseResult(False, None, "sense.price.no_currency", f"{raw_value} is not written as a price in the excerpt")
 
 
+# --- boot volume (live chat 48c8ac65: "volumen máximo de maletero de 1.642 litros" became the Golf's boot) -------
+
+_BOOT_MAX = re.compile(
+    r"m[aá]xim|\bmax\b|abatid|plegad|folded|fold\s+(?:down|flat)|umgeklappt|maximal|"
+    r"сложен|максимал",
+    re.I,
+)  # fmt: skip  ("hasta", "up to": seats-up figures too)
+_BOOT_MIN = re.compile(r"m[ií]nim|minimum|\bmin\b|disponibles|seats? up|upright|в обычном|montad|"
+                       r"hasta (?:las ventanas|la bandeja)|parcel shelf", re.I)  # fmt: skip
+_BOOT_AFTER = re.compile(r"^[^\d]{0,40}?(?:abatid|plegad|folded|fold\s+(?:down|flat)|umgeklappt|сложен)", re.I)
+
+
+def boot_seats_up(raw_value: str, excerpt: str, window: int = 70) -> SenseResult:
+    """The boot volume is the one with the rear seats up; a figure introduced as the maximum (seats folded, "up
+    to") is another quantity. The nearest marker before the number decides."""
+    digits = re.sub(r"\D", "", raw_value)
+    if not digits:
+        return SenseResult(True, raw_value)
+    pattern = r"(?<!\d)" + r"[\s.,\u202f]?".join(digits) + r"(?!\d)"
+    for m in re.finditer(pattern, excerpt):
+        before = excerpt[max(0, m.start() - window) : m.start()]
+        mx = [x.end() for x in _BOOT_MAX.finditer(before)]
+        mn = [x.end() for x in _BOOT_MIN.finditer(before)]
+        if (mx and (not mn or max(mx) > max(mn))) or _BOOT_AFTER.search(excerpt[m.end() :]):
+            return SenseResult(False, None, "sense.boot.max_volume", f"{raw_value} is the maximum (seats folded)")
+        return SenseResult(True, raw_value)
+    return SenseResult(True, raw_value)
+
+
 def price_outliers(values: list[float], factor: float = 1.6) -> set[int]:
     """Indexes of prices far from the others (> factor × or < 1/factor × the median of all); needs ≥ 3 values."""
     if len(values) < 3:

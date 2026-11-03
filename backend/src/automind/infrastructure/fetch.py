@@ -47,6 +47,8 @@ class FetchRefused(RuntimeError):
 
 
 HostIps = Callable[[str], Awaitable[list[str]]]
+HOST_DOWN_AFTER = 2  # timeouts in a row
+HOST_DOWN_S = 600.0  # then the host is skipped for 10 minutes
 
 
 async def system_host_ips(host: str) -> list[str]:
@@ -257,6 +259,10 @@ class Fetcher:
     # SSRF guard (T058a): the resolver of host addresses. None = the system resolver when this fetcher owns its
     # HTTP client; an injected client (tests) checks only literal IP hosts unless a resolver is given.
     host_ips: HostIps | None = None
+    # a host whose pages time out again and again (bmw.es, live chat 48c8ac65) is skipped for a while, so one
+    # silent site cannot eat the whole research job page after page
+    _timeouts: dict[str, tuple[int, float]] = field(default_factory=dict)  # host -> (timeouts in a row, until)
+    clock: Callable[[], float] = time.monotonic
 
     async def _public_host(self, url: str) -> bool:
         """Every address of the URL's host is public (checked on each hop, so a redirect cannot reach inside)."""
@@ -404,33 +410,54 @@ class Fetcher:
             attempt += 1
             await self.sleep(delay)
 
+    def _host_down(self, host: str) -> bool:
+        n, until = self._timeouts.get(host, (0, 0.0))
+        return n >= HOST_DOWN_AFTER and self.clock() < until
+
+    def _timed_out(self, host: str) -> None:
+        n, _ = self._timeouts.get(host, (0, 0.0))
+        self._timeouts[host] = (n + 1, self.clock() + HOST_DOWN_S)
+
+    async def _read(self, url: str, r: httpx.Response) -> RawPage | str:
+        """The page of one response, or its redirect target; refusals and retryable statuses raise."""
+        if r.status_code in REDIRECT_STATUSES and r.headers.get("location"):
+            return str(httpx.URL(url).join(r.headers["location"]))
+        if _retryable_status(r.status_code):
+            raise _Retry(status=r.status_code, retry_after=r.headers.get("retry-after"))
+        if r.status_code >= 400:
+            raise self._refused(url, f"HTTP {r.status_code}", r.status_code)
+        ctype = r.headers.get("content-type", "").split(";")[0].strip().lower()
+        if ctype not in self.policy.allowed_content_types:
+            raise self._refused(url, f"content type {ctype or 'unknown'} not allowed")
+        body = bytearray()
+        async for chunk in r.aiter_bytes():
+            body += chunk
+            if len(body) > self.policy.max_bytes:
+                raise self._refused(url, f"larger than {self.policy.max_bytes} bytes")
+        return RawPage(url=str(r.url), content_type=ctype, body=bytes(body), encoding=r.charset_encoding)
+
     async def _get_once(self, url: str) -> RawPage | str:
         if self._total_sem is None:
             self._total_sem = asyncio.Semaphore(self.policy.max_concurrency_total)
         host = urlparse(url).netloc
+        if self._host_down(host):
+            raise FetchRefused("host not responding (timed out repeatedly)", transient=True)
         sem = self._host_sem.setdefault(host, asyncio.Semaphore(self.policy.max_concurrency_per_host))
         async with self._total_sem, sem:
+            if self._host_down(host):  # it went down while this request waited for its turn
+                raise FetchRefused("host not responding (timed out repeatedly)", transient=True)
             await self._wait_turn(host, await self._crawl_delay(url))
             domain = host.lower()
             self.requests[domain] = self.requests.get(domain, 0) + 1
             try:
                 async with self._client().stream("GET", url) as r:
-                    if r.status_code in REDIRECT_STATUSES and r.headers.get("location"):
-                        return str(httpx.URL(url).join(r.headers["location"]))
-                    if _retryable_status(r.status_code):
-                        raise _Retry(status=r.status_code, retry_after=r.headers.get("retry-after"))
-                    if r.status_code >= 400:
-                        raise self._refused(url, f"HTTP {r.status_code}", r.status_code)
-                    ctype = r.headers.get("content-type", "").split(";")[0].strip().lower()
-                    if ctype not in self.policy.allowed_content_types:
-                        raise self._refused(url, f"content type {ctype or 'unknown'} not allowed")
-                    body = bytearray()
-                    async for chunk in r.aiter_bytes():
-                        body += chunk
-                        if len(body) > self.policy.max_bytes:
-                            raise self._refused(url, f"larger than {self.policy.max_bytes} bytes")
-                    return RawPage(url=str(r.url), content_type=ctype, body=bytes(body), encoding=r.charset_encoding)
-            except httpx.TransportError as e:  # timeouts, connect/read errors: worth another try
+                    out = await self._read(url, r)
+                    self._timeouts.pop(host, None)
+                    return out
+            except httpx.TimeoutException as e:
+                self._timed_out(host)  # the next request to this host is refused once it is down
+                raise _Retry(error=e) from e
+            except httpx.TransportError as e:  # connect/read errors: worth another try
                 raise _Retry(error=e) from e
 
     async def fetch(self, url: str) -> WebDoc:

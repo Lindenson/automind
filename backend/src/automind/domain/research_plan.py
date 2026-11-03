@@ -168,6 +168,9 @@ def plan_key(p: ResearchPlan) -> str:
     return "|".join(sorted(f"{j.variant_id}:{j.area}" for j in p.jobs))
 
 
+MIN_PRICE_DOMAINS = 3  # a brand site that blocks readers must not leave a well-known price 'missing'
+
+
 def _independent(hits: list[SourceHit]) -> set[str]:
     return {h.domain for h in hits if h.items > 0}
 
@@ -190,8 +193,8 @@ def minimum_met(area: str, hits: list[SourceHit]) -> bool:
         return len(domains) >= 2
     if area in ("used_price", "depreciation"):
         return len(domains) >= 1  # one editorial range for the model years; otherwise the labelled estimate
-    if area == "price":
-        return _has_manufacturer(hits)
+    if area == "price":  # the brand's own price list, or the same list price quoted by 3+ independent sites
+        return _has_manufacturer(hits) or len(domains) >= MIN_PRICE_DOMAINS
     if area == "measured":
         return any(h.source_type == "INSTRUMENTED_TEST" and h.items > 0 for h in hits)
     raise ValueError(f"unknown area {area!r}")

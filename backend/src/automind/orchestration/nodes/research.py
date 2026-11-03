@@ -22,6 +22,7 @@ from automind.application.research import JobSpec
 from automind.application.usage import BudgetExceeded
 from automind.domain import research_plan as rp
 from automind.orchestration.phrases import t, yes_or_no
+from automind.orchestration.report_text import area_label
 from automind.orchestration.runner import TurnContext
 from automind.orchestration.state import RESET, TurnState
 
@@ -100,7 +101,12 @@ async def research_job(job: dict[str, Any], runtime: Runtime[TurnContext]) -> di
             res = await research.run_job(
                 c.ports,
                 JobSpec(
-                    job["job_id"], job["variant_id"], job["area"], job["round"], car_year=car.year if car else None
+                    job["job_id"],
+                    job["variant_id"],
+                    job["area"],
+                    job["round"],
+                    car_year=car.year if car else None,
+                    fresh=bool(job.get("fresh")),  # "find it": past the search cache, wider queries
                 ),
                 emit,
             )
@@ -229,13 +235,20 @@ async def after_research(state: TurnState, runtime: Runtime[TurnContext]) -> dic
     c = ctx(runtime)
     _, case = await load_case(c)
     labels = {x.key: x.label or x.request_text for x in case.cars}
+    lang = state.get("language")
     results = state.get("research_results", [])
     notices = list(state.get("notices", []))
     for r in results:
         if not r.get("ok") and r.get("error"):
             notices.append(
                 notice(
-                    f"{labels.get(r['car_key'], r['car_key'])}: {r['area']} research incomplete ({r['error'][:80]})",
+                    t(
+                        "job_incomplete",
+                        lang,
+                        car=labels.get(r["car_key"], r["car_key"]),
+                        area=area_label(r["area"], lang),
+                        error=r["error"][:80],
+                    ),
                     "warning",
                 )
             )
@@ -243,10 +256,14 @@ async def after_research(state: TurnState, runtime: Runtime[TurnContext]) -> dic
     for k, a in short:
         notices.append(
             notice(
-                f"{labels.get(k, k)}: insufficient data for {a.replace('_', ' ')} (minimum evidence not reached)",
+                t("short_data", lang, car=labels.get(k, k), area=area_label(a, lang)),
                 "warning",
+                car_key=k,
+                area=a,
             )
         )
+    seen: set[str] = set()  # a job that timed out before and after "continue" is said once
+    notices = [n for n in notices if not (n.get("text") in seen or seen.add(n.get("text")))]  # type: ignore[func-returns-value]
     out: dict[str, Any] = {"research_done": True, "notices": notices, "jobs": []}
     if state.get("request_kind") in ("research_more", "critique") and short:
         for k, a in short:

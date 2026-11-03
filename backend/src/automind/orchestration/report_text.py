@@ -215,11 +215,17 @@ def tr(key: str, lang: str | None, **kw: Any) -> str:
     return table.get((lang or "en")[:2], table["en"]).format(**kw)
 
 
+def _thousands(value: float, lang: str | None) -> str:
+    """48,500 in English; 48.500 in Spanish and Russian (as before)."""
+    s = f"{value:,.0f}"
+    return s if (lang or "en")[:2] == "en" else s.replace(",", ".")
+
+
 def fmt(value: float, unit: str, lang: str | None = None) -> str:
     if unit == "EUR":
-        return f"€{value:,.0f}".replace(",", ".")
+        return f"€{_thousands(value, lang)}"
     if unit in ("L", "kg", "mm", "N·m", "kW", "km/h"):
-        return f"{value:,.0f} {unit}".replace(",", ".")
+        return f"{_thousands(value, lang)} {unit}"
     if unit == "%":
         return f"{value:.0f}%"
     return f"{_num(round(value, 2), lang)} {unit}".strip()
@@ -245,14 +251,39 @@ FOCUS: dict[str, dict[str, str]] = {
 }  # fmt: skip
 
 
+AREA: dict[str, dict[str, str]] = {
+    "price": {"en": "price", "ru": "цена", "es": "precio"},
+    "specs": {"en": "specifications", "ru": "характеристики", "es": "ficha técnica"},
+    "maintenance": {"en": "maintenance", "ru": "обслуживание", "es": "mantenimiento"},
+    "reliability": {"en": "reliability", "ru": "надёжность", "es": "fiabilidad"},
+    "reviews": {"en": "reviews", "ru": "отзывы", "es": "opiniones"},
+    "manufacturer": {"en": "manufacturer", "ru": "производитель", "es": "fabricante"},
+    "depreciation": {"en": "depreciation", "ru": "потеря стоимости", "es": "depreciación"},
+    "used_price": {"en": "used price", "ru": "цена б/у", "es": "precio de ocasión"},
+    "used_issues": {"en": "used-car issues", "ru": "проблемы б/у", "es": "problemas de ocasión"},
+    "engineering": {"en": "engineering", "ru": "инженерия", "es": "ingeniería"},
+    "measured": {"en": "measured tests", "ru": "замеры", "es": "mediciones"},
+}
+
+
+def area_label(area: str, lang: str | None) -> str:
+    return _l(AREA, area, lang) if area in AREA else area.replace("_", " ")
+
+
+def gap_text(gap: str, lang: str | None) -> str:
+    """ "Mazda CX-5: price" in the chat's language."""
+    car, sep, area = gap.rpartition(": ")
+    return f"{car}{sep}{area_label(area, lang)}" if sep else area_label(gap, lang)
+
+
 def _l(table: Mapping[str, Mapping[str, str]], key: str, lang: str | None) -> str:
     t = table.get(key) or {}
     return t.get((lang or "en")[:2], t.get("en", key))
 
 
 def limit_text(x: Limit, names: Mapping[str, str], lang: str | None) -> str:
-    return tr(x.kind, lang, car=names.get(x.car_id, x.car_id), value=fmt(x.value_eur, "EUR"),
-              limit=fmt(x.limit_eur, "EUR"))  # fmt: skip
+    return tr(x.kind, lang, car=names.get(x.car_id, x.car_id), value=fmt(x.value_eur, "EUR", lang),
+              limit=fmt(x.limit_eur, "EUR", lang))  # fmt: skip
 
 
 def _headline(v: Verdict, s: InsightSet, names: Mapping[str, str], lang: str | None) -> str:
@@ -292,7 +323,7 @@ def verdict_block(
     v: Verdict, s: InsightSet, names: Mapping[str, str], lang: str | None, years: int | None = None
 ) -> dict[str, Any]:
     """The verdict card (contracts/report-blocks-and-protocol.md). Every number is from the insights."""
-    gaps = ", ".join(v.gaps[:4])
+    gaps = ", ".join(gap_text(g, lang) for g in v.gaps[:4])
     headline = _headline(v, s, names, lang)
     if v.different_needs:
         headline = tr("different", lang) + headline[0].lower() + headline[1:]
@@ -308,7 +339,7 @@ def verdict_block(
         "confidence": v.confidence,
         "confidence_reason": tr(f"conf_{v.confidence_reason}", lang, gaps=gaps or "—"),
         "would_change": _would_change(v, s, names, lang),
-        "gaps": list(v.gaps),
+        "gaps": [gap_text(g, lang) for g in v.gaps],
         "profile_notes": profile_lines(v, names, lang, years),
         "best_if_budget": v.best_if_budget,
     }
@@ -330,7 +361,7 @@ def _trade(v: Verdict, s: InsightSet, names: Mapping[str, str], lang: str | None
         extra = abs(price.get(t.gain_car, 0.0) - price.get(t.cost_car, 0.0))
         numbers[1] = {"label": label(cost, lang), "value": extra, "unit": cost.unit}
         text = tr("trade", lang, gain_car=names.get(t.gain_car, t.gain_car), gain=label(gain, lang),
-                  extra=fmt(extra, cost.unit), years=_num(t.break_even_years, lang))  # fmt: skip
+                  extra=fmt(extra, cost.unit, lang), years=_num(t.break_even_years, lang))  # fmt: skip
         numbers.append({"label": "break-even", "value": t.break_even_years, "unit": "years"})
     else:
         text = tr("trade_plain", lang, gain_car=names.get(t.gain_car, t.gain_car), gain=label(gain, lang),
@@ -349,7 +380,7 @@ def _would_change(v: Verdict, s: InsightSet, names: Mapping[str, str], lang: str
         i = s.get(w.insight_id)
         return tr("wc_priority", lang, label=label(i, lang) if i else w.insight_id, car=car)
     if w.kind == "DATA" and w.gaps:
-        return tr("wc_data", lang, gaps=", ".join(w.gaps[:4]))
+        return tr("wc_data", lang, gaps=", ".join(gap_text(g, lang) for g in w.gaps[:4]))
     return None
 
 
