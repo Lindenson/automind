@@ -549,6 +549,8 @@ def _replace(c: CaseFile, ctx: CarContext, log: list[str], current_year: int) ->
     )
     if _identity(new) == _identity(old):
         return  # the same car again (e.g. "I meant the used 150"): nothing to change
+    new.previous_label = old.label or old.previous_label
+    c.intake.card_confirmed = False
     c.cars[c.cars.index(old)] = new
     log.append(f"{old.key} replaced: {old.request_text} → {_describe(new)}")
 
@@ -558,9 +560,19 @@ def _set_context(c: CaseFile, ctx: CarContext, log: list[str], current_year: int
     before = _identity(car)
     changes = _context_changes(car, ctx, current_year)
     if _identity(car) != before:
-        car.variant_id, car.label, car.resolution, car.alternatives = None, None, "UNRESOLVED", []
+        _forget_variant(c, car)
     if changes:
         log.append(f"{car.key}: " + ", ".join(changes))
+
+
+def _forget_variant(c: CaseFile, car: CaseCar) -> None:
+    """A correction changes the car (spec 005 FR-013): the resolved version is dropped (kept as previous_label for
+    "before → after"), the car is identified again and the confirmation card must be confirmed again."""
+    if car.label:
+        car.previous_label = car.label
+    car.variant_id, car.label, car.resolution, car.alternatives = None, None, "UNRESOLVED", []
+    car.identify = None
+    c.intake.card_confirmed = False
 
 
 def _context_changes(car: CaseCar, ctx: CarContext, current_year: int) -> list[str]:
@@ -579,7 +591,7 @@ def _context_changes(car: CaseCar, ctx: CarContext, current_year: int) -> list[s
         changes.append(f"mileage {ctx.mileage_km:,} km")
     if ctx.constraints is not None:
         hints = ctx.constraints.model_dump(exclude_none=True)
-        merged = car.constraints.model_copy(update=hints)
+        merged = Constraints.model_validate({**car.constraints.model_dump(), **hints})
         if merged != car.constraints:
             car.constraints = merged
             changes.append("hints " + ", ".join(f"{k}={v}" for k, v in hints.items()))

@@ -41,6 +41,8 @@ async def identify_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict
             notices.append(notice(t("page_refused", lang, site=o.note.split(":", 1)[1]), "warning"))
         elif url and car.label and url == car.constraints.url:
             notices.append(notice(t("page_taken", lang, what=car.label)))
+        if car.previous_label and car.label and car.previous_label != car.label:  # a correction, shown back (FR-014)
+            notices.append(notice(t("changed_car", lang, before=car.previous_label, after=car.label)))
         if o.outcome != before.get(car.key) or car.label:
             changes.append(f"{car.key}: {o.outcome.lower()}" + (f" → {car.label}" if car.label else ""))
     out: dict[str, Any] = {}

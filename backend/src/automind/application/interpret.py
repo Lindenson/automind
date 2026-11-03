@@ -14,7 +14,8 @@ from typing import Any
 from pydantic import BaseModel, Field, ValidationError
 
 from automind.application.ports import LLM
-from automind.domain.casefile import CRITERION_KEYS, CaseDelta, CaseFile
+from automind.domain.casefile import CRITERION_KEYS, CaseDelta, CaseFile, Constraints, EngineHint
+from automind.domain.identity import parse_engine
 from automind.domain.policy import RequestKind
 
 
@@ -111,7 +112,51 @@ async def interpret(
     except (ValidationError, ValueError) as e:
         raise InterpretError(str(e)) from e
     _check(case, out.delta)
-    return _constraints_from_this_message(_persona_from_this_message(out, user_text), user_text)
+    out = _constraints_from_this_message(_persona_from_this_message(out, user_text), user_text)
+    return engine_hints(out, user_text)
+
+
+def engine_hints(i: Interpretation, user_text: str) -> Interpretation:
+    """The engine is identity, not a trim (spec 005 R4, FR-012). Deterministic post-step:
+    - an engine written in trim_hint ("1.5", "1.5 TSI 150 CV") moves to engine_hint;
+    - the parser fills fields the model left empty; on a conflict the parser's value wins (the user's words);
+    - when exactly one car is touched and the model gave no engine, the engine in the message goes to that car."""
+    refs = [*i.delta.add_cars, *(x for x in i.delta.replace_cars), *(x for x in i.delta.set_car_context)]
+    words = parse_engine(user_text)
+    for r in refs:
+        k = r.constraints
+        if k is None:
+            continue
+        if k.trim_hint and (e := parse_engine(k.trim_hint)) is not None and (e.displacement_l or e.power_kw):
+            k.engine_hint = _merge_engine(k.engine_hint, e)
+            if not _ENGINE_WORDS.sub(" ", k.trim_hint).strip(" ,.-"):
+                k.trim_hint = None  # nothing but the engine: it was never a trim
+        if k.engine_hint is not None and words is not None:
+            k.engine_hint = _merge_engine(k.engine_hint, words)
+    touched = [r for r in refs if r.constraints is None or r.constraints.engine_hint is None]
+    if words is not None and len(refs) == 1 and touched:
+        r = touched[0]
+        r.constraints = (r.constraints or Constraints()).model_copy(update={"engine_hint": words})
+    return i
+
+
+_ENGINE_WORDS = re.compile(
+    r"\d+(?:[.,]\d+)?|\b(?:l|tsi|tfsi|tdi|tce|cv|ps|hp|kw|cc|л\.?\s?с\.?|лс|литр\w*|двигател\w*|мотор\w*|"
+    r"motor|engine|dm-i|phev|hev|mhev|turbo)\b",
+    re.I,
+)
+
+
+def _merge_engine(model: EngineHint | None, parsed: EngineHint) -> EngineHint:
+    if model is None:
+        return parsed
+    data = model.model_dump()
+    for f in ("displacement_l", "power_hp", "power_kw", "fuel", "family"):
+        p = getattr(parsed, f)
+        if p is not None:
+            data[f] = p  # the user's words win over the model's reading
+    data["evidence"] = data.get("evidence") or parsed.evidence
+    return EngineHint.model_validate(data)
 
 
 def _norm(t: str) -> str:

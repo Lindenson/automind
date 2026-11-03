@@ -121,6 +121,8 @@ def _fits(
         return False  # another gearbox than the user's (FR-028)
     if k.drive_hint and v.drive and sense.drive_conflict(v.drive, k.drive_hint):
         return False
+    if k.engine_hint is not None and not k.engine_hint.empty() and not engine_of_fits(v, k.engine_hint):
+        return False  # another engine than the user's (spec 005 FR-012)
     if ref is not None and not v.generation:  # a catalog row without a generation is not reused when config knows them
         make, model = identity.normalize_make_model(v.make, v.model, ref.aliases)
         if ref.generations.get(f"{make}|{model}"):
@@ -161,6 +163,17 @@ async def catalog_for(make: str, model: str) -> list[db.Variant]:
             )
         )
         return list(rows.scalars())
+
+
+def engine_of_fits(v: db.Variant, hint: Any) -> bool:
+    """The variant's engine (stored, else parsed from its name) fits the engine the user named."""
+    cc, kw, fuel = v.engine_cc, v.power_kw, v.fuel
+    if cc is None and kw is None:
+        e = identity.parse_engine(v.variant_name)
+        if e is not None:
+            cc = round(e.displacement_l * 1000) if e.displacement_l else None
+            kw, fuel = e.power_kw, fuel or e.fuel
+    return identity.engine_fits(hint, cc, kw, fuel)
 
 
 def _rank(car: CaseCar, cands: list[db.Variant], level: str | None = None) -> tuple[list[db.Variant], bool]:
@@ -265,6 +278,9 @@ def _context(car: CaseCar, current: tuple[str, int] | None, level: str) -> list[
         context.append("hints: " + ", ".join(f"{k}={v}" for k, v in hints.items()))
     if current is not None:
         context.append(f"current generation (sold new now): {current[0]} ({current[1]}–)")
+    if car.constraints.engine_hint is not None and not car.constraints.engine_hint.empty():
+        e = car.constraints.engine_hint
+        context.append(f"engine named by the user: {e.text()} (return a version with this engine, or say none exists)")
     if car.constraints.trim_hint:
         context.append(f"version named by the user: {car.constraints.trim_hint} (return its trim_level)")
     elif car.condition != "USED":

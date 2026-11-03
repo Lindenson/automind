@@ -158,6 +158,13 @@ async def _resolve_open(ports: Ports, case: CaseFile, car: CaseCar, year: int, l
         choices = [Choice(label=n, make=car.make, model=n.removeprefix(f"{car.make} ")) for n in names]
         car.resolution, car.variant_id, car.label = "UNRESOLVED", None, None
         return _done(car, IdentifyOutcome(outcome="NOT_FOUND", need="MODEL", choices=choices, checked=e.checked))
+    hint = car.constraints.engine_hint
+    if hint is not None and not hint.empty() and not resolve.engine_of_fits(v, hint):
+        # no version with the named engine (FR-015): offer the engines that exist
+        same = await resolve.catalog_for(car.make or "", car.model or "")
+        names = sorted({x.label for x in same} | {f"{car.make} {car.model} {a}" for a in ident.alternatives})
+        choices = [Choice(label=n, make=car.make, model=car.model) for n in names[:6]]
+        return _done(car, IdentifyOutcome(outcome="CHOICES" if choices else "NEED", need="ENGINE", choices=choices))
     car.variant_id, car.label, car.resolution = v.id, v.label, "PROPOSED"
     return _done(car, IdentifyOutcome(outcome="IDENTIFIED", note=ident.note))
 

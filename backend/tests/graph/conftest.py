@@ -84,7 +84,10 @@ async def forget_make(make: str) -> None:
     from automind.infrastructure import db
 
     async with db.sessionmaker()() as s:
-        hidden = {"make": f"old-{uuid.uuid4().hex[:8]}", "canonical_key": db.Variant.canonical_key + "#" + db.Variant.id}
+        hidden = {
+            "make": f"old-{uuid.uuid4().hex[:8]}",
+            "canonical_key": db.Variant.canonical_key + "#" + db.Variant.id,
+        }
         await s.execute(update(db.Variant).where(db.Variant.make == make).values(**hidden))
         await s.execute(delete(db.BrandLineup).where(db.BrandLineup.make == make))
         await s.commit()

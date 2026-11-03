@@ -72,6 +72,9 @@ async def research_job(job: dict[str, Any], runtime: Runtime[TurnContext]) -> di
     _, case = await load_case(c)
     car = next((x for x in case.cars if x.key == job["car_key"]), None)
     label = (car.label or car.request_text) if car else job["car_key"]
+    if car is None or car.variant_id != job["variant_id"]:  # corrected meanwhile (spec 005): never research the old one
+        await c.ports.jobs.mark(job["job_id"], "FAILED", error="superseded by a correction")
+        return {"research_results": [{**job, "ok": False, "error": None, "minimum_met": None}]}
 
     async def progress(state_: str, accepted: int | None = None) -> None:  # spec 004 FR-023: car × area grid
         await c.emit("progress", {"car": label, "car_key": job["car_key"], "area": job["area"], "state": state_,

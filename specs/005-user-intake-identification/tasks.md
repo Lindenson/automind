@@ -193,7 +193,7 @@ description: "Task list for 005 — Understanding the user: intake and identific
 
 ### Tests first
 
-- [ ] T034 [P] [US3] Write `backend/tests/graph/test_corrections.py`:
+- [X] T034 [P] [US3] Write `backend/tests/graph/test_corrections.py`:
   - an AUTO_OK Ateca 1.0 plus "1.5 двигатель" → variant cleared, a 1.5 version selected, notice "SEAT Ateca 1.0 TSI 110 CV → 1.5 TSI 150 CV …";
   - "Ateca 2.5 diesel" → "no such version", with the engines that exist;
   - "automatic", "2025" and "it is used, 60,000 km" each re-identify;
@@ -203,15 +203,15 @@ description: "Task list for 005 — Understanding the user: intake and identific
 
 ### Implementation
 
-- [ ] T036 [US3] In `apply_delta_node` (`backend/src/automind/orchestration/nodes/understand.py`), compare `intake.identity_key` before and after for every car. On a change:
+- [X] T036 [US3] In `apply_delta_node` (`backend/src/automind/orchestration/nodes/understand.py`), compare `intake.identity_key` before and after for every car. On a change:
   - clear `variant_id` / `label` / `resolution`;
   - set `previous_label`;
   - reset `intake.card_confirmed`;
   - rebuild `display_name`;
   - record a CORRECTED intake event.
-- [ ] T037 [US3] Merge the deterministic `parse_engine` result into the interpretation in `backend/src/automind/application/interpret.py`: a parser field fills an empty interpreter field, and on a conflict the parser wins and the conflict is logged. Interpreter prompt v2: the engine goes to `constraints.engine_hint`, never to trim_hint; add an Ateca 1.5 example.
-- [ ] T038 [US3] Use the engine in `_fits` and `_rank` (`engine_fits`) and store `engine_cc` / `power_kw` / `fuel` in `upsert_variant` in `backend/src/automind/application/resolve.py`. Pass `engine_hint` to the resolver context (`_context`). A correction matching no version → NEED(ENGINE) with the existing engines as options (FR-015).
-- [ ] T039 [US3] Add the "before → after" notice phrase (en/ru/es) in `backend/src/automind/orchestration/phrases.py`, emitted by the identify node when `previous_label` is set and a new label is chosen. Ignore results of jobs whose `variant_id` no longer belongs to the case in `collect_round` (`backend/src/automind/orchestration/nodes/research.py`).
+- [X] T037 [US3] Merge the deterministic `parse_engine` result into the interpretation in `backend/src/automind/application/interpret.py`: a parser field fills an empty interpreter field, and on a conflict the parser wins and the conflict is logged. Interpreter prompt v2: the engine goes to `constraints.engine_hint`, never to trim_hint; add an Ateca 1.5 example.
+- [X] T038 [US3] Use the engine in `_fits` and `_rank` (`engine_fits`) and store `engine_cc` / `power_kw` / `fuel` in `upsert_variant` in `backend/src/automind/application/resolve.py`. Pass `engine_hint` to the resolver context (`_context`). A correction matching no version → NEED(ENGINE) with the existing engines as options (FR-015).
+- [X] T039 [US3] Add the "before → after" notice phrase (en/ru/es) in `backend/src/automind/orchestration/phrases.py`, emitted by the identify node when `previous_label` is set and a new label is chosen. Ignore results of jobs whose `variant_id` no longer belongs to the case in `collect_round` (`backend/src/automind/orchestration/nodes/research.py`).
 
 **Checkpoint**: MVP (US1–US3) is complete. G21–G26 pass in replay. Deploy to dev and Docker. Manual check of the incident message (paid calls: announce the estimate first).
 
