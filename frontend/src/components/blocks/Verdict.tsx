@@ -1,5 +1,6 @@
 import type { BlockOf } from "../../lib/protocol";
 import { cx } from "../../lib/util";
+import { useChat } from "../../store/chat";
 import { useCarColor } from "../carColors";
 
 const CONF: Record<string, { label: string; cls: string }> = {
@@ -55,6 +56,23 @@ export function Verdict({ b }: { b: BlockOf<"verdict"> }) {
       )}
       <p className="text-xs text-muted">{b.confidence_reason}</p>
       {b.would_change && <p className="text-sm text-fg/80">{b.would_change}</p>}
+      {b.gaps.length > 0 && <FindIt />}
     </section>
+  );
+}
+
+/** "Find it": research the missing key data and rebuild the report (spec 004 US1 scenario 4, US4). */
+function FindIt() {
+  const send = useChat((s) => s.send);
+  const busy = useChat((s) => Boolean(s.pending));
+  return (
+    <button
+      type="button"
+      disabled={busy}
+      onClick={() => send("Find the missing data and update the report")}
+      className="min-h-11 rounded-full border border-accent/50 bg-accent/10 px-4 py-2 text-sm hover:bg-accent/20 disabled:opacity-50"
+    >
+      Find the missing data
+    </button>
   );
 }

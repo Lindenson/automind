@@ -81,6 +81,14 @@ def _would_change(pick: str | None, s: InsightSet, trade: TradeOff | None) -> Wo
     return None
 
 
+def _not_enough(s: InsightSet, gaps: tuple[str, ...], share: float, why: str) -> Verdict:
+    """No ranking: no pick, but the clear differences that are known are still shown as reasons."""
+    wc = WouldChange("DATA", None, gaps=gaps) if gaps else None
+    reasons = tuple(i.id for i in s.meaningful()[:MAX_REASONS])
+    return Verdict(None, False, reasons, None, "LOW", why, wc, not_enough_data=True, gaps=gaps,  # type: ignore[arg-type]
+                   coverage=share)  # fmt: skip
+
+
 def build(
     score: CriteriaScore | None,
     s: InsightSet,
@@ -93,11 +101,12 @@ def build(
         return Verdict(None, False, (), None, "MEDIUM" if not gaps_t else "LOW", "SINGLE", None, gaps=gaps_t)
     share = _share(score) if score is not None else 0.0
     if score is None or not score.common or share < MIN_SHARE:
-        wc = WouldChange("DATA", None, gaps=gaps_t) if gaps_t else None
-        return Verdict(None, False, (), None, "LOW", "NO_DATA", wc, not_enough_data=True, gaps=gaps_t, coverage=share)
+        return _not_enough(s, gaps_t, share, "NO_DATA" if score is None or not score.common else "COVERAGE_LOW")
     ranked = sorted(
         (c for c in score.cars if c.ranked and c.total is not None), key=lambda c: (-(c.total or 0), c.car_id)
     )
+    if len(ranked) < 2:  # too little data for a ranking: no pick and no "tie" between unranked cars
+        return _not_enough(s, gaps_t, share, "COVERAGE_LOW")
     tie = score.tie or score.winner_car_id is None
     pick = None if tie else score.winner_car_id
     tied = tuple(c.car_id for c in ranked[:2]) if tie else ()

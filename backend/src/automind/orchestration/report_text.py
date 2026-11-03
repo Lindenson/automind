@@ -96,27 +96,59 @@ _T: dict[str, dict[str, str]] = {
 }
 
 
+LABELS: dict[str, dict[str, str]] = {
+    "boot_volume": {"en": "Boot volume", "ru": "Объём багажника", "es": "Maletero"},
+    "consumption": {"en": "Consumption (WLTP)", "ru": "Расход (WLTP)", "es": "Consumo (WLTP)"},
+    "accel_0_100": {"en": "0–100 km/h", "ru": "Разгон 0–100 км/ч", "es": "0–100 km/h"},
+    "measured_0_100": {"en": "0–100 km/h (measured)", "ru": "Разгон 0–100 (замер)", "es": "0–100 km/h (medido)"},
+    "max_power": {"en": "Power", "ru": "Мощность", "es": "Potencia"},
+    "max_torque": {"en": "Torque", "ru": "Крутящий момент", "es": "Par"},
+    "curb_mass": {"en": "Weight", "ru": "Масса", "es": "Peso"},
+    "official_price_es": {"en": "Price", "ru": "Цена", "es": "Precio"},
+    "tco_per_year": {"en": "Ownership cost per year", "ru": "Стоимость владения в год", "es": "Coste anual"},
+    "value_retention_5y": {"en": "Value after 5 years", "ru": "Остаточная стоимость через 5 лет",
+                           "es": "Valor a 5 años"},
+    "reliability_score": {"en": "Reliability score", "ru": "Оценка надёжности", "es": "Fiabilidad"},
+    "ground_clearance": {"en": "Ground clearance", "ru": "Клиренс", "es": "Altura libre"},
+    "rear_legroom": {"en": "Rear legroom", "ru": "Место сзади", "es": "Espacio trasero"},
+    "euro_ncap_stars": {"en": "Euro NCAP", "ru": "Euro NCAP", "es": "Euro NCAP"},
+    "top_speed": {"en": "Top speed", "ru": "Максимальная скорость", "es": "Velocidad máxima"},
+}  # fmt: skip
+UNITS: dict[str, dict[str, str]] = {"EUR/year": {"en": "EUR/year", "ru": "€/год", "es": "€/año"},
+                                    "years": {"en": "years", "ru": "лет", "es": "años"}}  # fmt: skip
+
+
+def label(i: Insight, lang: str | None) -> str:
+    t = LABELS.get(i.attribute)
+    return t.get((lang or "en")[:2], t["en"]) if t else i.label
+
+
+def _num(x: float, lang: str | None) -> str:
+    s = f"{x:g}"
+    return s.replace(".", ",") if (lang or "en")[:2] in ("ru", "es") else s
+
+
 def tr(key: str, lang: str | None, **kw: Any) -> str:
     table = _T[key]
     return table.get((lang or "en")[:2], table["en"]).format(**kw)
 
 
-def fmt(value: float, unit: str) -> str:
+def fmt(value: float, unit: str, lang: str | None = None) -> str:
     if unit == "EUR":
         return f"€{value:,.0f}".replace(",", ".")
     if unit in ("L", "kg", "mm", "N·m", "kW", "km/h"):
         return f"{value:,.0f} {unit}".replace(",", ".")
     if unit == "%":
         return f"{value:.0f}%"
-    return f"{value:g} {unit}".strip()
+    return f"{_num(round(value, 2), lang)} {unit}".strip()
 
 
 def reason_text(i: Insight, names: Mapping[str, str], lang: str | None) -> str:
     best = i.cars[0]
     other = next((c for c in i.cars if c.car_id not in i.tiers[0]), i.cars[-1])
-    text = tr("better", lang, label=i.label, car=names.get(best.car_id, best.car_id), value=fmt(best.value, i.unit),
-              other=names.get(other.car_id, other.car_id), other_value=fmt(other.value, i.unit),
-              diff=fmt(i.diff, i.unit))  # fmt: skip
+    text = tr("better", lang, label=label(i, lang), car=names.get(best.car_id, best.car_id),
+              value=fmt(best.value, i.unit, lang), other=names.get(other.car_id, other.car_id),
+              other_value=fmt(other.value, i.unit, lang), diff=fmt(i.diff, i.unit, lang))  # fmt: skip
     if i.money_per_year:
         text += tr("money", lang, eur=f"{i.money_per_year:,.0f}".replace(",", "."))
     return text
@@ -158,19 +190,20 @@ def _trade(v: Verdict, s: InsightSet, names: Mapping[str, str], lang: str | None
     gain, cost = s.get(t.gain), s.get(t.cost)
     if gain is None or cost is None:
         return None
-    numbers = [{"label": gain.label, "value": gain.money_per_year or gain.diff,
-                "unit": "EUR/year" if gain.money_per_year else gain.unit},
-               {"label": cost.label, "value": cost.diff, "unit": cost.unit}]  # fmt: skip
+    yearly = gain.money_per_year is not None or gain.id == "tco_per_year"
+    numbers = [{"label": label(gain, lang), "value": round(gain.money_per_year or gain.diff, 0),
+                "unit": "EUR/year" if yearly else gain.unit},
+               {"label": label(cost, lang), "value": cost.diff, "unit": cost.unit}]  # fmt: skip
     if t.break_even_years:
         price = {c.car_id: c.value for c in cost.cars}
         extra = abs(price.get(t.gain_car, 0.0) - price.get(t.cost_car, 0.0))
-        numbers[1] = {"label": cost.label, "value": extra, "unit": cost.unit}
-        text = tr("trade", lang, gain_car=names.get(t.gain_car, t.gain_car), gain=gain.label,
-                  extra=fmt(extra, cost.unit), years=f"{t.break_even_years:g}")  # fmt: skip
+        numbers[1] = {"label": label(cost, lang), "value": extra, "unit": cost.unit}
+        text = tr("trade", lang, gain_car=names.get(t.gain_car, t.gain_car), gain=label(gain, lang),
+                  extra=fmt(extra, cost.unit), years=_num(t.break_even_years, lang))  # fmt: skip
         numbers.append({"label": "break-even", "value": t.break_even_years, "unit": "years"})
     else:
-        text = tr("trade_plain", lang, gain_car=names.get(t.gain_car, t.gain_car), gain=gain.label,
-                  cost_car=names.get(t.cost_car, t.cost_car), cost=cost.label)  # fmt: skip
+        text = tr("trade_plain", lang, gain_car=names.get(t.gain_car, t.gain_car), gain=label(gain, lang),
+                  cost_car=names.get(t.cost_car, t.cost_car), cost=label(cost, lang))  # fmt: skip
     return {"text": text, "numbers": numbers}
 
 
@@ -180,10 +213,10 @@ def _would_change(v: Verdict, s: InsightSet, names: Mapping[str, str], lang: str
         return None
     car = names.get(w.car_id or "", w.car_id or "")
     if w.kind == "BREAK_EVEN" and w.years:
-        return tr("wc_break_even", lang, years=f"{w.years:g}", car=car)
+        return tr("wc_break_even", lang, years=_num(w.years, lang), car=car)
     if w.kind == "PRIORITY" and w.insight_id:
         i = s.get(w.insight_id)
-        return tr("wc_priority", lang, label=i.label if i else w.insight_id, car=car)
+        return tr("wc_priority", lang, label=label(i, lang) if i else w.insight_id, car=car)
     if w.kind == "DATA" and w.gaps:
         return tr("wc_data", lang, gaps=", ".join(w.gaps[:4]))
     return None
@@ -203,5 +236,5 @@ def insights_for_llm(s: InsightSet, v: Verdict, names: Mapping[str, str], lang: 
             }
             for i in s.meaningful()
         ],  # fmt: skip
-        "about_the_same": [s.get(t).label for t in s.ties if s.get(t) is not None],  # type: ignore[union-attr]
+        "about_the_same": [label(i, lang) for i in (s.get(t) for t in s.ties) if i is not None],
     }
