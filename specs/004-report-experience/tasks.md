@@ -247,7 +247,7 @@ because the verdict is built from insights. Both are P1 and together they are th
   - at most 3 questions;
   - nothing is asked when the verdict would not change.
 - [X] T063 [P] [US5] Write `backend/tests/unit/domain/test_suggestions.py`: 3–4 suggestions from the verdict and gaps (why is X ahead, what if used, compare on reliability, cheaper alternative, find missing). They are deterministic and in the user's language
-- [ ] T064 [P] [US5] Write graph tests in `backend/tests/graph/test_critique_and_challenge.py`:
+- [X] T064 [P] [US5] Write graph tests in `backend/tests/graph/test_critique_and_challenge.py`:
   - critique with gaps in the target → research_more;
   - critique without gaps → rework with the target section opened, and the reply starts with what was done;
   - the report fingerprint changes;
@@ -260,10 +260,10 @@ because the verdict is built from insights. Both are P1 and together they are th
 - [X] T067 [US5] (non-blocking: one question under the report, asked once) Implement `backend/src/automind/domain/profile_gaps.py` (pure, makes T062 pass) and use it in `backend/src/automind/domain/policy.py` (`_questions`): one round, at most 3, with suggested answers as buttons (`backend/config/questions.yaml`), asked before research when cheap
 - [X] T068 [US5] Implement `backend/src/automind/domain/suggestions.py` (pure, makes T063 pass) and add the `suggestions` block to the report in `backend/src/automind/orchestration/nodes/report.py`. Handle the client `suggestion {id}` message in `backend/src/automind/api/ws.py` by sending its request
 - [X] T069 [US5] Add the critique request kind with an optional target car/area/section to `backend/src/automind/application/interpret.py` and the interpreter prompt. The policy in `backend/src/automind/domain/policy.py` routes gaps in the target to `research_more` and no gaps to `rework`. Rework rebuilds the report with the target section open and emphasised, and passes what the user disliked to the reporter. A vague critique asks one question while it researches the biggest gaps. The reply never only apologises (FR-021)
-- [ ] T070 [US5] Implement `backend/src/automind/application/challenge.py`: re-validate the claims of the value (sense + validator with the case), run a fresh search for that attribute if needed, decide CONFIRMED/CORRECTED/REMOVED/UNRESOLVED, store it in `value_challenges` and send `challenge_result`. Wire the client `challenge` message in `backend/src/automind/api/ws.py`
-- [ ] T071 [US5] Store ratings: the client `rating {message_id, rating 1–5, note}` message goes to `report_ratings` (`backend/src/automind/api/ws.py` plus a repository in `backend/src/automind/infrastructure/db/`). Add ratings to the metrics endpoint
+- [X] T070 [US5] Implement `backend/src/automind/application/challenge.py`: re-validate the claims of the value (sense + validator with the case), run a fresh search for that attribute if needed, decide CONFIRMED/CORRECTED/REMOVED/UNRESOLVED, store it in `value_challenges` and send `challenge_result`. Wire the client `challenge` message in `backend/src/automind/api/ws.py`
+- [X] T071 [US5] Store ratings: the client `rating {message_id, rating 1–5, note}` message goes to `report_ratings` (`backend/src/automind/api/ws.py` plus a repository in `backend/src/automind/infrastructure/db/`). Add ratings to the metrics endpoint
 - [ ] T072 [US5] Make the profile change the content. Section `depth` and `open_by_default` come from `config/report_layouts.yaml`. The reporter prompt gets the profile and the depth per section (`backend/src/automind/orchestration/nodes/report.py`). Replace the fixed `ORDER` in `backend/src/automind/domain/report_layout.py` with the declarative layout that produces `section` blocks (FR-002, FR-019)
-- [ ] T073 [P] [US5] Frontend:
+- [X] T073 [P] [US5] Frontend:
   - create `frontend/src/components/blocks/Suggestions.tsx` (chips), `frontend/src/components/ChallengeButton.tsx` ("this is wrong" on table values and verdict reasons, shows the challenge_result) and `frontend/src/components/RatingControl.tsx` (1–5 and a note under each report);
   - render `section` as collapsible in `BlockView.tsx`;
   - show the profile with its evidence and let the user edit it in `frontend/src/components/CasePanel/CasePanel.tsx`;

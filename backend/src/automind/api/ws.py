@@ -74,11 +74,23 @@ class ChatSocket:
             with contextlib.suppress(TypeError, ValueError):
                 await RatingRepo().save(self.chat_id, str(msg.get("message_id") or ""), int(msg.get("rating") or 0),
                                         str(msg.get("note") or ""))  # fmt: skip
+        elif kind == "challenge":  # spec 004 FR-022: "this is wrong" on a value
+            self._background(self._challenge(msg))
         elif kind == "confirm":
             payload = {"choice": msg.get("choice"), "text": msg.get("text"), "request_id": msg.get("request_id")}
             self._background(self.runner.resume(self.chat_id, payload))
         elif kind == "cancel":
             await self.runner.cancel(self.chat_id)
+
+    async def _challenge(self, msg: dict[str, Any]) -> None:
+        from automind.application import challenge  # noqa: PLC0415
+
+        ref = getattr(getattr(self.runner, "ports", None), "ref", None)
+        if ref is None:
+            return
+        result = await challenge.recheck(ref, self.chat_id, str(msg.get("car_id") or ""),
+                                         str(msg.get("attribute") or ""), str(msg.get("text") or ""))  # fmt: skip
+        await self.bus.publish(self.chat_id, None, "challenge_result", result)
 
     async def _resend_open_turn(self) -> None:
         """After a reload the client may have seen everything already but lost its state: re-send the open

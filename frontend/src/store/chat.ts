@@ -53,6 +53,7 @@ interface ChatState {
   send: (text: string) => void;
   find: (focusCars: string[], areas: string[], text: string) => void;
   rate: (messageId: string, rating: number, note: string) => void;
+  challenge: (carId: string, attribute: string) => void;
   answerConfirm: (choice: string, text?: string) => void;
   cancel: () => void;
   setCase: (c: CaseState) => void;
@@ -131,6 +132,27 @@ export const useChat = create<ChatState>((set, get) => ({
           set((s) => ({ usageByTurn: { ...s.usageByTurn, [turnId]: msg } }));
         }
         break;
+      case "challenge_result": {
+        const what: Record<string, string> = {
+          CONFIRMED: `confirmed by ${msg.sources.join(", ")}`,
+          CORRECTED: `corrected: ${msg.before ?? "—"} → ${msg.after ?? "—"}`,
+          REMOVED: `removed (${msg.rejected.map((r) => `${r.source}: ${r.why}`).join("; ")})`,
+          UNRESOLVED: "only one source — use “Find it” to search again",
+        };
+        set((s) => ({
+          messages: [
+            ...s.messages,
+            {
+              role: "assistant",
+              message_id: uuid(),
+              created_at: now(),
+              text: `Re-checked **${msg.attribute.replace(/_/g, " ")}**: ${what[msg.outcome]}.`,
+              blocks: [],
+            },
+          ],
+        }));
+        break;
+      }
       case "turn_cancelled":
         set((s) => ({
           pending: null,
@@ -224,6 +246,10 @@ export const useChat = create<ChatState>((set, get) => ({
   cancel: () => {
     const { transport, turnId } = get();
     transport?.send({ type: "cancel", turn_id: turnId });
+  },
+
+  challenge: (carId, attribute) => {
+    get().transport?.send({ type: "challenge", car_id: carId, attribute, text: "this is wrong" });
   },
 
   rate: (messageId, rating, note) => {

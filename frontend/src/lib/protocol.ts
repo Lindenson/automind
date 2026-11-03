@@ -781,7 +781,22 @@ export const TurnCancelledSchema = z.object({
   type: z.literal("turn_cancelled"),
 });
 
+// spec 004 FR-022: the result of "this is wrong" on a value
+export const ChallengeResultSchema = z.object({
+  ...Envelope,
+  type: z.literal("challenge_result"),
+  outcome: z.enum(["CONFIRMED", "CORRECTED", "REMOVED", "UNRESOLVED"]),
+  attribute: z.string(),
+  car_id: z.string().nullish(),
+  area: z.string().nullish(),
+  before: z.string().nullish(),
+  after: z.string().nullish(),
+  sources: z.array(z.string()).default([]),
+  rejected: z.array(z.object({ source: z.string(), value: z.string(), why: z.string() })).default([]),
+});
+
 export const ServerMsgSchema = z.discriminatedUnion("type", [
+  ChallengeResultSchema,
   StatusMsgSchema,
   AssistantMsgSchema,
   UserAckSchema,
@@ -851,4 +866,5 @@ export type FindOut = {
   message_id?: string;
 };
 export type RatingOut = { type: "rating"; message_id: string; rating: number; note: string };
-export type ClientMsg = UserMessageOut | HelloOut | ConfirmOut | CancelOut | FindOut | RatingOut;
+export type ChallengeOut = { type: "challenge"; car_id: string; attribute: string; text: string };
+export type ClientMsg = UserMessageOut | HelloOut | ConfirmOut | CancelOut | FindOut | RatingOut | ChallengeOut;

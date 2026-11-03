@@ -9,6 +9,7 @@ import {
 } from "../badges";
 import { useCarColor } from "../carColors";
 import { CacheIcon, TableIcon } from "../icons";
+import { ChallengeButton } from "../ChallengeButton";
 
 export function SpecTable({ b }: { b: BlockOf<"spec_table"> }) {
   const color = useCarColor();
@@ -101,6 +102,7 @@ export function SpecTable({ b }: { b: BlockOf<"spec_table"> }) {
                         {v.confidence && <ConfidenceDot c={v.confidence} />}
                         {v.provenance && <ProvenanceBadge p={v.provenance} />}
                         <SourcesButton sources={v.sources} />
+                        <ChallengeButton carId={c.id} attribute={row.key} />
                       </div>
                     </td>
                   );

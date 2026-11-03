@@ -49,6 +49,10 @@ Rules
   If the user lets you choose the version ("any", "choose for me", "любой", "выбери сам", "cualquiera"),
   request is choose_for_me. If the answer does not answer the question (nonsense, another topic, a model
   you do not know), do NOT guess: leave the delta empty and keep request as it is; never invent a make or model.
+- Who the user is (spec 004): set_profile.family (SINGLE | COUPLE | FAMILY), age_band (UNDER_25 | 25_40 | 40_60 |
+  OVER_60), driving_style (CALM | MIXED | SPORTY) ONLY when the latest message says it, and put the user's
+  verbatim words in set_profile.evidence (e.g. {"family": "two kids and a dog"}). Never guess them.
+- A yearly mileage the user states ("I drive 25,000 km a year", "мало езжу, тысяч 8") → set_annual_km.
 - A gearbox or driven wheels named by the user ("automatic", "manual", "DSG", "4x4", "AWD", "front-wheel
   drive", "автомат", "механика", "полный привод") go to constraints.gearbox_hint (manual | automatic | dct | cvt |
   e-cvt | single) and constraints.drive_hint (FWD | RWD | AWD) of that car.
