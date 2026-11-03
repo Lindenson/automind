@@ -41,8 +41,8 @@ because the verdict is built from insights. Both are P1 and together they are th
   - the downgrade reverses all of it.
 - [X] T008 Add the ORM models and columns for T007 in `backend/src/automind/infrastructure/db/` (models module), and add the new chat-scoped tables to chat deletion in `backend/src/automind/application/chats.py`
 - [X] T009 [P] Extend `backend/tests/integration/test_migrations.py` to test 0007: upgrade, downgrade, upgrade again
-- [ ] T010 [P] Add the new block types `verdict`, `comparison`, `data_panel`, `value_retention`, `suggestions` and `section` to `frontend/src/lib/protocol.ts` exactly as in contracts/report-blocks-and-protocol.md. Also add the client messages `find`, `challenge`, `rating` and `suggestion` and the server messages `progress` and `challenge_result`. Extend `criteria_scores` with `relative`. Unknown blocks stay ignored. Add tests in `frontend/src/lib/protocol.test.ts`
-- [ ] T011 [P] Create the i18n skeleton: `frontend/src/i18n/en.ts`, `ru.ts`, `es.ts`, a typed key set (the `en` keys are the type) and `frontend/src/i18n/index.ts` with `useT()`. The language comes from the latest `assistant_message.language` unless the user switched it manually; a manual choice is stored in localStorage inside try/catch (research R12)
+- [X] T010 [P] Add the new block types `verdict`, `comparison`, `data_panel`, `value_retention`, `suggestions` and `section` to `frontend/src/lib/protocol.ts` exactly as in contracts/report-blocks-and-protocol.md. Also add the client messages `find`, `challenge`, `rating` and `suggestion` and the server messages `progress` and `challenge_result`. Extend `criteria_scores` with `relative`. Unknown blocks stay ignored. Add tests in `frontend/src/lib/protocol.test.ts`
+- [X] T011 [P] Create the i18n skeleton: `frontend/src/i18n/en.ts`, `ru.ts`, `es.ts`, a typed key set (the `en` keys are the type) and `frontend/src/i18n/index.ts` with `useT()`. The language comes from the latest `assistant_message.language` unless the user switched it manually; a manual choice is stored in localStorage inside try/catch (research R12)
 
 **Checkpoint**: config loads, migration 0007 is applied to the Docker DB, the protocol compiles.
 
@@ -310,7 +310,7 @@ because the verdict is built from insights. Both are P1 and together they are th
 - [X] T082 Run `scripts/check.sh` (ruff, format, mypy, import-linter, pytest, vitest). Fix it until green. Check that the new domain modules have no infrastructure imports
 - [X] T083 Check performance: insights and verdict take < 100 ms for 3 cars (a timing assertion in the unit tests), and the verdict card is ready from cached data in < 30 s (SC-007)
 - [ ] T084 Run quickstart.md sections 1–3 in replay. The live goldens G12–G18 and the RAV4 / CX-5 / CR-V manual check wait for paid Gemini: announce them with a cost estimate first
-- [ ] T085 Restart the dev server (`pkill -x automind-api`, `scripts/dev.sh`), redeploy with `scripts/deploy.sh restart`, and update the project memory
+- [X] T085 Restart the dev server (`pkill -x automind-api`, `scripts/dev.sh`), redeploy with `scripts/deploy.sh restart`, and update the project memory
 
 ---
 
