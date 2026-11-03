@@ -38,7 +38,11 @@ def fill_questions(
                 else:
                     opts = ", ".join(generations.get(key, [])) or "year or generation"
                 items.append(
-                    {"kind": kind, "car": key, "text": tpl.format(car=car.display_name, options=opts, count=1, make=car.make or "")}
+                    {
+                        "kind": kind,
+                        "car": key,
+                        "text": tpl.format(car=car.display_name, options=opts, count=1, make=car.make or ""),
+                    }
                 )
         elif kind == "BUDGET_INTENT":
             b = case.budget
