@@ -6,6 +6,7 @@ only translates them into the user's language and adds one sentence acknowledgin
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from typing import Any
 
@@ -115,3 +116,28 @@ def understood_summary(case: CaseFile) -> str:
     if case.priorities:
         parts.append("priorities: " + ", ".join(p.criterion for p in case.priorities))
     return "; ".join(parts) or "nothing yet"
+
+
+# --- spec 005: localized templates (research R9) -------------------------------------------------------------
+
+
+def template(questions: dict[str, Any], kind: str, lang: str | None, *, rephrase: bool = False,
+             **values: object) -> str:  # fmt: skip
+    """The question text of `kind` in `lang` (en if missing). With empty options the `bare` variant is used,
+    so no literal fallback or empty "did you mean" ever reaches the user."""
+    t = questions.get(kind) or {}
+    if isinstance(t, str):  # v1 file
+        t = {"en": t}
+    lang = lang if lang in ("en", "ru", "es") else "en"
+    opts = str(values.get("options") or "").strip()
+    variant: dict[str, Any] = t
+    if rephrase and isinstance(t.get("rephrase"), dict) and (opts or "{options}" not in str(t["rephrase"].get(lang))):
+        variant = t["rephrase"]
+    elif not opts and "{options}" in str(t.get(lang) or t.get("en") or "") and isinstance(t.get("bare"), dict):
+        variant = t["bare"]
+    text = str(variant.get(lang) or variant.get("en") or t.get("en") or "")
+    vals = {"car": "", "make": "", "count": 0, **values, "options": opts}
+    out = text.format(**vals)
+    if not opts:  # a template without a bare variant: drop the empty options clause
+        out = re.sub(r"\s*\(\s*\)", "", out).replace(": ?", "?").replace(": .", ".")
+    return out

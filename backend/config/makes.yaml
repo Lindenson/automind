@@ -1,0 +1,65 @@
+# Makes sold in Spain (spec 005 R2, R3): canonical name, aliases (lower case, any language), Russian
+# transliterations, the official Spanish site and the parent group. A make here is "known" even when the catalog
+# has none of its models; its line-up is looked up on the web with sources (application/lineup.py).
+version: 1
+makes:
+  Abarth: {aliases: [abarth], translit: [абарт], es_site: abarth.es}
+  Alfa Romeo: {aliases: [alfa romeo, alfa, alfaromeo], translit: [альфа ромео, альфа], es_site: alfaromeo.es}
+  Alpine: {aliases: [alpine], translit: [альпин], es_site: alpinecars.com/es}
+  Aston Martin: {aliases: [aston martin], translit: [астон мартин], es_site: astonmartin.com/es}
+  Audi: {aliases: [audi], translit: [ауди], es_site: audi.es}
+  Bentley: {aliases: [bentley], translit: [бентли], es_site: bentleymotors.com/es}
+  BMW: {aliases: [bmw, бмв], translit: [бмв, бэмвэ, бумер], es_site: bmw.es}
+  BYD: {aliases: [byd, build your dream, b.y.d.], translit: [бид, биад, байд, бйд, би вай ди, бьд], es_site: byd.com/es}
+  Chery: {aliases: [chery], translit: [чери], es_site: cheryauto.es}
+  Citroën: {aliases: [citroen, citroën], translit: [ситроен, ситроэн], es_site: citroen.es}
+  Cupra: {aliases: [cupra], translit: [купра], es_site: cupraofficial.es, group: SEAT}
+  Dacia: {aliases: [dacia], translit: [дачия, дачиа, дача], es_site: dacia.es}
+  DFSK: {aliases: [dfsk, dongfeng sokon], translit: [дфск], es_site: dfsk.es}
+  DS: {aliases: [ds, ds automobiles], translit: [дс], es_site: dsautomobiles.es}
+  EBRO: {aliases: [ebro], translit: [эбро], es_site: ebro.com, group: Chery}
+  Ferrari: {aliases: [ferrari], translit: [феррари], es_site: ferrari.com/es-ES}
+  Fiat: {aliases: [fiat], translit: [фиат], es_site: fiat.es}
+  Ford: {aliases: [ford], translit: [форд], es_site: ford.es}
+  Honda: {aliases: [honda], translit: [хонда], es_site: honda.es}
+  Hyundai: {aliases: [hyundai, hundai, hyunday], translit: [хендай, хёндай, хюндай, хундай, хендэ, хюндэ], es_site: hyundai.com/es}
+  Ineos: {aliases: [ineos], translit: [инеос], es_site: ineosgrenadier.com/es}
+  Jaecoo: {aliases: [jaecoo], translit: [джейку, джейкоо, джаеку, жаеку], es_site: jaecoo.es, group: Chery}
+  Jaguar: {aliases: [jaguar], translit: [ягуар], es_site: jaguar.es}
+  Jeep: {aliases: [jeep], translit: [джип], es_site: jeep.es}
+  Kia: {aliases: [kia], translit: [киа], es_site: kia.com/es}
+  KGM: {aliases: [kgm, ssangyong, ssang yong, kg mobility], translit: [ссангйонг, санг йонг, саньенг], es_site: kgm.es}
+  Lamborghini: {aliases: [lamborghini], translit: [ламборгини, ламборджини], es_site: lamborghini.com/es-en}
+  Land Rover: {aliases: [land rover, landrover, range rover], translit: [ленд ровер, лэнд ровер, рендж ровер], es_site: landrover.es}
+  Leapmotor: {aliases: [leapmotor, leap motor], translit: [липмотор], es_site: leapmotor.es}
+  Lexus: {aliases: [lexus], translit: [лексус], es_site: lexus.es}
+  Lotus: {aliases: [lotus], translit: [лотус], es_site: lotuscars.com/es-ES}
+  Lynk & Co: {aliases: [lynk & co, lynk and co, lynk co, lynk], translit: [линк энд ко, линк], es_site: lynkco.com/es-es}
+  Maserati: {aliases: [maserati], translit: [мазерати], es_site: maserati.com/es}
+  Mazda: {aliases: [mazda], translit: [мазда], es_site: mazda.es}
+  Mercedes-Benz: {aliases: [mercedes, mercedes benz, mercedes-benz, merc, mb], translit: [мерседес, мерс, мерин], es_site: mercedes-benz.es}
+  MG: {aliases: [mg, morris garages], translit: [мг, эм джи, эмджи], es_site: mgmotor.es}
+  MINI: {aliases: [mini], translit: [мини], es_site: mini.es}
+  Mitsubishi: {aliases: [mitsubishi], translit: [митсубиси, мицубиси], es_site: mitsubishi-motors.es}
+  Nissan: {aliases: [nissan], translit: [ниссан], es_site: nissan.es}
+  Omoda: {aliases: [omoda], translit: [омода], es_site: omoda.es, group: Chery}
+  Opel: {aliases: [opel], translit: [опель], es_site: opel.es}
+  Peugeot: {aliases: [peugeot], translit: [пежо], es_site: peugeot.es}
+  Polestar: {aliases: [polestar], translit: [полестар], es_site: polestar.com/es}
+  Porsche: {aliases: [porsche], translit: [порше], es_site: porsche.com/spain}
+  Renault: {aliases: [renault], translit: [рено], es_site: renault.es}
+  SEAT: {aliases: [seat], translit: [сеат, сиат], es_site: seat.es}
+  Škoda: {aliases: [skoda, škoda], translit: [шкода], es_site: skoda.es}
+  Smart: {aliases: [smart], translit: [смарт], es_site: smart.com/es}
+  Subaru: {aliases: [subaru], translit: [субару], es_site: subaru.es}
+  Suzuki: {aliases: [suzuki], translit: [сузуки], es_site: suzuki.es}
+  Tesla: {aliases: [tesla], translit: [тесла], es_site: tesla.com/es_es}
+  Toyota: {aliases: [toyota], translit: [тойота], es_site: toyota.es}
+  Volkswagen: {aliases: [volkswagen, vw, volks], translit: [фольксваген, фольц, фольк, вв], es_site: volkswagen.es}
+  Volvo: {aliases: [volvo], translit: [вольво], es_site: volvocars.com/es}
+  Xpeng: {aliases: [xpeng, x peng], translit: [икспенг, хпенг], es_site: xpeng.com/es}
+  Zeekr: {aliases: [zeekr], translit: [зикр, зекр], es_site: zeekr.eu/es}
+  BAIC: {aliases: [baic], translit: [баик], es_site: baic.es}
+  GWM: {aliases: [gwm, great wall, ora, wey], translit: [грейт вол], es_site: gwm-global.com/es}
+  Mahindra: {aliases: [mahindra], translit: [махиндра], es_site: mahindra.es}
+  Microlino: {aliases: [microlino], translit: [микролино], es_site: microlino-car.com/es}

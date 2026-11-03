@@ -22,3 +22,6 @@ limits: {max_pages_per_job: 6, max_fetch_bytes_per_turn: 40000000}
 # Parallel research (spec 004 FR-032): pages of a job run as independent pipelines (relevance → extraction →
 # validation → storage). llm_per_job bounds model calls of one job; llm_total bounds them across all jobs.
 concurrency: {llm_per_job: 6, llm_total: 16}
+
+# Intake (spec 005 R6, R2): bounded attempts per question item and per car; brand line-up cache.
+intake: {max_attempts_per_item: 2, max_attempts_per_car: 4, lineup_ttl_days: 30, lineup_max_pages: 2}

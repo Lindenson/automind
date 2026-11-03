@@ -50,8 +50,12 @@ Resolution = Literal["UNRESOLVED", "PROPOSED", "CONFIRMED", "AUTO_OK", "UNKNOWN_
 Strength = Literal["LOW", "MEDIUM", "HIGH"]
 QuestionKind = Literal[
     "TOO_MANY_CARS", "CAR_IDENTITY", "USED_AGE", "TRIM", "PERSONA", "BUDGET_INTENT", "UNKNOWN_MODEL", "GEARBOX",
-    "KM_PER_YEAR", "FAMILY_SIZE",
+    "KM_PER_YEAR", "FAMILY_SIZE", "CONDITION", "ENGINE", "MAKE_LINEUP", "PROPOSE", "REMOVE_OR_CHOOSE",
 ]  # fmt: skip
+# spec 005: what an intake step is about (R6)
+IntakeItem = Literal["MAKE", "MODEL", "ENGINE", "GEARBOX", "YEAR", "CONDITION", "MILEAGE", "TRIM", "CHOICE"]
+Fuel = Literal["petrol", "diesel", "hybrid", "mhev", "phev", "bev", "lpg"]
+Climate = Literal["HOT", "MILD", "COLD", "MOUNTAIN"]
 BudgetIntent = Literal["NEW", "USED", "ANY", "UNKNOWN"]
 
 MAX_CARS = 3
@@ -64,6 +68,12 @@ class Profile(BaseModel):
     family: Literal["SINGLE", "COUPLE", "FAMILY"] | None = None
     age_band: Literal["UNDER_25", "25_40", "40_60", "OVER_60"] | None = None
     driving_style: Literal["CALM", "MIXED", "SPORTY"] | None = None
+    # spec 005 R11: where the car is driven and how far (a range when the user gives one)
+    region: str | None = Field(default=None, max_length=60)
+    region_code: str | None = None
+    climate: Climate | None = None
+    annual_km_min: int | None = Field(default=None, ge=1000, le=200000)
+    annual_km_max: int | None = Field(default=None, ge=1000, le=200000)
     evidence: dict[str, str] = Field(default_factory=dict)
 
 
@@ -119,6 +129,26 @@ class Priority(BaseModel):
     source: Literal["USER", "PERSONA"] = "USER"
 
 
+class EngineHint(BaseModel):
+    """The engine the user named (spec 005 R4): any subset of displacement, power, fuel and family."""
+
+    displacement_l: float | None = Field(default=None, ge=0.6, le=8.0)
+    power_hp: int | None = Field(default=None, ge=40, le=1000)
+    power_kw: int | None = Field(default=None, ge=30, le=750)
+    fuel: Fuel | None = None
+    family: str | None = Field(default=None, max_length=16)  # TSI, TDI, DM-i, e:HEV …
+    evidence: str = Field(default="", max_length=120)
+
+    def empty(self) -> bool:
+        return not any((self.displacement_l, self.power_hp, self.power_kw, self.fuel, self.family))
+
+    def text(self) -> str:
+        bits = [f"{self.displacement_l:.1f}" if self.displacement_l else "", self.family or "",
+                f"{self.power_hp} CV" if self.power_hp else (f"{self.power_kw} kW" if self.power_kw else ""),
+                self.fuel if self.fuel and not self.family else ""]  # fmt: skip
+        return " ".join(b for b in bits if b)
+
+
 class Constraints(BaseModel):
     generation_hint: str | None = None
     fuel_hint: str | None = None
@@ -127,6 +157,36 @@ class Constraints(BaseModel):
     gearbox_hint: Literal["manual", "automatic", "dct", "cvt", "e-cvt", "single"] | None = None  # spec 004 FR-028
     drive_hint: Literal["FWD", "RWD", "AWD"] | None = None
     url: str | None = None
+    engine_hint: EngineHint | None = None  # spec 005 FR-012
+
+
+class Choice(BaseModel):
+    """A concrete option offered during the intake (a model of a line-up, a version, an engine)."""
+
+    label: str
+    make: str | None = None
+    model: str | None = None
+    variant_id: str | None = None
+    engine: str | None = None
+    body: str | None = None
+    powertrain: str | None = None
+    price_from_eur: int | None = None
+    source_url: str | None = None
+    suggested: bool = False  # the user did not name it (FR-024)
+    reason: str | None = None
+
+
+IdentifyKind = Literal["IDENTIFIED", "CHOICES", "NEED", "NOT_FOUND"]
+
+
+class IdentifyOutcome(BaseModel):
+    """Result of the identify step for one car, recomputed every intake turn (spec 005 R1)."""
+
+    outcome: IdentifyKind = "NEED"
+    need: IntakeItem | None = None
+    choices: list[Choice] = Field(default_factory=list)
+    checked: list[str] = Field(default_factory=list)  # sources looked at before NOT_FOUND
+    note: str | None = None  # e.g. "from the page I took: …"
 
 
 class CaseCar(BaseModel):
@@ -143,10 +203,40 @@ class CaseCar(BaseModel):
     label: str | None = None  # resolved variant label, for display
     resolution: Resolution = "UNRESOLVED"
     alternatives: list[dict[str, object]] = Field(default_factory=list)
+    previous_label: str | None = None  # spec 005: the label before the last correction ("before → after")
+    identify: IdentifyOutcome | None = None  # spec 005 R1
+
+    @property
+    def display_name(self) -> str:
+        """How the car is named in questions: the facts known now, never stale request text (spec 005 R5)."""
+        if self.label:
+            return self.label
+        if not (self.make and self.model):
+            return self.make or self.request_text
+        k = self.constraints
+        bits = [self.make, self.model, k.generation_hint or "", k.engine_hint.text() if k.engine_hint else "",
+                k.trim_hint or ""]  # fmt: skip
+        return " ".join(b for b in bits if b)
+
+
+class Intake(BaseModel):
+    """Intake loop state (spec 005 R6): attempts per car and item, the last question hashes, the card."""
+
+    attempts: dict[str, dict[str, int]] = Field(default_factory=dict)
+    last_questions: list[str] = Field(default_factory=list)  # ≤ 6 hashes, newest last
+    proposed: dict[str, Choice] = Field(default_factory=dict)
+    card: dict[str, object] | None = None  # the card last shown (for highlighting edits)
+    card_confirmed: bool = False
+
+    def attempt(self, car_key: str, item: str) -> int:
+        return self.attempts.get(car_key, {}).get(item, 0)
+
+    def bump(self, car_key: str, item: str) -> None:
+        self.attempts.setdefault(car_key, {})[item] = self.attempt(car_key, item) + 1
 
 
 class Pending(BaseModel):
-    kind: Literal["QUESTIONS", "CONFIRM_VARIANTS", "CONFIRM_COST"]
+    kind: Literal["QUESTIONS", "CONFIRM_VARIANTS", "CONFIRM_COST", "CONFIRM_INTAKE"]
     items: list[dict[str, object]] = Field(default_factory=list)
 
 
@@ -186,6 +276,7 @@ class CaseFile(BaseModel):
     compare_level_source: Literal["DEFAULT", "USER_TRIM"] = "DEFAULT"
     last_values: dict[str, int] = Field(default_factory=dict)  # validated values per car at the last report
     shown: list[Shown] = Field(default_factory=list)
+    intake: Intake = Field(default_factory=Intake)  # spec 005
 
     @property
     def too_many_cars(self) -> bool:

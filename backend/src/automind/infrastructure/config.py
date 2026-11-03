@@ -8,6 +8,7 @@ from typing import Any
 
 import yaml
 
+from automind.application.makes import MakeRegistry
 from automind.application.ports import Reference
 from automind.config import settings
 from automind.domain import evidence, sense
@@ -90,7 +91,16 @@ def generations() -> dict[str, list[tuple[str, int | None, int | None]]]:
 
 
 def questions() -> dict[str, str]:
-    return {k: str(v) for k, v in load_yaml("questions.yaml").items() if k != "version"}
+    """English question texts by kind (v1 shape, used by the 002–004 code paths)."""
+    out = {}
+    for k, v in questions_i18n().items():
+        out[k] = str(v.get("en", "")) if isinstance(v, dict) else str(v)
+    return out
+
+
+def questions_i18n() -> dict[str, Any]:
+    """config/questions.yaml v2: {kind: {en, ru, es, bare?, rephrase?}} (spec 005 R9)."""
+    return {k: v for k, v in load_yaml("questions.yaml").items() if k != "version"}
 
 
 def _query_areas() -> dict[str, Any]:
@@ -165,6 +175,9 @@ def reference(prompts: dict[str, str]) -> Reference:
         insights=load_yaml("insights.yaml"),
         layouts=load_yaml("report_layouts.yaml"),
         explainers=load_yaml("tech_explainers.yaml"),
+        questions_i18n=questions_i18n(),
+        makes=MakeRegistry.from_config(load_yaml("makes.yaml")),
+        regions=dict(load_yaml("regions.yaml").get("regions") or {}),
     )
 
 

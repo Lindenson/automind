@@ -61,6 +61,10 @@ class Variant(Base):
     trim: Mapped[str | None] = mapped_column(String(64))  # equipment name, e.g. "Klass", "Homura"
     trim_level: Mapped[str | None] = mapped_column(String(4))  # BASE | MID | TOP
     price_eur: Mapped[float | None] = mapped_column(Numeric(10, 0))  # official price of this version (ES)
+    # spec 005: the engine is part of the identity (research R4)
+    engine_cc: Mapped[int | None] = mapped_column(Integer)  # 600–8000
+    power_kw: Mapped[int | None] = mapped_column(Integer)  # 30–750
+    fuel: Mapped[str | None] = mapped_column(String(8))  # petrol|diesel|hybrid|mhev|phev|bev|lpg
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
     @property
@@ -483,6 +487,33 @@ class ValueChallenge(Base):
     claim_id: Mapped[str | None] = mapped_column(String(36))
     user_text: Mapped[str] = mapped_column(Text, default="")
     outcome: Mapped[str] = mapped_column(String(12), default="UNRESOLVED")  # CONFIRMED|CORRECTED|REMOVED|UNRESOLVED
+    details: Mapped[dict] = mapped_column(JSONB, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class BrandLineup(Base):
+    """Models of a make on sale in a market, with sources (spec 005 R2). Shared, refreshed after a TTL."""
+
+    __tablename__ = "brand_lineups"
+    __table_args__ = (UniqueConstraint("make", "market", name="uq_brand_lineups_make_market"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    make: Mapped[str] = mapped_column(String(80))
+    market: Mapped[str] = mapped_column(String(2), default="ES")
+    models: Mapped[list] = mapped_column(JSONB, default=list)  # [{model, body, powertrains, price_from_eur, ...}]
+    sources: Mapped[list] = mapped_column(JSONB, default=list)  # [{url, name, type, retrieved_at}]
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class IntakeEvent(Base):
+    """One intake step of a chat (spec 005 R13): asked, answered, corrected, proposed, confirmed …"""
+
+    __tablename__ = "intake_events"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    chat_id: Mapped[str] = mapped_column(ForeignKey("chats.id", ondelete="CASCADE"), index=True)
+    turn_id: Mapped[str | None] = mapped_column(String(36))
+    car_key: Mapped[str | None] = mapped_column(String(16))
+    kind: Mapped[str] = mapped_column(String(20))
+    item: Mapped[str | None] = mapped_column(String(16))
     details: Mapped[dict] = mapped_column(JSONB, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 

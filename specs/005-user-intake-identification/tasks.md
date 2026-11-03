@@ -29,26 +29,26 @@ description: "Task list for 005 — Understanding the user: intake and identific
 
 **Purpose**: the files every later phase reads.
 
-- [ ] T001 [P] Create `backend/config/makes.yaml` (research R2, R3).
+- [X] T001 [P] Create `backend/config/makes.yaml` (research R2, R3).
   - About 60 makes sold in Spain, each `{canonical: {aliases: [..], translit: [..], es_site: "<domain/path>", group: <parent>|null}}`.
   - Include European, Japanese, Korean and US makes, plus Chinese: BYD, MG, Omoda, Jaecoo, Chery, EBRO (group Chery), Leapmotor, Xpeng, Lynk & Co, Zeekr, DFSK, Polestar, Cupra, Dacia, SEAT, Škoda.
   - Russian transliterations, e.g. сеат, атека→(model alias in aliases.yaml), биад/бид/бyd, хендай/хюндай/хундай, киа, шкода, тойота, мазда, хонда.
-- [ ] T002 [P] Create `backend/config/regions.yaml` (research R11).
+- [X] T002 [P] Create `backend/config/regions.yaml` (research R11).
   - The 17 autonomous communities and 50 provinces, each `{code: {names: [es, ru, en variants], climate: HOT|MILD|COLD|MOUNTAIN}}`.
   - Andalucía, Murcia, Valencia interior and Extremadura → HOT; Cantabria, Asturias and Galicia → MILD; Castilla y León interior → COLD.
   - Add generic phrases: "юг Испании" / "sur de España" / "south of Spain" → HOT, "север" → MILD.
-- [ ] T003 [P] Rewrite `backend/config/questions.yaml` as v2 (research R9).
+- [X] T003 [P] Rewrite `backend/config/questions.yaml` as v2 (research R9).
   - Every kind is `{en, ru, es, rephrase: {en, ru, es}}`.
   - Add the kinds CONDITION (one question for all cars), ENGINE, MAKE_LINEUP ("Which <make> model: …?") and PROPOSE ("I'll take <car> — OK?").
   - Remove every literal option fallback ("make and model", "year or generation").
   - Placeholders: `{car}`, `{options}`, `{count}`, `{make}`.
-- [ ] T004 [P] Add the `lineup` role (a web reader, no tools; cheap Gemini model with the existing fallback) to `backend/config/models.yaml`. Add an `intake:` section to `backend/config/search.yaml` with `max_attempts_per_item: 2`, `max_attempts_per_car: 4`, `lineup_ttl_days: 30` and `lineup_max_pages: 2`.
-- [ ] T005 Write migration `backend/alembic/versions/0008_intake.py` (data-model.md).
+- [X] T004 [P] Add the `lineup` role (a web reader, no tools; cheap Gemini model with the existing fallback) to `backend/config/models.yaml`. Add an `intake:` section to `backend/config/search.yaml` with `max_attempts_per_item: 2`, `max_attempts_per_car: 4`, `lineup_ttl_days: 30` and `lineup_max_pages: 2`.
+- [X] T005 Write migration `backend/alembic/versions/0008_intake.py` (data-model.md).
   - `vehicle_variants` gains `engine_cc int null` (600–8000), `power_kw int null` (30–750) and `fuel varchar(8) null` (`petrol|diesel|hybrid|mhev|phev|bev|lpg`).
   - New table `brand_lineups`: id varchar(36) PK, make varchar(80), market varchar(2) default 'ES', models jsonb, sources jsonb, fetched_at timestamptz; unique (make, market).
   - New table `intake_events`: id varchar(36) PK, chat_id varchar(36) FK chats ON DELETE CASCADE, turn_id varchar(36), car_key varchar(16) null, kind varchar(20), item varchar(16) null, details jsonb, created_at timestamptz; index on chat_id.
-- [ ] T006 Add the ORM models `BrandLineup` and `IntakeEvent` and the Variant columns to `backend/src/automind/infrastructure/db/models.py`. Add `IntakeEvent` to the chat-scoped deletion list in `backend/src/automind/infrastructure/db/repositories.py`. Apply 0008 to the Docker DB after `scripts/backup` (pg_dump to `backups/pre-005-*.dump`).
-- [ ] T007 Write `backend/scripts/backfill_engine.py` (run by `scripts/repair-data.sh --engine`). It fills `engine_cc`, `power_kw` and `fuel` of existing variants from `variant_name` with `identity.parse_engine` (T010), leaves unparsed rows null and prints counts.
+- [X] T006 Add the ORM models `BrandLineup` and `IntakeEvent` and the Variant columns to `backend/src/automind/infrastructure/db/models.py`. Add `IntakeEvent` to the chat-scoped deletion list in `backend/src/automind/infrastructure/db/repositories.py`. Apply 0008 to the Docker DB after `scripts/backup` (pg_dump to `backups/pre-005-*.dump`).
+- [X] T007 Write `backend/scripts/backfill_engine.py` (run by `scripts/repair-data.sh --engine`). It fills `engine_cc`, `power_kw` and `fuel` of existing variants from `variant_name` with `identity.parse_engine` (T010), leaves unparsed rows null and prints counts.
 
 ---
 
@@ -58,7 +58,7 @@ description: "Task list for 005 — Understanding the user: intake and identific
 
 ### Tests first
 
-- [ ] T008 [P] Write `backend/tests/unit/test_engine_parse.py` (research R4). It covers:
+- [X] T008 [P] Write `backend/tests/unit/test_engine_parse.py` (research R4). It covers:
   - "1.5" / "1,5" / "1500" → 1.5 L;
   - "1.5 TSI 150 CV" → 1.5, 150 hp, 110 kW, family TSI, petrol;
   - "2.0 TDI 110 kW" → diesel;
@@ -69,21 +69,21 @@ description: "Task list for 005 — Understanding the user: intake and identific
   - "Seat 1.5 двигатель" → 1.5;
   - negation: the negated value is dropped and the other one is kept. "not 1.0 but 1.5" → 1.5; "1.5, а не 1.0" → 1.5; "не 1.0, а 1.5" → 1.5;
   - years (2025) and km (60 000 km) are never read as an engine.
-- [ ] T009 [P] Write `backend/tests/unit/test_transliteration.py` and `backend/tests/unit/test_makes.py` (research R3).
+- [X] T009 [P] Write `backend/tests/unit/test_transliteration.py` and `backend/tests/unit/test_makes.py` (research R3).
   - "сеат атека" → SEAT / Ateca; "хендай туссан" → Hyundai / Tucson; "биад сил ю" → BYD / Seal U; "шкода карок" → Škoda / Karoq.
   - The make registry matches aliases, transliterations and fuzzy names (WRatio ≥ 85), and returns None for "Build Your Dream" unless it is an alias of BYD (add it).
   - A domain match: "https://www.byd.com/" → BYD.
-- [ ] T010 [P] Write `backend/tests/unit/test_intake.py` (research R5, R6, R11).
+- [X] T010 [P] Write `backend/tests/unit/test_intake.py` (research R5, R6, R11).
   - `identity_key` changes when the engine, gearbox, year, condition or trim changes.
   - `parse_distance`: "1-2 тыс км в месяц" → (12000, 24000); "20k a year" → (20000, 20000); "2 000 km al mes" → (24000, 24000).
   - `next_step` never returns a question whose hash equals the last one; it returns PROPOSE after 2 attempts on one item and REMOVE_OR_CHOOSE after 4 on one car.
   - `progress` is true when a fact changed or the outcome improved (NOT_FOUND → CHOICES → IDENTIFIED).
-- [ ] T011 [P] Write `backend/tests/unit/test_questions_i18n.py`. Every kind in questions.yaml has en, ru and es plus rephrase variants. Formatting with empty options never yields "make and model" or an English word in a ru/es text (a stop-list of English words).
+- [X] T011 [P] Write `backend/tests/unit/test_questions_i18n.py`. Every kind in questions.yaml has en, ru and es plus rephrase variants. Formatting with empty options never yields "make and model" or an English word in a ru/es text (a stop-list of English words).
 
 ### Implementation
 
-- [ ] T012 [P] Implement `parse_engine(text) -> EngineHint | None`, `engine_fits(hint, engine_cc, power_kw, fuel) -> bool` (±0.05 L, ±3 kW, equal fuel) and `transliterate_ru(text) -> str` in `backend/src/automind/domain/identity.py`. Make T008 and the transliteration part of T009 pass.
-- [ ] T013 Extend `backend/src/automind/domain/casefile.py`.
+- [X] T012 [P] Implement `parse_engine(text) -> EngineHint | None`, `engine_fits(hint, engine_cc, power_kw, fuel) -> bool` (±0.05 L, ±3 kW, equal fuel) and `transliterate_ru(text) -> str` in `backend/src/automind/domain/identity.py`. Make T008 and the transliteration part of T009 pass.
+- [X] T013 Extend `backend/src/automind/domain/casefile.py`.
   - `EngineHint` (fields and ranges as in data-model.md: displacement_l 0.6–8.0, power_hp 40–1000, power_kw 30–750, fuel enum, family ≤ 16 chars, evidence ≤ 120 chars) as `Constraints.engine_hint`.
   - `CaseCar.previous_label`, `CaseCar.identify` (outcome, need, choices, checked, at) and the computed `display_name`.
   - `Intake` (attempts, last_questions ≤ 6, proposed, card, card_confirmed) as `CaseFile.intake`.
@@ -91,9 +91,9 @@ description: "Task list for 005 — Understanding the user: intake and identific
   - The `CONFIRM_INTAKE` pending kind.
   - The QuestionKinds CONDITION, ENGINE, MAKE_LINEUP and PROPOSE.
   - Old case JSON must still load (defaults everywhere).
-- [ ] T014 Implement `backend/src/automind/domain/intake.py`: `identity_key(car)`, `progress(before, after, outcome_before, outcome_after)`, `next_step(case, outcomes, limits) -> Step` (ASK items ≤ 3, PROPOSE, REMOVE_OR_CHOOSE, CARD, NONE), `question_hash(car_key, item, text)`, `record_asked(case, items)` and `parse_distance(text) -> (min, max) | None`. Make T010 pass.
-- [ ] T015 [P] Implement `backend/src/automind/application/makes.py`: load `makes.yaml` into `Reference.makes`, `match_make(text) -> str | None` (alias, translit, fuzzy, URL domain) and `make_site(make) -> str | None`. Wire it into `backend/src/automind/infrastructure/config.py`. Make the rest of T009 pass.
-- [ ] T016 [P] Implement localized templates in `backend/src/automind/application/ask.py`: `template(kind, lang, rephrase=False)`. Options are always concrete; a question without options has no options clause. Make T011 pass.
+- [X] T014 Implement `backend/src/automind/domain/intake.py`: `identity_key(car)`, `progress(before, after, outcome_before, outcome_after)`, `next_step(case, outcomes, limits) -> Step` (ASK items ≤ 3, PROPOSE, REMOVE_OR_CHOOSE, CARD, NONE), `question_hash(car_key, item, text)`, `record_asked(case, items)` and `parse_distance(text) -> (min, max) | None`. Make T010 pass.
+- [X] T015 [P] Implement `backend/src/automind/application/makes.py`: load `makes.yaml` into `Reference.makes`, `match_make(text) -> str | None` (alias, translit, fuzzy, URL domain) and `make_site(make) -> str | None`. Wire it into `backend/src/automind/infrastructure/config.py`. Make the rest of T009 pass.
+- [X] T016 [P] Implement localized templates in `backend/src/automind/application/ask.py`: `template(kind, lang, rephrase=False)`. Options are always concrete; a question without options has no options clause. Make T011 pass.
 
 **Checkpoint**: `scripts/check.sh` is green; old cases load; no behaviour change yet.
 
