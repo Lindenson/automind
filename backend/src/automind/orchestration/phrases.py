@@ -84,6 +84,27 @@ PHRASES: dict[str, dict[str, str]] = {
     "family_single": {"en": "Mostly just me", "ru": "В основном я один", "es": "Sobre todo yo solo"},
     "family_couple": {"en": "The two of us", "ru": "Нас двое", "es": "Somos dos"},
     "family_kids": {"en": "A family with children", "ru": "Семья с детьми", "es": "Una familia con niños"},
+    "style_CALM": {"en": "Calm, relaxed driving", "ru": "Спокойная езда", "es": "Conducción tranquila"},
+    "style_MIXED": {"en": "A bit of everything", "ru": "По-разному", "es": "Un poco de todo"},
+    "style_SPORTY": {
+        "en": "Sporty, I like it fast",
+        "ru": "Спортивно, люблю быстро",
+        "es": "Deportiva, me gusta rápido",
+    },
+    "confirm_yes": {"en": "Yes, that's right: {what}", "ru": "Да, верно: {what}", "es": "Sí, es así: {what}"},
+    "confirm_no": {"en": "No, that's not me", "ru": "Нет, это не про меня", "es": "No, no es mi caso"},
+    "confirm_q": {
+        "en": "I took this from your words: {what}. It decides the winner here — is it right?",
+        "ru": "Я понял это из ваших слов: {what}. Здесь от этого зависит победитель — верно?",
+        "es": "Lo he deducido de tus palabras: {what}. Aquí decide el ganador — ¿es correcto?",
+    },
+    "assume_note": {
+        "en": "This assumes: {what} (from your words “{ev}”, not confirmed). Without it {other}.",
+        "ru": "Это при допущении: {what} (по вашим словам «{ev}», не подтверждено). Без него {other}.",
+        "es": "Esto supone: {what} (por tus palabras «{ev}», sin confirmar). Sin ello {other}.",
+    },
+    "other_wins": {"en": "the {car} would win", "ru": "победил бы {car}", "es": "ganaría el {car}"},
+    "other_tie": {"en": "it would be too close to call", "ru": "была бы ничья", "es": "estarían igualados"},
     "critique_researched": {
         "en": "I went back to the sources for what was missing ({areas}) and rebuilt the report.",
         "ru": "Я заново поискал недостающее ({areas}) и пересобрал отчёт.",

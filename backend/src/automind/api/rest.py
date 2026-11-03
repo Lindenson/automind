@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import logging
 from datetime import UTC, datetime
 from typing import Any, Literal
 
@@ -11,6 +12,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from automind.application.ports import TurnBusy, VersionConflict
 from automind.config import settings
 from automind.domain.casefile import (
     Budget,
@@ -32,8 +34,10 @@ from automind.domain.criteria import (
 from automind.infrastructure import config as cfg
 from automind.infrastructure import llm_gateway
 from automind.infrastructure.config import search_config
+from automind.orchestration.runner import Busy
 
 router = APIRouter()
+log = logging.getLogger(__name__)
 
 
 def _msg(m: Any) -> dict[str, Any]:
@@ -80,7 +84,8 @@ async def health(request: Request) -> dict[str, Any]:
 async def messages(chat_id: str, request: Request) -> dict[str, Any] | JSONResponse:
     if await request.app.state.chats.is_deleted(chat_id):
         return _error(410, "chat_deleted", "This chat was deleted.")
-    return {"messages": [_msg(m) for m in await request.app.state.messages.history(chat_id)]}
+    msgs = await request.app.state.messages.history(chat_id)
+    return {"messages": [_msg(m) for m in msgs if m.role != "edit"]}  # panel edits are not chat messages
 
 
 # --- chat deletion (spec 003 US4) -------------------------------------------------------------------
@@ -153,6 +158,7 @@ class CasePatch(BaseModel):
     profile: ProfilePatch | None = None  # spec 007: the whole profile is editable in the panel
     ownership_years: int | None = Field(default=None, ge=1, le=20)
     remove_priority: str | None = None
+    if_version: int | None = None  # the version the edit was made on (optimistic lock, spec 007 J)
 
 
 def _error(status: int, code: str, message: str) -> JSONResponse:
@@ -191,45 +197,147 @@ def weights_view(case: CaseFile, model: CriteriaModel) -> dict[str, Any]:
 
 @router.patch("/api/v1/chats/{chat_id}/case", response_model=None)
 async def patch_case(chat_id: str, patch: CasePatch, request: Request) -> dict[str, Any] | JSONResponse:
+    """A panel edit (spec 007 FR-014, J). It is saved under the turn-start lock with a version check, so a turn
+    never overwrites it and two edits never lose each other. While a turn runs it is queued and applied right
+    after that turn (no 409 for a slider move). After a report it starts (or joins) the chat's rescore."""
     st = request.app.state
-    active = await st.turns.active(chat_id)
-    if active is not None and active.status == "RUNNING":
-        return _error(409, "turn_running", "A turn is running; edit the case when it has finished.")
-    _, data, _ = await st.cases.latest(chat_id)
-    case = CaseFile.model_validate(data) if data else CaseFile()
+    await st.chats.ensure(chat_id)
+    version, data, _ = await st.cases.latest(chat_id)
+    if patch.if_version is not None and patch.if_version != version:
+        case = CaseFile.model_validate(data) if data else CaseFile()
+        body = {"code": "version_conflict", "message": "The case changed.", "version": version,
+                "case": case.model_dump(mode="json")}  # fmt: skip
+        return JSONResponse(status_code=409, content=body)
     try:
-        new, changes = apply_patch(case, patch, current_year=datetime.now(UTC).year)
+        saved = await save_patch(st, chat_id, patch)
     except (ValueError, ValidationError) as e:
         return _error(422, "invalid_case_edit", str(e))
-    if not changes:
-        version, _, _ = await st.cases.latest(chat_id)
-        return {"version": version, "case": new.model_dump(mode="json"), "changes": []}
-    await st.chats.ensure(chat_id)
-    version = await st.cases.save_version(chat_id, new.model_dump(mode="json"), "user", changes)
-    await st.bus.publish(chat_id, None, "case_file", {"version": version, "case": new.model_dump(mode="json"),
-                                                      "changes": changes})  # fmt: skip
-    rescore = await _start_rescore(st, chat_id, new, changes)
+    if saved is None:  # a turn is running: applied after it
+        _QUEUED.setdefault(chat_id, []).append(patch)
+        _kick(st, chat_id)
+        version, data, _ = await st.cases.latest(chat_id)
+        return {"version": version, "case": data or {}, "changes": [], "rescore": "queued", "queued": True}
+    version, new, changes = saved
+    if changes:
+        await st.bus.publish(chat_id, None, "case_file", {"version": version, "case": new.model_dump(mode="json"),
+                                                          "changes": changes})  # fmt: skip
+    rescore = _want_rescore(st, chat_id, new, changes)
     return {"version": version, "case": new.model_dump(mode="json"), "changes": changes, "rescore": rescore}
 
 
-async def _start_rescore(st: Any, chat_id: str, case: CaseFile, changes: list[str]) -> str:
-    """Spec 007 FR-014: an edit after a report recomputes it at once from the validated data (no search, no
-    interpreter). Before the first report the edit is simply used by the next turn."""
-    runner = getattr(st, "runner", None)
-    if runner is None or not case.shown or case.pending is not None or not case.cars:
+async def save_patch(st: Any, chat_id: str, patch: CasePatch) -> tuple[int, CaseFile, list[str]] | None:
+    """Apply the edit on the newest case and save it; None while a turn runs. A concurrent writer (another edit)
+    makes it re-read and apply again."""
+    for _ in range(5):
+        version, data, _ = await st.cases.latest(chat_id)
+        case = CaseFile.model_validate(data) if data else CaseFile()
+        new, changes = apply_patch(case, patch, current_year=datetime.now(UTC).year)
+        if not changes:
+            return version, new, []
+        try:
+            v = await st.cases.save_if_idle(chat_id, new.model_dump(mode="json"), "user", changes,
+                                            expected_version=version)  # fmt: skip
+        except TurnBusy:
+            return None
+        except VersionConflict:
+            continue
+        return v, new, changes
+    raise ValueError("the case keeps changing; try again")
+
+
+# --- the rescore queue (spec 007 J, T074/T075) -----------------------------------------------------------------
+# One worker per chat. Edits made while a turn runs wait in _QUEUED and are applied when it ends; the changes of
+# all edits since the last rescore are merged in _CHANGES and recomputed once. A rescore that meets a busy chat
+# is retried after the turn; any other failure is logged and told to the chat (`rescore_failed`), never dropped.
+
+_QUEUED: dict[str, list[CasePatch]] = {}
+_CHANGES: dict[str, list[str]] = {}
+_WORKERS: dict[str, asyncio.Task[Any]] = {}
+RESCORE_POLL_S = 0.3
+RESCORE_WAIT_S = 900.0  # longest wait for a running turn (a research turn can take minutes)
+
+
+def _want_rescore(st: Any, chat_id: str, case: CaseFile, changes: list[str]) -> str:
+    if getattr(st, "runner", None) is None or not changes or not case.shown or not case.cars:
         return "not_needed"
-    active = await st.turns.active(chat_id)
-    if active is not None:  # a question or a confirmation is open: the edit is used when the user answers
+    if case.pending is not None:  # a question is open: the edit is used when the user answers
         return "not_needed"
-    text = "↻ " + "; ".join(changes)
-    preset = {"kind": "rescore", "changes": changes}
-    task = asyncio.create_task(runner.run_turn(chat_id, text[:300], None, preset=preset))
-    _RESCORES.add(task)
-    task.add_done_callback(_RESCORES.discard)
+    _CHANGES.setdefault(chat_id, []).extend(changes)
+    return "queued" if _kick(st, chat_id) == "joined" else "started"
+
+
+def _kick(st: Any, chat_id: str) -> str:
+    task = _WORKERS.get(chat_id)
+    if task is not None and not task.done():
+        return "joined"
+    _WORKERS[chat_id] = asyncio.create_task(_rescore_worker(st, chat_id))
     return "started"
 
 
-_RESCORES: set[asyncio.Task[Any]] = set()  # keeps the background turns referenced until they finish
+async def _idle(st: Any, chat_id: str) -> str:
+    """Wait for the running turn to end: 'idle', 'waiting' (a question is open) or 'timeout'."""
+    waited = 0.0
+    while waited < RESCORE_WAIT_S:
+        active = await st.turns.active(chat_id)
+        if active is None:
+            return "idle"
+        if active.status != "RUNNING":
+            return "waiting"
+        await asyncio.sleep(RESCORE_POLL_S)
+        waited += RESCORE_POLL_S
+    return "timeout"
+
+
+async def _apply_queued(st: Any, chat_id: str) -> bool:
+    """Apply the edits queued during a turn; False when a turn started again in between."""
+    queued = _QUEUED.pop(chat_id, [])
+    for i, patch in enumerate(queued):
+        saved = await save_patch(st, chat_id, patch)
+        if saved is None:
+            _QUEUED[chat_id] = queued[i:] + _QUEUED.get(chat_id, [])
+            return False
+        version, new, changes = saved
+        if changes:
+            await st.bus.publish(chat_id, None, "case_file", {"version": version, "case": new.model_dump(mode="json"),
+                                                              "changes": changes})  # fmt: skip
+            _CHANGES.setdefault(chat_id, []).extend(changes)
+    return True
+
+
+async def _rescore_worker(st: Any, chat_id: str) -> None:
+    try:
+        while _QUEUED.get(chat_id) or _CHANGES.get(chat_id):
+            state = await _idle(st, chat_id)
+            if state == "timeout":
+                await _rescore_failed(st, chat_id, "the running turn did not finish")
+                return
+            if not await _apply_queued(st, chat_id):
+                continue
+            changes = _CHANGES.pop(chat_id, [])
+            if not changes:
+                continue
+            _, data, _ = await st.cases.latest(chat_id)
+            case = CaseFile.model_validate(data) if data else CaseFile()
+            if state == "waiting" or case.pending is not None or not case.shown or not case.cars:
+                continue  # the edit is in the case: the answer to the open question uses it
+            try:
+                await st.runner.run_turn(chat_id, ("↻ " + "; ".join(changes))[:300], None,
+                                         preset={"kind": "rescore", "changes": changes})  # fmt: skip
+            except Busy:
+                _CHANGES[chat_id] = changes + _CHANGES.get(chat_id, [])  # a turn won the race: after it
+    except Exception as e:  # noqa: BLE001 - never lose an edit silently
+        log.exception("rescore failed", extra={"chat_id": chat_id})
+        await _rescore_failed(st, chat_id, type(e).__name__)
+    finally:
+        _WORKERS.pop(chat_id, None)
+
+
+async def _rescore_failed(st: Any, chat_id: str, why: str) -> None:
+    _CHANGES.pop(chat_id, None)
+    try:
+        await st.bus.publish(chat_id, None, "rescore_failed", {"reason": why})
+    except Exception:  # noqa: BLE001
+        log.exception("could not report a failed rescore")
 
 
 def apply_patch(case: CaseFile, patch: CasePatch, *, current_year: int) -> tuple[CaseFile, list[str]]:

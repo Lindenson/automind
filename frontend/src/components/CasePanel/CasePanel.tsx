@@ -2,7 +2,8 @@ import { useLang, useT } from "../../i18n";
 /**
  * The case file: what AutoMind understood about you and the cars (FR-002, FR-009).
  * Desktop: a collapsible right sidebar. Phones (<768 px): a bottom sheet.
- * Every edit is sent as PATCH and applies from the next message.
+ * Every edit is sent as PATCH. After a report it recomputes the report at once (a rescore); while a turn runs
+ * the edit is queued on the server and applied when the turn ends.
  */
 import { useEffect, useState, type ReactNode } from "react";
 import type { CaseFile } from "../../lib/protocol";
@@ -90,6 +91,7 @@ export function CaseBody() {
   const chatId = useChat((s) => s.chatId);
   const cf = useChat((s) => s.caseFile);
   const running = useChat((s) => s.pending !== null);
+  const rescore = useChat((s) => s.rescore);
   const [error, setError] = useState<string | null>(null);
   const t = useT();
   const c = cf?.data;
@@ -106,10 +108,20 @@ export function CaseBody() {
     );
   const rates = c.rates_override as Record<string, number | null | undefined>;
   return (
-    <div
-      className={cx("space-y-4", running && "pointer-events-none opacity-60")}
-      aria-busy={running}
-    >
+    <div className="space-y-4" aria-busy={running}>
+      {rescore !== "idle" && (
+        <p
+          role="status"
+          className={cx(
+            "rounded border px-2 py-1 text-xs",
+            rescore === "failed"
+              ? "border-bad/40 bg-bad/10 text-bad"
+              : "border-accent/40 bg-accent/10",
+          )}
+        >
+          {t(rescore === "failed" ? "panel.rescore_failed" : "panel.updating")}
+        </p>
+      )}
       {error && (
         <p className="rounded border border-bad/40 bg-bad/10 px-2 py-1 text-xs text-bad">
           {error}

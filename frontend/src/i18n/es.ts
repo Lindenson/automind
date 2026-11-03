@@ -152,6 +152,8 @@ export const es: Record<Key, string> = {
   "block.criteria_scores": "Criterios y puntuaciones (índices 0–100, no mediciones)",
   "tco.over": "en {years}",
   "tco.depreciation": "Depreciación (en el total, no en el coste anual)",
+  "panel.updating": "Actualizando el informe…",
+  "panel.rescore_failed": "El informe no se actualizó. Edita de nuevo o pregunta en el chat.",
   "block.tco": "Coste de propiedad",
   "block.reliability": "Fiabilidad",
   "block.reviews": "Opiniones",

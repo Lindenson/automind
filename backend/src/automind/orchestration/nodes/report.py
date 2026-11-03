@@ -11,9 +11,9 @@ US3 (T056–T060) replaces this with criteria scores, persona block order and pe
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
-import structlog
 from langgraph.runtime import Runtime
 
 from automind.application import compose
@@ -36,13 +36,14 @@ from automind.orchestration.state import TurnState
 from .common import ctx, history, load_case, save_case
 from .compute import compute
 
-log = structlog.get_logger()
+log = logging.getLogger(__name__)  # one logging stack: stdlib everywhere (spec 007 J, T079)
 
 
 def _log_removed(c: TurnContext, where: str, n: int) -> None:
     """Sentences the checks removed are an operator signal, not a message to the user (reviewer 2026-11-03)."""
     if n:
-        log.info("guard.sentences_removed", where=where, count=n, chat_id=c.chat_id, turn_id=c.turn_id)
+        log.info("guard.sentences_removed", extra={"where": where, "count": n, "chat_id": c.chat_id,
+                                                   "turn_id": c.turn_id})  # fmt: skip
 
 
 def _case_summary(case: CaseFile) -> str:
@@ -100,7 +101,53 @@ async def _report_check(
 
 
 _PERSONA_CHIPS = ("PERFORMANCE", "BUYER", "EXPERT")
-_ONCE = ("KM_PER_YEAR", "FAMILY_SIZE", "OWNERSHIP_YEARS", "PERSONA")
+_ONCE = ("KM_PER_YEAR", "FAMILY_SIZE", "OWNERSHIP_YEARS", "PERSONA", "CONFIRM_PROFILE")
+_FAMILY_CHIP = {"SINGLE": "single", "COUPLE": "couple", "FAMILY": "kids"}
+
+
+def _what(case: CaseFile, key: str, lang: str | None) -> str:
+    p = case.profile
+    if key == "family" and p.family:
+        return t(f"family_{_FAMILY_CHIP[p.family]}", lang)
+    if key == "driving_style" and p.driving_style:
+        return t(f"style_{p.driving_style}", lang)
+    if key == "usage":
+        return ", ".join(u.lower() for u in case.usage)
+    return str(getattr(p, key, "") or "")
+
+
+def _confirm_inferred(
+    case: CaseFile, comp: Any, blocks: list[dict[str, Any]], lang: str | None
+) -> list[dict[str, Any]] | None:  # fmt: skip
+    """Spec 007 J (T077): a guessed profile field that decides the winner is never applied silently. The verdict
+    says what it assumes and what the result would be without it, and the user is asked to confirm (once; the
+    note stays on every report until the field is stated). None when no guess decides the outcome."""
+    if comp.outcome is None or len(comp.cars) < 2:
+        return None
+    flip = ask_value.inferred_flip(case, comp.outcome)
+    if flip is None:
+        return None
+    key, (other_car, other_tie) = flip
+    what = _what(case, key, lang)
+    names = {car["variant"].id: compose.short_name(car["variant"]) for car in comp.cars}
+    other = t("other_tie", lang) if other_tie or not other_car else t("other_wins", lang, car=names.get(other_car, ""))
+    note = t("assume_note", lang, what=what, ev=case.profile.evidence.get(key, "…"), other=other)
+    verdict = next((b for b in blocks if b.get("type") == "verdict"), None)
+    if verdict is not None:
+        verdict["profile_notes"] = [note, *verdict.get("profile_notes", [])]
+    if "CONFIRM_PROFILE" in case.asked:
+        return []
+    case.asked.append("CONFIRM_PROFILE")
+    if key == "family":
+        items = [
+            {"label": t(f"family_{x}", lang), "text": t(f"family_{x}", lang)} for x in ("single", "couple", "kids")
+        ]
+    elif key == "driving_style":
+        items = [{"label": t(f"style_{x}", lang), "text": t(f"style_{x}", lang)} for x in ("CALM", "MIXED", "SPORTY")]
+    else:
+        yes = t("confirm_yes", lang, what=what)
+        items = [{"label": yes, "text": yes}, {"label": t("confirm_no", lang), "text": t("confirm_no", lang)}]
+    return [{"type": "quick_replies", "question": t("confirm_q", lang, what=what), "items": items}]
 
 
 def _profile_question(case: CaseFile, comp: Any, lang: str | None, probes: Any = None) -> list[dict[str, Any]]:
@@ -222,7 +269,11 @@ def make_report_node():  # noqa: ANN201
             )
         )
         case.asked = [q for q in case.asked if q in _ONCE]  # profile questions: once
-        blocks += _profile_question(case, comp, lang, (c.ports.ref.profile_defaults or {}).get("probe"))
+        confirm = _confirm_inferred(case, comp, blocks, lang)  # a guess that decides comes first (one question)
+        if confirm is None:
+            blocks += _profile_question(case, comp, lang, (c.ports.ref.profile_defaults or {}).get("probe"))
+        else:
+            blocks += confirm
         panel = next((b for b in blocks if b.get("type") == "data_panel"), None)
         if panel is not None:  # what the next "find it" is compared against (spec 004 FR-015)
             case.last_values = {x["car_key"]: int(x["values"]) for x in panel["cars"]}

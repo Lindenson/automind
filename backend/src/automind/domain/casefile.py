@@ -57,7 +57,7 @@ Strength = Literal["LOW", "MEDIUM", "HIGH"]
 QuestionKind = Literal[
     "TOO_MANY_CARS", "CAR_IDENTITY", "USED_AGE", "TRIM", "PERSONA", "BUDGET_INTENT", "UNKNOWN_MODEL", "GEARBOX",
     "KM_PER_YEAR", "FAMILY_SIZE", "CONDITION", "ENGINE", "MAKE_LINEUP", "PROPOSE", "REMOVE_OR_CHOOSE",
-    "OWNERSHIP_YEARS",
+    "OWNERSHIP_YEARS", "CONFIRM_PROFILE",
 ]  # fmt: skip
 # spec 005: what an intake step is about (R6)
 IntakeItem = Literal["MAKE", "MODEL", "ENGINE", "GEARBOX", "YEAR", "CONDITION", "MILEAGE", "TRIM", "CHOICE"]

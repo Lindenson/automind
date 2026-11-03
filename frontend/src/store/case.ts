@@ -61,7 +61,8 @@ export async function loadCase(
   if (r.ok) accept(await r.json());
 }
 
-/** Returns an error message, or null on success. */
+/** Returns an error message, or null on success. A running turn is not an error: the server queues the edit and
+ * applies it when the turn ends (spec 007 J). */
 export async function patchCase(
   chatId: string,
   patch: CasePatch,
@@ -76,11 +77,16 @@ export async function patchCase(
       body: JSON.stringify(patch),
     });
     const body: unknown = await r.json().catch(() => null);
+    const code = (body as { code?: unknown } | null)?.code;
+    if (r.status === 409 && code === "turn_running") return null; // an older server: the next turn uses it
     if (!r.ok) {
       const msg = (body as { message?: unknown } | null)?.message;
       return typeof msg === "string" ? msg : `Could not save (${r.status})`;
     }
     accept(body);
+    const rescore = (body as { rescore?: unknown } | null)?.rescore;
+    if (rescore === "started" || rescore === "queued")
+      useChat.getState().setRescore("updating");
     return null;
   } catch {
     return "Not connected to the AutoMind server";

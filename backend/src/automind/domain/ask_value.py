@@ -54,3 +54,21 @@ def questions(case: CaseFile, outcome: Callable[[CaseFile], Outcome], probes: Ma
         if n and (best is None or n > best[0]):
             best = (n, -order, kind)
     return [best[2]] if best else []  # type: ignore[list-item]
+
+
+# basis keys of the profile fields that move the weights (profile_rules.yaml), in the order they are confirmed
+INFERRED_FIELDS = ("family", "driving_style", "usage", "region")
+
+
+def inferred_flip(case: CaseFile, outcome: Callable[[CaseFile], Outcome]) -> tuple[str, Outcome] | None:
+    """An INFERRED field (a guess from the user's words, not confirmed) that decides the winner or the tie
+    (spec 007 J, T077): the same data scored as if the field were unknown gives another outcome. Returns the
+    first such field and that other outcome; the report then shows the assumption and asks to confirm it."""
+    base = outcome(case)
+    for key in INFERRED_FIELDS:
+        if case.basis.get(key) != "INFERRED":
+            continue
+        other = outcome(case.model_copy(update={"basis": {**case.basis, key: "ASSUMED"}}))
+        if other != base:
+            return key, other
+    return None
