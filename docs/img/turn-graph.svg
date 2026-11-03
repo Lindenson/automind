@@ -1,0 +1,161 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 712" role="img" aria-labelledby="t d">
+<title id="t">AutoMind turn graph (LangGraph)</title>
+<desc id="d">A turn runs load_case, interpret, apply_delta, identify, assess and policy. Policy picks one of three lanes: reply now, ask the user through an interrupt, or research the web with a fan-out of jobs. Asking and research loop back to assess until policy picks a reply.</desc>
+<style>
+.card{fill:#ffffff;stroke:#d7dde5}
+.lane{fill:#f4f6f9;stroke:#dfe4ea}
+.nd{fill:#ffffff;stroke:#94a0b0;stroke-width:1.2}
+.llm{stroke:#b7791f;stroke-width:1.8}
+.key{stroke:#2f7d6d;stroke-width:2}
+.wt{fill:#eef4fc;stroke:#3b6fb6;stroke-width:1.4;stroke-dasharray:4 3}
+.pill{fill:#1f2933}
+.pt{font:600 12px -apple-system,"Segoe UI",Helvetica,Arial,sans-serif;fill:#ffffff}
+.n{font:600 13px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#1f2933}
+.c{font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#1f2933}
+.s{font:11.5px -apple-system,"Segoe UI",Helvetica,Arial,sans-serif;fill:#5b6675}
+.h{font:600 14px -apple-system,"Segoe UI",Helvetica,Arial,sans-serif;fill:#1f2933}
+.e{stroke:#8a94a3;stroke-width:1.3;fill:none}
+.b{stroke:#2f7d6d;stroke-width:1.5;fill:none;stroke-dasharray:6 4}
+.bt{font:12px -apple-system,"Segoe UI",Helvetica,Arial,sans-serif;fill:#2f7d6d}
+.ah{fill:#8a94a3}.ahb{fill:#2f7d6d}.dot{fill:#b7791f}
+@media (prefers-color-scheme:dark){
+.card{fill:#0f1720;stroke:#2b3644}.lane{fill:#16202c;stroke:#243040}
+.nd{fill:#0f1720;stroke:#5d6b7d}.llm{stroke:#e0a43a}.key{stroke:#4fb39c}
+.wt{fill:#13233a;stroke:#6b9be0}.pill{fill:#e6e9ee}.pt{fill:#0f1720}
+.n,.c,.h{fill:#e6e9ee}.s{fill:#9aa6b5}.e{stroke:#7b8796}.ah{fill:#7b8796}
+.b{stroke:#4fb39c}.bt{fill:#4fb39c}.ahb{fill:#4fb39c}.dot{fill:#e0a43a}}
+</style>
+<defs>
+<marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0 0L10 5L0 10z"/></marker>
+<marker id="ab" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ahb" d="M0 0L10 5L0 10z"/></marker>
+</defs>
+<rect class="card" x="0.5" y="0.5" width="999" height="711" rx="14"/>
+
+<!-- understand row -->
+<rect class="pill" x="24" y="56" width="100" height="52" rx="26"/>
+<text class="pt" x="74" y="86" text-anchor="middle">START</text>
+<rect class="nd" x="166" y="56" width="100" height="52" rx="8"/>
+<text class="n" x="216" y="78" text-anchor="middle">load_case</text>
+<text class="s" x="216" y="96" text-anchor="middle">case from DB</text>
+<rect class="nd llm" x="308" y="56" width="100" height="52" rx="8"/><circle class="dot" cx="318" cy="66" r="3.5"/>
+<text class="n" x="358" y="78" text-anchor="middle">interpret</text>
+<text class="s" x="358" y="96" text-anchor="middle">LLM → delta</text>
+<rect class="nd" x="450" y="56" width="100" height="52" rx="8"/>
+<text class="n" x="500" y="78" text-anchor="middle">apply_delta</text>
+<text class="s" x="500" y="96" text-anchor="middle">merge (code)</text>
+<rect class="nd llm" x="592" y="56" width="100" height="52" rx="8"/><circle class="dot" cx="602" cy="66" r="3.5"/>
+<text class="n" x="642" y="78" text-anchor="middle">identify</text>
+<text class="s" x="642" y="96" text-anchor="middle">exact variant</text>
+<rect class="nd" x="734" y="56" width="100" height="52" rx="8"/>
+<text class="n" x="784" y="78" text-anchor="middle">assess</text>
+<text class="s" x="784" y="96" text-anchor="middle">catalog, plan</text>
+<rect class="nd key" x="876" y="56" width="100" height="52" rx="8"/>
+<text class="n" x="926" y="78" text-anchor="middle">policy</text>
+<text class="s" x="926" y="96" text-anchor="middle">picks action</text>
+<path class="e" d="M124 82H164" marker-end="url(#a)"/>
+<path class="e" d="M266 82H306" marker-end="url(#a)"/>
+<path class="e" d="M408 82H448" marker-end="url(#a)"/>
+<path class="e" d="M550 82H590" marker-end="url(#a)"/>
+<path class="e" d="M692 82H732" marker-end="url(#a)"/>
+<path class="e" d="M834 82H874" marker-end="url(#a)"/>
+
+<!-- policy fan-out -->
+<path class="e" d="M926 108V146H154"/>
+<path class="e" d="M154 146V174" marker-end="url(#a)"/>
+<path class="e" d="M464 146V174" marker-end="url(#a)"/>
+<path class="e" d="M810 146V174" marker-end="url(#a)"/>
+
+<!-- lanes -->
+<rect class="lane" x="24" y="176" width="260" height="424" rx="12"/>
+<rect class="lane" x="304" y="176" width="320" height="424" rx="12"/>
+<rect class="lane" x="644" y="176" width="332" height="424" rx="12"/>
+<text class="h" x="40" y="200">Reply now</text>
+<text class="s" x="40" y="216">the turn ends with a message</text>
+<text class="h" x="320" y="200">Ask the user</text>
+<text class="s" x="320" y="216">interrupt: the turn waits for a reply</text>
+<text class="h" x="660" y="200">Research the web</text>
+<text class="s" x="660" y="216">Send fan-out: one job per car × area</text>
+
+<!-- lane 1 -->
+<rect class="nd llm" x="44" y="230" width="220" height="46" rx="8"/><circle class="dot" cx="54" cy="240" r="3.5"/>
+<text class="n" x="62" y="249">general</text><text class="s" x="62" y="266">general knowledge, no sources</text>
+<rect class="nd llm" x="44" y="290" width="220" height="46" rx="8"/><circle class="dot" cx="54" cy="300" r="3.5"/>
+<text class="n" x="62" y="309">ask</text><text class="s" x="62" y="326">up to 3 template questions</text>
+<rect class="nd llm" x="44" y="350" width="220" height="46" rx="8"/><circle class="dot" cx="54" cy="360" r="3.5"/>
+<text class="n" x="62" y="369">answer</text><text class="s" x="62" y="386">from data already validated</text>
+<rect class="nd llm" x="44" y="410" width="220" height="46" rx="8"/><circle class="dot" cx="54" cy="420" r="3.5"/>
+<text class="n" x="62" y="429">report</text><text class="s" x="62" y="446">compute → explain → check</text>
+<rect class="nd" x="44" y="470" width="220" height="46" rx="8"/>
+<text class="n" x="62" y="489">alternatives</text><text class="s" x="62" y="506">when the request does not fit</text>
+<path class="e" d="M264 253H276M264 313H276M264 373H276M264 433H276M264 493H276M276 253V560"/>
+<path class="e" d="M276 560H206" marker-end="url(#a)"/>
+<rect class="pill" x="104" y="544" width="100" height="32" rx="16"/>
+<text class="pt" x="154" y="564" text-anchor="middle">END</text>
+
+<!-- lane 2 -->
+<text x="320" y="246"><tspan class="n">intake</tspan><tspan class="s" dx="8">cars, profile and cost in one card</tspan></text>
+<text x="320" y="326"><tspan class="n">variants</tspan><tspan class="s" dx="8">exact generation and engine</tspan></text>
+<text x="320" y="406"><tspan class="n">cost</tspan><tspan class="s" dx="8">approve the research budget</tspan></text>
+<text x="320" y="486"><tspan class="n">feasibility</tspan><tspan class="s" dx="8">fits budget and needs?</tspan></text>
+<g>
+<rect class="nd" x="316" y="256" width="88" height="34" rx="7"/><text class="c" x="360" y="277" text-anchor="middle">prepare</text>
+<rect class="wt" x="420" y="256" width="88" height="34" rx="7"/><text class="c" x="464" y="277" text-anchor="middle">wait</text>
+<rect class="nd" x="524" y="256" width="88" height="34" rx="7"/><text class="c" x="568" y="277" text-anchor="middle">apply</text>
+<path class="e" d="M508 273H522" marker-end="url(#a)"/>
+<rect class="nd" x="316" y="336" width="88" height="34" rx="7"/><text class="c" x="360" y="357" text-anchor="middle">prepare</text>
+<rect class="wt" x="420" y="336" width="88" height="34" rx="7"/><text class="c" x="464" y="357" text-anchor="middle">wait</text>
+<rect class="nd" x="524" y="336" width="88" height="34" rx="7"/><text class="c" x="568" y="357" text-anchor="middle">apply</text>
+<path class="e" d="M404 353H418" marker-end="url(#a)"/><path class="e" d="M508 353H522" marker-end="url(#a)"/>
+<rect class="nd" x="316" y="416" width="88" height="34" rx="7"/><text class="c" x="360" y="437" text-anchor="middle">prepare</text>
+<rect class="wt" x="420" y="416" width="88" height="34" rx="7"/><text class="c" x="464" y="437" text-anchor="middle">wait</text>
+<rect class="nd" x="524" y="416" width="88" height="34" rx="7"/><text class="c" x="568" y="437" text-anchor="middle">apply</text>
+<path class="e" d="M404 433H418" marker-end="url(#a)"/><path class="e" d="M508 433H522" marker-end="url(#a)"/>
+<rect class="nd" x="316" y="496" width="88" height="34" rx="7"/><text class="c" x="360" y="517" text-anchor="middle">prepare</text>
+<rect class="wt" x="420" y="496" width="88" height="34" rx="7"/><text class="c" x="464" y="517" text-anchor="middle">wait</text>
+<rect class="nd" x="524" y="496" width="88" height="34" rx="7"/><text class="c" x="568" y="517" text-anchor="middle">apply</text>
+<path class="e" d="M404 513H418" marker-end="url(#a)"/><path class="e" d="M508 513H522" marker-end="url(#a)"/>
+<path class="e" d="M404 273H418" marker-end="url(#a)"/>
+</g>
+<text class="s" x="320" y="558">apply routes back to assess, identify or interpret;</text>
+<text class="s" x="320" y="575">feasibility may offer alternatives instead</text>
+
+<!-- lane 3 -->
+<rect class="nd" x="660" y="230" width="190" height="46" rx="8"/>
+<text class="n" x="676" y="249">plan_research</text><text class="s" x="676" y="266">jobs per car × area</text>
+<rect class="nd" x="648" y="288" width="190" height="46" rx="8"/>
+<rect class="nd" x="654" y="294" width="190" height="46" rx="8"/>
+<rect class="nd llm" x="660" y="300" width="190" height="46" rx="8"/><circle class="dot" cx="670" cy="310" r="3.5"/>
+<text class="n" x="678" y="319">research_job ×N</text><text class="s" x="678" y="336">search, read, extract, check</text>
+<rect class="nd" x="660" y="372" width="190" height="46" rx="8"/>
+<text class="n" x="676" y="391">collect_round</text><text class="s" x="676" y="408">merge results, find gaps</text>
+<rect class="nd" x="866" y="286" width="94" height="46" rx="8"/>
+<text class="n" x="913" y="305" text-anchor="middle">next_round</text><text class="s" x="913" y="322" text-anchor="middle">gaps left</text>
+<rect class="wt" x="866" y="436" width="94" height="52" rx="8"/>
+<text class="n" x="913" y="458" text-anchor="middle">limit</text><text class="s" x="913" y="476" text-anchor="middle">ask: go on?</text>
+<rect class="nd" x="660" y="520" width="190" height="46" rx="8"/>
+<text class="n" x="676" y="539">after_research</text><text class="s" x="676" y="556">results stored</text>
+<path class="e" d="M755 276V286" marker-end="url(#a)"/>
+<path class="e" d="M755 346V370" marker-end="url(#a)"/>
+<path class="e" d="M755 418V518" marker-end="url(#a)"/>
+<path class="e" d="M850 395H913V334" marker-end="url(#a)"/>
+<path class="e" d="M866 316H852" marker-end="url(#a)"/>
+<path class="e" d="M830 418V462H864" marker-end="url(#a)"/>
+<path class="e" d="M913 488V543H852" marker-end="url(#a)"/>
+
+<!-- loop back -->
+<path class="b" d="M464 600V634M810 600V634"/>
+<path class="b" d="M464 634H990V24H784V54" marker-end="url(#ab)"/>
+<text class="bt" x="320" y="656">loops back to assess until policy picks a reply</text>
+
+<!-- legend -->
+<rect class="nd llm" x="24" y="680" width="22" height="14" rx="3"/><circle class="dot" cx="30" cy="687" r="2.5"/>
+<text class="s" x="54" y="691">LLM call</text>
+<rect class="wt" x="134" y="680" width="22" height="14" rx="3"/>
+<text class="s" x="164" y="691">waits for the user (interrupt)</text>
+<rect class="nd" x="354" y="680" width="22" height="14" rx="3"/>
+<text class="s" x="384" y="691">code only</text>
+<rect class="nd key" x="464" y="680" width="22" height="14" rx="3"/>
+<text class="s" x="494" y="691">the decision point</text>
+<path class="b" d="M624 687H660"/>
+<text class="s" x="668" y="691">loop back</text>
+</svg>

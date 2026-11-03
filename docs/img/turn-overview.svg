@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 210" role="img" aria-labelledby="t d">
+<title id="t">How one AutoMind turn works</title>
+<desc id="d">You write; an LLM turns the words into a typed change; code decides the next step; the system asks or researches; the answer uses numbers from code and text checked by code.</desc>
+<style>
+.card{fill:#ffffff;stroke:#d7dde5}
+.box{fill:#ffffff;stroke:#94a0b0;stroke-width:1.2}
+.llm{stroke:#b7791f;stroke-width:1.8}
+.code{stroke:#2f7d6d;stroke-width:1.8}
+.both{stroke:#5b6675;stroke-width:1.8}
+.n{font:600 15px -apple-system,"Segoe UI",Helvetica,Arial,sans-serif;fill:#1f2933}
+.s{font:12px -apple-system,"Segoe UI",Helvetica,Arial,sans-serif;fill:#5b6675}
+.tag{font:600 11px -apple-system,"Segoe UI",Helvetica,Arial,sans-serif;}
+.tl{fill:#b7791f}.tc{fill:#2f7d6d}.tb{fill:#5b6675}
+.e{stroke:#8a94a3;stroke-width:1.4;fill:none}
+.b{stroke:#2f7d6d;stroke-width:1.5;fill:none;stroke-dasharray:6 4}
+.bt{font:12px -apple-system,"Segoe UI",Helvetica,Arial,sans-serif;fill:#2f7d6d}
+.ah{fill:#8a94a3}.ahb{fill:#2f7d6d}
+@media (prefers-color-scheme:dark){
+.card{fill:#0f1720;stroke:#2b3644}.box{fill:#0f1720;stroke:#5d6b7d}
+.llm{stroke:#e0a43a}.code{stroke:#4fb39c}.both{stroke:#9aa6b5}
+.n{fill:#e6e9ee}.s{fill:#9aa6b5}.tl{fill:#e0a43a}.tc{fill:#4fb39c}.tb{fill:#9aa6b5}
+.e{stroke:#7b8796}.ah{fill:#7b8796}.b{stroke:#4fb39c}.bt{fill:#4fb39c}.ahb{fill:#4fb39c}}
+</style>
+<defs>
+<marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0 0L10 5L0 10z"/></marker>
+<marker id="ab" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ahb" d="M0 0L10 5L0 10z"/></marker>
+</defs>
+<rect class="card" x="0.5" y="0.5" width="999" height="209" rx="14"/>
+<rect class="box both" x="24" y="40" width="172" height="104" rx="10"/>
+<text class="tag tb" x="40" y="62">you</text>
+<text class="n" x="40" y="86">You write</text>
+<text class="s" x="40" y="108">free text</text>
+<text class="s" x="40" y="124">in ru, es or en</text>
+<rect class="box llm" x="219" y="40" width="172" height="104" rx="10"/>
+<text class="tag tl" x="235" y="62">LLM</text>
+<text class="n" x="235" y="86">Understand</text>
+<text class="s" x="235" y="108">words become a typed</text>
+<text class="s" x="235" y="124">CaseDelta</text>
+<rect class="box code" x="414" y="40" width="172" height="104" rx="10"/>
+<text class="tag tc" x="430" y="62">code</text>
+<text class="n" x="430" y="86">Decide</text>
+<text class="s" x="430" y="108">policy picks the</text>
+<text class="s" x="430" y="124">next step</text>
+<rect class="box both" x="609" y="40" width="172" height="104" rx="10"/>
+<text class="tag tb" x="625" y="62">code + LLM</text>
+<text class="n" x="625" y="86">Ask or research</text>
+<text class="s" x="625" y="108">confirm the cars, search</text>
+<text class="s" x="625" y="124">and validate sources</text>
+<rect class="box both" x="804" y="40" width="172" height="104" rx="10"/>
+<text class="tag tb" x="820" y="62">code + LLM</text>
+<text class="n" x="820" y="86">Answer</text>
+<text class="s" x="820" y="108">numbers from code,</text>
+<text class="s" x="820" y="124">text checked by code</text>
+<path class="e" d="M196 92H217" marker-end="url(#a)"/>
+<path class="e" d="M391 92H412" marker-end="url(#a)"/>
+<path class="e" d="M586 92H607" marker-end="url(#a)"/>
+<path class="e" d="M781 92H802" marker-end="url(#a)"/>
+<path class="b" d="M695 144V168H500V146" marker-end="url(#ab)"/>
+<text class="bt" x="597" y="190" text-anchor="middle">loops until there is enough to answer</text>
+</svg>
