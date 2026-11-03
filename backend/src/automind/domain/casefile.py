@@ -287,6 +287,9 @@ class CaseFile(BaseModel):
     compare_level: Literal["BASE", "MID", "TOP"] = "BASE"
     compare_level_source: Literal["DEFAULT", "USER_TRIM"] = "DEFAULT"
     last_values: dict[str, int] = Field(default_factory=dict)  # validated values per car at the last report
+    # spec 007 FR-013: scores and weights at the last report, so the next one can show what changed
+    last_scores: dict[str, dict[str, float]] = Field(default_factory=dict)
+    last_weights: dict[str, float] = Field(default_factory=dict)
     shown: list[Shown] = Field(default_factory=list)
     intake: Intake = Field(default_factory=Intake)  # spec 005
     # spec 007: how each profile field is known, and how long the user keeps a car

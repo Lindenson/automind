@@ -222,3 +222,46 @@ def test_rule5_correction_that_matches_the_case_after_other_changes():
     assert a.kind == "ANSWER_FROM_CONTEXT" and a.nothing_new
     b = decide(c, "correction", st, cost_estimate_eur=None, last_fingerprint="older-report", case_changed=True)
     assert b.kind == "REPORT"
+
+
+# --- spec 007 FR-012, FR-013: split fingerprint and RESCORE -------------------------------------------------------
+
+
+def _decide_rescore(c, last):
+    return decide(c, "rescore", ready(c), cost_estimate_eur=0.0, last_fingerprint=last)
+
+
+def test_profile_change_changes_only_the_params_part():
+    from automind.domain.policy import fingerprint_data, fingerprint_params
+
+    c = case(NEW_GOLF, NEW_I30)
+    ready(c)
+    before = fingerprint(c)
+    c2 = c.model_copy(deep=True)
+    c2.profile.family, c2.ownership_years = "FAMILY", 8  # missing from the old fingerprint
+    assert fingerprint_data(c2) == before.split(":")[0] and fingerprint_params(c2) != before.split(":")[1]
+
+
+def test_rescore_after_a_params_change_and_never_research_even_when_stale():
+    c = case(NEW_GOLF, NEW_I30)
+    st = ready(c, data_fresh=False)
+    last = fingerprint(c)
+    c.annual_km = 30000
+    a = decide(c, "rescore", st, cost_estimate_eur=0.5, last_fingerprint=last)
+    assert a.kind == "RESCORE" and a.reason == "params_changed"
+
+
+def test_rescore_with_nothing_changed_or_no_report_yet():
+    c = case(NEW_GOLF, NEW_I30)
+    ready(c)
+    assert _decide_rescore(c, fingerprint(c)).nothing_new
+    assert _decide_rescore(c, None).kind == "REPORT"
+
+
+def test_rescore_after_a_car_change_is_a_full_report_and_old_fingerprints_differ():
+    c = case(NEW_GOLF, NEW_I30)
+    st = ready(c)
+    last = fingerprint(c)
+    c.cars[1].variant_id = "v-other"
+    assert decide(c, "rescore", st, cost_estimate_eur=0.0, last_fingerprint=last).kind == "REPORT"
+    assert _decide_rescore(c, "0123456789abcdef0123456789abcdef").kind == "RESCORE"  # pre-007 single hash

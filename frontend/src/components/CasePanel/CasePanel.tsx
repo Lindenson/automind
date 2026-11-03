@@ -1,4 +1,4 @@
-import { useT } from "../../i18n";
+import { useLang, useT } from "../../i18n";
 /**
  * The case file: what AutoMind understood about you and the cars (FR-002, FR-009).
  * Desktop: a collapsible right sidebar. Phones (<768 px): a bottom sheet.
@@ -131,14 +131,26 @@ export function CaseBody() {
         </select>
       </Section>
 
-      <AboutYou profile={(c as Record<string, unknown>).profile} annualKm={c.annual_km} />
+      <AboutYou
+        profile={(c as Record<string, unknown>).profile}
+        annualKm={c.annual_km}
+        basis={c.basis}
+        ownershipYears={c.ownership_years ?? null}
+        save={save}
+      />
 
       <Section title={t("case.cars")}>
-        {c.cars.length === 0 && <p className="text-sm text-muted">{t("case.none")}</p>}
+        {c.cars.length === 0 && (
+          <p className="text-sm text-muted">{t("case.none")}</p>
+        )}
         {c.cars.length > 1 && (
           <p className="mb-1.5 text-xs text-muted" data-testid="compare-level">
-            {t("case.level", { level: t(`case.level.${c.compare_level}` as "case.level.BASE") })}
-            {c.compare_level_source === "USER_TRIM" ? t("case.level.user") : t("case.level.default")}
+            {t("case.level", {
+              level: t(`case.level.${c.compare_level}` as "case.level.BASE"),
+            })}
+            {c.compare_level_source === "USER_TRIM"
+              ? t("case.level.user")
+              : t("case.level.default")}
           </p>
         )}
         <ul className="space-y-1.5">
@@ -440,54 +452,146 @@ export function CaseSheet() {
   );
 }
 
-const PROFILE_LABELS: Record<string, string> = {
-  age: "Age",
-  experience: "Experience",
-  family: "Travels as",
-  age_band: "Age band",
-  driving_style: "Driving style",
+const PROFILE_OPTIONS = {
+  family: ["SINGLE", "COUPLE", "FAMILY"],
+  driving_style: ["CALM", "MIXED", "SPORTY"],
+} as const;
+const YEARS = [2, 3, 4, 5, 6, 8, 10, 12, 15];
+const BASIS_CLS: Record<string, string> = {
+  STATED: "border-emerald-500/50 text-emerald-300",
+  INFERRED: "border-sky-500/50 text-sky-300",
+  ASSUMED: "border-amber-500/50 text-amber-300",
 };
 
-/** What the hub inferred about the user, with the words it came from (spec 004 FR-017). */
-function AboutYou({ profile, annualKm }: { profile: unknown; annualKm: number }) {
+function yearsLabel(n: number, lang: string, fallback: string): string {
+  if (lang !== "ru") return fallback;
+  const word =
+    n % 10 === 1 && n % 100 !== 11
+      ? "год"
+      : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100)
+        ? "года"
+        : "лет";
+  return `${n} ${word}`;
+}
+
+function Basis({ b }: { b?: string }) {
   const t = useT();
+  if (!b) return null;
+  return (
+    <span
+      className={cx(
+        "ml-1 rounded border px-1 text-[9px] uppercase",
+        BASIS_CLS[b],
+      )}
+    >
+      {t(`card.basis.${b}` as "card.basis.STATED")}
+    </span>
+  );
+}
+
+/** Who the user is (spec 007 FR-014): every field is editable here; an edit is a statement and, after a
+ *  report, recomputes it at once. Inferred fields show the words they came from. */
+function AboutYou({
+  profile,
+  annualKm,
+  basis,
+  ownershipYears,
+  save,
+}: {
+  profile: unknown;
+  annualKm: number;
+  basis: Record<string, string>;
+  ownershipYears: number | null;
+  save: (p: CasePatch) => Promise<void> | void;
+}) {
+  const t = useT();
+  const lang = useLang();
   const p = (profile ?? {}) as Record<string, unknown>;
   const evidence = (p.evidence ?? {}) as Record<string, string>;
-  const rows = Object.keys(PROFILE_LABELS).filter((k) => p[k] != null && p[k] !== "");
+  const sel = "rounded border border-line/70 bg-panel2 px-1.5 py-1 text-sm";
   return (
     <Section title={t("case.about")}>
-      {rows.length === 0 ? (
-        <p className="text-sm text-muted">{t("case.about.none")}</p>
-      ) : (
-        <dl className="space-y-1 text-sm">
-          {rows.map((k) => (
-            <div key={k} className="flex flex-wrap justify-between gap-x-2">
-              <dt className="text-muted">{PROFILE_LABELS[k]}</dt>
-              <dd className="text-right">
-                {String(p[k]).toLowerCase().replace("_", " ")}
-                {evidence[k] && <span className="block text-xs text-muted">“{evidence[k]}”</span>}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      )}
+      <div className="space-y-1.5 text-sm">
+        {(Object.keys(PROFILE_OPTIONS) as (keyof typeof PROFILE_OPTIONS)[]).map(
+          (k) => (
+            <label
+              key={k}
+              className="flex flex-wrap items-center justify-between gap-x-2"
+              data-testid={`profile-${k}`}
+            >
+              <span className="text-muted">
+                {t(`profile.${k}` as "profile.family")}
+                <Basis b={p[k] != null ? basis[k] : undefined} />
+              </span>
+              <select
+                className={sel}
+                value={(p[k] as string | null) ?? ""}
+                onChange={(e) =>
+                  void save({ profile: { [k]: e.target.value || null } })
+                }
+              >
+                <option value="">{t("profile.unset")}</option>
+                {PROFILE_OPTIONS[k].map((v) => (
+                  <option key={v} value={v}>
+                    {t(`profile.${k}.${v}` as "profile.family.FAMILY")}
+                  </option>
+                ))}
+              </select>
+              {evidence[k] && evidence[k] !== "set in the panel" && (
+                <span className="w-full text-right text-xs text-muted">
+                  “{evidence[k]}”
+                </span>
+              )}
+            </label>
+          ),
+        )}
+        <label
+          className="flex flex-wrap items-center justify-between gap-x-2"
+          data-testid="profile-ownership"
+        >
+          <span className="text-muted">
+            {t("card.field.ownership_years")}
+            <Basis b={basis.ownership_years ?? "ASSUMED"} />
+          </span>
+          <select
+            className={sel}
+            value={ownershipYears ?? 5}
+            onChange={(e) =>
+              void save({ ownership_years: Number(e.target.value) })
+            }
+          >
+            {YEARS.map((n) => (
+              <option key={n} value={n}>
+                {yearsLabel(n, lang, t("profile.years", { n }))}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
       {typeof p.region === "string" && p.region && (
-        <div className="mt-1 flex flex-wrap justify-between gap-x-2 text-sm" data-testid="profile-region">
+        <div
+          className="mt-1 flex flex-wrap justify-between gap-x-2 text-sm"
+          data-testid="profile-region"
+        >
           <span className="text-muted">{t("case.region")}</span>
           <span className="text-right">
             {p.region}
-            {typeof p.climate === "string" && ` · ${t(`case.climate.${p.climate}` as "case.climate.HOT")}`}
+            {typeof p.climate === "string" &&
+              ` · ${t(`case.climate.${p.climate}` as "case.climate.HOT")}`}
           </span>
         </div>
       )}
       <p className="mt-1 text-xs text-muted">
-        {typeof p.annual_km_min === "number" && typeof p.annual_km_max === "number" && p.annual_km_min !== p.annual_km_max
+        {typeof p.annual_km_min === "number" &&
+        typeof p.annual_km_max === "number" &&
+        p.annual_km_min !== p.annual_km_max
           ? t("case.kmRange", {
               min: p.annual_km_min.toLocaleString(),
               max: p.annual_km_max.toLocaleString(),
               km: annualKm.toLocaleString(),
             })
           : t("case.kmYear", { km: annualKm.toLocaleString() })}
+        <Basis b={basis.annual_km ?? "ASSUMED"} />
       </p>
     </Section>
   );

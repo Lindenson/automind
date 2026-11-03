@@ -227,6 +227,10 @@ export const CriteriaScoresBlockSchema = z.object({
       label: z.string(),
       weight: z.number(),
       definition: z.string(),
+      delta: z.number().nullish(), // spec 007: change since the previous report
+      reasons: z
+        .array(z.object({ code: z.string(), points: z.number() }))
+        .nullish(),
     }),
   ),
   cars: z.array(
@@ -236,12 +240,14 @@ export const CriteriaScoresBlockSchema = z.object({
       ranked: z.boolean(),
       total: z.number().nullable(),
       coverage: z.number(),
+      delta: z.number().nullish(),
       parts: z.record(
         z.string(),
         z.object({
           score: z.number().nullable(),
           insufficient: z.boolean(),
           inputs: z.array(z.string()),
+          delta: z.number().nullish(),
         }),
       ),
     }),
@@ -492,12 +498,16 @@ export const VerdictBlockSchema = z.object({
   headline: z.string(),
   pick_car_id: z.string().nullable(),
   tie: z.boolean(),
-  reasons: z.array(z.object({ text: z.string(), insight_id: z.string() })).default([]),
+  reasons: z
+    .array(z.object({ text: z.string(), insight_id: z.string() }))
+    .default([]),
   trade_off: z
     .object({
       text: z.string(),
       numbers: z
-        .array(z.object({ label: z.string(), value: z.number(), unit: z.string() }))
+        .array(
+          z.object({ label: z.string(), value: z.number(), unit: z.string() }),
+        )
         .default([]),
     })
     .nullable()
@@ -600,8 +610,7 @@ export function parseBlocks(raw: unknown): Block[] {
       if (typeof m.open === "boolean") meta.open = m.open;
       if (typeof m.depth === "string") meta.depth = m.depth;
       out.push({ ...res.data, ...meta });
-    }
-    else
+    } else
       console.warn(
         `[automind] dropped invalid ${type} block`,
         res.error.issues,
@@ -737,12 +746,20 @@ export const CaseSchema = z
       .default([]),
     weights: z.record(z.string(), z.number()).default({}),
     weights_overridden: z.boolean().default(false),
+    // spec 007: how each profile field is known, and the ownership period
+    basis: z
+      .record(z.string(), z.enum(["STATED", "INFERRED", "ASSUMED"]))
+      .default({}),
+    ownership_years: z.number().nullish(),
     unmapped_wishes: z.array(z.string()).default([]),
     rates_override: z.record(z.string(), z.number().nullish()).default({}),
     cars: z.array(CaseCarSchema).default([]),
     // spec 004 FR-029: the equipment level all cars are compared at
     compare_level: z.enum(["BASE", "MID", "TOP"]).catch("BASE").default("BASE"),
-    compare_level_source: z.enum(["DEFAULT", "USER_TRIM"]).catch("DEFAULT").default("DEFAULT"),
+    compare_level_source: z
+      .enum(["DEFAULT", "USER_TRIM"])
+      .catch("DEFAULT")
+      .default("DEFAULT"),
   })
   .passthrough();
 export type CaseFile = z.infer<typeof CaseSchema>;
@@ -759,16 +776,26 @@ export const CaseFileMsgSchema = z.object({
 export const CardItemSchema = z.object({
   field: z.string(),
   value: z.string(),
-  basis: z.enum(["STATED", "INFERRED", "LOOKED_UP", "ASSUMED"]).catch("ASSUMED"),
+  basis: z
+    .enum(["STATED", "INFERRED", "LOOKED_UP", "ASSUMED"])
+    .catch("ASSUMED"),
   evidence: z.string().nullish(),
-  source: z.object({ name: z.string().nullish(), url: z.string().nullish() }).nullish(),
+  source: z
+    .object({ name: z.string().nullish(), url: z.string().nullish() })
+    .nullish(),
   changed: z.boolean().nullish(),
   before: z.string().nullish(),
   options: z.array(z.string()).nullish(),
 });
 export type CardItem = z.infer<typeof CardItemSchema>;
 export const IntakeCardSchema = z.object({
-  cars: z.array(z.object({ key: z.string(), display_name: z.string(), items: z.array(CardItemSchema) })),
+  cars: z.array(
+    z.object({
+      key: z.string(),
+      display_name: z.string(),
+      items: z.array(CardItemSchema),
+    }),
+  ),
   profile: z.array(CardItemSchema).default([]),
 });
 export type IntakeCard = z.infer<typeof IntakeCardSchema>;
@@ -828,7 +855,9 @@ export const ChallengeResultSchema = z.object({
   before: z.string().nullish(),
   after: z.string().nullish(),
   sources: z.array(z.string()).default([]),
-  rejected: z.array(z.object({ source: z.string(), value: z.string(), why: z.string() })).default([]),
+  rejected: z
+    .array(z.object({ source: z.string(), value: z.string(), why: z.string() }))
+    .default([]),
 });
 
 // spec 004 FR-023: one cell of the car × area research grid
@@ -838,7 +867,15 @@ export const ProgressMsgSchema = z.object({
   car: z.string(),
   car_key: z.string(),
   area: z.string(),
-  state: z.enum(["queued", "searching", "reading", "done", "partial", "failed", "paused"]),
+  state: z.enum([
+    "queued",
+    "searching",
+    "reading",
+    "done",
+    "partial",
+    "failed",
+    "paused",
+  ]),
   accepted: z.number().nullish(),
   round: z.number().default(0),
 });
@@ -915,8 +952,18 @@ export type FindOut = {
   text?: string;
   message_id?: string;
 };
-export type RatingOut = { type: "rating"; message_id: string; rating: number; note: string };
-export type ChallengeOut = { type: "challenge"; car_id: string; attribute: string; text: string };
+export type RatingOut = {
+  type: "rating";
+  message_id: string;
+  rating: number;
+  note: string;
+};
+export type ChallengeOut = {
+  type: "challenge";
+  car_id: string;
+  attribute: string;
+  text: string;
+};
 export type IntakeEditOut = {
   type: "intake_edit";
   request_id?: string;

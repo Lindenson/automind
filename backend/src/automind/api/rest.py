@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import functools
 from datetime import UTC, datetime
 from typing import Any, Literal
@@ -122,8 +123,19 @@ async def messages_alias(chat_id: str, request: Request) -> dict[str, Any]:
 # --- case file (FR-009) ---------------------------------------------------------------------------
 
 
+class ProfilePatch(BaseModel):
+    """Profile fields the panel edits (spec 007 FR-014); null clears a field."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    family: Literal["SINGLE", "COUPLE", "FAMILY"] | None = None
+    driving_style: Literal["CALM", "MIXED", "SPORTY"] | None = None
+    age_band: Literal["UNDER_25", "25_40", "40_60", "OVER_60"] | None = None
+
+
 class CasePatch(BaseModel):
-    """User edits from the case panel. Every field is optional; edits apply from the next turn."""
+    """User edits from the case panel. Every field is optional. After a report, an edit recomputes it at once
+    (spec 007 FR-014); before one, the next turn uses it."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -138,6 +150,8 @@ class CasePatch(BaseModel):
     depth: Literal["QUICK", "STANDARD", "DEEP"] | None = None
     weights: dict[str, float] | None = None  # absolute weights from the sliders; kept as adjustments (spec 007)
     reset_weights: bool = False  # "back to automatic"
+    profile: ProfilePatch | None = None  # spec 007: the whole profile is editable in the panel
+    ownership_years: int | None = Field(default=None, ge=1, le=20)
     remove_priority: str | None = None
 
 
@@ -194,7 +208,28 @@ async def patch_case(chat_id: str, patch: CasePatch, request: Request) -> dict[s
     version = await st.cases.save_version(chat_id, new.model_dump(mode="json"), "user", changes)
     await st.bus.publish(chat_id, None, "case_file", {"version": version, "case": new.model_dump(mode="json"),
                                                       "changes": changes})  # fmt: skip
-    return {"version": version, "case": new.model_dump(mode="json"), "changes": changes}
+    rescore = await _start_rescore(st, chat_id, new, changes)
+    return {"version": version, "case": new.model_dump(mode="json"), "changes": changes, "rescore": rescore}
+
+
+async def _start_rescore(st: Any, chat_id: str, case: CaseFile, changes: list[str]) -> str:
+    """Spec 007 FR-014: an edit after a report recomputes it at once from the validated data (no search, no
+    interpreter). Before the first report the edit is simply used by the next turn."""
+    runner = getattr(st, "runner", None)
+    if runner is None or not case.shown or case.pending is not None or not case.cars:
+        return "not_needed"
+    active = await st.turns.active(chat_id)
+    if active is not None:  # a question or a confirmation is open: the edit is used when the user answers
+        return "not_needed"
+    text = "↻ " + "; ".join(changes)
+    preset = {"kind": "rescore", "changes": changes}
+    task = asyncio.create_task(runner.run_turn(chat_id, text[:300], None, preset=preset))
+    _RESCORES.add(task)
+    task.add_done_callback(_RESCORES.discard)
+    return "started"
+
+
+_RESCORES: set[asyncio.Task[Any]] = set()  # keeps the background turns referenced until they finish
 
 
 def apply_patch(case: CaseFile, patch: CasePatch, *, current_year: int) -> tuple[CaseFile, list[str]]:
@@ -205,9 +240,12 @@ def apply_patch(case: CaseFile, patch: CasePatch, *, current_year: int) -> tuple
         set_needs=patch.needs,
         set_annual_km=patch.annual_km,
         set_depth=patch.depth,
+        set_ownership_years=patch.ownership_years,
         remove_priorities=[patch.remove_priority] if patch.remove_priority else [],  # type: ignore[list-item]
     )
     new, changes = apply(case, delta, current_year=current_year)
+    if patch.profile is not None:
+        changes += _profile_patch(new, patch.profile)
     if patch.budget is not None:  # a panel edit sets exactly what was sent (also clearing the amount)
         budget = new.budget.model_copy(update=patch.budget.model_dump(exclude_unset=True))
         if budget != new.budget:
@@ -232,6 +270,24 @@ def apply_patch(case: CaseFile, patch: CasePatch, *, current_year: int) -> tuple
         new = set_manual_weights(new, patch.weights, model)
         changes.append("weights: " + ", ".join(f"{k} {v:.0f}%" for k, v in weights_for(new, model).items() if v))
     return new, changes
+
+
+def _profile_patch(case: CaseFile, p: ProfilePatch) -> list[str]:
+    """Set exactly what was sent (a panel edit is a statement: STATED); null clears the field."""
+    out = []
+    for f in p.model_fields_set:
+        val = getattr(p, f)
+        if getattr(case.profile, f) == val:
+            continue
+        setattr(case.profile, f, val)
+        if val is None:
+            case.profile.evidence.pop(f, None)
+            case.basis.pop(f, None)
+        else:
+            case.profile.evidence[f] = "set in the panel"
+            case.basis[f] = "STATED"
+        out.append(f"{f.replace('_', ' ')}: {(val or 'not set').lower()}")
+    return out
 
 
 @functools.cache

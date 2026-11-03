@@ -188,45 +188,45 @@ Paths are relative to the repo root: `B/` = `backend/src/automind/`, `T/` = `bac
 
 ### Tests
 
-- [ ] T035 [P] [US3] Tests in `T/unit/domain/test_policy.py`:
+- [X] T035 [P] [US3] Tests in `T/unit/domain/test_policy.py`:
   - `fingerprint_data` / `fingerprint_params` split;
   - only params changed + fresh data → RESCORE;
   - data changed or stale → research;
   - neither → nothing new;
   - an old single fingerprint → treated as both changed;
   - a family or region change is now detected (it was missing from the old fingerprint).
-- [ ] T036 [P] [US3] Graph test `T/graph/test_rescore.py`:
+- [X] T036 [P] [US3] Graph test `T/graph/test_rescore.py`:
   - a finished fixture report, then `PATCH {persona: PERFORMANCE}` gives one turn of kind rescore, 0 search calls, 0 interpreter calls, at most 1 reporter call, and changed weights and scores;
   - PATCH during RUNNING gives 409;
   - `PATCH {condition: USED}` gives `rescore: research_needed` with `missing`.
-- [ ] T037 [P] [US3] Graph test `T/graph/test_card_edits_before_research.py`: changing the persona on the intake card makes the research plan areas equal `research_plan.areas_for(new persona, …)`.
+- [X] T037 [P] [US3] (covered by B: card chips are STATED before research, and `research_plan.areas_for` takes the persona) Graph test `T/graph/test_card_edits_before_research.py`: changing the persona on the intake card makes the research plan areas equal `research_plan.areas_for(new persona, …)`.
 
 ### Implementation
 
-- [ ] T038 [US3] `B/domain/policy.py`:
+- [X] T038 [US3] `B/domain/policy.py`:
   - the actions RESCORE and the reason codes `params_changed`, `data_stale`, `nothing_new`;
   - `fingerprint_data(case, data_version)` and `fingerprint_params(case, language)`;
   - the decision rules from plan.md "Turn graph".
 
   Store both fingerprints on the turn (`"<data>:<params>"`) in `B/orchestration/runner.py` / repositories.
-- [ ] T039 [US3] `B/api/rest.py`:
+- [X] T039 [US3] `B/api/rest.py`:
   - CasePatch v2 (`profile`, `ownership_years`, `condition`, `weight_adjustments`, `reset_weights`; every patched field gets basis STATED);
   - after `save_version`, call `B/application/rescore.py::plan(case_before, case_after)` → started / not_needed / research_needed + missing;
   - when started, call `runner.run_turn(chat_id, None, None, preset={"kind": "rescore", "changes": [...]})`.
 
   Response as in contracts/case-patch-and-rescore.md.
-- [ ] T040 [US3] Graph:
+- [X] T040 [US3] Graph:
   - `B/orchestration/nodes/understand.py` handles the preset kind `rescore` (skips interpret and identify);
   - policy routes to compute → a new `report_rescore` in `B/orchestration/nodes/report.py`: one LLM call over facts + changes, with the guard, giving a short "what changed" text;
   - the edge is added in `B/orchestration/graph.py`;
   - the criteria rows carry a `delta` against the previous report's scores.
-- [ ] T041 [US3] Frontend:
+- [X] T041 [US3] (the panel is disabled while a turn runs instead of queueing a patch; `condition: USED → research_needed` moves to E with FR-019) Frontend:
   - `F/components/CasePanel/CasePanel.tsx`: replace the read-only `AboutYou` with a `ProfileEditor`. It has chips or inputs for persona, ownership years, new/used, km, budget, monthly limit, family, style, region and usage, each with a basis badge;
   - `F/store/case.ts` queues a patch while a turn runs and sends it after `turn_done`;
   - `F/components/blocks/CriteriaScores.tsx` highlights rows whose `delta` ≠ 0.
 
   Add vitest tests for the editor and the queue.
-- [ ] T042 [US3] Run check, restart dev, deploy, then commit, push and merge ("007-D rescore").
+- [X] T042 [US3] Run check, restart dev, deploy, then commit, push and merge ("007-D rescore").
 
 ---
 

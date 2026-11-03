@@ -57,3 +57,15 @@ def test_patch_constraints_partial_and_clear():
     assert new.running_cost_limit.per_month == 200 and new.needs.passengers == 5
     new, _ = apply_patch(new, CasePatch.model_validate({"clear_running_cost_limit": True}), current_year=2026)
     assert new.running_cost_limit is None
+
+
+def test_patch_profile_and_ownership_are_statements():
+    new, changes = apply_patch(CaseFile(), CasePatch(profile={"family": "FAMILY", "driving_style": "CALM"},
+                                                     ownership_years=8), current_year=2026)  # fmt: skip
+    assert new.profile.family == "FAMILY" and new.basis["family"] == "STATED"
+    assert new.ownership_years == 8 and new.basis["ownership_years"] == "STATED"
+    assert "family: family" in changes and "ownership: 8 years" in changes
+    cleared, _ = apply_patch(new, CasePatch(profile={"family": None}), current_year=2026)
+    assert cleared.profile.family is None and "family" not in cleared.basis
+    with pytest.raises(ValidationError):
+        CasePatch(ownership_years=40)

@@ -22,6 +22,7 @@ from .casefile import MAX_CARS, CaseFile, QuestionKind
 from .identification import REASK
 
 ActionKind = Literal[
+    "RESCORE",  # spec 007: recompute scores, cost and verdict from the data already validated
     "ANSWER_GENERAL",
     "ASK",
     "CONFIRM_VARIANTS",
@@ -45,6 +46,7 @@ RequestKind = Literal[
     "choose_for_me",
     "critique",
     "chitchat",
+    "rescore",  # spec 007 FR-013: an edit in the case panel; set by code (preset), never by the interpreter
 ]
 QUESTION_ORDER: tuple[QuestionKind, ...] = (
     "TOO_MANY_CARS", "CAR_IDENTITY", "MAKE_LINEUP", "UNKNOWN_MODEL", "ENGINE", "CONDITION", "USED_AGE", "TRIM",
@@ -95,6 +97,10 @@ def decide(
     hard_cap_eur: float = DEFAULT_HARD_CAP_EUR,
     intake_limits: intake.Limits | None = None,
 ) -> Action:
+    # 0. spec 007 FR-012, FR-013: a panel edit recomputes from the validated data. It never researches, asks or
+    # confirms: when it needs new data, the next message decides.
+    if request == "rescore" and case.cars:
+        return _rescore(case, last_fingerprint)
     # 1. general
     if request in ("general_question", "chitchat") or not case.cars:
         return Action(kind="ANSWER_GENERAL", reason="general question or no cars in the case")
@@ -124,6 +130,17 @@ def decide(
             return Action(kind="CONFIRM_COST", cars=stale, over_cap=est > hard_cap_eur, reason=f"estimated €{est:.2f}")
         return Action(kind="RESEARCH", cars=stale, reason="data stale or missing for the current criteria")
     return _answer_or_report(case, request, last_fingerprint, case_changed, feasibility_pending)
+
+
+def _rescore(case: CaseFile, last_fingerprint: str | None) -> Action:
+    if last_fingerprint is None:
+        return Action(kind="REPORT", reason="no report yet: a full report")
+    now = fingerprint(case)
+    if now == last_fingerprint:
+        return Action(kind="ANSWER_FROM_CONTEXT", nothing_new=True, reason="nothing_new")
+    if ":" in last_fingerprint and now.split(":")[0] != last_fingerprint.split(":")[0]:
+        return Action(kind="REPORT", reason="data_changed")  # other cars: a full report on what is cached
+    return Action(kind="RESCORE", reason="params_changed")
 
 
 def _answer_or_report(
@@ -234,22 +251,43 @@ def _needs_confirmation(case: CaseFile, key: str, st: CarState) -> bool:
     return st.ambiguous or car.condition == "USED" or not st.in_catalog
 
 
-def fingerprint(case: CaseFile) -> str:
-    """Hash of everything a report depends on (FR-004): cars, criteria, weights, persona, settings."""
-    payload = {
-        "persona": case.persona,
+def _hash(payload: object) -> str:
+    return hashlib.sha256(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()[:16]
+
+
+def fingerprint_data(case: CaseFile) -> str:
+    """What the data of a report depends on: the cars (spec 007 FR-012)."""
+    return _hash({
         "cars": [[c.variant_id, c.condition, c.year, c.mileage_km] for c in case.cars],
-        "priorities": sorted((p.criterion, p.strength) for p in case.priorities),
+        "race": case.race_settings.model_dump() if case.race_settings else None,
+        "prediction": case.prediction.winner_key if case.prediction else None,
+        "level": case.compare_level,
+    })  # fmt: skip
+
+
+def fingerprint_params(case: CaseFile) -> str:
+    """What the assessment depends on: who the user is and what matters (spec 007 FR-012; before, family, style,
+    region and the ownership period were missing, so a profile change looked like "nothing new")."""
+    p = case.profile
+    return _hash({
+        "persona": case.persona,
+        "profile": [p.age, p.family, p.age_band, p.driving_style, p.region, p.climate, p.annual_km_min,
+                    p.annual_km_max],
+        "ownership_years": case.ownership_years,
+        "priorities": sorted((x.criterion, x.strength) for x in case.priorities),
         "weights": sorted((k, round(v, 2)) for k, v in case.weights.items()),
+        "adjustments": sorted((k, round(v, 2)) for k, v in case.weight_adjustments.items()),
+        "excluded": sorted(case.weights_excluded),
         "usage": sorted(case.usage),
         "budget": [case.budget.max_eur, case.budget.intent, case.budget.currency, case.budget.kind],
         "running": case.running_cost_limit.model_dump() if case.running_cost_limit else None,
         "needs": case.needs.model_dump(),
         "annual_km": case.annual_km,
         "rates": case.rates_override.model_dump(exclude_none=True),
-        "race": case.race_settings.model_dump() if case.race_settings else None,
-        "prediction": case.prediction.winner_key if case.prediction else None,
-        "profile_age": case.profile.age,
-        "level": case.compare_level,
-    }
-    return hashlib.sha256(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()[:32]
+    })  # fmt: skip
+
+
+def fingerprint(case: CaseFile) -> str:
+    """Hash of everything a report depends on (FR-004), in two parts "data:params" (spec 007 FR-012). A stored
+    fingerprint from before spec 007 has no ":" and counts as different in both parts."""
+    return f"{fingerprint_data(case)}:{fingerprint_params(case)}"
