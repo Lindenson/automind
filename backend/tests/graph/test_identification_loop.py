@@ -52,13 +52,13 @@ async def test_nonsense_reply_to_a_variant_proposal_proposes_again(saver):
     rn = _runner(saver, llm)
     chat = str(uuid.uuid4())
     w = await rn.run_turn(chat, "a used FixtureMake Racer from 2025")
-    assert w.status == "WAITING_CONFIRMATION" and w.confirm["kind"] == "variants", (w.status, w.reply_text)
-    ids = [o["id"] for o in w.confirm["options"]]
-    assert "choose" in ids and "remove:car#1" in ids
+    # spec 005: the proposal is shown on the confirmation card (one card for the cars, the person and the cost)
+    assert w.status == "WAITING_CONFIRMATION" and w.confirm["kind"] == "intake", (w.status, w.reply_text)
+    assert [o["id"] for o in w.confirm["options"]] == ["yes", "stop"]
+    assert w.confirm["card"]["cars"][0]["key"] == "car#1"
     llm.queue("interpreter", NOTHING)
     w2 = await rn.resume(chat, {"choice": "text", "text": "blah blah"})
-    assert w2.status == "WAITING_CONFIRMATION" and w2.confirm["kind"] == "variants", (w2.status, w2.reply_text)
-    assert "did not understand" in w2.confirm["text"]
+    assert w2.status == "WAITING_CONFIRMATION" and w2.confirm["kind"] == "intake", (w2.status, w2.reply_text)
     assert w2.usage["search_calls"] == 0
     _, data, _ = await rn.ports.cases.latest(chat)
     assert data["cars"][0]["resolution"] == "PROPOSED"  # never confirmed on a guess

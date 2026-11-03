@@ -164,7 +164,7 @@ def region_of(text: str | None, regions: dict[str, dict[str, object]]) -> tuple[
     low = text.lower()
     best: tuple[int, str, str, str] | None = None
     for code, info in regions.items():
-        for name in info.get("names") or []:  # type: ignore[union-attr]
+        for name in info.get("names") or []:  # type: ignore[attr-defined]
             n = str(name).lower()
             if re.search(rf"(?<![\w]){re.escape(n)}(?![\w])", low) and (best is None or len(n) > best[0]):
                 best = (len(n), code, str(info.get("climate")), n)

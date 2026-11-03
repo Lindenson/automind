@@ -110,6 +110,13 @@ PHRASES: dict[str, dict[str, str]] = {
         "ru": "Сайты объявлений ({site}) я не читаю. Напишите, пожалуйста, машину словами.",
         "es": "No leo portales de anuncios ({site}). Escribe el coche con palabras, por favor.",
     },
+    "intake_card": {
+        "en": "Please check what I understood and confirm — then I start the research (≈ €{eur}).",
+        "ru": "Проверьте, что я понял, и подтвердите — после этого начну исследование (≈ €{eur}).",
+        "es": "Comprueba lo que he entendido y confirma; después empiezo la investigación (≈ {eur} €).",
+    },
+    "card_yes": {"en": "Yes, research", "ru": "Да, исследовать", "es": "Sí, investigar"},
+    "card_stop": {"en": "Not now", "ru": "Пока не надо", "es": "Ahora no"},
     "suggested": {"en": "suggestion", "ru": "предложение", "es": "sugerencia"},
     "why_family_body": {"en": "family-size body", "ru": "семейный кузов", "es": "carrocería familiar"},
     "why_phev_low_running_cost": {

@@ -112,8 +112,13 @@ async def identify_car(
         return _done(car, IdentifyOutcome(outcome="IDENTIFIED"))  # the age is asked first (USED_AGE), then resolved
     a = await resolve.assess_car(car, ports.ref, current_year, case.compare_level)
     if a.candidates:
-        resolve.auto_resolve(car, a)
-        return _done(car, IdentifyOutcome(outcome="IDENTIFIED"))
+        choices = [
+            Choice(label=c["label"], make=c["make"], model=c["model"], variant_id=c["id"]) for c in a.candidates[:4]
+        ]
+        if not resolve.auto_resolve(car, a):  # several fit, or used: the best is proposed, the others are options
+            best = a.candidates[0]
+            car.variant_id, car.label, car.resolution = best["id"], best["label"], "PROPOSED"
+        return _done(car, IdentifyOutcome(outcome="IDENTIFIED", choices=choices))
     return await _resolve_open(ports, case, car, current_year, lineup)
 
 

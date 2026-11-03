@@ -30,7 +30,7 @@ turns:
   - user: "BMW 2016 года, Golf 2019"
     expect:
       status: WAITING_CONFIRMATION
-      confirm_kind: variants
+      confirm_kind: intake  # spec 005: one card for the cars, the person and the cost
       no_search: true
       variants: [{car: "car#1", generation: F30, years_include: 2016}, {car: "car#2", generation: Mk7.5, years_include: 2019}]
       case:

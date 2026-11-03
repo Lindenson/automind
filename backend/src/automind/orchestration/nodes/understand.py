@@ -303,4 +303,5 @@ def route_policy(state: TurnState) -> str:
         "ANSWER_FROM_CONTEXT": "answer",
         "REPORT": "report",
         "FEASIBILITY": "prepare_feasibility",
+        "CONFIRM_INTAKE": "prepare_intake",
     }[state["decision"]["kind"]]

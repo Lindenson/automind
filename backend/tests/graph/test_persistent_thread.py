@@ -53,5 +53,5 @@ async def test_case_and_interrupt_survive_runner_restart(saver, chat_id):
     r3 = await b.resume(chat_id, {"choice": "confirm"})
     assert r3.status == "DONE" and r3.action == "REPORT" and r3.turn_id == r2.turn_id
     _, case, _ = await make_ports().cases.latest(chat_id)
-    assert [c["resolution"] for c in case["cars"]] == ["AUTO_OK", "CONFIRMED"]
+    assert [c["resolution"] for c in case["cars"]] == ["CONFIRMED", "CONFIRMED"]  # spec 005: the card confirms both
     assert case["persona"] == "BUYER" and case["cars"][1]["year"] == 2016

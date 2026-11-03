@@ -265,7 +265,7 @@ description: "Task list for 005 — Understanding the user: intake and identific
 
 ### Tests first
 
-- [ ] T046 [P] [US5] Write `backend/tests/graph/test_intake_card.py`:
+- [X] T046 [P] [US5] Write `backend/tests/graph/test_intake_card.py`:
   - all cars IDENTIFIED → CONFIRM_INTAKE with `card` per contracts/intake-protocol.md;
   - every item has a basis, with source for LOOKED_UP and evidence for INFERRED;
   - `intake_edit` engine → card again with `changed: true` and no model call;
@@ -273,7 +273,7 @@ description: "Task list for 005 — Understanding the user: intake and identific
   - above the cap → the card says research stops at the cap;
   - free text on the card → interpreted as a correction;
   - old chats pending on CONFIRM_VARIANTS still work.
-- [ ] T047 [P] [US5] Write the vitest `frontend/src/components/IntakeCard.test.tsx`:
+- [X] T047 [P] [US5] Write the vitest `frontend/src/components/IntakeCard.test.tsx`:
   - basis badges;
   - chips send `intake_edit`;
   - changed items highlighted;
@@ -284,17 +284,17 @@ description: "Task list for 005 — Understanding the user: intake and identific
 
 ### Implementation
 
-- [ ] T049 [US5] Implement `backend/src/automind/application/intake_card.py`:
+- [X] T049 [US5] Implement `backend/src/automind/application/intake_card.py`:
   - `build_card(case, variants, estimate, lang) -> IntakeCard`, with items and basis per data-model.md (sources from the variant evidence and the line-up; evidence from the case);
   - `apply_edit(case, car_key, field, value) -> (case, changes)`, deterministic, with field validation (engine via parse_engine, year 1950–current+1, km 1,000–200,000).
-- [ ] T050 [US5] Add `prepare_intake` / `wait_confirm` / `apply_intake` nodes in `backend/src/automind/orchestration/nodes/confirm.py` and policy rule 3 (all IDENTIFIED and not `card_confirmed` → CONFIRM_INTAKE) in `backend/src/automind/domain/policy.py`. A "yes" sets the cars CONFIRMED, `card_confirmed`, and `cost_approved` (if estimate ≤ hard cap). Edges in `backend/src/automind/orchestration/graph.py`. CONFIRM_VARIANTS stays for old pending chats only.
-- [ ] T051 [US5] Handle the `intake_edit` client message in `backend/src/automind/api/ws.py`. Resume the waiting turn with `{choice: "edit_field", car_key, field, value}`; `apply_intake` calls `apply_edit` and loops to `prepare_intake`.
-- [ ] T052 [US5] Frontend protocol in `frontend/src/lib/protocol.ts`:
+- [X] T050 [US5] Add `prepare_intake` / `wait_confirm` / `apply_intake` nodes in `backend/src/automind/orchestration/nodes/confirm.py` and policy rule 3 (all IDENTIFIED and not `card_confirmed` → CONFIRM_INTAKE) in `backend/src/automind/domain/policy.py`. A "yes" sets the cars CONFIRMED, `card_confirmed`, and `cost_approved` (if estimate ≤ hard cap). Edges in `backend/src/automind/orchestration/graph.py`. CONFIRM_VARIANTS stays for old pending chats only.
+- [X] T051 [US5] Handle the `intake_edit` client message in `backend/src/automind/api/ws.py`. Resume the waiting turn with `{choice: "edit_field", car_key, field, value}`; `apply_intake` calls `apply_edit` and loops to `prepare_intake`.
+- [X] T052 [US5] Frontend protocol in `frontend/src/lib/protocol.ts`:
   - `ConfirmRequest.card` (Zod, `.catch` for forward compatibility);
   - the `IntakeEditMsg` client message;
   - `quick_replies.items[].suggested` / `reason`.
   Add `editIntake(carKey, field, value)` to `frontend/src/store/chat.ts`. Update `frontend/src/lib/protocol.test.ts`.
-- [ ] T053 [US5] Implement `frontend/src/components/IntakeCard.tsx`:
+- [X] T053 [US5] Implement `frontend/src/components/IntakeCard.tsx`:
   - per car: rows with value, basis badge (stated / inferred / found / assumed, with the source link or evidence in a tooltip), option chips and changed highlight;
   - a profile section;
   - a cost line;

@@ -197,7 +197,7 @@ async def test_cost_above_threshold_asks_and_skip_runs_no_jobs(saver, chat_id, f
     llm = FakeLLM().queue("interpreter", INTERPRET).queue("reporter", "Report from what exists.")
     rn = runner(saver, llm, FixtureSearch("racer"), FixedEstimator(eur_per_job=0.2))
     w = await rn.run_turn(chat_id, "FixtureMake Racer for a race enthusiast")
-    assert w.status == "WAITING_CONFIRMATION" and w.confirm["kind"] == "cost"
+    assert w.status == "WAITING_CONFIRMATION" and w.confirm["kind"] == "intake"  # spec 005: the card carries the cost
     assert w.confirm["estimate"]["eur"] >= 0.30 and set(w.confirm["estimate"]["areas"]) == {
         "specs",
         "measured",
@@ -223,7 +223,7 @@ async def test_declined_research_is_not_offered_again_for_the_same_plan(saver, c
     llm = FakeLLM().queue("interpreter", INTERPRET).queue("reporter", "Report from what exists.")
     rn = runner(saver, llm, FixtureSearch("racer"), FixedEstimator(eur_per_job=0.2))
     w = await rn.run_turn(chat_id, "FixtureMake Racer for a race enthusiast")
-    assert w.confirm["kind"] == "cost"
+    assert w.confirm["kind"] == "intake"
     await rn.resume(chat_id, {"choice": "skip"})
     llm.queue("interpreter", {"request": "follow_up_question", "language": "en", "delta": {}})
     llm.queue("answerer", "From what exists: ...")
@@ -237,7 +237,7 @@ async def test_declined_plan_does_not_block_research_for_a_newly_added_car(saver
     llm = FakeLLM().queue("interpreter", INTERPRET).queue("reporter", "Report from what exists.")
     rn = runner(saver, llm, FixtureSearch("racer"), FixedEstimator(eur_per_job=0.2))
     w = await rn.run_turn(chat_id, "FixtureMake Racer for a race enthusiast")
-    assert w.confirm["kind"] == "cost"
+    assert w.confirm["kind"] == "intake"
     await rn.resume(chat_id, {"choice": "skip"})
     add = {"request_text": "FixtureMake Coupe", "make": MAKE, "model": "Coupe", "condition": "NEW"}
     llm.queue("interpreter", {"request": "compare", "language": "en", "delta": {"add_cars": [add]}})
@@ -255,11 +255,11 @@ async def test_declined_plan_does_not_block_research_for_a_newly_added_car(saver
         },
     )
     w2 = await rn.run_turn(chat_id, "compare it with the FixtureMake Coupe")
-    assert w2.confirm["kind"] == "variants", w2.reply_text
-    r = await rn.resume(chat_id, {"choice": w2.confirm["options"][0]["id"]})
-    assert r.confirm is not None and r.confirm["kind"] == "cost", (r.status, r.action, r.reply_text)
-    usage = (await make_ports().turns.get(r.turn_id)).usage
-    assert usage["llm_calls"] >= 2  # interpreter + resolver before the confirmation are kept (not reset on resume)
+    # spec 005: the new, larger plan is offered on the card (cars + cost) — never skipped by the earlier refusal
+    assert w2.confirm["kind"] == "intake", w2.reply_text
+    assert {c["key"] for c in w2.confirm["card"]["cars"]} == {"car#1", "car#2"}
+    usage = (await make_ports().turns.get(w2.turn_id)).usage
+    assert usage["llm_calls"] >= 2  # interpreter + resolver before the confirmation
 
 
 async def test_find_missing_data_and_update_the_report(saver, chat_id, fresh_variant):

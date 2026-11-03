@@ -523,6 +523,7 @@ def _apply_cars(c: CaseFile, d: CaseDelta, log: list[str], current_year: int) ->
         key = f"car#{c.next_car_no}"
         c.next_car_no += 1
         c.cars.append(CaseCar(key=key, **ref.model_dump(exclude={"year", "age_years"}), year=year, age_years=age))
+        c.intake.card_confirmed = False  # spec 005: a new car is confirmed on the card like the others
         log.append(f"{key} added: {ref.request_text}")
 
 

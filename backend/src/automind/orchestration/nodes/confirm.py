@@ -13,7 +13,7 @@ from langgraph.runtime import Runtime
 from langgraph.types import interrupt
 
 from automind.application import ask as asking
-from automind.application import resolve
+from automind.application import intake_card, resolve
 from automind.config import settings
 from automind.domain import intake
 from automind.domain.casefile import Choice, Pending
@@ -254,3 +254,95 @@ def route_after_apply(state: TurnState) -> str:
 
 def _areas(state: TurnState) -> list[str]:
     return sorted({j[2] for j in (state.get("research_plan") or {}).get("jobs", [])})
+
+
+# --- the intake card (spec 005 US5) -------------------------------------------------------------------------
+
+
+async def prepare_intake(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
+    """One card: the cars as resolved, the person, the research cost; edited by chips, confirmed by one "yes"."""
+    c = ctx(runtime)
+    _, case = await load_case(c)
+    lang = state.get("language") or "en"
+    variants: dict[str, Any] = {}
+    options: dict[str, list[str]] = {}
+    for car in case.cars:
+        v = await resolve.get_variant(car.variant_id or "")
+        if v is None:
+            continue
+        variants[v.id] = v
+        others = await resolve.catalog_for(v.make, v.model)
+        options[car.key] = [x.label for x in others if x.id != v.id][:4]
+    eur = float(state.get("cost_estimate") or 0)
+    estimate = {"eur": eur, "cars": len(case.cars), "areas": _areas(state), "depth": case.depth}
+    card = intake_card.build_card(case, variants, options, estimate, lang)
+    case.intake.card = {"values": card.pop("values")}
+    case.pending = Pending(kind="CONFIRM_INTAKE", items=[{"car": x.key} for x in case.cars])
+    await save_case(c, case, ["confirmation card shown"])
+    over = t("over_cap", lang, cap=f"{settings().cost_hard_cap_eur:.2f}") if state["decision"].get("over_cap") else ""
+    await c.status("estimating", f"Confirm the cars and the research (≈ €{eur:.2f})")
+    payload = {
+        "kind": "intake",
+        "action": "CONFIRM_INTAKE",
+        "request_id": str(uuid.uuid4()),
+        "text": t("intake_card", lang, eur=f"{eur:.2f}") + (f" {over}" if over else ""),
+        "options": [{"id": "yes", "label": t("card_yes", lang)}, {"id": "stop", "label": t("card_stop", lang)}],
+        "estimate": estimate,
+        "card": card,
+    }
+    return {"confirm_payload": payload}
+
+
+async def _card_edit(c: TurnContext, case: Any, answer: dict[str, Any]) -> None:
+    changes = intake_card.apply_edit(case, answer.get("car_key"), str(answer.get("field") or ""),
+                                     str(answer.get("value") or ""), current_year(c))  # fmt: skip
+    if answer.get("field") == "variant" and (v := await resolve.get_variant(str(answer.get("value") or ""))):
+        case.car(str(answer.get("car_key"))).label = v.label
+    case.pending = None
+    await save_case(c, case, changes or ["card edit not applied"])
+
+
+async def _pick_option(case: Any, choice: str) -> None:
+    _, key, vid = choice.split(":", 2)
+    if (v := await resolve.get_variant(vid)) is not None and any(x.key == key for x in case.cars):
+        case.car(key).variant_id, case.car(key).label = v.id, v.label
+
+
+async def apply_intake(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
+    c = ctx(runtime)
+    _, case = await load_case(c)
+    answer = state.get("resume") or {}
+    choice = str(answer.get("choice") or "")
+    done = {"confirm_payload": None, "resume": None}
+    if choice == "edit_field":  # a chip on the card: code applies it, the car is identified again
+        await _card_edit(c, case, answer)
+        return {**done, "route": "identify"}
+    if choice in ("text", "edit") or (not choice and answer.get("text")):
+        raw = str(answer.get("text") or "")
+        bare = len(raw.split()) <= 3 and not any(ch.isdigit() for ch in raw)  # "нет, 1.5" is a correction, not a no
+        typed = "yes" if phrases.choose_for_me(raw) else (phrases.yes_or_no(raw) if bare else None)
+        if typed is None:
+            case.pending = None
+            await save_case(c, case, [], publish=False)
+            return {**done, "user_text": answer.get("text") or "", "route": "interpret"}
+        choice = "yes" if typed == "yes" else "stop"
+    if choice.startswith("option:"):  # a version picked from the options (old clients): that version, and yes
+        await _pick_option(case, choice)
+        choice = "yes"
+    if choice.startswith("remove:"):
+        key = choice.split(":", 1)[1]
+        case.cars = [x for x in case.cars if x.key != key]
+        case.pending = None
+        await save_case(c, case, [f"{key} removed"])
+        return {**done, "route": "assess"}
+    for car in case.cars:
+        if car.variant_id and car.resolution in ("PROPOSED", "AUTO_OK", "UNRESOLVED"):
+            car.resolution = "CONFIRMED"
+    case.intake.card_confirmed = True
+    case.pending = None
+    if choice in ("yes", "run", "confirm", "continue"):
+        await save_case(c, case, ["cars and research confirmed"])
+        return {**done, "route": "assess", "cost_approved": True}
+    case.declined_plan = (state.get("research_plan") or {}).get("key")  # "not now": the cars stay, no research
+    await save_case(c, case, ["cars confirmed, research declined"])
+    return {**done, "route": "assess", "research_declined": True}

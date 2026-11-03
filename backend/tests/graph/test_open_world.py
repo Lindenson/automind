@@ -62,8 +62,8 @@ async def test_brand_only_offers_its_spanish_lineup_family_suvs_first(saver):
     llm.queue("interpreter", _ru({"set_car_context": [{"target_key": "car#1", "make": "BYD", "model": "Seal U DM-i"}]}))
     llm.queue("resolver", SEAL_U)
     w = await rn.run_turn(chat, "BYD Seal U DM-i")
-    assert w.status == "WAITING_CONFIRMATION" and w.confirm["kind"] == "variants", (w.action, w.reply_text)
-    assert "Seal U" in w.confirm["text"]
+    assert w.status == "WAITING_CONFIRMATION" and w.confirm["kind"] == "intake", (w.action, w.reply_text)
+    assert "Seal U" in w.confirm["card"]["cars"][0]["display_name"]
     async with db.sessionmaker()() as s:
         from sqlalchemy import select
 

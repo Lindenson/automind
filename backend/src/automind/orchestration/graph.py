@@ -4,6 +4,7 @@
       ├─ ANSWER_GENERAL      → general
       ├─ ASK                 → ask → END (questions pending)
       ├─ CONFIRM_VARIANTS    → prepare_variants → wait (interrupt) → apply_variants → assess | interpret
+      ├─ CONFIRM_INTAKE      → prepare_intake → wait → apply_intake → assess | identify | interpret (005)
       ├─ CONFIRM_COST        → prepare_cost → wait (interrupt) → apply_cost → assess | interpret
       ├─ RESEARCH            → plan_research → Send(research_job)×N → collect_round ↺ next_round (gaps,
       │                        ≤ depth rounds) → after_research → assess
@@ -54,6 +55,9 @@ def build_graph(checkpointer: Any = None, tools: list[Any] | None = None) -> Any
     g.add_node("prepare_limit", research.prepare_limit)
     g.add_node("wait_limit", confirm.wait_confirm)
     g.add_node("apply_limit", research.apply_limit)
+    g.add_node("prepare_intake", confirm.prepare_intake)
+    g.add_node("wait_intake", confirm.wait_confirm)
+    g.add_node("apply_intake", confirm.apply_intake)
     g.add_node("answer", report.answer_node)
     g.add_node("report", report.make_report_node(tools if tools is not None else MCP_TOOLS))
 
@@ -75,7 +79,15 @@ def build_graph(checkpointer: Any = None, tools: list[Any] | None = None) -> Any
             "answer",
             "report",
             "prepare_feasibility",
+            "prepare_intake",
         ],
+    )
+    g.add_edge("prepare_intake", "wait_intake")  # spec 005: one card for the cars, the person and the cost
+    g.add_edge("wait_intake", "apply_intake")
+    g.add_conditional_edges(
+        "apply_intake",
+        confirm.route_after_apply,
+        {"assess": "assess", "interpret": "interpret", "identify": "identify"},
     )
     g.add_conditional_edges(  # every car unknown: nothing to confirm, ask about the model instead
         "prepare_variants", confirm.route_after_prepare, {"wait": "wait_variants", "assess": "assess"}

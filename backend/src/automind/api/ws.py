@@ -76,9 +76,8 @@ class ChatSocket:
                                         str(msg.get("note") or ""))  # fmt: skip
         elif kind == "challenge":  # spec 004 FR-022: "this is wrong" on a value
             self._background(self._challenge(msg))
-        elif kind == "confirm":
-            payload = {"choice": msg.get("choice"), "text": msg.get("text"), "request_id": msg.get("request_id")}
-            self._background(self.runner.resume(self.chat_id, payload))
+        elif kind in ("confirm", "intake_edit"):
+            self._background(self.runner.resume(self.chat_id, _resume_payload(msg)))
         elif kind == "cancel":
             await self.runner.cancel(self.chat_id)
 
@@ -142,3 +141,11 @@ class ChatSocket:
 
 async def chat_socket(ws: WebSocket, chat_id: str, runner: ChatRunner, bus: Any, chats: Any) -> None:
     await ChatSocket(ws, chat_id, runner, bus, chats).serve()
+
+
+def _resume_payload(msg: dict[str, Any]) -> dict[str, Any]:
+    """A confirmation answer, or a chip edit on the intake card (spec 005 FR-020, applied by code)."""
+    if msg.get("type") == "intake_edit":
+        return {"choice": "edit_field", "car_key": msg.get("car_key"), "field": msg.get("field"),
+                "value": str(msg.get("value") or "")[:120], "request_id": msg.get("request_id")}  # fmt: skip
+    return {"choice": msg.get("choice"), "text": msg.get("text"), "request_id": msg.get("request_id")}

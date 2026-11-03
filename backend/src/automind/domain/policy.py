@@ -30,6 +30,7 @@ ActionKind = Literal[
     "ANSWER_FROM_CONTEXT",
     "REPORT",
     "FEASIBILITY",
+    "CONFIRM_INTAKE",
 ]
 RequestKind = Literal[
     "compare",
@@ -107,6 +108,10 @@ def decide(
         return Action(
             kind="ASK", questions=questions, cars=concerned, reason="information that changes the result is missing"
         )
+    # 3a. spec 005: one card confirms the cars, the profile and the cost
+    card = _card(case, state, cost_estimate_eur, research_declined, confirm_threshold_eur, hard_cap_eur)
+    if card is not None:
+        return card
     # 3. variants to confirm
     to_confirm = [c.key for c in case.cars if _needs_confirmation(case, c.key, state[c.key])]
     if to_confirm:
@@ -149,6 +154,23 @@ def _answer_or_report(
             kind="ANSWER_FROM_CONTEXT", nothing_new=True, profile=single, reason="case unchanged since last report"
         )
     return Action(kind="REPORT", profile=single, reason="case changed")
+
+
+def _card(case: CaseFile, state: dict[str, CarState], est: float | None, declined: bool, threshold: float,
+          hard_cap: float) -> Action | None:  # fmt: skip
+    """The confirmation card (spec 005 R7): when a proposed version waits for the user, or research is about to start
+    after an intake with questions or above the cost threshold. Simple unambiguous cached comparisons skip it."""
+    if case.intake.card_confirmed or not case.cars or not any(c.identify is not None for c in case.cars):
+        return None
+    if not all(c.variant_id for c in case.cars):
+        return None
+    proposed = any(c.resolution == "PROPOSED" for c in case.cars)
+    stale = any(not state[c.key].data_fresh for c in case.cars)
+    asked = bool(case.intake.last_questions)
+    if proposed or (stale and not declined and (asked or (est or 0.0) >= threshold)):
+        return Action(kind="CONFIRM_INTAKE", cars=[c.key for c in case.cars], over_cap=(est or 0.0) > hard_cap,
+                      reason="confirm the cars, the profile and the research")  # fmt: skip
+    return None
 
 
 def _intake_step(case: CaseFile, limits: intake.Limits) -> Action | None:
