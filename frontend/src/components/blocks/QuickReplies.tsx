@@ -21,10 +21,14 @@ export function QuickReplies({ b }: { b: B }) {
             key={it.label}
             type="button"
             disabled={busy}
+            title={it.reason ?? undefined}
             onClick={() => send(it.text)}
-            className="min-h-11 rounded-full border border-line/70 px-4 py-2 text-sm hover:border-accent/60 disabled:opacity-50"
+            className={`min-h-11 rounded-full border px-4 py-2 text-left text-sm hover:border-accent/60 disabled:opacity-50 ${
+              it.suggested ? "border-accent/60 bg-accent/10" : "border-line/70"
+            }`}
           >
             {it.label}
+            {it.suggested && it.reason && <span className="block text-xs text-muted">{it.reason}</span>}
           </button>
         ))}
       </div>

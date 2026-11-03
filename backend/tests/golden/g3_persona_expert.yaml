@@ -17,7 +17,7 @@ turns:
   - user: "Family on a budget: a new Dacia Bigster or a used Land Cruiser Prado 150 from 2016?"
     expect:
       status: WAITING_CONFIRMATION
-      confirm_kind: variants
+      confirm_kind: intake  # spec 005: one card for the cars, the person and the cost
       variants: [{car: "car#2", generation: J150}]
       case:
         persona: BUYER

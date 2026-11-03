@@ -476,7 +476,14 @@ export const FeasibilityBlockSchema = z.object({
 export const QuickRepliesBlockSchema = z.object({
   type: z.literal("quick_replies"),
   question: z.string().nullish(), // spec 004 FR-018: a question about the user under the report
-  items: z.array(z.object({ label: z.string(), text: z.string() })),
+  items: z.array(
+    z.object({
+      label: z.string(),
+      text: z.string(),
+      suggested: z.boolean().nullish(), // spec 005 FR-024: a model the user did not name
+      reason: z.string().nullish(),
+    }),
+  ),
 });
 
 // spec 004 FR-001: the verdict card, built by code (contracts/report-blocks-and-protocol.md)
@@ -748,6 +755,24 @@ export const CaseFileMsgSchema = z.object({
   changes: z.array(z.string()).default([]),
 });
 
+// spec 005 FR-019: the intake confirmation card (contracts/intake-protocol.md)
+export const CardItemSchema = z.object({
+  field: z.string(),
+  value: z.string(),
+  basis: z.enum(["STATED", "INFERRED", "LOOKED_UP", "ASSUMED"]).catch("ASSUMED"),
+  evidence: z.string().nullish(),
+  source: z.object({ name: z.string().nullish(), url: z.string().nullish() }).nullish(),
+  changed: z.boolean().nullish(),
+  before: z.string().nullish(),
+  options: z.array(z.string()).nullish(),
+});
+export type CardItem = z.infer<typeof CardItemSchema>;
+export const IntakeCardSchema = z.object({
+  cars: z.array(z.object({ key: z.string(), display_name: z.string(), items: z.array(CardItemSchema) })),
+  profile: z.array(CardItemSchema).default([]),
+});
+export type IntakeCard = z.infer<typeof IntakeCardSchema>;
+
 export const ConfirmRequestSchema = z.object({
   ...Envelope,
   type: z.literal("confirm_request"),
@@ -772,6 +797,7 @@ export const ConfirmRequestSchema = z.object({
       depth: z.string(),
     })
     .nullish(),
+  card: IntakeCardSchema.nullish().catch(null),
 });
 export type ConfirmRequest = z.infer<typeof ConfirmRequestSchema>;
 
@@ -891,4 +917,19 @@ export type FindOut = {
 };
 export type RatingOut = { type: "rating"; message_id: string; rating: number; note: string };
 export type ChallengeOut = { type: "challenge"; car_id: string; attribute: string; text: string };
-export type ClientMsg = UserMessageOut | HelloOut | ConfirmOut | CancelOut | FindOut | RatingOut | ChallengeOut;
+export type IntakeEditOut = {
+  type: "intake_edit";
+  request_id?: string;
+  car_key: string | null;
+  field: string;
+  value: string;
+};
+export type ClientMsg =
+  | UserMessageOut
+  | HelloOut
+  | ConfirmOut
+  | CancelOut
+  | FindOut
+  | RatingOut
+  | ChallengeOut
+  | IntakeEditOut;

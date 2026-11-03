@@ -251,3 +251,30 @@ def service_interval_from_items(items: list[tuple[str, int | None, int | None]])
     kms = [k for k, _ in main if k]
     months = [m for _, m in main if m]
     return (max(kms) if kms else None), (max(months) if months else None)
+
+
+# --- prices (live chat 2026-11-03: "150 159 4,75%" = 150 CV, 159 g/km, 4.75 % tax was read as €150,159) ----------
+
+_CURRENCY = re.compile(r"€|\beur\b|\beuros?\b", re.I)
+
+
+def money_marked(raw_value: str, excerpt: str) -> SenseResult:
+    """A price is accepted only when its number is written with a currency next to it in the excerpt."""
+    digits = re.sub(r"\D", "", raw_value.split(",")[0] if re.search(r",\d{2}$", raw_value) else raw_value)
+    if not digits:
+        return SenseResult(False, None, "sense.price.no_number", "no number")
+    pattern = r"(?<!\d)" + r"[\s., ]?".join(digits) + r"(?![\d])"
+    for m in re.finditer(pattern, excerpt):
+        around = excerpt[max(0, m.start() - 6) : m.end() + 10]
+        if _CURRENCY.search(around):
+            return SenseResult(True, raw_value)
+    return SenseResult(False, None, "sense.price.no_currency", f"{raw_value} is not written as a price in the excerpt")
+
+
+def price_outliers(values: list[float], factor: float = 1.6) -> set[int]:
+    """Indexes of prices far from the others (> factor × or < 1/factor × the median of all); needs ≥ 3 values."""
+    if len(values) < 3:
+        return set()
+    s = sorted(values)
+    med = s[len(s) // 2] if len(s) % 2 else (s[len(s) // 2 - 1] + s[len(s) // 2]) / 2
+    return {i for i, v in enumerate(values) if v > med * factor or v < med / factor}

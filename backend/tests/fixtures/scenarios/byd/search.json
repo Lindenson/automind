@@ -1,0 +1,12 @@
+{
+  "queries": [
+    {"match": ["byd", "gama", "modelos"], "results": [
+      {"url": "https://www.byd.com/es", "title": "BYD España — Gama de modelos", "doc": "byd_es.txt"},
+      {"url": "https://www.km77.com/coches/byd", "title": "BYD: precios y gama en España | km77", "doc": "km77_byd.txt"}
+    ]},
+    {"match": ["byd", "seal u"], "results": [
+      {"url": "https://www.km77.com/coches/byd/seal-u", "title": "BYD Seal U DM-i 2025 | km77", "doc": "km77_seal_u.txt"}
+    ]}
+  ],
+  "default": []
+}

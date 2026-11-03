@@ -25,7 +25,7 @@ from automind.orchestration.phrases import t, yes_or_no
 from automind.orchestration.runner import TurnContext
 from automind.orchestration.state import RESET, TurnState
 
-from .common import ctx, load_case, notice
+from .common import ctx, load_case, notice, record_intake
 
 
 def _plan(state: TurnState) -> rp.ResearchPlan:
@@ -56,6 +56,9 @@ async def plan_research(state: TurnState, runtime: Runtime[TurnContext]) -> dict
     plan = [j for j in _plan(state).jobs if j.car_key in keys]
     areas = sorted({j.area for j in plan})
     await c.status("researching", f"Researching {len(keys)} car(s): {', '.join(areas)}")
+    _, case = await load_case(c)
+    await record_intake(c, "RESEARCH_STARTED", all_confirmed=all(x.resolution in ("CONFIRMED", "AUTO_OK")
+                                                                 for x in case.cars if x.key in keys))  # fmt: skip
     return {"jobs": await _create(c, plan), "round": 0, "research_results": [RESET]}
 
 
@@ -72,6 +75,9 @@ async def research_job(job: dict[str, Any], runtime: Runtime[TurnContext]) -> di
     _, case = await load_case(c)
     car = next((x for x in case.cars if x.key == job["car_key"]), None)
     label = (car.label or car.request_text) if car else job["car_key"]
+    if car is None or car.variant_id != job["variant_id"]:  # corrected meanwhile (spec 005): never research the old one
+        await c.ports.jobs.mark(job["job_id"], "FAILED", error="superseded by a correction")
+        return {"research_results": [{**job, "ok": False, "error": None, "minimum_met": None}]}
 
     async def progress(state_: str, accepted: int | None = None) -> None:  # spec 004 FR-023: car × area grid
         await c.emit("progress", {"car": label, "car_key": job["car_key"], "area": job["area"], "state": state_,

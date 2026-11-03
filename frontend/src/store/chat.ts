@@ -61,6 +61,7 @@ interface ChatState {
   rate: (messageId: string, rating: number, note: string) => void;
   challenge: (carId: string, attribute: string) => void;
   answerConfirm: (choice: string, text?: string) => void;
+  editIntake: (carKey: string | null, field: string, value: string) => void;
   cancel: () => void;
   setCase: (c: CaseState) => void;
   newChat: () => void;
@@ -256,6 +257,16 @@ export const useChat = create<ChatState>((set, get) => ({
         confirm: null,
         pending: { userMessageId: "", startedAt: Date.now(), statuses: [] },
       });
+    }
+  },
+
+  editIntake: (carKey, field, value) => {
+    const { transport, confirm } = get();
+    if (!transport || !confirm) return;
+    if (
+      transport.send({ type: "intake_edit", request_id: confirm.request_id, car_key: carKey, field, value })
+    ) {
+      set({ confirm: null, pending: { userMessageId: "", startedAt: Date.now(), statuses: [] } });
     }
   },
 

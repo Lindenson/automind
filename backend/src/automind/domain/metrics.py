@@ -83,3 +83,31 @@ def lin(x: float | None, lo: float, hi: float) -> float | None:
     if x is None:
         return None
     return round(max(0.0, min(100.0, (x - lo) / (hi - lo) * 100)), 1)
+
+
+# --- spec 005 R13: intake quality ----------------------------------------------------------------------------
+
+
+def intake_summary(events: list[tuple[str, str, dict[str, object]]]) -> dict[str, object]:
+    """From (chat_id, kind, details) in time order: user replies until the identity was confirmed (median per
+    chat), questions repeated word for word, corrections that changed a car, research started on an unconfirmed
+    car (must stay 0), and the share of chats confirmed within 3 replies (SC-002)."""
+    replies: dict[str, int] = {}
+    confirmed: dict[str, int] = {}
+    repeated = corrected = unconfirmed = 0
+    for chat, kind, details in events:
+        if kind == "ANSWERED" and chat not in confirmed:
+            replies[chat] = replies.get(chat, 0) + 1
+        elif kind == "CONFIRMED" and chat not in confirmed:
+            confirmed[chat] = replies.get(chat, 0)
+        elif kind == "ASKED" and details.get("repeat"):
+            repeated += 1
+        elif kind == "CORRECTED":
+            corrected += 1
+        elif kind == "RESEARCH_STARTED" and not details.get("all_confirmed", True):
+            unconfirmed += 1
+    counts = sorted(confirmed.values())
+    median = counts[len(counts) // 2] if counts else None
+    within = round(sum(1 for n in counts if n <= 3) / len(counts), 3) if counts else None
+    return {"chats_confirmed": len(counts), "replies_to_confirmed_median": median, "confirmed_within_3": within,
+            "repeated_questions": repeated, "corrections": corrected, "research_unconfirmed": unconfirmed}  # fmt: skip

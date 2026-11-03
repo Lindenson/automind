@@ -31,7 +31,7 @@ turns:
   - user: "about 10 years old, the 150"
     expect:
       status: WAITING_CONFIRMATION
-      confirm_kind: variants
+      confirm_kind: intake  # spec 005: one card for the cars, the person and the cost
       no_search: true
       variants: [{car: "car#2", generation: J150, years_include: 2015}]
       no_variant_generation: [J250]

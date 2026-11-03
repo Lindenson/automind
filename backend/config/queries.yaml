@@ -42,15 +42,16 @@ reliability:
     - '{make} {model} {generation} fiabilidad averías comunes'
     - '{make} {model} {generation} TÜV report breakdown statistics'
 manufacturer:
-  favourite: '{make} {sites}'
+  favourite: '{make} ventas España cuota de mercado concesionarios {sites}'
   open:
     - '{make} car manufacturer history market position premium brand'
     - '{make} market share Europe Spain sales trend'
     - '{make} annual results operating profit automotive'
     - '{make} reliability ranking brand survey'
+    - '{make} matriculaciones España cuota de mercado red de concesionarios'
     - '{make} concesionarios talleres red oficial España'
 depreciation:
-  favourite: '{make} {model} {generation} residual value depreciation {sites}'
+  favourite: '{make} {model} valor residual depreciación residual value {sites}'
   open:
     - '{make} {model} {generation} residual value after 3 years 5 years depreciation'
     - '{make} {model} valor residual depreciación 3 años 5 años'

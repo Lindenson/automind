@@ -54,3 +54,15 @@ async def test_revalidate_resets_a_new_car_on_a_finished_generation(monkeypatch)
     used = CaseCar(key="car#2", request_text="RAV4 2021", make="Toyota", model="RAV4", condition="USED", year=2021,
                    variant_id="v-xa50", resolution="CONFIRMED")  # fmt: skip
     assert await resolve.revalidate(used, ref, 2026) is None and used.variant_id == "v-xa50"
+
+
+def test_same_model_spec_005() -> None:
+    from automind.application.resolve import same_model
+
+    assert (
+        same_model("Seal U", "Seal U DM-i") and same_model("Seal U DM-i", "Seal U") and same_model("SEAL U", "Seal U")
+    )
+    assert (
+        not same_model("Seal U", "Dolphin") and not same_model("Seal U", "Seal") and not same_model("Atto 3", "Atto 2")
+    )
+    assert same_model("Ateca", "Ateca") and same_model(None, "Dolphin")

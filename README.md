@@ -75,6 +75,16 @@ generations, criteria, TCO rates, severity rules, search queries, questions).
   a reworked report, *wrong?* on any value re-checks it, a 1–5 rating under each report.
 - **Layout** per profile (`config/report_layouts.yaml`), research progress grid, interface in ru / es / en.
 
+## Intake and identification (spec 005)
+
+- **Every reply moves the identification forward.** Each car is identified again from its current facts in the same turn (`application/identify.py`). Questions come from localized templates (`config/questions.yaml` v2) with concrete options and are never sent twice. After 2 attempts the hub proposes a car itself.
+- **Open-world brands.** Makes sold in Spain are in `config/makes.yaml`, with aliases and Cyrillic spellings. Their Spanish line-ups are looked up with sources (`application/lineup.py`, cached 30 days). "Find the matching model" proposes 1–3 models that fit the person, each with a reason. Links from classifieds sites are never read.
+- **Corrections.** The engine is part of the identity ("1.5, not 1.0" works). A correction drops the old version and is shown as "before → after".
+- **The person.** Region and climate (`config/regions.yaml`), km a year as a range, and new or used, asked once for all cars.
+- **One confirmation card** before research: cars, profile and cost. Each item is marked stated, inferred, found or assumed and can be edited with chips. One "yes" starts the research.
+- **Metrics.** `GET /api/v1/research/metrics` → `intake`: replies until the cars are confirmed, repeated questions, corrections, research on unconfirmed cars.
+- **Engine back-fill** for stored variants: `scripts/repair-data.sh --engine` (back up first).
+
 ## Run locally (development)
 
 ```bash

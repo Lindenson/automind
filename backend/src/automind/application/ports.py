@@ -39,6 +39,9 @@ class Reference:
     insights: dict[str, Any] = field(default_factory=dict)  # config/insights.yaml (spec 004)
     layouts: dict[str, Any] = field(default_factory=dict)  # config/report_layouts.yaml (spec 004)
     explainers: dict[str, Any] = field(default_factory=dict)  # config/tech_explainers.yaml (spec 004)
+    questions_i18n: dict[str, Any] = field(default_factory=dict)  # config/questions.yaml v2 (spec 005)
+    makes: Any = None  # application.makes.MakeRegistry (config/makes.yaml, spec 005)
+    regions: dict[str, Any] = field(default_factory=dict)  # config/regions.yaml (spec 005)
 
 
 @dataclass
@@ -221,6 +224,7 @@ class Ports:
     pages: PageStore | None = None  # None → `search` also implements PageStore (test fakes)
     readers: SiteReaders = field(default_factory=NoReaders)
     feasibility: Any = None  # application.feasibility.FeasibilityStore (spec 003 US3)
+    lineup: Any = None  # async (ports, make) -> application.lineup.Lineup | None (spec 005); None: no lookup
 
     @property
     def page_store(self) -> PageStore:

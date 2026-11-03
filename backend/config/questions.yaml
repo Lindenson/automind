@@ -1,13 +1,141 @@
-# Clarification question templates (FR-005, FR-005a). The asker model only phrases them in the
-# user's language; it never adds questions. Placeholders: {car}, {options}, {count}.
-version: 1
-TOO_MANY_CARS: "I compare up to 3 cars at a time. Which 3 of these should I compare: {options}?"
-CAR_IDENTITY: "Which exact car do you mean by \"{car}\"? Make and model (and the year, if it is used) are enough."
-USED_AGE: "For the {car}: roughly how old, or which generation ({options})? The answer changes the reliability and running costs a lot."
-TRIM: "Which version of the {car} do you mean ({options})?"
-PERSONA: "So I can tailor the answer: what matters most to you — low running costs and reliability, driving performance, or the engineering details?"
-BUDGET_INTENT: "With a budget of {options}: are you looking for a new car, a used one, or either?"
-UNKNOWN_MODEL: "I don't know a car called \"{car}\". Did you mean one of these: {options}? Or tell me the make and model again."
-GEARBOX: "The {car} is sold with several gearboxes or drives ({options}). Which one do you mean?"
-KM_PER_YEAR: "Roughly how many kilometres a year do you drive? With these cars it changes which one is cheaper to run."
-FAMILY_SIZE: "Who usually travels in the car (just you, two of you, a family with children)? The cars differ in size."
+# Clarification question templates v2 (spec 005 R9). Code inserts them verbatim in the conversation language;
+# the asker model only writes a one-line acknowledgement. Never a literal fallback for empty options: a template
+# with {options} is used only when there are options; otherwise the `bare` variant (if any).
+# Placeholders: {car}, {options}, {count}, {make}.
+version: 2
+TOO_MANY_CARS:
+  en: "I compare up to 3 cars at a time. Which 3 of these should I compare: {options}?"
+  ru: "Я сравниваю до 3 машин за раз. Какие 3 из этих сравнить: {options}?"
+  es: "Comparo hasta 3 coches a la vez. ¿Cuáles 3 de estos comparo: {options}?"
+  rephrase:
+    en: "Please name the 3 cars to keep: {options}."
+    ru: "Назовите 3 машины, которые оставить: {options}."
+    es: "Dime los 3 coches que me quedo: {options}."
+CAR_IDENTITY:
+  en: "Which exact car do you mean by «{car}»? Make and model are enough (and the year, if it is used)."
+  ru: "Какую именно машину вы имеете в виду под «{car}»? Достаточно марки и модели (и года, если она подержанная)."
+  es: "¿Qué coche exactamente quieres decir con «{car}»? Basta con la marca y el modelo (y el año, si es de segunda mano)."
+  rephrase:
+    en: "I still need the make and model for «{car}» — for example «Toyota RAV4» or «BYD Seal U»."
+    ru: "Мне всё ещё нужны марка и модель для «{car}» — например, «Toyota RAV4» или «BYD Seal U»."
+    es: "Aún necesito la marca y el modelo de «{car}», por ejemplo «Toyota RAV4» o «BYD Seal U»."
+MAKE_LINEUP:
+  en: "Which {make} model do you mean? On sale in Spain: {options}."
+  ru: "Какую модель {make} вы имеете в виду? В Испании продаются: {options}."
+  es: "¿Qué modelo de {make} quieres decir? En España se venden: {options}."
+  bare:
+    en: "Which {make} model do you mean?"
+    ru: "Какую модель {make} вы имеете в виду?"
+    es: "¿Qué modelo de {make} quieres decir?"
+  rephrase:
+    en: "Pick one of the {make} models, or say «choose for me»: {options}."
+    ru: "Выберите одну из моделей {make} или скажите «выбери сам»: {options}."
+    es: "Elige uno de los modelos de {make} o di «elige tú»: {options}."
+  rephrase_bare:
+    en: "Which {make} model exactly? The model name is enough (for example from the {make} website), or say «choose for me»."
+    ru: "Какая именно модель {make}? Достаточно названия модели (например, с сайта {make}) — или скажите «выбери сам»."
+    es: "¿Qué modelo de {make} exactamente? Basta con el nombre del modelo (por ejemplo, de la web de {make}) o di «elige tú»."
+UNKNOWN_MODEL:
+  en: "I could not find «{car}» on sale in Spain. Closest: {options}. Which one?"
+  ru: "Я не нашёл «{car}» в продаже в Испании. Ближайшие: {options}. Какую из них?"
+  es: "No he encontrado «{car}» a la venta en España. Los más parecidos: {options}. ¿Cuál?"
+  bare:
+    en: "I could not find «{car}» on sale in Spain. Please write the car's name in other words, or send a link to the maker's page."
+    ru: "Я не нашёл «{car}» в продаже в Испании. Напишите марку и модель по-другому или пришлите ссылку на страницу производителя."
+    es: "No he encontrado «{car}» a la venta en España. Escribe la marca y el modelo de otra forma o envía un enlace a la página del fabricante."
+  rephrase:
+    en: "Still nothing for «{car}». Is it one of these: {options}?"
+    ru: "По «{car}» по-прежнему ничего. Может быть, это одна из этих: {options}?"
+    es: "Sigo sin encontrar «{car}». ¿Es alguno de estos: {options}?"
+  rephrase_bare:
+    en: "I still cannot find «{car}». Is the name written differently in Spain, or is it sold under another brand?"
+    ru: "Я всё ещё не нахожу «{car}». Может быть, в Испании модель называется иначе или продаётся под другой маркой?"
+    es: "Sigo sin encontrar «{car}». ¿Se llama distinto en España o se vende con otra marca?"
+CONDITION:
+  en: "Are you looking at new cars or used ones?"
+  ru: "Вы рассматриваете новые машины или подержанные?"
+  es: "¿Buscas coches nuevos o de segunda mano?"
+  rephrase:
+    en: "New or used — which one? It changes prices and reliability a lot."
+    ru: "Новые или с пробегом? От этого сильно зависят цены и надёжность."
+    es: "¿Nuevos o de segunda mano? Cambia mucho los precios y la fiabilidad."
+USED_AGE:
+  en: "For the {car}: roughly what year and mileage ({options})?"
+  ru: "Для {car}: примерно какой год и пробег ({options})?"
+  es: "Para el {car}: ¿de qué año y con cuántos kilómetros, más o menos ({options})?"
+  bare:
+    en: "For the {car}: roughly what year and mileage?"
+    ru: "Для {car}: примерно какой год и пробег?"
+    es: "Para el {car}: ¿de qué año y con cuántos kilómetros, más o menos?"
+  rephrase:
+    en: "The year of the {car} is enough, for example «2019, 80,000 km»."
+    ru: "Достаточно года {car}, например «2019, 80 тыс. км»."
+    es: "Basta con el año del {car}, por ejemplo «2019, 80.000 km»."
+  rephrase_bare:
+    en: "Just the year of the {car} is enough, for example «2019»."
+    ru: "Достаточно только года {car}, например «2019»."
+    es: "Basta con el año del {car}, por ejemplo «2019»."
+ENGINE:
+  en: "Which engine of the {car}: {options}?"
+  ru: "Какой двигатель у {car}: {options}?"
+  es: "¿Qué motor del {car}: {options}?"
+  bare:
+    en: "Which engine of the {car} (displacement, power or fuel)?"
+    ru: "Какой двигатель у {car} (объём, мощность или топливо)?"
+    es: "¿Qué motor del {car} (cilindrada, potencia o combustible)?"
+  rephrase:
+    en: "There is no such engine for the {car}. On sale: {options}. Which one?"
+    ru: "Такого двигателя у {car} нет. В продаже: {options}. Какой из них?"
+    es: "El {car} no tiene ese motor. A la venta: {options}. ¿Cuál?"
+  rephrase_bare:
+    en: "For the {car}, the displacement or the power is enough, for example «1.5» or «150 CV»."
+    ru: "Для {car} достаточно объёма или мощности, например «1.5» или «150 л.с.»."
+    es: "Para el {car} basta con la cilindrada o la potencia, por ejemplo «1.5» o «150 CV»."
+TRIM:
+  en: "Which version of the {car} ({options})?"
+  ru: "Какая версия {car} ({options})?"
+  es: "¿Qué versión del {car} ({options})?"
+  rephrase:
+    en: "Pick the version of the {car}, or say «choose for me»: {options}."
+    ru: "Выберите версию {car} или скажите «выбери сам»: {options}."
+    es: "Elige la versión del {car} o di «elige tú»: {options}."
+GEARBOX:
+  en: "The {car} is sold with several gearboxes or drives ({options}). Which one?"
+  ru: "{car} продаётся с разными коробками или приводом ({options}). Какой вариант?"
+  es: "El {car} se vende con varias cajas o tracciones ({options}). ¿Cuál?"
+  rephrase:
+    en: "Automatic or manual for the {car} ({options})? Or say «choose for me»."
+    ru: "Автомат или механика для {car} ({options})? Или скажите «выбери сам»."
+    es: "¿Automático o manual para el {car} ({options})? O di «elige tú»."
+PROPOSE:
+  en: "I'll take {car} — OK?"
+  ru: "Беру {car} — подходит?"
+  es: "Me quedo con {car}, ¿vale?"
+  rephrase:
+    en: "Shall I take {car}? Yes, or name another one."
+    ru: "Взять {car}? Да — или назовите другую."
+    es: "¿Me quedo con {car}? Sí, o dime otro."
+REMOVE_OR_CHOOSE:
+  en: "I could not settle the {car}. Shall I remove it, or choose a car for you myself?"
+  ru: "Я не смог определить {car}. Убрать её или подобрать машину самому?"
+  es: "No he podido identificar el {car}. ¿Lo quito o elijo yo un coche por ti?"
+  rephrase:
+    en: "Remove the {car}, or let me choose?"
+    ru: "Убрать {car} или выбрать мне?"
+    es: "¿Quito el {car} o elijo yo?"
+PERSONA:
+  en: "So I can tailor the answer: what matters most to you — low running costs and reliability, driving performance, or the engineering details?"
+  ru: "Чтобы подстроить ответ: что для вас важнее всего — низкие расходы и надёжность, динамика или технические детали?"
+  es: "Para adaptar la respuesta: ¿qué te importa más — gastos bajos y fiabilidad, prestaciones o los detalles técnicos?"
+BUDGET_INTENT:
+  en: "With a budget of {options}: are you looking for a new car, a used one, or either?"
+  ru: "При бюджете {options}: вы ищете новую машину, подержанную или любую?"
+  es: "Con un presupuesto de {options}: ¿buscas un coche nuevo, de segunda mano o cualquiera?"
+KM_PER_YEAR:
+  en: "Roughly how many kilometres a year do you drive? With these cars it changes which one is cheaper to run."
+  ru: "Сколько примерно километров в год вы проезжаете? От этого зависит, какая машина дешевле в содержании."
+  es: "¿Cuántos kilómetros al año haces, más o menos? Con estos coches cambia cuál sale más barato."
+FAMILY_SIZE:
+  en: "Who usually travels in the car (just you, two of you, a family with children)? The cars differ in size."
+  ru: "Кто обычно ездит в машине (вы один, вдвоём, семья с детьми)? Машины отличаются размером."
+  es: "¿Quién suele ir en el coche (tú solo, dos personas, una familia con niños)? Los coches son de distinto tamaño."

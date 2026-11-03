@@ -8,6 +8,7 @@ from typing import Any, TypeVar
 from langchain.agents import create_agent
 from pydantic import BaseModel
 
+from automind.application.lineup import get_lineup
 from automind.application.ports import Ports
 from automind.domain.cost import AreaAverage, CostPrices, estimate
 from automind.infrastructure import llm_gateway
@@ -76,6 +77,7 @@ def live_ports(events: EventBus, prompts: dict[str, str]) -> Ports:
         pages=live_pages(),
         readers=live_readers(),
         feasibility=FeasibilityRepo(),
+        lineup=get_lineup,
     )
 
 

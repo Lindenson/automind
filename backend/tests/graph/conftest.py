@@ -74,3 +74,20 @@ def budget_factory(**limits):
 @pytest.fixture
 def messages():
     return MessageRepo()
+
+
+async def forget_make(make: str) -> None:
+    """Hide a make's catalog rows and line-up left by earlier tests (spec 005 open-world scenarios): the variants
+    are renamed to a throw-away make (they are referenced from research tables), the line-up is deleted."""
+    from sqlalchemy import delete, update
+
+    from automind.infrastructure import db
+
+    async with db.sessionmaker()() as s:
+        hidden = {
+            "make": f"old-{uuid.uuid4().hex[:8]}",
+            "canonical_key": db.Variant.canonical_key + "#" + db.Variant.id,
+        }
+        await s.execute(update(db.Variant).where(db.Variant.make == make).values(**hidden))
+        await s.execute(delete(db.BrandLineup).where(db.BrandLineup.make == make))
+        await s.commit()

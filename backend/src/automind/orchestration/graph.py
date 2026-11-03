@@ -1,9 +1,10 @@
 """The turn graph (plan.md "Turn graph"; research R2, R5).
 
-    START → load_case → interpret (LLM) → apply_delta (code) → assess (catalog) → policy (code)
+    START → load_case → interpret (LLM) → apply_delta (code) → identify (spec 005) → assess (catalog) → policy
       ├─ ANSWER_GENERAL      → general
       ├─ ASK                 → ask → END (questions pending)
       ├─ CONFIRM_VARIANTS    → prepare_variants → wait (interrupt) → apply_variants → assess | interpret
+      ├─ CONFIRM_INTAKE      → prepare_intake → wait → apply_intake → assess | identify | interpret (005)
       ├─ CONFIRM_COST        → prepare_cost → wait (interrupt) → apply_cost → assess | interpret
       ├─ RESEARCH            → plan_research → Send(research_job)×N → collect_round ↺ next_round (gaps,
       │                        ≤ depth rounds) → after_research → assess
@@ -19,7 +20,7 @@ from typing import Any
 
 from langgraph.graph import END, START, StateGraph
 
-from automind.orchestration.nodes import confirm, feasibility, report, research, understand
+from automind.orchestration.nodes import confirm, feasibility, identify, report, research, understand
 from automind.orchestration.runner import TurnContext
 from automind.orchestration.state import TurnState
 
@@ -31,6 +32,7 @@ def build_graph(checkpointer: Any = None, tools: list[Any] | None = None) -> Any
     g.add_node("load_case", understand.load_case_node)
     g.add_node("interpret", understand.interpret_node)
     g.add_node("apply_delta", understand.apply_delta_node)
+    g.add_node("identify", identify.identify_node)
     g.add_node("assess", understand.assess_node)
     g.add_node("policy", understand.policy_node)
     g.add_node("general", report.general_node)
@@ -53,13 +55,17 @@ def build_graph(checkpointer: Any = None, tools: list[Any] | None = None) -> Any
     g.add_node("prepare_limit", research.prepare_limit)
     g.add_node("wait_limit", confirm.wait_confirm)
     g.add_node("apply_limit", research.apply_limit)
+    g.add_node("prepare_intake", confirm.prepare_intake)
+    g.add_node("wait_intake", confirm.wait_confirm)
+    g.add_node("apply_intake", confirm.apply_intake)
     g.add_node("answer", report.answer_node)
     g.add_node("report", report.make_report_node(tools if tools is not None else MCP_TOOLS))
 
     g.add_edge(START, "load_case")
     g.add_edge("load_case", "interpret")
     g.add_conditional_edges("interpret", understand.route_after_interpret, {"end": END, "apply_delta": "apply_delta"})
-    g.add_conditional_edges("apply_delta", understand.route_after_apply, {"end": END, "assess": "assess"})
+    g.add_conditional_edges("apply_delta", understand.route_after_apply, {"end": END, "assess": "identify"})
+    g.add_edge("identify", "assess")
     g.add_edge("assess", "policy")
     g.add_conditional_edges(
         "policy",
@@ -73,7 +79,15 @@ def build_graph(checkpointer: Any = None, tools: list[Any] | None = None) -> Any
             "answer",
             "report",
             "prepare_feasibility",
+            "prepare_intake",
         ],
+    )
+    g.add_edge("prepare_intake", "wait_intake")  # spec 005: one card for the cars, the person and the cost
+    g.add_edge("wait_intake", "apply_intake")
+    g.add_conditional_edges(
+        "apply_intake",
+        confirm.route_after_apply,
+        {"assess": "assess", "interpret": "interpret", "identify": "identify"},
     )
     g.add_conditional_edges(  # every car unknown: nothing to confirm, ask about the model instead
         "prepare_variants", confirm.route_after_prepare, {"wait": "wait_variants", "assess": "assess"}

@@ -50,8 +50,12 @@ Resolution = Literal["UNRESOLVED", "PROPOSED", "CONFIRMED", "AUTO_OK", "UNKNOWN_
 Strength = Literal["LOW", "MEDIUM", "HIGH"]
 QuestionKind = Literal[
     "TOO_MANY_CARS", "CAR_IDENTITY", "USED_AGE", "TRIM", "PERSONA", "BUDGET_INTENT", "UNKNOWN_MODEL", "GEARBOX",
-    "KM_PER_YEAR", "FAMILY_SIZE",
+    "KM_PER_YEAR", "FAMILY_SIZE", "CONDITION", "ENGINE", "MAKE_LINEUP", "PROPOSE", "REMOVE_OR_CHOOSE",
 ]  # fmt: skip
+# spec 005: what an intake step is about (R6)
+IntakeItem = Literal["MAKE", "MODEL", "ENGINE", "GEARBOX", "YEAR", "CONDITION", "MILEAGE", "TRIM", "CHOICE"]
+Fuel = Literal["petrol", "diesel", "hybrid", "mhev", "phev", "bev", "lpg"]
+Climate = Literal["HOT", "MILD", "COLD", "MOUNTAIN"]
 BudgetIntent = Literal["NEW", "USED", "ANY", "UNKNOWN"]
 
 MAX_CARS = 3
@@ -64,6 +68,12 @@ class Profile(BaseModel):
     family: Literal["SINGLE", "COUPLE", "FAMILY"] | None = None
     age_band: Literal["UNDER_25", "25_40", "40_60", "OVER_60"] | None = None
     driving_style: Literal["CALM", "MIXED", "SPORTY"] | None = None
+    # spec 005 R11: where the car is driven and how far (a range when the user gives one)
+    region: str | None = Field(default=None, max_length=60)
+    region_code: str | None = None
+    climate: Climate | None = None
+    annual_km_min: int | None = Field(default=None, ge=1000, le=200000)
+    annual_km_max: int | None = Field(default=None, ge=1000, le=200000)
     evidence: dict[str, str] = Field(default_factory=dict)
 
 
@@ -119,6 +129,26 @@ class Priority(BaseModel):
     source: Literal["USER", "PERSONA"] = "USER"
 
 
+class EngineHint(BaseModel):
+    """The engine the user named (spec 005 R4): any subset of displacement, power, fuel and family."""
+
+    displacement_l: float | None = Field(default=None, ge=0.6, le=8.0)
+    power_hp: int | None = Field(default=None, ge=40, le=1000)
+    power_kw: int | None = Field(default=None, ge=30, le=750)
+    fuel: Fuel | None = None
+    family: str | None = Field(default=None, max_length=16)  # TSI, TDI, DM-i, e:HEV …
+    evidence: str = Field(default="", max_length=120)
+
+    def empty(self) -> bool:
+        return not any((self.displacement_l, self.power_hp, self.power_kw, self.fuel, self.family))
+
+    def text(self) -> str:
+        bits = [f"{self.displacement_l:.1f}" if self.displacement_l else "", self.family or "",
+                f"{self.power_hp} CV" if self.power_hp else (f"{self.power_kw} kW" if self.power_kw else ""),
+                self.fuel if self.fuel and not self.family else ""]  # fmt: skip
+        return " ".join(b for b in bits if b)
+
+
 class Constraints(BaseModel):
     generation_hint: str | None = None
     fuel_hint: str | None = None
@@ -127,6 +157,37 @@ class Constraints(BaseModel):
     gearbox_hint: Literal["manual", "automatic", "dct", "cvt", "e-cvt", "single"] | None = None  # spec 004 FR-028
     drive_hint: Literal["FWD", "RWD", "AWD"] | None = None
     url: str | None = None
+    engine_hint: EngineHint | None = None  # spec 005 FR-012
+
+
+class Choice(BaseModel):
+    """A concrete option offered during the intake (a model of a line-up, a version, an engine)."""
+
+    label: str
+    make: str | None = None
+    model: str | None = None
+    variant_id: str | None = None
+    engine: str | None = None
+    body: str | None = None
+    powertrain: str | None = None
+    price_from_eur: int | None = None
+    source_url: str | None = None
+    suggested: bool = False  # the user did not name it (FR-024)
+    reason: str | None = None
+
+
+IdentifyKind = Literal["IDENTIFIED", "CHOICES", "NEED", "NOT_FOUND"]
+
+
+class IdentifyOutcome(BaseModel):
+    """Result of the identify step for one car, recomputed every intake turn (spec 005 R1)."""
+
+    outcome: IdentifyKind = "NEED"
+    need: IntakeItem | None = None
+    choices: list[Choice] = Field(default_factory=list)
+    checked: list[str] = Field(default_factory=list)  # sources looked at before NOT_FOUND
+    note: str | None = None  # e.g. "from the page I took: …"
+    key: str | None = None  # hash of the identity facts the outcome was computed for
 
 
 class CaseCar(BaseModel):
@@ -143,10 +204,41 @@ class CaseCar(BaseModel):
     label: str | None = None  # resolved variant label, for display
     resolution: Resolution = "UNRESOLVED"
     alternatives: list[dict[str, object]] = Field(default_factory=list)
+    previous_label: str | None = None  # spec 005: the label before the last correction ("before → after")
+    identify: IdentifyOutcome | None = None  # spec 005 R1
+
+    @property
+    def display_name(self) -> str:
+        """How the car is named in questions: the facts known now, never stale request text (spec 005 R5)."""
+        if self.label:
+            return self.label
+        if not (self.make and self.model):
+            return self.make or self.request_text
+        k = self.constraints
+        engine = k.engine_hint.text() if k.engine_hint else ""
+        trim = k.trim_hint if k.trim_hint and k.trim_hint not in engine else ""
+        bits = [self.make, self.model, k.generation_hint or "", engine, trim]
+        return " ".join(b for b in bits if b)
+
+
+class Intake(BaseModel):
+    """Intake loop state (spec 005 R6): attempts per car and item, the last question hashes, the card."""
+
+    attempts: dict[str, dict[str, int]] = Field(default_factory=dict)
+    last_questions: list[str] = Field(default_factory=list)  # ≤ 6 hashes, newest last
+    proposed: dict[str, Choice] = Field(default_factory=dict)
+    card: dict[str, object] | None = None  # the card last shown (for highlighting edits)
+    card_confirmed: bool = False
+
+    def attempt(self, car_key: str, item: str) -> int:
+        return self.attempts.get(car_key, {}).get(item, 0)
+
+    def bump(self, car_key: str, item: str) -> None:
+        self.attempts.setdefault(car_key, {})[item] = self.attempt(car_key, item) + 1
 
 
 class Pending(BaseModel):
-    kind: Literal["QUESTIONS", "CONFIRM_VARIANTS", "CONFIRM_COST"]
+    kind: Literal["QUESTIONS", "CONFIRM_VARIANTS", "CONFIRM_COST", "CONFIRM_INTAKE"]
     items: list[dict[str, object]] = Field(default_factory=list)
 
 
@@ -186,6 +278,7 @@ class CaseFile(BaseModel):
     compare_level_source: Literal["DEFAULT", "USER_TRIM"] = "DEFAULT"
     last_values: dict[str, int] = Field(default_factory=dict)  # validated values per car at the last report
     shown: list[Shown] = Field(default_factory=list)
+    intake: Intake = Field(default_factory=Intake)  # spec 005
 
     @property
     def too_many_cars(self) -> bool:
@@ -431,6 +524,7 @@ def _apply_cars(c: CaseFile, d: CaseDelta, log: list[str], current_year: int) ->
         key = f"car#{c.next_car_no}"
         c.next_car_no += 1
         c.cars.append(CaseCar(key=key, **ref.model_dump(exclude={"year", "age_years"}), year=year, age_years=age))
+        c.intake.card_confirmed = False  # spec 005: a new car is confirmed on the card like the others
         log.append(f"{key} added: {ref.request_text}")
 
 
@@ -457,6 +551,8 @@ def _replace(c: CaseFile, ctx: CarContext, log: list[str], current_year: int) ->
     )
     if _identity(new) == _identity(old):
         return  # the same car again (e.g. "I meant the used 150"): nothing to change
+    new.previous_label = old.label or old.previous_label
+    c.intake.card_confirmed = False
     c.cars[c.cars.index(old)] = new
     log.append(f"{old.key} replaced: {old.request_text} → {_describe(new)}")
 
@@ -466,9 +562,19 @@ def _set_context(c: CaseFile, ctx: CarContext, log: list[str], current_year: int
     before = _identity(car)
     changes = _context_changes(car, ctx, current_year)
     if _identity(car) != before:
-        car.variant_id, car.label, car.resolution, car.alternatives = None, None, "UNRESOLVED", []
+        _forget_variant(c, car)
     if changes:
         log.append(f"{car.key}: " + ", ".join(changes))
+
+
+def _forget_variant(c: CaseFile, car: CaseCar) -> None:
+    """A correction changes the car (spec 005 FR-013): the resolved version is dropped (kept as previous_label for
+    "before → after"), the car is identified again and the confirmation card must be confirmed again."""
+    if car.label:
+        car.previous_label = car.label
+    car.variant_id, car.label, car.resolution, car.alternatives = None, None, "UNRESOLVED", []
+    car.identify = None
+    c.intake.card_confirmed = False
 
 
 def _context_changes(car: CaseCar, ctx: CarContext, current_year: int) -> list[str]:
@@ -487,7 +593,7 @@ def _context_changes(car: CaseCar, ctx: CarContext, current_year: int) -> list[s
         changes.append(f"mileage {ctx.mileage_km:,} km")
     if ctx.constraints is not None:
         hints = ctx.constraints.model_dump(exclude_none=True)
-        merged = car.constraints.model_copy(update=hints)
+        merged = Constraints.model_validate({**car.constraints.model_dump(), **hints})
         if merged != car.constraints:
             car.constraints = merged
             changes.append("hints " + ", ".join(f"{k}={v}" for k, v in hints.items()))

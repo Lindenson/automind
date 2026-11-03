@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { mockBlocks } from "../mock/data";
-import { CaseSchema, HistorySchema, parseBlocks, parseServerMsg } from "./protocol";
+import { CaseSchema, HistorySchema, parseBlocks, parseServerMsg, QuickRepliesBlockSchema } from "./protocol";
 
 describe("parseBlocks", () => {
   it("accepts every mock block type and drops unknown ones", () => {
@@ -226,5 +226,54 @@ describe("spec 004 verdict", () => {
     ]);
     expect(v?.type).toBe("verdict");
     if (v?.type === "verdict") expect(v.tie && v.gaps.length === 0).toBe(true);
+  });
+});
+
+describe("spec 005 intake card", () => {
+  it("parses the card with basis, sources, changes and options", () => {
+    const msg = parseServerMsg({
+      v: 2,
+      type: "confirm_request",
+      kind: "intake",
+      request_id: "r1",
+      text: "Проверьте, что я понял",
+      options: [{ id: "yes", label: "Да, исследовать" }],
+      estimate: { eur: 0.42, cars: 2, areas: ["specs"], depth: "STANDARD" },
+      card: {
+        cars: [
+          {
+            key: "car#2",
+            display_name: "SEAT Ateca 1.5 TSI",
+            items: [
+              { field: "engine", value: "1.5 · 150 CV", basis: "STATED", evidence: "1.5 двигатель", changed: true,
+                before: "1.0 TSI", options: ["SEAT Ateca 2.0 TDI"] },
+              { field: "price_eur", value: "€30 990", basis: "LOOKED_UP", source: { name: "catalog", url: null } },
+              { field: "condition", value: "новая", basis: "SOMETHING_NEW" },
+            ],
+          },
+        ],
+        profile: [{ field: "region", value: "юг Испании", basis: "INFERRED", evidence: "на юге испании" }],
+      },
+    });
+    expect(msg?.type).toBe("confirm_request");
+    if (msg?.type !== "confirm_request") return;
+    const items = msg.card?.cars[0]?.items ?? [];
+    expect(items[0]?.changed).toBe(true);
+    expect(items[0]?.options).toEqual(["SEAT Ateca 2.0 TDI"]);
+    expect(items[2]?.basis).toBe("ASSUMED"); // an unknown basis never drops the card
+    expect(msg.card?.profile[0]?.field).toBe("region");
+  });
+
+  it("keeps a confirm request whose card is malformed", () => {
+    const msg = parseServerMsg({ v: 2, type: "confirm_request", kind: "intake", text: "x", card: { cars: "bad" } });
+    expect(msg?.type).toBe("confirm_request");
+  });
+
+  it("parses suggested quick replies", () => {
+    const b = QuickRepliesBlockSchema.parse({
+      type: "quick_replies",
+      items: [{ label: "BYD Seal U DM-i (suv, phev)", text: "BYD Seal U DM-i", suggested: true, reason: "семейный кузов" }],
+    });
+    expect(b.items[0]?.suggested).toBe(true);
   });
 });

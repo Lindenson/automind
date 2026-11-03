@@ -12,6 +12,8 @@ from typing import Any
 from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.exc import IntegrityError
 
+from automind.domain.metrics import intake_summary
+
 from .models import (
     CaseFileRow,
     Chat,
@@ -19,6 +21,7 @@ from .models import (
     Claim,
     DeletedChat,
     FeasibilityCheck,
+    IntakeEvent,
     LLMCall,
     ReportRating,
     ResearchJob,
@@ -38,7 +41,7 @@ from .session import sessionmaker
 
 class ChatRepo:
     CHAT_SCOPED = (ChatMessage, CaseFileRow, TurnEvent, ResearchJob, LLMCall, SearchCall, FeasibilityCheck,
-                   ReportRating, ValueChallenge)  # fmt: skip
+                   ReportRating, ValueChallenge, IntakeEvent)  # fmt: skip
 
     async def is_deleted(self, chat_id: str) -> bool:
         async with sessionmaker()() as s:
@@ -429,6 +432,9 @@ class MetricsRepo:
             ).all()
             ratings = (await s.execute(select(func.count(), func.avg(ReportRating.rating)).where(
                 ReportRating.created_at >= since))).one()  # fmt: skip
+            intake_rows = (await s.execute(select(IntakeEvent.chat_id, IntakeEvent.kind, IntakeEvent.details)
+                                           .where(IntakeEvent.created_at >= since)
+                                           .order_by(IntakeEvent.created_at))).all()  # fmt: skip
         areas: dict[str, dict[str, Any]] = {}
         for j in jobs:
             a = areas.setdefault(j.area, {"jobs": 0, "accepted": 0, "rejected": 0, "pages_found": 0, "pages_cached": 0,
@@ -454,6 +460,7 @@ class MetricsRepo:
             "days": days,
             "areas": areas,
             "sense_rejections": {str(r): int(n) for r, n in sense_rows},  # spec 004 FR-027, per rule
+            "intake": intake_summary([(str(a), str(b), dict(c or {})) for a, b, c in intake_rows]),  # spec 005 R13
             "ratings": {"count": int(ratings[0] or 0), "average": round(float(ratings[1]), 2) if ratings[1] else None},
             "sites": [
                 {"domain": x.domain, "day": x.day.isoformat(), "ok": x.ok, "failed": x.failed, "ambiguous": x.ambiguous}

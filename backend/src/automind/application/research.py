@@ -528,6 +528,9 @@ def _variant_gearbox(v: db.Variant) -> str | None:
     return sense.gearbox_family(name)
 
 
+MONEY_ATTRS = ("official_price_es",)
+
+
 def _check(
     c: Any,
     d: WebDoc,
@@ -543,6 +546,8 @@ def _check(
         and not ev.validate_excerpt(c.excerpt, c.raw_value, d.text)
     ):
         return "REJECTED_UNSUPPORTED", None, None, None
+    if c.attribute in MONEY_ATTRS and not (r := sense.money_marked(c.raw_value, c.excerpt)).ok:
+        return "REJECTED_IMPLAUSIBLE", None, None, r.rule_id  # a number without a currency is not a price
     try:
         val = specs.normalize(specs.ATTRS[c.attribute], c.raw_value, c.unit)
     except Exception:
@@ -1090,6 +1095,14 @@ async def fill_gearbox(variant_id: str) -> None:
             await s.commit()
 
 
+def _without_price_outliers(claims: list[Any]) -> list[Any]:
+    """A price far from the other sources' prices of the same version is never selected (spec 005 fix)."""
+    prices = [(i, float(c.value)) for i, c in enumerate(claims)
+              if c.attribute in MONEY_ATTRS and isinstance(c.value, int | float)]  # fmt: skip
+    bad = {prices[j][0] for j in sense.price_outliers([v for _, v in prices])}
+    return [c for i, c in enumerate(claims) if i not in bad]
+
+
 async def reselect(variant_id: str) -> None:
     """Recompute selected values for all attributes from all accepted claims (FR-017/FR-018); a variant without
     a gearbox gets it from unanimous transmission claims (spec 004 FR-028)."""
@@ -1115,6 +1128,7 @@ async def reselect(variant_id: str) -> None:
             )
             for c, e in rows
         ]
+        claims = _without_price_outliers(claims)
         selected = ev.select_all(claims)
         await session.execute(delete(db.SpecValue).where(db.SpecValue.variant_id == variant_id))
         derived = await _interval_from_schedule(session, variant_id, selected)

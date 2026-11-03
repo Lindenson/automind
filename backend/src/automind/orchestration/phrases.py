@@ -94,6 +94,51 @@ PHRASES: dict[str, dict[str, str]] = {
     "limit_cost_cap": {"en": "cost", "ru": "стоимость", "es": "coste"},
     "limit_llm_calls": {"en": "AI calls", "ru": "вызовы ИИ", "es": "llamadas de IA"},
     "limit_time": {"en": "time", "ru": "время", "es": "tiempo"},
+    # spec 005: intake chips and notices
+    "cond_new": {"en": "New", "ru": "Новые", "es": "Nuevos"},
+    "cond_used": {"en": "Used", "ru": "Подержанные", "es": "De segunda mano"},
+    "yes": {"en": "Yes", "ru": "Да", "es": "Sí"},
+    "no_other": {"en": "No, another one", "ru": "Нет, другую", "es": "No, otro"},
+    "changed_car": {"en": "{before} → {after}", "ru": "{before} → {after}", "es": "{before} → {after}"},
+    "page_taken": {
+        "en": "From the page I took: {what}.",
+        "ru": "Со страницы я взял: {what}.",
+        "es": "De la página he tomado: {what}.",
+    },
+    "page_refused": {
+        "en": "I do not read classified-ads sites ({site}). Please write the car in words.",
+        "ru": "Сайты объявлений ({site}) я не читаю. Напишите, пожалуйста, машину словами.",
+        "es": "No leo portales de anuncios ({site}). Escribe el coche con palabras, por favor.",
+    },
+    "intake_card": {
+        "en": "Please check what I understood and confirm — then I start the research (≈ €{eur}).",
+        "ru": "Проверьте, что я понял, и подтвердите — после этого начну исследование (≈ €{eur}).",
+        "es": "Comprueba lo que he entendido y confirma; después empiezo la investigación (≈ {eur} €).",
+    },
+    "card_yes": {"en": "Yes, research", "ru": "Да, исследовать", "es": "Sí, investigar"},
+    "card_stop": {"en": "Not now", "ru": "Пока не надо", "es": "Ahora no"},
+    "suggested": {"en": "suggestion", "ru": "предложение", "es": "sugerencia"},
+    "why_family_body": {"en": "family-size body", "ru": "семейный кузов", "es": "carrocería familiar"},
+    "why_phev_low_running_cost": {
+        "en": "plug-in hybrid: low running cost at your km",
+        "ru": "плагин-гибрид: дёшево ездить при вашем пробеге",
+        "es": "híbrido enchufable: gasto bajo con tus km",
+    },
+    "why_bev_low_running_cost": {
+        "en": "electric: low running cost",
+        "ru": "электро: дёшево в эксплуатации",
+        "es": "eléctrico: gasto bajo",
+    },
+    "why_hybrid_low_running_cost": {
+        "en": "hybrid: low consumption",
+        "ru": "гибрид: низкий расход",
+        "es": "híbrido: consumo bajo",
+    },
+    "why_price_close": {
+        "en": "price close to the other car",
+        "ru": "цена близка к другой машине",
+        "es": "precio parecido al otro coche",
+    },
     "limit_continue": {"en": "Continue research", "ru": "Продолжить исследование", "es": "Seguir investigando"},
     "limit_stop": {"en": "Answer with what you have", "ru": "Ответить по собранному", "es": "Responder con lo que hay"},
     "feasibility_intro": {

@@ -23,3 +23,5 @@
 - [ADR-021](ADR-021.md) — Deterministic insights and a code-built verdict (Accepted)
 - [ADR-022](ADR-022.md) — Sense layer; gearbox, drive and equipment level in the variant identity (Accepted)
 - [ADR-023](ADR-023.md) — Declarative sections, one data panel, parallel page pipelines (Accepted)
+- [ADR-024](ADR-024.md) — Open-world vehicle identity: make registry, sourced line-ups, identify every turn (Accepted)
+- [ADR-025](ADR-025.md) — One intake confirmation card (Accepted)

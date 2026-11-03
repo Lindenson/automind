@@ -12,6 +12,7 @@ answerer: google_genai:gemini-3.6-flash
 general: google_genai:gemini-3.1-flash-lite
 query_planner: google_genai:gemini-3.1-flash-lite  # proposes follow-up search queries; never sees page text
 relevance: google_genai:gemini-3.1-flash-lite      # web reader: is this page about the exact variant?
+lineup: google_genai:gemini-3.1-flash-lite         # web reader (spec 005): models of a make on sale in Spain
 # Legacy demo roles (removed when the demo graph is replaced, T035/T060):
 hub: google_genai:gemini-3.6-flash
 analyst: google_genai:gemini-3.6-flash

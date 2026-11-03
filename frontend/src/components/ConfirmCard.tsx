@@ -6,8 +6,14 @@ import { useT } from "../i18n";
 import ReactMarkdown from "react-markdown";
 import type { ConfirmRequest } from "../lib/protocol";
 import { useChat } from "../store/chat";
+import { IntakeCard } from "./IntakeCard";
 
 export function ConfirmCard({ req }: { req: ConfirmRequest }) {
+  if (req.kind === "intake" && req.card) return <IntakeCard req={req} card={req.card} />;
+  return <LegacyConfirm req={req} />;
+}
+
+function LegacyConfirm({ req }: { req: ConfirmRequest }) {
   const t = useT();
   const answer = useChat((s) => s.answerConfirm);
   const isCost = req.kind === "cost";

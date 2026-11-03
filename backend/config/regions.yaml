@@ -1,0 +1,25 @@
+# Spanish regions → climate zone (spec 005 R11). Names in es / ru / en, lower case, matched as substrings of the
+# user's words. Generic phrases ("south of Spain") come first. Climate: HOT | MILD | COLD | MOUNTAIN.
+version: 1
+regions:
+  SOUTH: {names: [sur de españa, sur de espana, юг испании, юге испании, south of spain, southern spain, на юге], climate: HOT}
+  NORTH: {names: [norte de españa, norte de espana, север испании, севере испании, north of spain, northern spain], climate: MILD}
+  CENTER: {names: [centro de españa, центр испании, центре испании, central spain, meseta], climate: COLD}
+  AN: {names: [andalucía, andalucia, андалусия, андалузия, andalusia, sevilla, севилья, seville, málaga, malaga, малага, córdoba, cordoba, кордова, granada, гранада, cádiz, cadiz, кадис, almería, almeria, альмерия, huelva, уэльва, jaén, jaen, хаэн, marbella, марбелья, costa del sol, коста дель соль], climate: HOT}
+  MC: {names: [murcia, мурсия, cartagena, картахена], climate: HOT}
+  VC: {names: [valencia, валенсия, alicante, аликанте, castellón, castellon, кастельон, benidorm, бенидорм, torrevieja, торревьеха, costa blanca, коста бланка], climate: HOT}
+  EX: {names: [extremadura, эстремадура, badajoz, бадахос, cáceres, caceres, касерес], climate: HOT}
+  IB: {names: [baleares, балеары, mallorca, майорка, ibiza, ибица, menorca, менорка], climate: HOT}
+  CN: {names: [canarias, канары, канарские, tenerife, тенерифе, gran canaria, гран канария, lanzarote, лансароте], climate: HOT}
+  CT: {names: [cataluña, cataluna, catalunya, каталония, barcelona, барселона, tarragona, таррагона, girona, жирона, lleida, льейда, costa brava, коста брава], climate: MILD}
+  MD: {names: [madrid, мадрид], climate: COLD}
+  CL: {names: [castilla y león, castilla y leon, кастилия и леон, valladolid, вальядолид, burgos, бургос, león, леон, salamanca, саламанка, segovia, сеговия, ávila, avila, авила, soria, сория, zamora, самора, palencia, паленсия], climate: COLD}
+  CM: {names: [castilla-la mancha, castilla la mancha, кастилия ла манча, toledo, толедо, albacete, альбасете, ciudad real, сьюдад реаль, cuenca, куэнка, guadalajara, гвадалахара], climate: COLD}
+  AR: {names: [aragón, aragon, арагон, zaragoza, сарагоса, huesca, уэска, teruel, теруэль], climate: COLD}
+  NC: {names: [navarra, наварра, pamplona, памплона], climate: MILD}
+  RI: {names: [la rioja, риоха, logroño, logrono, логроньо], climate: MILD}
+  PV: {names: [país vasco, pais vasco, euskadi, страна басков, bilbao, бильбао, san sebastián, san sebastian, сан себастьян, vitoria, витория], climate: MILD}
+  CB: {names: [cantabria, кантабрия, santander, сантандер], climate: MILD}
+  AS: {names: [asturias, астурия, oviedo, овьедо, gijón, gijon, хихон], climate: MILD}
+  GA: {names: [galicia, галисия, a coruña, coruña, la coruña, ла корунья, vigo, виго, santiago de compostela, сантьяго, lugo, луго, ourense, оуренсе, pontevedra, понтеведра], climate: MILD}
+  PYRENEES: {names: [pirineos, пиренеи, pyrenees, sierra nevada, сьерра невада, andorra, андорра], climate: MOUNTAIN}

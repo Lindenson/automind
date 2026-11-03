@@ -17,7 +17,7 @@ turns:
   - user: "Deep research please: Skoda Octavia RS, Cupra Leon VZ and Peugeot 308"
     expect:
       status: WAITING_CONFIRMATION
-      confirm_kind: cost
+      confirm_kind: intake  # spec 005: the card carries the estimate
       no_search: true
       max_cost_eur: 1.0
       case: {depth: DEEP}

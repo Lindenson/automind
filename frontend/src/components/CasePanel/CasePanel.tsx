@@ -471,7 +471,24 @@ function AboutYou({ profile, annualKm }: { profile: unknown; annualKm: number })
           ))}
         </dl>
       )}
-      <p className="mt-1 text-xs text-muted">{t("case.kmYear", { km: annualKm.toLocaleString() })}</p>
+      {typeof p.region === "string" && p.region && (
+        <div className="mt-1 flex flex-wrap justify-between gap-x-2 text-sm" data-testid="profile-region">
+          <span className="text-muted">{t("case.region")}</span>
+          <span className="text-right">
+            {p.region}
+            {typeof p.climate === "string" && ` · ${t(`case.climate.${p.climate}` as "case.climate.HOT")}`}
+          </span>
+        </div>
+      )}
+      <p className="mt-1 text-xs text-muted">
+        {typeof p.annual_km_min === "number" && typeof p.annual_km_max === "number" && p.annual_km_min !== p.annual_km_max
+          ? t("case.kmRange", {
+              min: p.annual_km_min.toLocaleString(),
+              max: p.annual_km_max.toLocaleString(),
+              km: annualKm.toLocaleString(),
+            })
+          : t("case.kmYear", { km: annualKm.toLocaleString() })}
+      </p>
     </Section>
   );
 }
