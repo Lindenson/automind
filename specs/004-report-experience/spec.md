@@ -397,6 +397,19 @@ of the report wrong; the user saw the graph start after a meaningless answer.
   understood, the options, "choose for me", "remove this car"). The question MUST NOT count as answered, and
   no search or research MUST run.
 
+**Research speed and verification fixes (user reports 2026-11-02)**
+
+- **FR-032**: Each page of a research job MUST be processed as its own concurrent pipeline (relevance →
+  reading or extraction → validation → storage), with model calls bounded per job and in total (config).
+- **FR-033**: Consumption MUST be kept per test cycle (WLTP official, NEDC old cycle, real-world). Only
+  WLTP is compared between cars. The fuel bill MUST use the real-world figure, or WLTP × a labelled
+  real-use allowance. A manufacturer's WLTP range gives its upper bound. (Prado: 7.4 NEDC was shown as
+  comparable with the Tucson's 6.8 WLTP.)
+- **FR-034**: Excerpt checks MUST ignore markdown markup and accept an ellipsis between quoted parts.
+  Official prices count only from Spanish (or market-neutral) sources, and service schedules only from
+  European ones. The service interval MUST be taken from the normal schedule when no single value is
+  stated. (Tucson: the price in bold was rejected, and a Malaysian 6-month schedule was used.)
+
 **Measurement**
 
 - **FR-026**: The user MUST be able to rate each report (1–5) and say what was missing; ratings MUST be

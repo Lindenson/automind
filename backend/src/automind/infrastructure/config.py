@@ -10,7 +10,7 @@ import yaml
 
 from automind.application.ports import Reference
 from automind.config import settings
-from automind.domain import evidence
+from automind.domain import evidence, sense
 from automind.domain.criteria import CriteriaModel
 from automind.domain.identity import Aliases
 
@@ -168,3 +168,4 @@ def reference(prompts: dict[str, str]) -> Reference:
 def configure_domain() -> None:
     """Install config-driven policies into the pure domain (call once at startup and in tests)."""
     evidence.configure(source_policy())
+    sense.configure(load_yaml("sense.yaml"))

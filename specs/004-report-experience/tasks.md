@@ -26,12 +26,12 @@ because the verdict is built from insights. Both are P1 and together they are th
 
 **Purpose**: the files every later phase reads.
 
-- [ ] T001 [P] Create `backend/config/insights.yaml` with per-attribute `threshold_abs`, `threshold_rel`, `unit`, `direction` (higher/lower is better) and money conversion: boot 30 L, consumption 0.5 l/100 km or 5%, 0–100 km/h 0.5 s, power 10%, price 5%, yearly cost €150, value retention 5 points, reliability score 10 points (research R1)
-- [ ] T002 [P] Create `backend/config/sense.yaml`. It holds magnitude ranges per attribute (service interval km 1,000–300,000, "3–300 read as thousands", months 1–240 with "years" in the excerpt ×12, seats ≥ 1, boot > 0) and meaning rules ("1 speed" + CVT/hybrid → e-CVT with no gear count; gear_count ≥ 2 except BEV). It also holds result ranges: TCO per year €800–€15,000 for cars under 15 years, maintenance cap per class. Every rule has an id (research R4)
-- [ ] T003 [P] Create `backend/config/report_layouts.yaml`. List sections per profile (BUYER, PERFORMANCE, EXPERT, UNKNOWN): verdict, comparison, engineering, cost_over_time, value_retention, reliability, reviews, manufacturer, data_panel, sources. Each section has `open_by_default` and `depth` summary|full (research R7)
-- [ ] T004 [P] Create `backend/config/tech_explainers.yaml` with entries for power-split hybrid, series hybrid, e-CVT, DCT, torque-converter automatic, manual, MHEV, PHEV and BEV single-speed. Each entry has a short explanation, its consequences (consumption, reliability, feel) and a source or `editorial` (research R6)
-- [ ] T005 [P] Add the optional `transmissions` and `drives` lists per generation to `backend/config/generations.yaml`, for the models sold with several (CX-5 KF: manual, automatic; FWD, AWD; RAV4 XA60 and CR-V where they apply) (research R5)
-- [ ] T006 [P] Add the `depreciation` area to `backend/config/queries.yaml` and `backend/config/sources.yaml`, using the analyst favourites (Autovista24, cap hpi, iSeeCars, editorial buying guides). Add manufacturer queries for market share, financial results, reliability reputation and network in Spain, and `model_year_changes` queries for the engineering area (research R6)
+- [X] T001 [P] Create `backend/config/insights.yaml` with per-attribute `threshold_abs`, `threshold_rel`, `unit`, `direction` (higher/lower is better) and money conversion: boot 30 L, consumption 0.5 l/100 km or 5%, 0–100 km/h 0.5 s, power 10%, price 5%, yearly cost €150, value retention 5 points, reliability score 10 points (research R1)
+- [X] T002 [P] Create `backend/config/sense.yaml`. It holds magnitude ranges per attribute (service interval km 1,000–300,000, "3–300 read as thousands", months 1–240 with "years" in the excerpt ×12, seats ≥ 1, boot > 0) and meaning rules ("1 speed" + CVT/hybrid → e-CVT with no gear count; gear_count ≥ 2 except BEV). It also holds result ranges: TCO per year €800–€15,000 for cars under 15 years, maintenance cap per class. Every rule has an id (research R4)
+- [X] T003 [P] Create `backend/config/report_layouts.yaml`. List sections per profile (BUYER, PERFORMANCE, EXPERT, UNKNOWN): verdict, comparison, engineering, cost_over_time, value_retention, reliability, reviews, manufacturer, data_panel, sources. Each section has `open_by_default` and `depth` summary|full (research R7)
+- [X] T004 [P] Create `backend/config/tech_explainers.yaml` with entries for power-split hybrid, series hybrid, e-CVT, DCT, torque-converter automatic, manual, MHEV, PHEV and BEV single-speed. Each entry has a short explanation, its consequences (consumption, reliability, feel) and a source or `editorial` (research R6)
+- [X] T005 [P] Add the optional `transmissions` and `drives` lists per generation to `backend/config/generations.yaml`, for the models sold with several (CX-5 KF: manual, automatic; FWD, AWD; RAV4 XA60 and CR-V where they apply) (research R5)
+- [X] T006 [P] Add the `depreciation` area to `backend/config/queries.yaml` and `backend/config/sources.yaml`, using the analyst favourites (Autovista24, cap hpi, iSeeCars, editorial buying guides). Add manufacturer queries for market share, financial results, reliability reputation and network in Spain, and `model_year_changes` queries for the engineering area (research R6)
 - [ ] T007 Write migration `backend/alembic/versions/0007_report_experience.py`:
   - `vehicle_variants` gains `transmission varchar(16)` (`manual`, `automatic`, `dct`, `cvt`, `e-cvt`, `single`; null = unknown) and `drive varchar(4)` (`FWD`, `RWD`, `AWD`);
   - `manufacturer_facts.fact_type` gains `MARKET_SHARE`, `FINANCIAL`, `RELIABILITY_REPUTATION`, `NETWORK_ES`, plus `value_num` and `year`;
@@ -56,7 +56,7 @@ because the verdict is built from insights. Both are P1 and together they are th
 
 ### Tests first
 
-- [ ] T012 [P] Write the 2026-11-02 defect regression set in `backend/tests/unit/domain/test_sense.py`: interval "16" → 16,000 km; "5" months next to "years" → 60 months; "1 speed" e-CVT → transmission e-CVT and no gear_count; TCO €513,672/year → flagged and not scored; seats 0 and boot 0 L → rejected. Each case asserts the rule id
+- [X] T012 [P] Write the 2026-11-02 defect regression set in `backend/tests/unit/domain/test_sense.py`: interval "16" → 16,000 km; "5" months next to "years" → 60 months; "1 speed" e-CVT → transmission e-CVT and no gear_count; TCO €513,672/year → flagged and not scored; seats 0 and boot 0 L → rejected. Each case asserts the rule id
 - [ ] T013 [P] Write identity tests in `backend/tests/unit/domain/test_identity_gearbox.py`:
   - a "manual" claim for an automatic CX-5 variant is rejected as `OTHER_VARIANT`;
   - a title or URL that says "manual" for an automatic target gives OTHER_VARIANT in `domain/relevance.py`;
@@ -76,6 +76,13 @@ because the verdict is built from insights. Both are P1 and together they are th
 **Checkpoint**: `scripts/check.sh` is green and the regression set passes. The user stories can start.
 
 ---
+
+### Done ahead of plan (user reports 2026-11-02)
+
+- [X] T086 [P] Run each page of a job as a concurrent pipeline, with `concurrency.llm_per_job` and a gateway-wide `llm_total` limit (FR-032) in `backend/src/automind/application/research.py` and `backend/src/automind/infrastructure/llm_gateway.py`
+- [X] T087 Keep consumption per cycle (WLTP / NEDC / real) and use WLTP upper bounds. The fuel bill uses real-world consumption or WLTP × the allowance in `rates.yaml` (FR-033) in `backend/src/automind/domain/sense.py`, `domain/tco.py` and `domain/specs.py`
+- [X] T088 Make excerpt checks ignore markdown and accept an ellipsis; check the market of price and schedule sources; derive the service interval from the schedule (FR-034) in `domain/evidence.py`, `domain/sense.py` and `application/research.py`
+- [X] T089 Repair stored data with the new rules (`scripts/repair-data.sh`, `backend/src/automind/application/repair.py`). It was run on the dev DB after a backup in `backups/`
 
 ## Phase 2b: User Story 8 — Exact cars settled before research; equal equipment level (Priority: P1) 🎯 MVP part 0
 

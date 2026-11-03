@@ -142,7 +142,25 @@ def chat_model(role: str) -> BaseChatModel:
     return _build(role, candidates(role)[0])
 
 
+_LLM_SEM: dict[int, asyncio.Semaphore] = {}  # per event loop (tests run several loops)
+LLM_TOTAL = 16  # default; config/search.yaml concurrency.llm_total
+
+
+def _slots() -> asyncio.Semaphore:
+    """One limit on model calls in flight across all jobs, so parallel research does not trip rate limits."""
+    loop = id(asyncio.get_running_loop())
+    if loop not in _LLM_SEM:
+        conc = cfg.search_config().get("concurrency") or {}
+        _LLM_SEM[loop] = asyncio.Semaphore(int(conc.get("llm_total", LLM_TOTAL)))
+    return _LLM_SEM[loop]
+
+
 async def _with_fallbacks(role: str, call: Any) -> Any:
+    async with _slots():
+        return await _try_models(role, call)
+
+
+async def _try_models(role: str, call: Any) -> Any:
     """Try the role's model, then its fallbacks; an overloaded or used-up model is skipped for a while.
     When every model is overloaded, wait briefly and try the first one once more."""
     last: BaseException | None = None

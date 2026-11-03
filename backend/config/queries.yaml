@@ -14,6 +14,7 @@ engineering:
     - '{make} {model} {generation} {variant} engine bore stroke compression ratio platform
   suspension'
     - '{make} {model} {generation} technical analysis chassis drivetrain engineering'
+    - '{make} {model} {generation} model year changes facelift update new engine'
 measured:
   favourite: '{make} {model} {generation} {variant} test 0-100 {sites}'
   open:
@@ -41,10 +42,19 @@ reliability:
     - '{make} {model} {generation} fiabilidad averías comunes'
     - '{make} {model} {generation} TÜV report breakdown statistics'
 manufacturer:
-  favourite: '{make} history {sites}'
+  favourite: '{make} {sites}'
   open:
     - '{make} car manufacturer history market position premium brand'
-    - '{make} brand positioning premium mainstream budget'
+    - '{make} market share Europe Spain sales trend'
+    - '{make} annual results operating profit automotive'
+    - '{make} reliability ranking brand survey'
+    - '{make} concesionarios talleres red oficial España'
+depreciation:
+  favourite: '{make} {model} {generation} residual value depreciation {sites}'
+  open:
+    - '{make} {model} {generation} residual value after 3 years 5 years depreciation'
+    - '{make} {model} valor residual depreciación 3 años 5 años'
+    - '{make} {model} {generation} resale value retention ranking'
 used_issues:
   favourite: '{make} {model} {generation} used buying guide {sites}'
   open:

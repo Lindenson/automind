@@ -30,11 +30,11 @@ def test_item_kinds_and_labels_for_a_new_car():
 
 def test_energy_from_consumption_and_price():
     e = items(compute(car(consumption=7.0, fuel="petrol"), RATES))["ENERGY"]
-    assert e.annual_eur == pytest.approx(7.0 * 15000 / 100 * 1.60)
+    assert e.annual_eur == pytest.approx(7.0 * 1.15 * 15000 / 100 * 1.60)  # WLTP × real-use allowance
     d = items(compute(car(consumption=6.0, fuel="diesel"), RATES))["ENERGY"]
-    assert d.annual_eur == pytest.approx(6.0 * 150 * 1.50)
+    assert d.annual_eur == pytest.approx(6.0 * 1.15 * 150 * 1.50)
     ev = items(compute(car(powertrain="BEV", fuel=None, consumption=16.0), RATES))["ENERGY"]
-    assert ev.annual_eur == pytest.approx(16.0 * 150 * 0.25) and any("kWh" in i for i in ev.inputs)
+    assert ev.annual_eur == pytest.approx(16.0 * 1.2 * 150 * 0.25) and any("kWh" in i for i in ev.inputs)
     none = items(compute(car(consumption=None), RATES))["ENERGY"]
     assert none.annual_eur is None and "not included" in none.label
 
@@ -95,12 +95,12 @@ def test_new_car_has_no_reserve():
 
 def test_annual_km_override_and_rate_overrides():
     a = items(compute(car(), RATES, annual_km=30000))["ENERGY"].annual_eur
-    assert a == pytest.approx(7.0 * 300 * 1.60)
+    assert a == pytest.approx(7.0 * 1.15 * 300 * 1.60)
     cheap = TcoRates.from_config(
         yaml.safe_load((Path(__file__).parents[3] / "config" / "rates.yaml").read_text()),
         overrides={"fuel_eur_per_l": 1.0},
     )
-    assert items(compute(car(), cheap))["ENERGY"].annual_eur == pytest.approx(7.0 * 150 * 1.0)
+    assert items(compute(car(), cheap))["ENERGY"].annual_eur == pytest.approx(7.0 * 1.15 * 150 * 1.0)
 
 
 def test_implausible_published_schedule_falls_back_to_the_estimate():

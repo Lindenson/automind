@@ -16,6 +16,8 @@ class Context:
     powertrain: str | None = None  # ICE | HEV | PHEV | MHEV | BEV
     fuel: str | None = None  # diesel | petrol | electric …
     known: Mapping[str, float] = field(default_factory=dict)  # canonical values already selected for the car
+    transmission: str | None = None  # the identified variant's gearbox (spec 004 FR-028)
+    drive: str | None = None  # FWD | RWD | AWD
 
 
 @dataclass(frozen=True)

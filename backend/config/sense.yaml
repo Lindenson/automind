@@ -1,0 +1,20 @@
+# Sense rules: does a value mean what its attribute means? (spec 004 FR-027; research R4)
+# Runs after unit normalisation and plausibility. Every rejection carries "sense.<attribute>.<rule>".
+version: 1
+magnitude:
+  service_interval_km:
+    min: 1000
+    max: 300000
+    thousands_if_between: [3, 300]       # "16" next to "thousand km" → 16,000 km
+  service_interval_months:
+    min: 1
+    max: 240
+    years_if_at_most: 15                 # "5" with "years" in the excerpt and no "months" → 60 months
+    year_words: [year, años, año, anos, jahr, yr]
+    month_words: [month, mes, monat]
+meaning:
+  gear_count:
+    min_ice: 2                           # an ICE gearbox has at least 2 speeds
+    no_count_for: [e-cvt, cvt, single]   # planetary e-CVTs, CVTs and BEV reductions have no gear count
+results:
+  tco_per_year_eur: {min: 800, max: 15000, max_age_years: 15}   # outside → flagged, not scored

@@ -11,7 +11,9 @@ Constitution I (evidence first), III (code normalizes numbers), VIII (untrusted 
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import hashlib
+import re
 from collections import defaultdict
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -24,7 +26,7 @@ from automind.application import extraction as ex
 from automind.application.ports import Page, Ports, WebDoc
 from automind.application.usage import BudgetExceeded, current_job
 from automind.domain import evidence as ev
-from automind.domain import identity, plausibility, research_plan, search_plan, specs
+from automind.domain import identity, plausibility, research_plan, search_plan, sense, specs
 from automind.domain import relevance as rel
 from automind.infrastructure import db
 
@@ -68,42 +70,46 @@ def target_of(v: db.Variant, car_year: int | None = None) -> str:
 
 
 MAX_LLM_RELEVANCE_PER_JOB = 4
+LLM_PER_JOB = 6  # default; config/search.yaml concurrency.llm_per_job
 
 
-async def _relevance_gate(
-    ports: Ports, v: db.Variant, pages: list[Page], target: str
-) -> tuple[list[Page], dict[str, int], set[str]]:
-    """Reject pages about another variant before any extraction (FR-013). Returns kept pages, rejection
-    counts by reason, and the URLs that stay uncertain (→ validator)."""
+def _llm_per_job(ports: Ports) -> int:
+    return int(((ports.ref.search or {}).get("concurrency") or {}).get("llm_per_job", LLM_PER_JOB))
+
+
+def _relevance_target(v: db.Variant, ports: Ports) -> tuple[rel.Target, list[rel.GenerationInfo]]:
     gens = [rel.GenerationInfo(g, a, b) for g, a, b in ports.ref.generations.get(f"{v.make}|{v.model}", [])]
     if v.generation and not any(g.code == v.generation for g in gens):
         gens.append(rel.GenerationInfo(v.generation, v.generation_years_from, v.generation_years_to))
     tgt = rel.Target(v.make, v.model, v.generation, v.generation_years_from, v.generation_years_to,
                      v.variant_name, fuel_of(v.variant_name, v.powertrain), v.body_class)  # fmt: skip
-    kept: list[Page] = []
-    rejected: dict[str, int] = defaultdict(int)
-    uncertain: set[str] = set()
-    llm_left = MAX_LLM_RELEVANCE_PER_JOB if "relevance" in ports.ref.prompts else 0
-    for p in pages:
-        r = rel.judge(rel.PageFacts(p.url, p.title, p.text), tgt, gens)
+    return tgt, gens
+
+
+class _PageJudge:
+    """Relevance of one page: rules first, the relevance role for uncertain pages (at most
+    MAX_LLM_RELEVANCE_PER_JOB per job). Safe to call concurrently: the budget is taken before any await."""
+
+    def __init__(self, ports: Ports, v: db.Variant, tgt: rel.Target, gens: list[rel.GenerationInfo], target: str):
+        self.ports, self.v, self.tgt, self.gens, self.target = ports, v, tgt, gens, target
+        self.llm_left = MAX_LLM_RELEVANCE_PER_JOB if "relevance" in ports.ref.prompts else 0
+
+    async def __call__(self, p: Page) -> rel.Relevance:
+        r = rel.judge(rel.PageFacts(p.url, p.title, p.text), self.tgt, self.gens)
         method = "RULES"
-        if r.verdict == "UNCERTAIN" and llm_left > 0:
-            llm_left -= 1
+        if r.verdict == "UNCERTAIN" and self.llm_left > 0:
+            self.llm_left -= 1
             try:
-                out = await ex.judge_relevance(ports.llm, ports.ref.prompts["relevance"], target, p.as_doc())
+                out = await ex.judge_relevance(
+                    self.ports.llm, self.ports.ref.prompts["relevance"], self.target, p.as_doc()
+                )
                 r, method = rel.Relevance(out.verdict, out.reason or "relevance check", out.other), "LLM"
             except BudgetExceeded:
                 raise
             except Exception:  # noqa: BLE001 - no answer: stays uncertain, the validator decides per claim
                 pass
-        await _store_relevance(p, v.id, r, method)
-        if r.verdict in ("OTHER_VARIANT", "NOT_ABOUT_CAR"):
-            rejected[r.verdict.lower()] += 1
-            continue
-        if r.verdict in ("UNCERTAIN", "MULTI_VARIANT"):
-            uncertain.add(p.url)
-        kept.append(p)
-    return kept, dict(rejected), uncertain
+        await _store_relevance(p, self.v.id, r, method)
+        return r
 
 
 async def _store_relevance(p: Page, variant_id: str, r: rel.Relevance, method: str) -> None:
@@ -194,50 +200,57 @@ async def _run(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
     seen = await _used_urls(v.id, job.area)
     planned, pages, stats = await _search_pages(ports, v, job, missing, seen, emit)
     target = target_of(v, job.car_year)
-    pages, gate, uncertain = await _relevance_gate(ports, v, pages, target)
-    for k, n in gate.items():
-        stats["pages_rejected"][k] = stats["pages_rejected"].get(k, 0) + n
-    docs = [p.as_doc() for p in pages]
-    page_of = {p.url: p for p in pages}
-    await emit("relevance", f"{job.area}: {sum(gate.values())} of {sum(gate.values()) + len(pages)} pages "
-               "rejected (other variant)" if gate else f"{job.area}: all pages match the variant")  # fmt: skip
-    await emit("reading", f"{job.area}: reading {len(docs)} sources ({stats['pages_cached']} from cache)")
-    sem = asyncio.Semaphore(4)
+    # One pipeline per page (spec 004 FR-032): relevance → table reader or extraction → validation → storage.
+    # Pages run concurrently; the model calls are bounded per job here and in total by the gateway.
+    await emit("reading", f"{job.area}: reading {len(pages)} sources ({stats['pages_cached']} from cache)")
+    tgt, gens = _relevance_target(v, ports)
+    judge = _PageJudge(ports, v, tgt, gens, target)
+    sem = asyncio.Semaphore(_llm_per_job(ports))
     known = await _known_values(v.id)
     readings = await _read_tables(ports, v, pages) if job.area in ex.SPEC_AREAS else {}
+    gate: dict[str, int] = defaultdict(int)
+    values_rejected: dict[str, int] = defaultdict(int)
+    totals = {"accepted": 0, "rejected": 0, "reader": 0, "docs": 0}
 
-    async def one(d: WebDoc) -> tuple[WebDoc, BaseModel | None]:
+    async def one(p: Page) -> None:
+        r = await judge(p)
+        if r.verdict in ("OTHER_VARIANT", "NOT_ABOUT_CAR"):
+            gate[r.verdict.lower()] += 1
+            return
+        totals["docs"] += 1
+        d = p.as_doc()
         if d.url in readings:
-            return d, None
-        async with sem:
+            a, rj = await _persist_reading(ports, v, job.area, d, readings[d.url], known, values_rejected, p)
+            totals["reader"] += a
+        else:
             try:
-                return d, await ex.extract(ports.llm, ports.ref.prompts, job.area, target, d)
+                async with sem:
+                    out = await ex.extract(ports.llm, ports.ref.prompts, job.area, target, d)
             except BudgetExceeded:
                 raise
-            except Exception:  # one failing source never fails the job
-                return d, None
+            except Exception:  # noqa: BLE001 - one failing source never fails the job
+                return
+            if out is None or not getattr(out, "is_about_variant", True):
+                return
+            uncertain = r.verdict in ("UNCERTAIN", "MULTI_VARIANT")
+            async with sem:
+                a, rj = await _persist(ports, v, job.area, d, out, target, uncertain, p, known, values_rejected)
+        totals["accepted"] += a
+        totals["rejected"] += rj
 
-    extracted = await asyncio.gather(*(one(d) for d in docs))
-    await emit("validating", f"{job.area}: validating against the sources")
-    accepted = rejected = reader_values = 0
-    values_rejected: dict[str, int] = defaultdict(int)
-    for d, out in extracted:
-        page = page_of.get(d.url)
-        if d.url in readings:
-            a, r = await _persist_reading(ports, v, job.area, d, readings[d.url], known, values_rejected, page)
-            reader_values += a
-        elif out is None or not getattr(out, "is_about_variant", True):
-            continue
-        else:
-            a, r = await _persist(ports, v, job.area, d, out, target, d.url in uncertain, page, known, values_rejected)
-        accepted, rejected = accepted + a, rejected + r
+    await asyncio.gather(*(one(p) for p in pages))
+    for k, n in gate.items():
+        stats["pages_rejected"][k] = stats["pages_rejected"].get(k, 0) + n
+    if gate:
+        await emit("relevance", f"{job.area}: {sum(gate.values())} of {len(pages)} pages rejected (other variant)")
+    accepted, rejected, reader_values = totals["accepted"], totals["rejected"], totals["reader"]
     stats["values_rejected"] = dict(values_rejected)
     stats["reader_values"] = reader_values
     if job.area in ex.SPEC_AREAS or job.area == "maintenance":
         await reselect(v.id)
     hits = await area_hits(v, job.area)
     met = research_plan.minimum_met(job.area, [research_plan.SourceHit(**h) for h in hits])
-    await _mark_run(v.id, job.area, len(docs), accepted, rejected, job.round, met)
+    await _mark_run(v.id, job.area, totals["docs"], accepted, rejected, job.round, met)
     await _job_metrics(job.job_id, planned, stats)
     await emit("validating", f"{job.area}: {accepted} accepted, {rejected} rejected by validation")
     return JobResult(
@@ -245,7 +258,7 @@ async def _run(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
         v.id,
         job.area,
         job.round,
-        docs=len(docs),
+        docs=totals["docs"],
         accepted=accepted,
         rejected=rejected,
         minimum_met=met,
@@ -498,7 +511,20 @@ async def _persist(
 
 
 def _plausibility_ctx(v: db.Variant, known: dict[str, float]) -> plausibility.Context:
-    return plausibility.Context(powertrain=v.powertrain, fuel=fuel_of(v.variant_name, v.powertrain), known=known)
+    return plausibility.Context(
+        powertrain=v.powertrain, fuel=fuel_of(v.variant_name, v.powertrain), known=known,
+        transmission=getattr(v, "transmission", None) or _variant_gearbox(v), drive=getattr(v, "drive", None),
+    )  # fmt: skip
+
+
+def _variant_gearbox(v: db.Variant) -> str | None:
+    """The gearbox named in the variant name ("… 6AT", "… manual", "… e-CVT"), when the column is empty."""
+    name = f" {v.variant_name} ".lower()
+    if re.search(r"\b\d\s?(at|a/t)\b|automatic|automático|automatica", name):
+        return "automatic"
+    if re.search(r"\b\d\s?(mt|m/t)\b|manual", name):
+        return "manual"
+    return sense.gearbox_family(name)
 
 
 def _check(
@@ -509,7 +535,7 @@ def _check(
     *,
     excerpt_checked: bool = False,
 ) -> tuple[str, float | None, str | None, str | None]:
-    """(status, number, text, reject_rule): excerpt → unit → plausibility (FR-014)."""
+    """(status, number, text, reject_rule): excerpt → unit → plausibility (FR-014) → sense (004 FR-027)."""
     if (
         not excerpt_checked
         and specs.RANGE_RE.search(c.raw_value) is None
@@ -524,7 +550,36 @@ def _check(
         p = plausibility.check(c.attribute, val, ctx, rules)
         if not p.ok:
             return "REJECTED_IMPLAUSIBLE", None, None, p.rule_id
+    if ctx is not None:
+        bad = _sense_after(c.attribute, val, ctx)
+        if bad is not None:
+            return bad
     return ("ACCEPTED", val, None, None) if isinstance(val, float) else ("ACCEPTED", None, str(val), None)
+
+
+def _sense_before(c: Any, v: db.Variant, source_type: str | None) -> tuple[Any, tuple[str, None, None, str] | None]:
+    """Re-file a claim under the attribute its value really is (WLTP / NEDC / real-world consumption)."""
+    if c.attribute != "consumption":
+        return c, None
+    r = sense.classify_consumption(c.raw_value, c.excerpt, v.generation_years_from, source_type)
+    if not r.ok:
+        return c, ("REJECTED_IMPLAUSIBLE", None, None, r.rule_id or "sense.consumption")
+    update = {"attribute": r.attribute, "raw_value": r.value}
+    c2 = c.model_copy(update=update) if hasattr(c, "model_copy") else dataclasses.replace(c, **update)
+    return c2, None
+
+
+def _sense_after(attribute: str, val: Any, ctx: plausibility.Context) -> tuple[str, None, None, str] | None:
+    """Meaning rules on a normalised value: gear counts of e-CVTs, another gearbox or drive than the variant."""
+    if attribute == "gear_count" and isinstance(val, float):
+        r = sense.gear_count(val, ctx.transmission, ctx.powertrain)
+        if not r.ok:
+            return "REJECTED_IMPLAUSIBLE", None, None, r.rule_id or "sense.gear_count"
+    if attribute == "transmission" and sense.gearbox_conflict(ctx.transmission, str(val)):
+        return "REJECTED_OTHER_VARIANT", None, None, "sense.transmission.other_gearbox"
+    if attribute == "drivetrain" and sense.drive_conflict(ctx.drive, str(val)):
+        return "REJECTED_OTHER_VARIANT", None, None, "sense.drivetrain.other_drive"
+    return None
 
 
 VALIDATOR_REJECTS = ("OTHER_VARIANT", "OTHER_MARKET", "OTHER_YEAR", "UNCLEAR")
@@ -544,7 +599,10 @@ async def _spec_claims(
     values_rejected: dict[str, int],
 ) -> tuple[int, int]:
     ctx = _plausibility_ctx(v, known)
-    checked = [(c, *_check(c, d, ctx, ports.ref.plausibility)) for c in out.claims]
+    checked = []
+    for c0 in out.claims:
+        c, bad = _sense_before(c0, v, ev.classify_source(d.url))
+        checked.append((c, *(bad or _check(c, d, ctx, ports.ref.plausibility))))
     conflicting = {
         i for i, (c, st, num, _, _) in enumerate(checked)
         if st == "ACCEPTED" and num is not None and c.attribute in known
@@ -562,7 +620,10 @@ async def _spec_claims(
         if not uncertain:  # only the conflicting claims were in question
             verdicts = {i: verdicts[i] for i in conflicting if i in verdicts}
     accepted = rejected = 0
+    market = sense.market_fits(d.url, area)
     for i, (c, status, num, txt, rule) in enumerate(checked):
+        if status == "ACCEPTED" and not market.ok and c.attribute in ("official_price_es",):
+            status, rule = "REJECTED_OTHER_MARKET", market.rule_id
         scope = "GENERATION" if d.snippet_only and c.scope == "VARIANT" else c.scope
         verdict = verdicts.get(i)
         if status == "ACCEPTED" and verdict in VALIDATOR_REJECTS:
@@ -612,8 +673,10 @@ async def _persist_reading(
         for row in reading.rows:
             if row.attribute not in specs.ATTRS:
                 continue
-            c = _ReaderClaim(row.attribute, row.raw_value, row.raw_unit, row.excerpt)
-            status, num, txt, rule = _check(c, d, ctx, ports.ref.plausibility, excerpt_checked=True)
+            c, bad = _sense_before(
+                _ReaderClaim(row.attribute, row.raw_value, row.raw_unit, row.excerpt), v, ev.classify_source(d.url)
+            )
+            status, num, txt, rule = bad or _check(c, d, ctx, ports.ref.plausibility, excerpt_checked=True)
             if status == "ACCEPTED":
                 accepted += 1
             else:
@@ -662,29 +725,13 @@ def _maintenance(s: Any, v: db.Variant, e: db.Evidence, out: Any, k: _Counter) -
 
 
 def interval_km(raw: str | None) -> int | None:
-    """Service interval in km. "16" next to "thousand km" is often extracted as 16: values 3–300 are read as
-    thousands; anything else below 1,000 km or above 300,000 km is not a service interval (dropped)."""
-    v = _int(raw)
-    if v is None:
-        return None
-    if v < 1000:
-        v = v * 1000 if 3 <= v <= 300 else 0
-    return v if 1000 <= v <= 300_000 else None
-
-
-_YEAR_WORDS = ("year", "años", "año", "anos", "jahr", "yr")
-_MONTH_WORDS = ("month", "mes", "monat")
+    """Service interval in km (sense rule: "16" next to "thousand km" is 16,000 km)."""
+    return sense.interval_km(_int(raw))
 
 
 def interval_months(raw: str | None, excerpt: str = "") -> int | None:
-    """Interval in months; "every 5 years" extracted as 5 is converted when the excerpt speaks of years."""
-    v = _int(raw)
-    if v is None:
-        return None
-    ex = excerpt.lower()
-    if v <= 15 and any(w in ex for w in _YEAR_WORDS) and not any(w in ex for w in _MONTH_WORDS):
-        v *= 12
-    return v if 1 <= v <= 240 else None
+    """Interval in months (sense rule: "every 5 years" extracted as 5 is 60 months)."""
+    return sense.interval_months(_int(raw), excerpt)
 
 
 def _reviews(s: Any, v: db.Variant, e: db.Evidence, out: Any, k: _Counter) -> None:
@@ -757,6 +804,8 @@ async def _items(
 ) -> tuple[int, int]:
     """Non-numeric areas: keep only items whose excerpt literally occurs in the document."""
     k = _Counter(d.text)
+    if area == "maintenance" and not sense.market_fits(d.url, area).ok:
+        return 0, len(getattr(out, "items", []) or [])  # another market's schedule (e.g. Malaysia): not used
     if area == "maintenance":
         _maintenance(s, v, e, out, k)
     elif area == "reviews":
@@ -958,6 +1007,33 @@ def same_model_generations(ref_generations: dict[str, list[tuple[str, Any, Any]]
     return [g for g, _, _ in ref_generations.get(f"{make}|{model}", [])]
 
 
+async def _interval_from_schedule(session: Any, variant_id: str, selected: dict[str, Any]) -> dict[str, int]:
+    """Service interval from the accepted schedule items when no source states it as a single value
+    (user report 2026-11-02: the Tucson had a schedule but "no service interval"). European sources only."""
+    want = [k for k in ("service_interval_km", "service_interval_months")
+            if k not in selected or not selected[k].available]  # fmt: skip
+    if not want:
+        return {}
+    rows = (
+        await session.execute(select(db.MaintenanceItem).where(db.MaintenanceItem.variant_id == variant_id))
+    ).scalars()
+    items = list(rows)
+    ev_ids = {i for m in items for i in (m.evidence_ids or [])}
+    urls = {}
+    if ev_ids:
+        urls = {
+            e.id: e.url
+            for e in (await session.execute(select(db.Evidence).where(db.Evidence.id.in_(ev_ids)))).scalars()
+        }
+    usable = [
+        (m.item, m.interval_km, m.interval_months) for m in items
+        if all(sense.market_fits(urls.get(i, ""), "maintenance").ok for i in (m.evidence_ids or []))
+    ]  # fmt: skip
+    km, months = sense.service_interval_from_items(usable)
+    out = {"service_interval_km": km, "service_interval_months": months}
+    return {k: v for k, v in out.items() if k in want and v}
+
+
 async def reselect(variant_id: str) -> None:
     """Recompute selected values for all attributes from all accepted claims (FR-017/FR-018)."""
     async with db.sessionmaker()() as session:
@@ -983,7 +1059,10 @@ async def reselect(variant_id: str) -> None:
         ]
         selected = ev.select_all(claims)
         await session.execute(delete(db.SpecValue).where(db.SpecValue.variant_id == variant_id))
+        derived = await _interval_from_schedule(session, variant_id, selected)
         for key, sel in selected.items():
+            if key in derived:
+                continue  # the schedule's interval replaces an empty value
             session.add(
                 db.SpecValue(
                     variant_id=variant_id,
@@ -999,4 +1078,12 @@ async def reselect(variant_id: str) -> None:
                     alternatives=sel.alternatives,
                 )
             )
+        for key, value in derived.items():
+            session.add(
+                db.SpecValue(
+                    variant_id=variant_id, attribute=key, available=True, value_num=float(value), value_text=None,
+                    provenance="SOURCED_FACT", confidence="MEDIUM", confidence_rule="from the service schedule",
+                    resolution_rule="schedule", claim_ids=[], alternatives=[],
+                )
+            )  # fmt: skip
         await session.commit()

@@ -1,0 +1,64 @@
+# Report layout per profile (spec 004 FR-002, FR-019; research R7). Sections in order.
+# open: shown expanded by default; depth: summary | full (what the writer explains and how deeply).
+# Blocks: which block types each section holds. The verdict always comes first.
+version: 1
+sections:
+  verdict:         {blocks: [verdict, suggestions]}
+  comparison:      {blocks: [comparison, criteria_scores, metric_bars]}
+  engineering:     {blocks: [engineering]}
+  performance:     {blocks: [race_chart]}
+  cost_over_time:  {blocks: [tco, feasibility]}
+  value_retention: {blocks: [value_retention]}
+  reliability:     {blocks: [reliability]}
+  reviews:         {blocks: [reviews]}
+  manufacturer:    {blocks: [manufacturer]}
+  data_panel:      {blocks: [data_panel]}
+  sources:         {blocks: [sources, spec_table]}
+layouts:
+  BUYER:
+    - {section: verdict, open: true}
+    - {section: comparison, open: true, depth: summary}
+    - {section: cost_over_time, open: true, depth: full}
+    - {section: value_retention, open: true, depth: full}
+    - {section: reliability, open: false, depth: full}
+    - {section: reviews, open: false, depth: summary}
+    - {section: engineering, open: false, depth: summary}
+    - {section: manufacturer, open: false, depth: summary}
+    - {section: data_panel, open: false}
+    - {section: sources, open: false}
+  PERFORMANCE:
+    - {section: verdict, open: true}
+    - {section: performance, open: true, depth: full}
+    - {section: comparison, open: true, depth: full}
+    - {section: engineering, open: true, depth: full}
+    - {section: reviews, open: false, depth: summary}
+    - {section: reliability, open: false, depth: summary}
+    - {section: cost_over_time, open: false, depth: summary}
+    - {section: value_retention, open: false, depth: summary}
+    - {section: manufacturer, open: false, depth: summary}
+    - {section: data_panel, open: false}
+    - {section: sources, open: false}
+  EXPERT:
+    - {section: verdict, open: true}
+    - {section: engineering, open: true, depth: full}
+    - {section: comparison, open: true, depth: full}
+    - {section: reliability, open: true, depth: full}
+    - {section: manufacturer, open: false, depth: full}
+    - {section: cost_over_time, open: false, depth: full}
+    - {section: value_retention, open: false, depth: full}
+    - {section: performance, open: false, depth: summary}
+    - {section: reviews, open: false, depth: summary}
+    - {section: data_panel, open: false}
+    - {section: sources, open: false}
+  UNKNOWN:
+    - {section: verdict, open: true}
+    - {section: comparison, open: true, depth: summary}
+    - {section: cost_over_time, open: false, depth: summary}
+    - {section: engineering, open: false, depth: summary}
+    - {section: value_retention, open: false, depth: summary}
+    - {section: reliability, open: false, depth: summary}
+    - {section: reviews, open: false, depth: summary}
+    - {section: manufacturer, open: false, depth: summary}
+    - {section: performance, open: false, depth: summary}
+    - {section: data_panel, open: false}
+    - {section: sources, open: false}

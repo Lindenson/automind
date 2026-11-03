@@ -157,7 +157,7 @@ def _norm(t: str) -> str:
 def excerpt_in_doc(excerpt: str, doc_text: str, must_contain: str | None = None) -> bool:
     """The excerpt must literally occur in the document (≥15 chars), and contain `must_contain` if given."""
     ex = _norm(excerpt)
-    if len(ex) < 15 or ex not in _norm(doc_text):
+    if len(ex) < 15 or not ev.occurs(excerpt, doc_text):
         return False
     return must_contain is None or ev.validate_excerpt(excerpt, must_contain, doc_text)
 

@@ -29,6 +29,8 @@ TABLE_ROWS = [
     "claimed_0_100",
     "top_speed",
     "consumption",
+    "consumption_real",
+    "consumption_nedc",
     "boot_volume",
     "seats",
     "official_price_es",
@@ -278,7 +280,7 @@ def display(key: str, sv) -> str | None:
         return units.kw_to_hp_display(x)
     if key == "official_price_es":
         return f"{x:,.0f} €".replace(",", ".")
-    if key == "consumption":
+    if key in ("consumption", "consumption_real", "consumption_nedc"):
         return f"{x:g}"
     if key in ("seats", "service_interval_months"):
         return f"{x:.0f}" + (" months" if key == "service_interval_months" else "")
@@ -658,6 +660,8 @@ async def tco_car(car: dict, condition: str, age_years: int | None, mileage_km: 
         powertrain=v.powertrain,
         fuel=None if v.powertrain == "BEV" else fuel,
         consumption=_num(car, "consumption"),
+        consumption_real=_num(car, "consumption_real"),
+        consumption_nedc=_num(car, "consumption_nedc"),
         vehicle_class=v.vehicle_class,
         condition=condition,
         age_years=age_years,
