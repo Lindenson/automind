@@ -35,7 +35,8 @@ class Interpretation(BaseModel):
     delta: CaseDelta = Field(default_factory=CaseDelta, description="Changes to the case file stated in THIS message")
     persona_evidence: str | None = Field(
         default=None,
-        description="Verbatim words from the LATEST user message that show who the user is (required to set_persona)",
+        description="Verbatim words the user wrote (this or an earlier message) that show who they are; required "
+        "to set_persona",
     )
     focus_cars: list[str] = Field(
         default_factory=list, description="research_more: car keys the user named (empty = all cars)"
@@ -50,6 +51,14 @@ class Interpretation(BaseModel):
         description="Verbatim words from the LATEST message that contain the numbers set in set_budget, "
         "set_running_cost_limit or set_needs",
     )
+
+
+HISTORY_WINDOW = (16, 800)  # turns × characters; configure_history() sets it from search.yaml
+
+
+def configure_history(turns: int, chars: int) -> None:
+    global HISTORY_WINDOW
+    HISTORY_WINDOW = (max(1, int(turns)), max(100, int(chars)))
 
 
 class InterpretError(ValueError):
@@ -76,7 +85,8 @@ CRITERIA_HELP = {
 def build_user_prompt(case: CaseFile, history: list[dict[str, str]], user_text: str) -> str:
     compact = case.model_dump(mode="json", exclude={"shown", "next_car_no"}, exclude_defaults=True)
     criteria = "\n".join(f"- {k}: {CRITERIA_HELP[k]}" for k in CRITERION_KEYS)
-    hist = "\n".join(f"{m['role']}: {m['text'][:500]}" for m in history[-12:]) or "(start of the chat)"
+    turns, chars = HISTORY_WINDOW  # spec 007 FR-005: the profile is inferred from the dialogue, not one message
+    hist = "\n".join(f"{m['role']}: {m['text'][:chars]}" for m in history[-turns:]) or "(start of the chat)"
     pending = json.dumps(case.pending.model_dump(mode="json"), ensure_ascii=False) if case.pending else "none"
     return (
         f"CASE FILE (car keys are fixed: {', '.join(c.key for c in case.cars) or 'no cars yet'}):\n"
@@ -112,7 +122,9 @@ async def interpret(
     except (ValidationError, ValueError) as e:
         raise InterpretError(str(e)) from e
     _check(case, out.delta)
-    out = _constraints_from_this_message(_persona_from_this_message(out, user_text), user_text)
+    said = [user_text, *(m["text"] for m in history if m.get("role") == "user")]
+    out = _profile_from_users_words(_persona_from_users_words(out, said), said)
+    out = _constraints_from_this_message(out, user_text)
     return engine_hints(out, user_text)
 
 
@@ -163,25 +175,66 @@ def _norm(t: str) -> str:
     return " ".join(t.lower().split())
 
 
-def _persona_from_this_message(i: Interpretation, user_text: str) -> Interpretation:
-    """A persona may change only on words of THIS message (never re-derived from history), so a
-    persona the user set in the case panel is not silently overwritten (FR-005a, FR-009)."""
-    ev = i.persona_evidence
-    if i.delta.set_persona is None or (ev and len(ev.strip()) >= 3 and _norm(ev) in _norm(user_text)):
+def _said(words: str | None, said: list[str]) -> bool:
+    return bool(words) and len(words.strip()) >= 3 and any(_norm(words) in _norm(t) for t in said)
+
+
+def _persona_from_users_words(i: Interpretation, said: list[str]) -> Interpretation:
+    """A persona needs the user's own words (spec 007 FR-002; before: this message only). Words from an earlier
+    message are an inference: INFERRED, which never overwrites what the user stated or set in the panel."""
+    p = i.delta.set_persona
+    if p is None:
         return i
-    return i.model_copy(update={"delta": i.delta.model_copy(update={"set_persona": None})})
+    if not _said(i.persona_evidence, said):
+        return i.model_copy(update={"delta": i.delta.model_copy(update={"set_persona": None})})
+    if _said(i.persona_evidence, said[:1]):
+        return i
+    basis = {**i.delta.profile_basis, "persona": "INFERRED"}
+    delta = i.delta.model_copy(update={"set_persona": p.model_copy(update={"source": "INFERRED"}),
+                                       "profile_basis": basis})  # fmt: skip
+    return i.model_copy(update={"delta": delta})
 
 
-# "20к" / "20k" is 20,000 but "20 км" / "20 km" is a distance (reviewer 2026-11-03: the Cyrillic к was missed)
-_NUM_RE = re.compile(r"(\d[\d.,\s]*\d|\d)\s*([kк](?![a-zа-яё])|mil\b|тыс\w*|thousand)?", re.I)
+def _profile_from_users_words(i: Interpretation, said: list[str]) -> Interpretation:
+    """Profile fields (family, age band, driving style) need words the user actually wrote (constitution I);
+    words from an earlier message only are INFERRED."""
+    p = i.delta.set_profile
+    if p is None:
+        return i
+    keep = {f: w for f, w in p.evidence.items() if _said(w, said)}
+    upd = {f: None for f in ("family", "age_band", "driving_style") if getattr(p, f) is not None and f not in keep}
+    basis = dict(i.delta.profile_basis)
+    for f, w in keep.items():
+        if f in ("family", "age_band", "driving_style") and not _said(w, said[:1]):
+            basis[f] = "INFERRED"
+    return i.model_copy(update={"delta": i.delta.model_copy(update={
+        "set_profile": p.model_copy(update={**upd, "evidence": keep}), "profile_basis": basis})})  # fmt: skip
+
+
+# "20к" / "20k" is 20,000 but "20 км" / "20 km" is a distance (reviewer 2026-11-03: the Cyrillic к was missed).
+# A space joins digits only as a thousands group ("25 000"); "Golf 7 2015" is 7 and 2015 (spec 007 FR-004).
+_NUM_RE = re.compile(
+    r"(\d{1,3}(?:[\s\u00a0.,]\d{3})+(?!\d)|\d+(?:[.,]\d+)?)\s*"
+    r"([kк](?![a-zа-яё])|mil\b|тыс\w*|тыщ\w*|thousand|млн\w*|mill[oó]n\w*|million\w*)?",
+    re.I,
+)
+
+
+def _multiplier(word: str | None) -> float:
+    if not word:
+        return 1.0
+    w = word.lower()
+    return 1_000_000.0 if w.startswith(("млн", "mill")) else 1000.0
 
 
 def numbers_in(text: str) -> set[float]:
-    """Numbers written in a message: '25.000', '25,000', '25 000', '25k', '25 mil', '25 тыс' → 25000."""
+    """Numbers written in a message: '25.000', '25,000', '25 000', '25k', '25 mil', '25 тыс', 'до 20 тыщ' → 25000,
+    20000; '1,5 млн' → 1,500,000."""
     out: set[float] = set()
     for m in _NUM_RE.finditer(text):
         raw = re.sub(r"\s", "", m.group(1))
-        if re.fullmatch(r"\d{1,3}([.,]\d{3})+", raw):
+        if re.fullmatch(r"\d{1,3}([.,]\d{3})+", raw) and not (m.group(2) and re.fullmatch(r"\d[.,]\d{3}", raw)
+                                                           and _multiplier(m.group(2)) > 1000):  # fmt: skip
             raw = raw.replace(".", "").replace(",", "")
         else:
             raw = raw.replace(",", ".")
@@ -189,7 +242,7 @@ def numbers_in(text: str) -> set[float]:
             v = float(raw)
         except ValueError:
             continue
-        out.add(v * 1000 if m.group(2) else v)
+        out.add(round(v * _multiplier(m.group(2)), 6))
     return out
 
 

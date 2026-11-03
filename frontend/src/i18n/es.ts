@@ -81,6 +81,8 @@ export const es: Record<Key, string> = {
   "card.field.region": "Región",
   "card.field.budget": "Presupuesto",
   "card.field.priorities": "Prioridades",
+  "card.field.persona": "Quién eres",
+  "card.field.ownership_years": "Años de uso",
   "case.kmYear": "{km} km al año",
   "case.cars": "Coches",
   "case.none": "Ninguno aún.",

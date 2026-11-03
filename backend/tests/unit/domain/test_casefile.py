@@ -295,3 +295,68 @@ def test_replacing_with_another_model_does_not_inherit_age():
         current_year=YEAR,
     )
     assert new.cars[1].year is None and new.cars[1].model == "RAV4"
+
+
+# --- spec 007: profile basis (STATED > INFERRED > ASSUMED), ownership period, defaults --------------------------
+
+
+def test_legacy_case_gets_a_basis_on_read():
+    from automind.domain.casefile import CaseFile
+
+    c = CaseFile.model_validate(
+        {
+            "persona": "BUYER",
+            "persona_source": "USER_EDIT",
+            "annual_km_stated": True,
+            "annual_km": 20000,
+            "profile": {"family": "FAMILY", "evidence": {"family": "kids"}},
+        }
+    )
+    assert c.basis["persona"] == "STATED" and c.basis["annual_km"] == "STATED" and c.basis["family"] == "STATED"
+    assert CaseFile.model_validate({"persona": "PERFORMANCE"}).basis["persona"] == "INFERRED"
+
+
+def test_inferred_never_overwrites_stated_and_stated_overwrites_inferred():
+    from automind.domain.casefile import CaseDelta, CaseFile, apply
+
+    inferred = CaseDelta.model_validate(
+        {"set_profile": {"family": "FAMILY", "evidence": {"family": "дети"}}, "profile_basis": {"family": "INFERRED"}}
+    )
+    c, _ = apply(CaseFile(), inferred, current_year=2026)
+    assert c.profile.family == "FAMILY" and c.basis["family"] == "INFERRED"
+    stated = CaseDelta.model_validate({"set_profile": {"family": "SINGLE", "evidence": {"family": "я не семейный"}}})
+    c, _ = apply(c, stated, current_year=2026)
+    assert c.profile.family == "SINGLE" and c.basis["family"] == "STATED"
+    again = CaseDelta.model_validate(
+        {"set_profile": {"family": "FAMILY", "evidence": {"family": "дети"}}, "profile_basis": {"family": "INFERRED"}}
+    )
+    c, _ = apply(c, again, current_year=2026)
+    assert c.profile.family == "SINGLE"  # the user's statement stays until the user changes it
+
+
+def test_inferred_persona_does_not_override_a_stated_one():
+    from automind.domain.casefile import CaseDelta, CaseFile, apply
+
+    c, _ = apply(CaseFile(), CaseDelta.model_validate({"set_persona": {"persona": "BUYER", "source": "USER_EDIT"}}),
+                 current_year=2026)  # fmt: skip
+    c, _ = apply(c, CaseDelta.model_validate({"set_persona": {"persona": "PERFORMANCE", "source": "INFERRED"}}),
+                 current_year=2026)  # fmt: skip
+    assert c.persona == "BUYER" and c.basis["persona"] == "STATED"
+
+
+def test_ownership_years_bounds_and_defaults_per_persona():
+    import pytest
+    from pydantic import ValidationError
+
+    from automind.domain.casefile import CaseDelta, CaseFile, apply, apply_defaults
+
+    with pytest.raises(ValidationError):
+        CaseDelta.model_validate({"set_ownership_years": 30})
+    defaults = {"personas": {"PERFORMANCE": {"ownership_years": 4, "annual_km": 12000},
+                             "UNKNOWN": {"ownership_years": 5, "annual_km": 15000}}}  # fmt: skip
+    c = apply_defaults(CaseFile(persona="PERFORMANCE"), defaults)
+    assert (c.ownership_years, c.annual_km) == (4, 12000)
+    assert c.basis["ownership_years"] == "ASSUMED" and c.basis["annual_km"] == "ASSUMED"
+    c, _ = apply(c, CaseDelta(set_ownership_years=8, set_annual_km=30000), current_year=2026)
+    c = apply_defaults(c, defaults)
+    assert (c.ownership_years, c.annual_km) == (8, 30000) and c.basis["ownership_years"] == "STATED"

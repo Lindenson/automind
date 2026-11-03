@@ -18,13 +18,20 @@ Rules
 - Make and model: use the real manufacturer ("Land Cruiser Prado" is a Toyota even if the user says
   "Land Rover Prado"). Keep the model name as commonly written (e.g. "Land Cruiser Prado", "3 Series").
 - condition: NEW if the user says new/brand-new/0 km, USED if used/second-hand/N years old, else UNKNOWN.
-- Persona: set it ONLY from words in the LATEST message, and copy those words verbatim into
-  `persona_evidence` (e.g. "I'm a car engineer", "for a race enthusiast", "Мне 20"). Never re-derive
-  the persona from earlier turns; without such words in this message, leave set_persona out.
-  Clear cues (source INFERRED): "don't want to overpay", family,
-  costs, reliability → BUYER; racing, drag race, track, fast, fun, young driver who wants speed →
-  PERFORMANCE; engineering vocabulary or "I am an engineer" → EXPERT. If the user explicitly says
-  who they are or answers the persona question, use source ASKED. Otherwise leave it out.
+- Persona (spec 007): infer it from the user's words in the LATEST message or earlier user turns, and copy
+  those words verbatim into `persona_evidence` (e.g. "I'm a car engineer", "M Sport", "Golf R", "Мне 20").
+  Without such words, leave set_persona out. Do not set it again when the case already has the same persona.
+  Clear cues (source INFERRED): "don't want to overpay", family, kids, school, costs, reliability, economy
+  → BUYER; sporty trims and performance models (M Sport, M340i, GTI, Golf R, RS, AMG, N, Type R, Cupra),
+  racing, drag race, track, fast, fun, young driver who wants speed → PERFORMANCE; engineering vocabulary
+  or "I am an engineer" → EXPERT. If the user explicitly says who they are or answers the persona question,
+  use source ASKED. Otherwise leave it out.
+- Basis (spec 007): for every profile field you set from words that IMPLY it rather than say it ("вожу
+  детей в школу" implies a family; "M Sport или Golf R" implies an enthusiast), add it to
+  delta.profile_basis with INFERRED, e.g. {"family": "INFERRED", "persona": "INFERRED"}. A field the
+  user says outright ("у нас трое детей", "I'm an engineer", "budget 30k") is STATED (leave it out).
+- How long the user keeps a car ("лет на 8", "I keep cars 3 years", "para 10 años") →
+  set_ownership_years (1–20).
 - Age of the user ("I'm 20") → set_profile.age. Usage (city, motorway, mountains, off-road, track,
   family) → set_usage with the full current list.
 - Wishes → add_priorities with criteria keys from the list and a strength (HIGH if "most
@@ -49,9 +56,10 @@ Rules
   If the user lets you choose the version ("any", "choose for me", "любой", "выбери сам", "cualquiera"),
   request is choose_for_me. If the answer does not answer the question (nonsense, another topic, a model
   you do not know), do NOT guess: leave the delta empty and keep request as it is; never invent a make or model.
-- Who the user is (spec 004): set_profile.family (SINGLE | COUPLE | FAMILY), age_band (UNDER_25 | 25_40 | 40_60 |
-  OVER_60), driving_style (CALM | MIXED | SPORTY) ONLY when the latest message says it, and put the user's
-  verbatim words in set_profile.evidence (e.g. {"family": "two kids and a dog"}). Never guess them.
+- Who the user is (spec 004, 007): set_profile.family (SINGLE | COUPLE | FAMILY), age_band (UNDER_25 | 25_40 |
+  40_60 | OVER_60), driving_style (CALM | MIXED | SPORTY) when the user's words (this or an earlier message) say
+  or clearly imply it, and put those verbatim words in set_profile.evidence (e.g. {"family": "two kids and a
+  dog"}); mark implied ones INFERRED in profile_basis. Without such words, leave them out.
 - A yearly mileage the user states ("I drive 25,000 km a year", "мало езжу, тысяч 8") → set_annual_km.
 - A gearbox or driven wheels named by the user ("automatic", "manual", "DSG", "4x4", "AWD", "front-wheel
   drive", "автомат", "механика", "полный привод") go to constraints.gearbox_hint (manual | automatic | dct | cvt |

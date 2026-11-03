@@ -30,3 +30,6 @@ concurrency: {llm_per_job: 6, llm_total: 16}
 
 # Intake (spec 005 R6, R2): bounded attempts per question item and per car; brand line-up cache.
 intake: {max_attempts_per_item: 2, max_attempts_per_car: 4, full_intake: true, lineup_ttl_days: 30, lineup_max_pages: 2}
+
+# Interpreter context (spec 007 FR-005): the profile is inferred from the dialogue, so it sees more of it.
+interpret: {history_turns: 16, history_chars: 800}

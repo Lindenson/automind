@@ -11,7 +11,7 @@ from automind.application import research, resolve
 from automind.application.interpret import Interpretation, InterpretError, interpret
 from automind.config import settings
 from automind.domain import identification, intake, research_plan
-from automind.domain.casefile import CaseFile, apply
+from automind.domain.casefile import CaseFile, apply, apply_defaults
 from automind.domain.policy import CarState, decide
 from automind.orchestration import phrases
 from automind.orchestration.nodes import feasibility as fz_nodes
@@ -67,6 +67,10 @@ async def apply_delta_node(state: TurnState, runtime: Runtime[TurnContext]) -> d
         new, changes = apply(case, i.delta, current_year=year)
     except ValueError:
         return {"action": "ASK", "done": True, "reply_text": t("which_car", i.language)}
+    sp = i.delta.set_persona
+    if sp is not None and i.persona_evidence and new.persona == sp.persona:  # the words the persona came from
+        new.profile.evidence["persona"] = i.persona_evidence.strip()[:120]
+    new = apply_defaults(new, c.ports.ref.profile_defaults)  # spec 007 FR-003: what is assumed is marked ASSUMED
     request = "choose_for_me" if phrases.choose_for_me(state.get("user_text")) else i.request
     pending_intake = case.pending is not None and case.pending.kind in _INTAKE_PENDING
     if pending_intake and request in ("general_question", "chitchat"):

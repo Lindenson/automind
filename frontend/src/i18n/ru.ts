@@ -81,6 +81,8 @@ export const ru: Record<Key, string> = {
   "card.field.region": "Регион",
   "card.field.budget": "Бюджет",
   "card.field.priorities": "Приоритеты",
+  "card.field.persona": "Кто вы",
+  "card.field.ownership_years": "Срок владения",
   "case.kmYear": "{km} км в год",
   "case.cars": "Машины",
   "case.none": "Пока нет.",

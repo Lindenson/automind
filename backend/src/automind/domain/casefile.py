@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 CRITERION_KEYS = (
     "reliability",
@@ -43,6 +43,12 @@ CriterionKey = Literal[
 ]
 Persona = Literal["EXPERT", "PERFORMANCE", "BUYER", "UNKNOWN"]
 PersonaSource = Literal["INFERRED", "ASKED", "USER_EDIT"]
+# spec 007 FR-001: how each profile field is known. STATED: the user said it (chat or panel); INFERRED: read from
+# the user's words with evidence; ASSUMED: a default. A weaker basis never overwrites a stronger one.
+ProfileBasis = Literal["STATED", "INFERRED", "ASSUMED"]
+BASIS_RANK: dict[str, int] = {"ASSUMED": 0, "INFERRED": 1, "STATED": 2}
+PROFILE_FIELDS = ("persona", "ownership_years", "condition", "annual_km", "budget", "monthly_limit", "family",
+                  "driving_style", "age_band", "region", "usage")  # fmt: skip
 Usage = Literal["CITY", "MOTORWAY", "MOUNTAINS", "OFFROAD", "TRACK", "FAMILY"]
 Depth = Literal["QUICK", "STANDARD", "DEEP"]
 Condition = Literal["NEW", "USED", "UNKNOWN"]
@@ -51,6 +57,7 @@ Strength = Literal["LOW", "MEDIUM", "HIGH"]
 QuestionKind = Literal[
     "TOO_MANY_CARS", "CAR_IDENTITY", "USED_AGE", "TRIM", "PERSONA", "BUDGET_INTENT", "UNKNOWN_MODEL", "GEARBOX",
     "KM_PER_YEAR", "FAMILY_SIZE", "CONDITION", "ENGINE", "MAKE_LINEUP", "PROPOSE", "REMOVE_OR_CHOOSE",
+    "OWNERSHIP_YEARS",
 ]  # fmt: skip
 # spec 005: what an intake step is about (R6)
 IntakeItem = Literal["MAKE", "MODEL", "ENGINE", "GEARBOX", "YEAR", "CONDITION", "MILEAGE", "TRIM", "CHOICE"]
@@ -279,6 +286,34 @@ class CaseFile(BaseModel):
     last_values: dict[str, int] = Field(default_factory=dict)  # validated values per car at the last report
     shown: list[Shown] = Field(default_factory=list)
     intake: Intake = Field(default_factory=Intake)  # spec 005
+    # spec 007: how each profile field is known, and how long the user keeps a car
+    basis: dict[str, ProfileBasis] = Field(default_factory=dict)
+    ownership_years: int | None = Field(default=None, ge=1, le=20)
+
+    @model_validator(mode="after")
+    def _legacy_basis(self) -> CaseFile:
+        """Older case files carry flags instead of a basis (read-time upgrade, no migration)."""
+        b = self.basis
+        if "persona" not in b and self.persona != "UNKNOWN":
+            b["persona"] = "STATED" if self.persona_source in ("USER_EDIT", "ASKED") else "INFERRED"
+        if "annual_km" not in b and self.annual_km_stated:
+            b["annual_km"] = "STATED"
+        for f in ("family", "age_band", "driving_style"):
+            if f not in b and getattr(self.profile, f) is not None:
+                b[f] = "STATED"  # set from the user's own words in that message (spec 004 FR-017)
+        if "budget" not in b and self.budget.max_eur is not None:
+            b["budget"] = "STATED"
+        if "condition" not in b and self.budget.intent != "UNKNOWN":
+            b["condition"] = "STATED"
+        if "monthly_limit" not in b and self.running_cost_limit is not None:
+            b["monthly_limit"] = "STATED"
+        if "usage" not in b and self.usage:
+            b["usage"] = "STATED"
+        return self
+
+    def may_set(self, field: str, basis: str) -> bool:
+        """A weaker basis never overwrites a stronger one (STATED > INFERRED > ASSUMED)."""
+        return BASIS_RANK[basis] >= BASIS_RANK[self.basis.get(field, "ASSUMED")]
 
     @property
     def too_many_cars(self) -> bool:
@@ -333,6 +368,9 @@ class CarContext(BaseModel):
 
 class CaseDelta(BaseModel):
     set_persona: PersonaChange | None = None
+    # spec 007: STATED unless the interpreter marks a field INFERRED (with the user's words in profile.evidence)
+    profile_basis: dict[str, Literal["STATED", "INFERRED"]] = Field(default_factory=dict)
+    set_ownership_years: int | None = Field(default=None, ge=1, le=20)
     set_profile: Profile | None = None
     set_usage: list[Usage] | None = None
     set_budget: Budget | None = None
@@ -379,27 +417,74 @@ def apply(case: CaseFile, delta: CaseDelta, *, current_year: int) -> tuple[CaseF
     return c, log
 
 
+def _basis(d: CaseDelta, field: str) -> str:
+    return d.profile_basis.get(field, "STATED")
+
+
 def _apply_persona_profile(c: CaseFile, d: CaseDelta, log: list[str]) -> None:
-    p = d.set_persona
-    weak_over_edit = p is not None and p.source == "INFERRED" and c.persona_source == "USER_EDIT"
-    if p is not None and not weak_over_edit and (p.persona != c.persona or p.source != c.persona_source):
-        if p.persona != c.persona:
-            log.append(f"persona: {c.persona} → {p.persona}")
-        c.persona, c.persona_source = p.persona, p.source
+    _apply_persona(c, d, log)
+    if d.set_ownership_years is not None and c.may_set("ownership_years", _basis(d, "ownership_years")):
+        if d.set_ownership_years != c.ownership_years:
+            log.append(f"ownership: {d.set_ownership_years} years")
+        c.ownership_years = d.set_ownership_years
+        c.basis["ownership_years"] = _basis(d, "ownership_years")  # type: ignore[assignment]
     if d.set_profile is not None:
-        if d.set_profile.age is not None and d.set_profile.age != c.profile.age:
-            c.profile.age = d.set_profile.age
-            log.append(f"age: {c.profile.age}")
-        if d.set_profile.experience and d.set_profile.experience != c.profile.experience:
-            c.profile.experience = d.set_profile.experience
-            log.append(f"experience: {c.profile.experience}")
-        for f in ("family", "age_band", "driving_style"):
-            val = getattr(d.set_profile, f)
-            words = d.set_profile.evidence.get(f, "").strip()
-            if val is not None and words and val != getattr(c.profile, f):  # only with the user's own words
-                setattr(c.profile, f, val)
-                c.profile.evidence[f] = words[:120]
-                log.append(f'{f.replace("_", " ")}: {val.lower()} ("{words[:60]}")')
+        _apply_profile(c, d, d.set_profile, log)
+
+
+def _apply_persona(c: CaseFile, d: CaseDelta, log: list[str]) -> None:
+    p = d.set_persona
+    if p is not None:
+        b = "STATED" if p.source in ("USER_EDIT", "ASKED") else _basis(d, "persona")
+        if p.source == "INFERRED" and "persona" not in d.profile_basis:
+            b = "INFERRED"
+        weak_over_edit = p.source == "INFERRED" and c.persona_source == "USER_EDIT"
+        if not weak_over_edit and c.may_set("persona", b) and (p.persona != c.persona or p.source != c.persona_source):
+            if p.persona != c.persona:
+                log.append(f"persona: {c.persona} → {p.persona}")
+            c.persona, c.persona_source = p.persona, p.source
+            c.basis["persona"] = b  # type: ignore[assignment]
+
+
+def _apply_profile(c: CaseFile, d: CaseDelta, sp: Profile, log: list[str]) -> None:
+    if sp.age is not None and sp.age != c.profile.age:
+        c.profile.age = sp.age
+        log.append(f"age: {c.profile.age}")
+    if sp.experience and sp.experience != c.profile.experience:
+        c.profile.experience = sp.experience
+        log.append(f"experience: {c.profile.experience}")
+    for f in ("family", "age_band", "driving_style"):
+        val = getattr(sp, f)
+        words = sp.evidence.get(f, "").strip()
+        b = _basis(d, f)
+        if val is None or not words or not c.may_set(f, b):  # only with the user's own words
+            continue
+        if val != getattr(c.profile, f):
+            setattr(c.profile, f, val)
+            tag = "" if b == "STATED" else " — inferred"
+            log.append(f'{f.replace("_", " ")}: {val.lower()} ("{words[:60]}"){tag}')
+        c.profile.evidence[f] = words[:120]
+        c.basis[f] = b  # type: ignore[assignment]
+
+
+def apply_defaults(case: CaseFile, defaults: dict[str, object] | None) -> CaseFile:
+    """Fill what the user has not said with the persona's defaults, marked ASSUMED (spec 007 FR-003). Pure."""
+    per = dict((defaults or {}).get("personas", {}) or {})  # type: ignore[call-overload]
+    d = dict(per.get(case.persona) or per.get("UNKNOWN") or {})
+    c = case.model_copy(deep=True)
+    years = d.get("ownership_years")
+    if years is not None and c.basis.get("ownership_years", "ASSUMED") == "ASSUMED":
+        c.ownership_years = int(years)
+        c.basis["ownership_years"] = "ASSUMED"
+    km = d.get("annual_km")
+    if km is not None and c.basis.get("annual_km", "ASSUMED") == "ASSUMED" and not c.annual_km_stated:
+        c.annual_km = int(km)
+        c.basis["annual_km"] = "ASSUMED"
+    if c.basis.get("persona") is None:
+        c.basis["persona"] = "ASSUMED"
+    if c.budget.intent == "UNKNOWN" and "condition" not in c.basis:
+        c.basis["condition"] = "ASSUMED"
+    return c
 
 
 def _money(v: int | None) -> str:
@@ -407,15 +492,18 @@ def _money(v: int | None) -> str:
 
 
 def _apply_settings(c: CaseFile, d: CaseDelta, log: list[str]) -> None:
-    if d.set_usage is not None and d.set_usage != c.usage:
-        c.usage = list(dict.fromkeys(d.set_usage))
-        log.append("usage: " + ", ".join(c.usage))
+    if d.set_usage is not None and c.may_set("usage", _basis(d, "usage")):
+        if d.set_usage != c.usage:
+            c.usage = list(dict.fromkeys(d.set_usage))
+            log.append("usage: " + ", ".join(c.usage))
+        c.basis["usage"] = _basis(d, "usage")  # type: ignore[assignment]
     _apply_constraints(c, d, log)
-    if d.set_annual_km is not None and d.set_annual_km != c.annual_km:
-        log.append(f"annual mileage: {c.annual_km:,} → {d.set_annual_km:,} km")
-        c.annual_km = d.set_annual_km
-    if d.set_annual_km is not None:
-        c.annual_km_stated = True
+    if d.set_annual_km is not None and c.may_set("annual_km", _basis(d, "annual_km")):
+        if d.set_annual_km != c.annual_km:
+            log.append(f"annual mileage: {c.annual_km:,} → {d.set_annual_km:,} km")
+            c.annual_km = d.set_annual_km
+        c.basis["annual_km"] = _basis(d, "annual_km")  # type: ignore[assignment]
+        c.annual_km_stated = c.basis["annual_km"] == "STATED"
     if d.set_depth is not None and d.set_depth != c.depth:
         log.append(f"depth: {c.depth} → {d.set_depth}")
         c.depth = d.set_depth
@@ -431,6 +519,20 @@ def _apply_settings(c: CaseFile, d: CaseDelta, log: list[str]) -> None:
 
 def _apply_constraints(c: CaseFile, d: CaseDelta, log: list[str]) -> None:
     """Budget (amount, intent, currency, kind), running-cost limit and usage needs (spec 003 FR-018)."""
+    _apply_budget(c, d, log)
+    if d.set_running_cost_limit is not None and d.set_running_cost_limit != c.running_cost_limit:
+        c.running_cost_limit = d.set_running_cost_limit
+        c.basis["monthly_limit"] = _basis(d, "monthly_limit")  # type: ignore[assignment]
+        log.append(f"running cost limit: €{d.set_running_cost_limit.amount_eur:,.0f} per "
+                   f"{d.set_running_cost_limit.period.lower()}")  # fmt: skip
+    if d.set_needs is not None:
+        needs = c.needs.model_copy(update=d.set_needs.model_dump(exclude_unset=True))
+        if needs != c.needs:
+            c.needs = needs
+            log.append("needs: " + ", ".join(f"{k}={v}" for k, v in needs.model_dump(exclude_none=True).items()))
+
+
+def _apply_budget(c: CaseFile, d: CaseDelta, log: list[str]) -> None:
     if d.set_budget is not None and d.set_budget != c.budget:
         new = d.set_budget
         if new.max_eur is None and c.budget.max_eur is not None:  # an intent-only answer keeps the amount
@@ -441,15 +543,10 @@ def _apply_constraints(c: CaseFile, d: CaseDelta, log: list[str]) -> None:
             if new.intent != c.budget.intent:
                 log.append(f"budget for: {new.intent.lower()}")
             c.budget = new
-    if d.set_running_cost_limit is not None and d.set_running_cost_limit != c.running_cost_limit:
-        c.running_cost_limit = d.set_running_cost_limit
-        log.append(f"running cost limit: €{d.set_running_cost_limit.amount_eur:,.0f} per "
-                   f"{d.set_running_cost_limit.period.lower()}")  # fmt: skip
-    if d.set_needs is not None:
-        needs = c.needs.model_copy(update=d.set_needs.model_dump(exclude_unset=True))
-        if needs != c.needs:
-            c.needs = needs
-            log.append("needs: " + ", ".join(f"{k}={v}" for k, v in needs.model_dump(exclude_none=True).items()))
+        if new.max_eur is not None:
+            c.basis["budget"] = _basis(d, "budget")  # type: ignore[assignment]
+        if new.intent != "UNKNOWN":
+            c.basis["condition"] = _basis(d, "condition")  # type: ignore[assignment]
 
 
 def _apply_priorities(c: CaseFile, d: CaseDelta, log: list[str]) -> None:
