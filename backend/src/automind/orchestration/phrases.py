@@ -279,6 +279,24 @@ PHRASES: dict[str, dict[str, str]] = {
         "ru": "Не понял, к какой из машин это относится. Можете сформулировать иначе?",
         "es": "No he podido relacionarlo con los coches que comentamos. ¿Puedes reformularlo?",
     },
+    "new_generation": {
+        "en": "{car}: a new generation, on sale since {year}. It has no reliability history yet, so the "
+        "comparison leaves reliability out instead of guessing.",
+        "ru": "{car}: новое поколение, в продаже с {year} года. Статистики надёжности у него ещё нет, поэтому "
+        "сравнение идёт без надёжности, а не на догадках.",
+        "es": "{car}: generación nueva, a la venta desde {year}. Aún no tiene historial de fiabilidad, así que la "
+        "comparación la deja fuera en lugar de suponer.",
+    },
+    "short_data": {
+        "en": "{car}: insufficient data for {area} (minimum evidence not reached)",
+        "ru": "{car}: мало данных — {area} (не набран минимум источников)",
+        "es": "{car}: datos insuficientes — {area} (no se alcanzó el mínimo de fuentes)",
+    },
+    "job_incomplete": {
+        "en": "{car}: {area} research incomplete ({error})",
+        "ru": "{car}: поиск — {area} не завершён ({error})",
+        "es": "{car}: búsqueda de {area} incompleta ({error})",
+    },
     "which_car": {
         "en": "Which of the cars do you mean? Please name it.",
         "ru": "Какую из машин вы имеете в виду? Назовите её, пожалуйста.",

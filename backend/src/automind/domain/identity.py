@@ -211,6 +211,22 @@ def parse_engine(text: str | None) -> Any:
                       evidence=text.strip()[:120])  # fmt: skip
 
 
+# diesel names without the word "diesel": BMW 320d / xDrive20d, Mercedes C 220 d, Mazda Skyactiv-D, …
+_DIESEL_NAME = re.compile(
+    r"(?i)(?<![\w.])(?:[sx]drive)?\d{2,3}\s?d(?![\w])|skyactiv[- ]?d\b|\b(?:tdci|jtd|multijet|cdi|bluetec|i-dtec|cdti|"
+    r"tdv\d|crdi|dci|d-4d|tdi|hdi|bluehdi|ecoblue|d4|d5)\b|di[eé]sel|дизел"
+)
+
+
+def liquid_fuel(text: str | None) -> str | None:
+    """petrol or diesel for the fuel cost of a car whose catalog fuel is a hybrid kind (a 320d mild hybrid burns
+    diesel; live chat 48c8ac65 priced it at the petrol price). None when the name does not say."""
+    e = parse_engine(text)
+    if e is not None and e.fuel in ("petrol", "diesel"):
+        return str(e.fuel)
+    return "diesel" if text and _DIESEL_NAME.search(text) else None
+
+
 def engine_fits(hint: Any, engine_cc: int | None, power_kw: int | None, fuel: str | None) -> bool:
     """A variant fits the named engine when every stated field matches (unknown variant fields never exclude)."""
     if hint is None:
@@ -219,4 +235,6 @@ def engine_fits(hint: Any, engine_cc: int | None, power_kw: int | None, fuel: st
         return False
     if hint.power_kw and power_kw and abs(power_kw - hint.power_kw) > 3:
         return False
+    if "mhev" in (hint.fuel, fuel):  # a mild hybrid is still a petrol or a diesel ("320d … Mild-Hybrid 190 CV")
+        return True
     return not (hint.fuel and fuel and hint.fuel != fuel)

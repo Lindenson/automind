@@ -42,13 +42,18 @@ def changes(case: CaseFile, kind: str, outcome: Callable[[CaseFile], Outcome],
     return n
 
 
+def _from_users_words(case: CaseFile, key: str) -> bool:
+    """Inferred from words the user wrote ("для семейной покупки" → BUYER): asking again reads as not listening."""
+    return case.basis.get(key) == "INFERRED" and bool(case.profile.evidence.get(key))
+
+
 def questions(case: CaseFile, outcome: Callable[[CaseFile], Outcome], probes: Mapping[str, Sequence[Any]],
               kinds: Sequence[str] = ("PERSONA", "KM_PER_YEAR", "OWNERSHIP_YEARS")) -> list[QuestionKind]:  # fmt: skip
     """At most one question: the unsaid field whose plausible values change the outcome most often."""
     best: tuple[int, int, str] | None = None
     for order, kind in enumerate(kinds):
         _, key = FIELDS[kind]
-        if case.basis.get(key, "ASSUMED") == "STATED" or kind in case.asked:
+        if case.basis.get(key, "ASSUMED") == "STATED" or kind in case.asked or _from_users_words(case, key):
             continue
         n = changes(case, kind, outcome, probes)
         if n and (best is None or n > best[0]):

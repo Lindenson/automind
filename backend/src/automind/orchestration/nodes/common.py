@@ -37,8 +37,9 @@ async def history(c: TurnContext, limit: int = 12) -> list[dict[str, str]]:
     return [{"role": m.role, "text": m.text} for m in prior[-limit:]]
 
 
-def notice(text: str, level: str = "info") -> dict[str, Any]:
-    return {"type": "notice", "level": level, "text": text}
+def notice(text: str, level: str = "info", **about: str) -> dict[str, Any]:
+    """`about` (car_key, area) lets a later step drop a notice that another one explains better."""
+    return {"type": "notice", "level": level, "text": text, **about}
 
 
 async def record_intake(c: TurnContext, kind: str, car_key: str | None = None, item: str | None = None,

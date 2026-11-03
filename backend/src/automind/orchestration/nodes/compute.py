@@ -16,9 +16,11 @@ from automind.domain import research_plan, sense, suggestions, tco
 from automind.domain import verdict as vd
 from automind.domain.casefile import CaseFile
 from automind.domain.criteria import CriteriaScore, score, weight_breakdown, weights_for
+from automind.domain.metrics import new_generation_since
 from automind.domain.report_layout import annotate_sections, depths, order_blocks
 from automind.orchestration import report_text
 from automind.orchestration.guard import CheckInput as GuardInput
+from automind.orchestration.phrases import t
 from automind.orchestration.runner import TurnContext
 
 from .common import notice
@@ -136,7 +138,9 @@ async def _insights(
     iset = ins.build(values, profile, ins.rules_from_config(c.ports.ref.insights))
     names = {car["variant"].id: compose.short_name(car["variant"]) for _, car in keyed}
     unmet = await research.unmet_areas([car["variant"].id for _, car in keyed])
-    gaps = [f"{names[vid]}: {a}" for vid in names for a in KEY_AREAS if a in unmet.get(vid, set())]
+    young = {car["variant"].id for _, car in keyed if _new_gen(car, _year(c))}
+    gaps = [f"{names[vid]}: {a}" for vid in names for a in KEY_AREAS
+            if a in unmet.get(vid, set()) and not (a == "reliability" and vid in young)]  # fmt: skip
     used_missing = [
         vd.UsedMissing(vid, tuple(m for a, m in USED_AREAS.items() if a in unmet.get(vid, set())))
         for vid in (car["variant"].id for x, car in keyed if x.condition == "USED")
@@ -152,6 +156,21 @@ async def _insights(
     has |= {i.attribute for i in iset.insights}
     check = GuardInput(frozenset(has), frozenset(iset.ties), v.tie, tuple(sorted(set(names.values()))))
     return iset, v, block, check
+
+
+def _year(c: TurnContext) -> int | None:
+    clock = getattr(c.ports, "clock", None)
+    return clock.now().year if clock is not None else None
+
+
+def _new_gen(car: dict[str, Any], year: int | None) -> int | None:
+    return new_generation_since(getattr(car["variant"], "generation_years_from", None), year)
+
+
+def _new_generation_notices(keyed: list[Any], year: int | None, lang: str | None) -> list[dict[str, Any]]:
+    """A generation on sale for under two years has no reliability history: said once, not counted as a gap."""
+    return [notice(t("new_generation", lang, car=compose.short_name(car["variant"]), year=since), "info")
+            for _, car in keyed if (since := _new_gen(car, year)) is not None]  # fmt: skip
 
 
 def _any_values(values: list[Any]) -> set[str]:
@@ -174,6 +193,10 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
     tcars = [await compose.tco_car(car, _cond(x.condition), x.age_years, x.mileage_km, curve) for x, car in keyed]
     estimates = [tco.compute(t, rates, case.annual_km, case.ownership_years) for t in tcars]
     costs = _checked_costs(estimates, {car["variant"].id: x.age_years for x, car in keyed}, notices)
+    year = _year(c)
+    young = {x.key for x, car in keyed if _new_gen(car, year)}
+    notices[:] = [n for n in notices if not (n.get("area") == "reliability" and n.get("car_key") in young)]
+    notices += _new_generation_notices(keyed, year, lang)
     facts = [
         compose.facts(
             car,
@@ -181,6 +204,7 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
             condition=_cond(x.condition),
             age_years=x.age_years,
             annual_cost_eur=costs.get(car["variant"].id),
+            year=year,
         )
         for x, car in keyed
     ]
@@ -193,7 +217,7 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
         est = [tco.compute(t, rates, probe.annual_km, probe.ownership_years) for t in tcars]
         cost = _checked_costs(est, {car["variant"].id: x.age_years for x, car in keyed}, [])
         fs = [compose.facts(car, sims.get(car["variant"].id), condition=_cond(x.condition), age_years=x.age_years,
-                            annual_cost_eur=cost.get(car["variant"].id)) for x, car in keyed]  # fmt: skip
+                            annual_cost_eur=cost.get(car["variant"].id), year=year) for x, car in keyed]  # fmt: skip
         w = weights_for(probe, model)
         r = score(fs, w, model) if fs and w else None
         return (r.winner_car_id, r.tie) if r else (None, False)

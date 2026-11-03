@@ -65,6 +65,18 @@ class CarFacts:
     reliability: ReliabilitySummary | None = None
     reviews: ReviewSummary | None = None
     engineering_completeness: float | None = None  # share of Tier 2 attributes documented (0..1)
+    # on sale for less than NEW_GENERATION_YEARS: no reliability history can exist yet (live chat 4978a3de)
+    new_generation_since: int | None = None
+
+
+NEW_GENERATION_YEARS = 2
+
+
+def new_generation_since(generation_from: int | None, year: int | None) -> int | None:
+    """The first sale year of a generation younger than NEW_GENERATION_YEARS, else None."""
+    if generation_from is None or year is None:
+        return None
+    return generation_from if 0 <= year - generation_from < NEW_GENERATION_YEARS else None
 
 
 def metrics(c: CarFacts) -> dict[str, float | None]:

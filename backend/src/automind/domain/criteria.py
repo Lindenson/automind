@@ -104,6 +104,7 @@ class Part:
     weight: float
     inputs: list[str]
     insufficient: bool
+    unknowable: bool = False  # cannot exist yet (reliability of a new generation): not a gap in the coverage
 
 
 @dataclass(frozen=True)
@@ -141,6 +142,8 @@ def _pair(sc: Mapping[str, Any], key: str) -> tuple[float, float]:
 
 def _reliability(c: CarFacts, sc: Mapping[str, Any]) -> Result:
     r = c.reliability
+    if (r is None or not r.minimum_met) and c.new_generation_since is not None:
+        return None, [f"new generation (on sale since {c.new_generation_since}): no reliability history yet"]
     if r is None or not r.minimum_met:
         return None, ["reliability sources below minimum"]
 
@@ -325,8 +328,9 @@ def _car_score(c: CarFacts, weights: Mapping[str, float], model: CriteriaModel, 
     parts: dict[str, Part] = {}
     for key, w in weights.items():
         s, inputs = SCORERS[key](c, model.criteria[key].scale)
-        parts[key] = Part(score=s, weight=w, inputs=inputs, insufficient=s is None)
-    total_w = sum(weights.values())
+        unknowable = s is None and key == "reliability" and c.new_generation_since is not None
+        parts[key] = Part(score=s, weight=w, inputs=inputs, insufficient=s is None, unknowable=unknowable)
+    total_w = sum(p.weight for p in parts.values() if not p.unknowable)
     covered = {k: p for k, p in parts.items() if p.score is not None}
     cw = sum(p.weight for p in covered.values())
     coverage = round(cw / total_w, 3) if total_w else 0.0
@@ -371,7 +375,8 @@ def score(cars: list[CarFacts], weights: Mapping[str, float], model: CriteriaMod
     if not ranking:
         return CriteriaScore(model.version, scored, None, dict(weights))
     common = [k for k in weights if all(sc.parts[k].score is not None for sc in scored)]
-    total_w = sum(weights.values()) or 1.0
+    # a criterion no data can exist for yet (a new generation's reliability) is left out of the coverage too
+    total_w = sum(w for k, w in weights.items() if not any(sc.parts[k].unknowable for sc in scored)) or 1.0
     cw = sum(weights[k] for k in common)
     enough = cw / total_w >= model.min_coverage
     rescored = [

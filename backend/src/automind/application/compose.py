@@ -12,7 +12,7 @@ from typing import Any
 
 from sqlalchemy import select
 
-from automind.domain import dragrace, reliability, reviews, specs, tco, units
+from automind.domain import dragrace, identity, reliability, reviews, specs, tco, units
 from automind.domain import evidence as evidence_rules
 from automind.domain import insights as ins
 from automind.domain import metrics as scoring  # noqa: F401 (CarFacts, metrics, ownership)
@@ -221,6 +221,7 @@ def facts(
     condition: str = "NEW",
     age_years: int | None = None,
     annual_cost_eur: float | None = None,
+    year: int | None = None,
 ) -> scoring.CarFacts:
     v = car["variant"]
     return scoring.CarFacts(
@@ -254,6 +255,7 @@ def facts(
         reliability=reliability_summary(car),
         reviews=review_summary(car),
         engineering_completeness=engineering_completeness(car),
+        new_generation_since=scoring.new_generation_since(getattr(v, "generation_years_from", None), year),
     )
 
 
@@ -730,12 +732,9 @@ async def tco_car(
 ) -> tco.TcoCar:  # fmt: skip
     """Assemble TCO inputs from validated data: specs, sourced maintenance items, used-car issues."""
     v = car["variant"]
-    engine = (_txt(car, "engine") or "").lower()
-    fuel = (
-        "diesel"
-        if any(k in engine for k in ("diesel", "tdi", "d-4d", "crdi", "dci", "hdi", "320d", "tdv"))
-        else ("diesel" if "diesel" in v.variant_name.lower() or "d-4d" in v.variant_name.lower() else "petrol")
-    )
+    fuel = getattr(v, "fuel", None)
+    if fuel not in ("petrol", "diesel"):  # a hybrid kind or unknown: the liquid fuel from the engine and the name
+        fuel = identity.liquid_fuel(f"{_txt(car, 'engine') or ''} {v.model} {v.variant_name}") or "petrol"
     async with db.sessionmaker()() as s:
         maint = list(
             (await s.execute(select(db.MaintenanceItem).where(db.MaintenanceItem.variant_id == v.id))).scalars()

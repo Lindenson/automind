@@ -88,6 +88,8 @@ def _concerns(kind: str, car: Any) -> bool:
         return car.condition == "USED" and car.year is None
     if kind == "CAR_IDENTITY":
         return not car.make if car.identify is not None else not (car.make and car.model)
+    if kind == "ENGINE" and car.identify is not None:  # never "which engine?" for a car already identified
+        return car.identify.need == "ENGINE"
     return True
 
 
@@ -225,6 +227,9 @@ def _options(kind: str, car: Any, generations: list[str], gearboxes: dict[str, s
     return choices, labels
 
 
+MAX_CHIPS = 8
+
+
 def intake_quick_replies(items: list[dict[str, Any]], case: CaseFile, labels: dict[str, str]) -> list[dict[str, Any]]:
     """One-tap answers: the concrete options of each question (suggested ones marked), new/used, yes/no for a
     proposal, remove or choose. Never an empty list item (contracts/intake-protocol.md)."""
@@ -254,7 +259,11 @@ def intake_quick_replies(items: list[dict[str, Any]], case: CaseFile, labels: di
             rm = labels["remove"].format(car=car.display_name)
             out.append({"label": rm, "text": rm})
     seen: set[str] = set()
-    return [x for x in out if x["label"] and not (x["label"] in seen or seen.add(x["label"]))][:8]  # type: ignore[func-returns-value]
+    out = [x for x in out if x["label"] and not (x["label"] in seen or seen.add(x["label"]))]  # type: ignore[func-returns-value]
+    # the answers first, "remove …" last: the cut at 8 must never drop "used" (live chat 16c5fbc7)
+    removes = {rm for c in case.cars if (rm := labels["remove"].format(car=c.display_name))}
+    keep = [x for x in out if x["label"] not in removes][:MAX_CHIPS]
+    return keep + [x for x in out if x["label"] in removes][: MAX_CHIPS - len(keep)]
 
 
 async def acknowledge(llm: LLM, system_prompt: str, language: str, understood: str) -> str:
