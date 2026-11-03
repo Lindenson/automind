@@ -39,3 +39,19 @@ async def history(c: TurnContext, limit: int = 12) -> list[dict[str, str]]:
 
 def notice(text: str, level: str = "info") -> dict[str, Any]:
     return {"type": "notice", "level": level, "text": text}
+
+
+async def record_intake(c: TurnContext, kind: str, car_key: str | None = None, item: str | None = None,
+                        **details: object) -> None:  # fmt: skip
+    """One intake event (spec 005 R13); never fails the turn."""
+    from automind.infrastructure import db  # noqa: PLC0415
+
+    try:
+        async with db.sessionmaker()() as s:
+            if await s.get(db.Chat, c.chat_id) is None:
+                return
+            s.add(db.IntakeEvent(chat_id=c.chat_id, turn_id=c.turn_id, car_key=car_key, kind=kind, item=item,
+                                 details=dict(details)))  # fmt: skip
+            await s.commit()
+    except Exception:  # noqa: BLE001 - metrics only
+        return

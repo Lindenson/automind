@@ -13,9 +13,22 @@ from automind.orchestration.phrases import t
 from automind.orchestration.runner import TurnContext
 from automind.orchestration.state import TurnState
 
-from .common import ctx, current_year, load_case, notice, save_case
+from .common import ctx, current_year, load_case, notice, record_intake, save_case
 
 _RANK = {None: 0, "NEED": 1, "NOT_FOUND": 1, "CHOICES": 2, "IDENTIFIED": 3}
+
+
+async def _notices(c: TurnContext, car: Any, o: Any, url: str | None, lang: str | None) -> list[dict[str, Any]]:
+    """What the user should see about this car: a refused link, what was taken from a page, a correction."""
+    out = []
+    if o.note and o.note.startswith("refused:"):
+        out.append(notice(t("page_refused", lang, site=o.note.split(":", 1)[1]), "warning"))
+    elif url and car.label and url == car.constraints.url:
+        out.append(notice(t("page_taken", lang, what=car.label)))
+    if car.previous_label and car.label and car.previous_label != car.label:  # a correction, shown back (FR-014)
+        out.append(notice(t("changed_car", lang, before=car.previous_label, after=car.label)))
+        await record_intake(c, "CORRECTED", car.key, before=car.previous_label, after=car.label)
+    return out
 
 
 async def identify_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
@@ -36,13 +49,7 @@ async def identify_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict
         await c.status("resolving", f"Identifying {car.display_name}", car=car.display_name)
         url = car.constraints.url
         o = await identify.identify_car(c.ports, case, car, year, lineup_lookup=lookup)
-        lang = state.get("language")
-        if o.note and o.note.startswith("refused:"):
-            notices.append(notice(t("page_refused", lang, site=o.note.split(":", 1)[1]), "warning"))
-        elif url and car.label and url == car.constraints.url:
-            notices.append(notice(t("page_taken", lang, what=car.label)))
-        if car.previous_label and car.label and car.previous_label != car.label:  # a correction, shown back (FR-014)
-            notices.append(notice(t("changed_car", lang, before=car.previous_label, after=car.label)))
+        notices += await _notices(c, car, o, url, state.get("language"))
         if o.outcome != before.get(car.key) or car.label:
             changes.append(f"{car.key}: {o.outcome.lower()}" + (f" → {car.label}" if car.label else ""))
     out: dict[str, Any] = {}
@@ -55,6 +62,9 @@ async def identify_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict
     touched = {x.get("target_key") for x in [*(delta.get("set_car_context") or []), *(delta.get("replace_cars") or [])]}
     keys = [k for k in state.get("not_understood") or [] if k not in improved and k not in touched]
     out["not_understood"] = keys
+    for k in sorted(touched | set(state.get("not_understood") or []) | improved):
+        if k and any(x.key == k for x in case.cars):
+            await record_intake(c, "ANSWERED", k, progress=k not in keys)
     if notices:
         out["notices"] = [*state.get("notices", []), *notices]
     return out

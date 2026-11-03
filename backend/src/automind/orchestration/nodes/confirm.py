@@ -22,7 +22,7 @@ from automind.orchestration.phrases import PHRASES, t
 from automind.orchestration.runner import TurnContext
 from automind.orchestration.state import TurnState
 
-from .common import ctx, current_year, load_case, notice, save_case
+from .common import ctx, current_year, load_case, notice, record_intake, save_case
 
 
 async def ask_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
@@ -50,6 +50,9 @@ async def ask_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str,
         if q.get("kind") == "PROPOSE" and q.get("choices"):
             case.intake.proposed[q["car"]] = Choice.model_validate(q["choices"][0])
     asked = [(intake.StepItem(q["item"], q.get("car")), q["text"]) for q in items if q.get("item")]
+    for it, q_text in asked:
+        await record_intake(c, "ASKED", it.car_key, it.item, repeat=intake.is_repeat(case, it.car_key, it.item, q_text),
+                            text_hash=intake.question_hash(it.car_key, it.item, q_text))  # fmt: skip
     case = intake.record_asked(case, asked)
     version = await save_case(c, case, [f"asked: {', '.join(q['kind'] for q in items)}"])
     labels = {"new": t("cond_new", lang), "used": t("cond_used", lang), "yes": t("yes", lang),
@@ -279,6 +282,7 @@ async def prepare_intake(state: TurnState, runtime: Runtime[TurnContext]) -> dic
     case.intake.card = {"values": card.pop("values")}
     case.pending = Pending(kind="CONFIRM_INTAKE", items=[{"car": x.key} for x in case.cars])
     await save_case(c, case, ["confirmation card shown"])
+    await record_intake(c, "CARD_SHOWN")
     over = t("over_cap", lang, cap=f"{settings().cost_hard_cap_eur:.2f}") if state["decision"].get("over_cap") else ""
     await c.status("estimating", f"Confirm the cars and the research (≈ €{eur:.2f})")
     payload = {
@@ -316,6 +320,7 @@ async def apply_intake(state: TurnState, runtime: Runtime[TurnContext]) -> dict[
     done = {"confirm_payload": None, "resume": None}
     if choice == "edit_field":  # a chip on the card: code applies it, the car is identified again
         await _card_edit(c, case, answer)
+        await record_intake(c, "CARD_EDITED", answer.get("car_key"), str(answer.get("field") or ""))
         return {**done, "route": "identify"}
     if choice in ("text", "edit") or (not choice and answer.get("text")):
         raw = str(answer.get("text") or "")
@@ -340,6 +345,7 @@ async def apply_intake(state: TurnState, runtime: Runtime[TurnContext]) -> dict[
             car.resolution = "CONFIRMED"
     case.intake.card_confirmed = True
     case.pending = None
+    await record_intake(c, "CONFIRMED")
     if choice in ("yes", "run", "confirm", "continue"):
         await save_case(c, case, ["cars and research confirmed"])
         return {**done, "route": "assess", "cost_approved": True}

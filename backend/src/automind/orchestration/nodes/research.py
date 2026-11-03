@@ -25,7 +25,7 @@ from automind.orchestration.phrases import t, yes_or_no
 from automind.orchestration.runner import TurnContext
 from automind.orchestration.state import RESET, TurnState
 
-from .common import ctx, load_case, notice
+from .common import ctx, load_case, notice, record_intake
 
 
 def _plan(state: TurnState) -> rp.ResearchPlan:
@@ -56,6 +56,9 @@ async def plan_research(state: TurnState, runtime: Runtime[TurnContext]) -> dict
     plan = [j for j in _plan(state).jobs if j.car_key in keys]
     areas = sorted({j.area for j in plan})
     await c.status("researching", f"Researching {len(keys)} car(s): {', '.join(areas)}")
+    _, case = await load_case(c)
+    await record_intake(c, "RESEARCH_STARTED", all_confirmed=all(x.resolution in ("CONFIRMED", "AUTO_OK")
+                                                                 for x in case.cars if x.key in keys))  # fmt: skip
     return {"jobs": await _create(c, plan), "round": 0, "research_results": [RESET]}
 
 
