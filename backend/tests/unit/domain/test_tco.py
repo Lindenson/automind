@@ -22,9 +22,11 @@ def items(est):
 def test_item_kinds_and_labels_for_a_new_car():
     est = compute(car(), RATES)
     kinds = items(est)
-    assert set(kinds) == {"MAINTENANCE", "ENERGY", "TYRES", "ROAD_TAX"}
+    assert set(kinds) == {"MAINTENANCE", "ENERGY", "TYRES", "ROAD_TAX", "DEPRECIATION"}
     assert all(i.basis in ("SOURCED", "ASSUMPTION") and i.inputs for i in est.items)
-    assert est.annual_total == pytest.approx(sum(i.annual_eur for i in est.items if i.annual_eur is not None))
+    running = [i for i in est.items if i.kind != "DEPRECIATION"]
+    assert est.annual_total == pytest.approx(sum(i.annual_eur for i in running if i.annual_eur is not None))
+    assert kinds["DEPRECIATION"].annual_eur is None  # no price: not included, never guessed
     assert est.five_year_total == pytest.approx(est.annual_total * 5, rel=1e-6)
 
 
@@ -114,3 +116,49 @@ def test_implausible_published_schedule_falls_back_to_the_estimate():
     e = tco.compute(bad, rates, 15000)
     m = next(i for i in e.items if i.kind == "MAINTENANCE")
     assert m.annual_eur < 1500 and "implausible" in m.inputs[0]
+
+
+# --- spec 007 FR-016: the user's period and depreciation ---------------------------------------------------
+
+CURVE = {0: 1.0, 1: 0.78, 3: 0.60, 5: 0.47, 8: 0.33, 12: 0.20}
+
+
+def test_horizon_from_ownership_years_with_rates_fallback():
+    assert compute(car(), RATES).years == RATES.horizon_years
+    est = compute(car(), RATES, years=8)
+    assert est.years == 8
+    assert est.five_year_total == pytest.approx(est.annual_total * 8, rel=1e-6)  # no price: running only
+
+
+def test_depreciation_interpolates_sourced_points_and_labels_beyond():
+    c = car(price_eur=40000, retention={3: 0.62, 5: 0.50}, retention_curve=CURVE)
+    four = items(compute(c, RATES, years=4))["DEPRECIATION"]
+    assert four.five_year_eur == pytest.approx(40000 * (1 - 0.56))  # between 0.62 and 0.50
+    assert four.basis == "SOURCED"
+    eight = items(compute(c, RATES, years=8))["DEPRECIATION"]
+    assert eight.basis == "ASSUMPTION"  # beyond the 5-year point: the class rate carries it on
+    assert eight.five_year_eur == pytest.approx(40000 * (1 - 0.50 * 0.33 / 0.47), rel=1e-3)
+    assert any("assumption" in x for x in eight.inputs)
+
+
+def test_depreciation_from_the_class_curve_is_an_assumption_and_period_total_includes_it():
+    c = car(price_eur=30000, retention_curve=CURVE)
+    est = compute(c, RATES, years=3)
+    dep = items(est)["DEPRECIATION"]
+    assert dep.basis == "ASSUMPTION" and dep.five_year_eur == pytest.approx(30000 * 0.40)
+    running = sum(i.annual_eur for i in est.items if i.kind != "DEPRECIATION" and i.annual_eur is not None)
+    assert est.annual_total == pytest.approx(running)  # yearly running cost excludes depreciation
+    assert est.five_year_total == pytest.approx(running * 3 + dep.five_year_eur, rel=1e-6)
+
+
+def test_used_car_loses_value_from_its_age_on():
+    c = car(price_eur=30000, retention_curve=CURVE, condition="USED", age_years=3)
+    dep = items(compute(c, RATES, years=2))["DEPRECIATION"]
+    assert dep.five_year_eur == pytest.approx(30000 * (0.60 - 0.47))
+
+
+def test_block_shows_the_period():
+    from automind.application.compose import tco_block
+
+    b = tco_block([compute(car(), RATES, years=7)])
+    assert b["years"] == 7 and "7 years" in b["title"]

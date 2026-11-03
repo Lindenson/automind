@@ -76,9 +76,46 @@ def _checked_costs(
 KEY_AREAS = ("specs", "price", "maintenance", "reliability")
 
 
+PERSONAS = ("BUYER", "PERFORMANCE", "EXPERT")
+USED_AREAS = {"used_price": "price_used", "used_issues": "wear"}
+
+
+def limits_from(case: CaseFile, fz: dict[str, Any] | None) -> list[vd.Limit]:
+    """Budget and monthly findings from the feasibility checks (spec 007 FR-017): only a clear 'does not fit'
+    with both numbers; 'used ones fit' or 'unknown' is not a limit."""
+    by_key = {x.key: x.variant_id for x in case.cars}
+    out: list[vd.Limit] = []
+    for r in (fz or {}).get("results", []):
+        vid = by_key.get(r["car_key"])
+        for ch in r["checks"]:
+            if vid is None or ch["verdict"] != "DOES_NOT_FIT" or ch["check"] not in ("BUDGET", "RUNNING_COST"):
+                continue
+            nums = [n["value"] for n in ch["compared"] if n.get("value") is not None]
+            if len(nums) < 2:
+                continue
+            kind = "OVER_BUDGET" if ch["check"] == "BUDGET" else "OVER_MONTHLY"
+            out.append(vd.Limit(vid, kind, float(nums[0]), float(nums[-1])))  # type: ignore[arg-type]
+    return out
+
+
+def persona_counterfactual(case: CaseFile, outcome: Any) -> vd.OtherProfile | None:
+    """Same data, another persona's weights (spec 007 FR-018): the first persona with a different clear winner."""
+    mine, _ = outcome(case)
+    for p in PERSONAS:
+        if p == case.persona:
+            continue
+        probe = case.model_copy(update={"persona": p, "weight_adjustments": {}, "weights_excluded": [],
+                                        "weights_overridden": False, "weights": {}, "priorities": []})  # fmt: skip
+        win, tie = outcome(probe)
+        if win and not tie and win != mine:
+            return vd.OtherProfile(p, win)
+    return None
+
+
 async def _insights(
     c: TurnContext, case: CaseFile, keyed: list[tuple[Any, dict[str, Any]]], tcars: list[tco.TcoCar],
     costs: dict[str, float], crit: CriteriaScore | None, sims: dict[str, Any], rates: tco.TcoRates, lang: str,
+    limits: list[vd.Limit] | None = None, other: vd.OtherProfile | None = None,
 ) -> tuple[Any, Any, dict[str, Any], GuardInput]:  # fmt: skip
     """Insights → verdict → the verdict card (spec 004 FR-001, FR-009)."""
     rel = {s.car_id: s.parts.get("reliability") for s in crit.cars} if crit else {}
@@ -100,9 +137,16 @@ async def _insights(
     names = {car["variant"].id: compose.short_name(car["variant"]) for _, car in keyed}
     unmet = await research.unmet_areas([car["variant"].id for _, car in keyed])
     gaps = [f"{names[vid]}: {a}" for vid in names for a in KEY_AREAS if a in unmet.get(vid, set())]
+    used_missing = [
+        vd.UsedMissing(vid, tuple(m for a, m in USED_AREAS.items() if a in unmet.get(vid, set())))
+        for vid in (car["variant"].id for x, car in keyed if x.condition == "USED")
+    ]
+    used_missing = [u for u in used_missing if u.missing]
+    gaps += [f"{names[u.car_id]}: {a}" for u in used_missing for a, m in USED_AREAS.items() if m in u.missing]
     classes = [car["variant"].vehicle_class for _, car in keyed]
-    v = vd.build(crit, iset, gaps=gaps, different_needs=vd.very_different(classes))
-    block = report_text.verdict_block(v, iset, names, lang)
+    v = vd.build(crit, iset, gaps=gaps, different_needs=vd.very_different(classes), limits=limits or [],
+                 other_profile=other, used_missing=used_missing)  # fmt: skip
+    block = report_text.verdict_block(v, iset, names, lang, case.ownership_years)
     has = {t for t, ok in (("tco", bool(costs)), ("price", "official_price_es" in _any_values(values)),
                            ("consumption", "consumption" in _any_values(values))) if ok}  # fmt: skip
     has |= {i.attribute for i in iset.insights}
@@ -126,8 +170,9 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
     race = compose.run_race(cars, case.race_settings.model_dump() if case.race_settings else None)
     sims = {r.car_id: r for r in race.results}
     rates = tco.TcoRates.from_config(c.ports.ref.rates or {}, case.rates_override.model_dump())
-    tcars = [await compose.tco_car(car, _cond(x.condition), x.age_years, x.mileage_km) for x, car in keyed]
-    estimates = [tco.compute(t, rates, case.annual_km) for t in tcars]
+    curve = (c.ports.ref.feasibility or {}).get("depreciation") or {}
+    tcars = [await compose.tco_car(car, _cond(x.condition), x.age_years, x.mileage_km, curve) for x, car in keyed]
+    estimates = [tco.compute(t, rates, case.annual_km, case.ownership_years) for t in tcars]
     costs = _checked_costs(estimates, {car["variant"].id: x.age_years for x, car in keyed}, notices)
     facts = [
         compose.facts(
@@ -145,7 +190,7 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
 
     def outcome(probe: CaseFile) -> tuple[str | None, bool]:
         """The same data scored for another profile (pure: no search, no model)."""
-        est = [tco.compute(t, rates, probe.annual_km) for t in tcars]
+        est = [tco.compute(t, rates, probe.annual_km, probe.ownership_years) for t in tcars]
         cost = _checked_costs(est, {car["variant"].id: x.age_years for x, car in keyed}, [])
         fs = [compose.facts(car, sims.get(car["variant"].id), condition=_cond(x.condition), age_years=x.age_years,
                             annual_cost_eur=cost.get(car["variant"].id)) for x, car in keyed]  # fmt: skip
@@ -153,8 +198,11 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
         r = score(fs, w, model) if fs and w else None
         return (r.winner_car_id, r.tie) if r else (None, False)
 
-    iset, verdict, vblock, check = await _insights(c, case, keyed, tcars, costs, crit, sims, rates, lang)
-    blocks = await _blocks(c, case, keyed, race, crit, estimates, iset)
+    fz = await _feasibility(c, case)
+    other = persona_counterfactual(case, outcome) if crit is not None and len(keyed) > 1 else None
+    iset, verdict, vblock, check = await _insights(c, case, keyed, tcars, costs, crit, sims, rates, lang,
+                                                   limits_from(case, fz), other)  # fmt: skip
+    blocks = await _blocks(c, case, keyed, race, crit, estimates, iset, fz)
     out_notices = list(notices)
     if case.unmapped_wishes:
         out_notices.append(notice("Not assessable with data: " + ", ".join(case.unmapped_wishes)))
@@ -185,15 +233,41 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
         }
         for e in estimates
     ]
-    summary["insights"] = report_text.insights_for_llm(iset, verdict, names, lang)
+    summary["insights"] = report_text.insights_for_llm(iset, verdict, names, lang, case.ownership_years)
+    summary["profile_focus"] = profile_focus(case, crit, verdict, names, lang)
     summary["section_depth"] = depths(case.persona, c.ports.ref.layouts or {})  # spec 004 FR-019
     return Computed(blocks=ordered, facts=summary, criteria=crit, cars=cars, tco=estimates, race=race,
                     insights=iset, verdict=verdict, check=check, outcome=outcome)  # fmt: skip
 
 
+def profile_focus(
+    case: CaseFile, crit: CriteriaScore | None, verdict: Any, names: dict[str, str], lang: str
+) -> dict[str, Any]:  # fmt: skip
+    """For the writer (spec 007 FR-018): lead with the criteria this user weights highest, and the code facts
+    about what the profile changes. The model may phrase these, never add to them."""
+    weights = crit.weights if crit is not None else {}
+    top = sorted(((k, w) for k, w in weights.items() if w > 0), key=lambda kw: (-kw[1], kw[0]))[:3]
+    p = case.profile
+    who = [x for x in (case.persona, p.family, p.driving_style, p.age_band) if x and x != "UNKNOWN"]
+    return {
+        "top_criteria": [{"criterion": k, "weight": round(w, 1)} for k, w in top],
+        "profile": who,
+        "ownership_years": case.ownership_years,
+        "annual_km": case.annual_km,
+        "notes": report_text.profile_lines(verdict, names, lang, case.ownership_years) if verdict else [],
+    }
+
+
+async def _feasibility(c: TurnContext, case: CaseFile) -> dict[str, Any] | None:
+    if not fz_app.has_constraints(case) or c.ports.feasibility is None:
+        return None
+    return await fz_app.evaluate(case, c.ports.ref.feasibility, c.ports.ref.rates or {}, c.ports.clock.now().year,
+                                 c.ports.feasibility)  # fmt: skip
+
+
 async def _blocks(
     c: TurnContext, case: CaseFile, keyed: list[tuple[Any, dict[str, Any]]], race: Any, crit: CriteriaScore | None,
-    estimates: list[tco.TcoEstimate], iset: Any,
+    estimates: list[tco.TcoEstimate], iset: Any, fz: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:  # fmt: skip
     cars = [car for _, car in keyed]
     model = c.ports.ref.criteria
@@ -214,9 +288,7 @@ async def _blocks(
     if crit is not None:
         blocks.append(compose.criteria_block(crit, model, case.unmapped_wishes, weight_breakdown(case, model)))
     ages = {x.variant_id: x.age_years for x in case.cars if x.variant_id}
-    if fz_app.has_constraints(case) and c.ports.feasibility is not None:  # spec 003: the verdict stays visible
-        fz = await fz_app.evaluate(case, c.ports.ref.feasibility, c.ports.ref.rates or {}, c.ports.clock.now().year,
-                                   c.ports.feasibility)  # fmt: skip
+    if fz is not None:  # spec 003: the verdict stays visible
         fz_block = fz_app.block(case, fz)
         if fz_block is not None:
             blocks.append(fz_block)

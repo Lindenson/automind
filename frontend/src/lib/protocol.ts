@@ -265,6 +265,7 @@ export const TcoBlockSchema = z.object({
   type: z.literal("tco"),
   title: z.string(),
   annual_km: z.number(),
+  years: z.number().default(5),
   cars: z.array(
     z.object({
       car_id: z.string(),
@@ -282,6 +283,7 @@ export const TcoBlockSchema = z.object({
             "ROAD_TAX",
             "BIG_TICKET",
             "BASE_RESERVE",
+            "DEPRECIATION",
           ]),
           label: z.string(),
           annual_eur: z.number().nullable(),
@@ -516,6 +518,8 @@ export const VerdictBlockSchema = z.object({
   confidence_reason: z.string(),
   would_change: z.string().nullable().default(null),
   gaps: z.array(z.string()).default([]),
+  profile_notes: z.array(z.string()).default([]),
+  best_if_budget: z.string().nullable().default(null),
 });
 
 // spec 004 FR-014: one "what we know" panel per report

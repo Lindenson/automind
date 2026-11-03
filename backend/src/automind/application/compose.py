@@ -721,7 +721,10 @@ def _criteria_facts(sc: CriteriaScore | None) -> dict | None:
 # ---------------- ownership cost (US4) ----------------
 
 
-async def tco_car(car: dict, condition: str, age_years: int | None, mileage_km: int | None) -> tco.TcoCar:
+async def tco_car(
+    car: dict, condition: str, age_years: int | None, mileage_km: int | None,
+    retention_curve: dict | None = None,
+) -> tco.TcoCar:  # fmt: skip
     """Assemble TCO inputs from validated data: specs, sourced maintenance items, used-car issues."""
     v = car["variant"]
     engine = (_txt(car, "engine") or "").lower()
@@ -768,15 +771,35 @@ async def tco_car(car: dict, condition: str, age_years: int | None, mileage_km: 
         fiscal_hp=_num(car, "fiscal_hp"),
         maintenance=sched,
         big_tickets=tickets,
+        price_eur=_num(car, "official_price_es"),
+        retention=sourced_retention(car),
+        retention_curve=class_curve(v.vehicle_class, retention_curve or {}),
     )
+
+
+def sourced_retention(car: dict) -> dict[int, float]:
+    """Sourced value share per year (median when several sources), for the depreciation item (spec 007 FR-016)."""
+    out: dict[int, float] = {}
+    for years in RETENTION_YEARS:
+        shares = sorted(float(r.share) for r, _ in car.get("retention", []) if r.years == years and r.share)
+        if shares:
+            out[years] = shares[len(shares) // 2]
+    return out
+
+
+def class_curve(vehicle_class: str | None, curves: dict) -> dict[float, float]:
+    table = curves.get(vehicle_class or "compact") or curves.get("compact") or {}
+    return {float(k): float(v) for k, v in table.items()}
 
 
 def tco_block(estimates: list[tco.TcoEstimate], evidence: dict[str, dict] | None = None) -> dict:
     ev = evidence or {}
+    years = estimates[0].years if estimates else 5
     return {
         "type": "tco",
-        "title": "Ownership cost (per year and over 5 years)",
+        "title": f"Ownership cost (per year and over {years} years)",
         "annual_km": estimates[0].annual_km if estimates else 15000,
+        "years": years,
         "cars": [
             {
                 "car_id": e.car_id,

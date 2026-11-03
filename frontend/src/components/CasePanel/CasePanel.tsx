@@ -6,7 +6,7 @@ import { useLang, useT } from "../../i18n";
  */
 import { useEffect, useState, type ReactNode } from "react";
 import type { CaseFile } from "../../lib/protocol";
-import { cx } from "../../lib/util";
+import { cx, yearsLabel } from "../../lib/util";
 import { patchCase, useCasePanel, type CasePatch } from "../../store/case";
 import { useChat } from "../../store/chat";
 import { Weights } from "./Weights";
@@ -462,17 +462,6 @@ const BASIS_CLS: Record<string, string> = {
   INFERRED: "border-sky-500/50 text-sky-300",
   ASSUMED: "border-amber-500/50 text-amber-300",
 };
-
-function yearsLabel(n: number, lang: string, fallback: string): string {
-  if (lang !== "ru") return fallback;
-  const word =
-    n % 10 === 1 && n % 100 !== 11
-      ? "год"
-      : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100)
-        ? "года"
-        : "лет";
-  return `${n} ${word}`;
-}
 
 function Basis({ b }: { b?: string }) {
   const t = useT();

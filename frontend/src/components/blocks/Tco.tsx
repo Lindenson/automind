@@ -1,11 +1,11 @@
-import { useBlockTitle } from "../../i18n";
+import { useBlockTitle, useLang, useT } from "../../i18n";
 /**
  * Ownership cost (FR-033..FR-035): annual and 5-year totals per car, a stacked bar by item, every item
  * labelled SOURCED or ASSUMPTION with its inputs. For used cars the repair reserve is shown in two
  * parts: documented big-ticket items and the base reserve.
  */
 import type { BlockOf } from "../../lib/protocol";
-import { cx, fmtNum } from "../../lib/util";
+import { cx, fmtNum, yearsLabel } from "../../lib/util";
 import {
   AssumptionBadge,
   BlockCard,
@@ -33,6 +33,7 @@ const KIND_LABEL: Record<Item["kind"], string> = {
   ROAD_TAX: "Road tax",
   BIG_TICKET: "Due repairs",
   BASE_RESERVE: "Base reserve",
+  DEPRECIATION: "Depreciation",
 };
 const OPACITY: Record<Item["kind"], number> = {
   MAINTENANCE: 1,
@@ -41,6 +42,7 @@ const OPACITY: Record<Item["kind"], number> = {
   ROAD_TAX: 0.45,
   BIG_TICKET: 0.34,
   BASE_RESERVE: 0.24,
+  DEPRECIATION: 0,
 };
 const eur = (v: number | null) => (v === null ? "—" : `€${fmtNum(v, 0)}`);
 
@@ -75,14 +77,21 @@ function CarCost({
   car,
   color,
   max,
+  over,
 }: {
   car: Car;
   color: string;
   max: number;
+  over: string;
 }) {
+  const t = useT();
   const regular = car.items.filter(
-    (i) => i.kind !== "BIG_TICKET" && i.kind !== "BASE_RESERVE",
+    (i) =>
+      i.kind !== "BIG_TICKET" &&
+      i.kind !== "BASE_RESERVE" &&
+      i.kind !== "DEPRECIATION",
   );
+  const depreciation = car.items.filter((i) => i.kind === "DEPRECIATION");
   const bigTicket = car.items.filter((i) => i.kind === "BIG_TICKET");
   const reserve = car.items.filter((i) => i.kind === "BASE_RESERVE");
   const byKind = KIND_ORDER.map(
@@ -115,7 +124,7 @@ function CarCost({
           <span className="text-xs text-muted">/yr</span>
           <span className="block text-xs text-muted sm:inline">
             <span className="hidden sm:inline"> · </span>
-            {eur(car.five_year_total)} over 5 years
+            {eur(car.five_year_total)} {over}
           </span>
         </span>
       </div>
@@ -171,13 +180,28 @@ function CarCost({
           </ul>
         </div>
       )}
+      {depreciation.length > 0 && (
+        <div className="mt-2 border-t border-line/30 pt-1">
+          <div className="text-[11px] text-muted">{t("tco.depreciation")}</div>
+          <ul>
+            {depreciation.map((it) => (
+              <Row key={it.label} it={it} />
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
 
 export function Tco({ b }: { b: BlockOf<"tco"> }) {
   const color = useCarColor();
+  const t = useT();
+  const lang = useLang();
   const max = Math.max(1, ...b.cars.map((c) => c.annual_total));
+  const over = t("tco.over", {
+    years: yearsLabel(b.years, lang, t("profile.years", { n: b.years })),
+  });
   return (
     <BlockCard
       title={useBlockTitle(b.type, b.title)}
@@ -186,7 +210,13 @@ export function Tco({ b }: { b: BlockOf<"tco"> }) {
     >
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         {b.cars.map((c) => (
-          <CarCost key={c.car_id} car={c} color={color(c.car_id)} max={max} />
+          <CarCost
+            key={c.car_id}
+            car={c}
+            color={color(c.car_id)}
+            max={max}
+            over={over}
+          />
         ))}
       </div>
     </BlockCard>

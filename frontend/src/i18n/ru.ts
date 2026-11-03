@@ -150,6 +150,8 @@ export const ru: Record<Key, string> = {
   "block.metric_bars": "Показатели",
   "block.race_chart": "Драг-гонка (симуляция)",
   "block.criteria_scores": "Критерии и оценки (индексы 0–100, не измерения)",
+  "tco.over": "за {years}",
+  "tco.depreciation": "Потеря стоимости (входит в итог за срок, не в расходы за год)",
   "block.tco": "Стоимость владения",
   "block.reliability": "Надёжность",
   "block.reviews": "Отзывы",

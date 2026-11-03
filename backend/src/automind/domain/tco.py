@@ -1,7 +1,11 @@
 """Ownership cost (TCO) engine (FR-033..FR-035; research R9). Pure and deterministic.
 
 Items: MAINTENANCE, ENERGY, TYRES, ROAD_TAX and, for used cars, BIG_TICKET (documented age/mileage
-items due within the horizon) and BASE_RESERVE (age band × class table). Every item is labelled
+items due within the horizon) and BASE_RESERVE (age band × class table). DEPRECIATION (spec 007 FR-016) is the
+value lost over the user's ownership period: it is part of the period total, not of the yearly running cost
+(the running cost is what the monthly limit and the ownership-cost score compare).
+
+Horizon: `years` (the user's ownership period) or `rates.horizon_years`. Every item is labelled
 SOURCED or ASSUMPTION and lists its inputs (constitution XI). Items without data are "not included",
 never guessed.
 """
@@ -12,9 +16,9 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from typing import Any, Literal
 
-RULES_VERSION = "tco-1.0"
+RULES_VERSION = "tco-1.1"
 Basis = Literal["SOURCED", "ASSUMPTION"]
-Kind = Literal["MAINTENANCE", "ENERGY", "TYRES", "ROAD_TAX", "BIG_TICKET", "BASE_RESERVE"]
+Kind = Literal["MAINTENANCE", "ENERGY", "TYRES", "ROAD_TAX", "BIG_TICKET", "BASE_RESERVE", "DEPRECIATION"]
 CLASSES = ("small", "compact", "mid_large", "premium_suv_4x4")
 
 
@@ -98,6 +102,9 @@ class TcoCar:
     road_tax_eur: float | None = None  # sourced annual road tax
     maintenance: list[MaintenanceSched] = field(default_factory=list)
     big_tickets: list[BigTicket] = field(default_factory=list)
+    price_eur: float | None = None  # official new price (ES)
+    retention: Mapping[int, float] = field(default_factory=dict)  # sourced value share after N years (3, 5)
+    retention_curve: Mapping[float, float] = field(default_factory=dict)  # class curve (assumption), age -> share
 
 
 @dataclass(frozen=True)
@@ -119,9 +126,14 @@ class TcoEstimate:
     age_years: int | None
     annual_km: int
     items: list[TcoItem]
-    annual_total: float
-    five_year_total: float
+    annual_total: float  # running cost per year (without depreciation)
+    five_year_total: float  # total over `years` (running + depreciation); the name is kept for stored rows
     rules_version: str = RULES_VERSION
+    years: int = 5  # the period the totals cover
+
+    @property
+    def period_total(self) -> float:
+        return self.five_year_total
 
 
 def _item(
@@ -334,6 +346,65 @@ def _big_tickets(car: TcoCar, r: TcoRates, km: int, years: int) -> list[TcoItem]
     return out
 
 
+def _curve(curve: Mapping[float, float], t: float) -> float | None:
+    pts = sorted((float(k), float(v)) for k, v in curve.items())
+    if not pts:
+        return None
+    if t <= pts[0][0]:
+        return pts[0][1]
+    for (a, va), (b, vb) in zip(pts, pts[1:], strict=False):
+        if a <= t <= b:
+            return va + (vb - va) * (t - a) / (b - a)
+    return pts[-1][1]
+
+
+def value_share(
+    t: float, sourced: Mapping[int, float], curve: Mapping[float, float]
+) -> tuple[float | None, Basis, str]:
+    """Share of the new price left at age `t`. Sourced 3- and 5-year points are interpolated (from 1.0 at 0);
+    beyond the last sourced point the class curve carries it on from there (assumption rate). Without sourced
+    points: the class curve (assumption)."""
+    pts = sorted((float(k), float(v)) for k, v in sourced.items() if v)
+    if pts:
+        last_t, last_v = pts[-1]
+        if t <= last_t:
+            return (
+                _curve({0.0: 1.0, **dict(pts)}, t),
+                "SOURCED",
+                f"sourced value after {', '.join(f'{k:g}' for k, _ in pts)} years",
+            )
+        base, there = _curve(curve, last_t), _curve(curve, t)
+        if base and there is not None:
+            return (
+                last_v * there / base,
+                "ASSUMPTION",
+                (f"sourced value after {last_t:g} years, then the class depreciation rate (assumption)"),
+            )
+    share = _curve(curve, t)
+    return share, "ASSUMPTION", "class depreciation curve (assumption)"
+
+
+def _depreciation(car: TcoCar, years: int) -> TcoItem:
+    if not car.price_eur:
+        return _item("DEPRECIATION", "Depreciation: not included (price not found)", None, "ASSUMPTION",
+                     ["official price not found"], years)  # fmt: skip
+    age = (car.age_years or 0) if car.condition == "USED" else 0
+    start, b0, _ = value_share(age, car.retention, car.retention_curve) if age else (1.0, "SOURCED", "")
+    end, b1, how = value_share(age + years, car.retention, car.retention_curve)
+    if start is None or end is None:
+        return _item("DEPRECIATION", "Depreciation: not included (no value data)", None, "ASSUMPTION",
+                     ["no value data for this class"], years)  # fmt: skip
+    value_now, value_then = car.price_eur * start, car.price_eur * end
+    loss = max(0.0, value_now - value_then)
+    basis: Basis = "SOURCED" if b0 == b1 == "SOURCED" else "ASSUMPTION"
+    inputs = [f"new price €{car.price_eur:,.0f}"]
+    if age:
+        inputs.append(f"value now ≈ €{value_now:,.0f} at {age} years (estimate)")
+    inputs += [f"value after {years} years ≈ €{value_then:,.0f} ({end * 100:.0f}% of new): {how}"]
+    return TcoItem("DEPRECIATION", f"Depreciation over {years} years", round(loss / years, 2), round(loss, 2),
+                   basis, inputs)  # fmt: skip
+
+
 def _band(age: int) -> int:
     return 0 if age <= 4 else 1 if age <= 9 else 2 if age <= 14 else 3
 
@@ -353,9 +424,9 @@ def _reserve(car: TcoCar, r: TcoRates, years: int) -> TcoItem:
     )
 
 
-def compute(car: TcoCar, rates: TcoRates, annual_km: int | None = None) -> TcoEstimate:
+def compute(car: TcoCar, rates: TcoRates, annual_km: int | None = None, years: int | None = None) -> TcoEstimate:
     km = annual_km or rates.annual_km
-    years = rates.horizon_years
+    years = years or rates.horizon_years
     items = [
         _maintenance(car, rates, km, years),
         _energy(car, rates, km, years),
@@ -365,6 +436,8 @@ def compute(car: TcoCar, rates: TcoRates, annual_km: int | None = None) -> TcoEs
     if car.condition == "USED":
         items += _big_tickets(car, rates, km, years)
         items.append(_reserve(car, rates, years))
-    annual = round(sum(i.annual_eur for i in items if i.annual_eur is not None), 2)
-    five = round(sum(i.five_year_eur for i in items if i.five_year_eur is not None), 2)
-    return TcoEstimate(car.car_id, car.label, car.condition, car.age_years, km, items, annual, five)
+    items.append(_depreciation(car, years))
+    running = [i for i in items if i.kind != "DEPRECIATION"]
+    annual = round(sum(i.annual_eur for i in running if i.annual_eur is not None), 2)
+    period = round(sum(i.five_year_eur for i in items if i.five_year_eur is not None), 2)
+    return TcoEstimate(car.car_id, car.label, car.condition, car.age_years, km, items, annual, period, years=years)
