@@ -118,6 +118,8 @@ async def purge():
             m.TcoEstimateRow,
             m.FeasibilityCheck,
             m.PageRelevance,
+            m.ValueRetention,
+            m.ValueChallenge,
             m.UsedPriceRange,
         ):
             await s.execute(delete(t).where(t.variant_id.in_(ids)))

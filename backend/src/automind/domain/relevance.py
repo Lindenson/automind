@@ -55,6 +55,8 @@ class Target:
     variant: str
     fuel: str | None = None
     body: str | None = None
+    transmission: str | None = None  # manual | automatic | dct | cvt | e-cvt | single (spec 004 FR-028)
+    drive: str | None = None  # FWD | RWD | AWD
 
 
 @dataclass(frozen=True)
@@ -141,7 +143,35 @@ def _generation_signals(
     return None, target_in_title, in_range
 
 
+_MANUAL_WORDS = (" manual", "cambio manual", "manuell", " 6mt", " 5mt", " mt ", "schaltgetriebe")
+_AUTO_WORDS = (" automatic", " automático", " automatico", " automatik", " dsg", " cvt", " e-cvt", " ecvt", " auto ",
+               " 6at", " 8at", " steptronic", " tiptronic", " dct", " edc")  # fmt: skip
+_AWD_WORDS = (" 4x4", " awd", " 4wd", " quattro", " xdrive", " 4motion", " all-wheel", " all wheel", " 4matic",
+              " awd-i", " integral")  # fmt: skip
+_TWO_WD_WORDS = (" fwd", " 4x2", " 2wd", " front-wheel", " tracción delantera")
+
+
+def _gearbox_drive_signal(title_url: str, target: Target) -> Relevance | None:
+    """A title or URL that names another gearbox or driven axle than the variant (e.g. a manual CX-5 page for
+    the automatic): another variant (spec 004 FR-028). Only explicit words count."""
+    t = f" {title_url} "
+    gb = (target.transmission or "").lower()
+    if gb == "manual" and any(w in t for w in _AUTO_WORDS) and not any(w in t for w in _MANUAL_WORDS):
+        return Relevance("OTHER_VARIANT", "other gearbox: automatic (wanted manual)", "automatic")
+    if gb and gb != "manual" and any(w in t for w in _MANUAL_WORDS) and not any(w in t for w in _AUTO_WORDS):
+        return Relevance("OTHER_VARIANT", f"other gearbox: manual (wanted {gb})", "manual")
+    dr = (target.drive or "").upper()
+    if dr in ("FWD", "RWD") and any(w in t for w in _AWD_WORDS) and not any(w in t for w in _TWO_WD_WORDS):
+        return Relevance("OTHER_VARIANT", f"other drive: AWD (wanted {dr})", "AWD")
+    if dr == "AWD" and any(w in t for w in _TWO_WD_WORDS) and not any(w in t for w in _AWD_WORDS):
+        return Relevance("OTHER_VARIANT", "other drive: 2WD (wanted AWD)", "2WD")
+    return None
+
+
 def _engine_body_signals(title_url: str, head: str, target: Target) -> Relevance | None:
+    gd = _gearbox_drive_signal(title_url, target)
+    if gd is not None:
+        return gd
     want = power_ps_of(target.variant)
     title_powers = _powers(title_url)
     if want and title_powers and not any(_same_power(p, want) for p in title_powers):

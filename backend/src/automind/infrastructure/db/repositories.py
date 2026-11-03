@@ -16,6 +16,7 @@ from .models import (
     CaseFileRow,
     Chat,
     ChatMessage,
+    Claim,
     DeletedChat,
     FeasibilityCheck,
     LLMCall,
@@ -419,6 +420,15 @@ class MetricsRepo:
             runs = (await s.execute(select(ResearchRun).where(ResearchRun.completed_at >= since))).scalars().all()
             calls = (await s.execute(select(SearchCall).where(SearchCall.created_at >= since))).scalars().all()
             sites = (await s.execute(select(SiteReaderStat).where(SiteReaderStat.day >= since.date()))).scalars().all()
+            sense_rows = (
+                await s.execute(
+                    select(Claim.reject_rule, func.count())
+                    .where(Claim.created_at >= since, Claim.reject_rule.like("sense.%"))
+                    .group_by(Claim.reject_rule)
+                )
+            ).all()
+            ratings = (await s.execute(select(func.count(), func.avg(ReportRating.rating)).where(
+                ReportRating.created_at >= since))).one()  # fmt: skip
         areas: dict[str, dict[str, Any]] = {}
         for j in jobs:
             a = areas.setdefault(j.area, {"jobs": 0, "accepted": 0, "rejected": 0, "pages_found": 0, "pages_cached": 0,
@@ -443,6 +453,8 @@ class MetricsRepo:
         return {
             "days": days,
             "areas": areas,
+            "sense_rejections": {str(r): int(n) for r, n in sense_rows},  # spec 004 FR-027, per rule
+            "ratings": {"count": int(ratings[0] or 0), "average": round(float(ratings[1]), 2) if ratings[1] else None},
             "sites": [
                 {"domain": x.domain, "day": x.day.isoformat(), "ok": x.ok, "failed": x.failed, "ambiguous": x.ambiguous}
                 for x in sites

@@ -50,7 +50,7 @@ def _identity(c: CaseCar | None) -> tuple[object, ...]:
         return ()
     k = c.constraints
     return (c.make, c.model, c.year, c.age_years, c.condition, k.generation_hint, k.fuel_hint, k.body_hint,
-            k.trim_hint, k.url)  # fmt: skip
+            k.trim_hint, k.gearbox_hint, k.drive_hint, k.url)  # fmt: skip
 
 
 def answer_settles(kind: str, before: CaseCar | None, after: CaseCar | None, request: str) -> bool:

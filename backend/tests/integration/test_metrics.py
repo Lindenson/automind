@@ -26,3 +26,4 @@ async def test_metrics_aggregate_jobs_and_search_calls():
     assert b["pages_rejected"]["other_variant"] >= 2 and b["reader_values"] >= 4
     assert after["search"]["cache_hits"] == before["search"]["cache_hits"] + 1
     assert after["search"]["paid_calls"] == before["search"]["paid_calls"] + 1
+    assert "sense_rejections" in after and "ratings" in after  # spec 004 FR-027 / FR-026

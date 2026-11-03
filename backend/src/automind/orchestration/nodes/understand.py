@@ -122,7 +122,11 @@ async def assess_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[s
         case.compare_level, case.compare_level_source = level, source  # type: ignore[assignment]
         changed.append(f"comparison level: {level.lower()}")
     for car in case.cars:
-        reason = await resolve.revalidate(car, c.ports.ref, year) or await resolve.revalidate_level(car, level)
+        reason = (
+            await resolve.revalidate(car, c.ports.ref, year)
+            or await resolve.revalidate_level(car, level)
+            or await resolve.split_by_gearbox(car, c.ports.ref)
+        )
         if reason:
             changed.append(reason)
         a = await resolve.assess_car(car, c.ports.ref, year, level)

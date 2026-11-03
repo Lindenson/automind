@@ -118,6 +118,8 @@ class Constraints(BaseModel):
     fuel_hint: str | None = None
     body_hint: str | None = None
     trim_hint: str | None = None
+    gearbox_hint: Literal["manual", "automatic", "dct", "cvt", "e-cvt", "single"] | None = None  # spec 004 FR-028
+    drive_hint: Literal["FWD", "RWD", "AWD"] | None = None
     url: str | None = None
 
 

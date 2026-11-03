@@ -49,6 +49,9 @@ Rules
   If the user lets you choose the version ("any", "choose for me", "любой", "выбери сам", "cualquiera"),
   request is choose_for_me. If the answer does not answer the question (nonsense, another topic, a model
   you do not know), do NOT guess: leave the delta empty and keep request as it is; never invent a make or model.
+- A gearbox or driven wheels named by the user ("automatic", "manual", "DSG", "4x4", "AWD", "front-wheel
+  drive", "автомат", "механика", "полный привод") go to constraints.gearbox_hint (manual | automatic | dct | cvt |
+  e-cvt | single) and constraints.drive_hint (FWD | RWD | AWD) of that car.
 - A version (equipment level) named by the user ("Homura", "Klass", "GT Line", "base", "top version") goes to
   constraints.trim_hint of that car.
 - A question about the current cars without new facts → follow_up_question, empty delta.

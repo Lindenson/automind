@@ -11,7 +11,7 @@ from typing import Any
 
 from automind.application import compose
 from automind.application import feasibility as fz_app
-from automind.domain import tco
+from automind.domain import sense, tco
 from automind.domain.casefile import CaseFile
 from automind.domain.criteria import CriteriaScore, score, weights_for
 from automind.domain.report_layout import order_blocks
@@ -50,6 +50,21 @@ def case_facts(case: CaseFile) -> list[str]:
     return out
 
 
+def _checked_costs(
+    estimates: list[tco.TcoEstimate], ages: dict[str, int | None], notices: list[dict[str, Any]]
+) -> dict[str, float]:
+    """Sense check on the result (spec 004 FR-027): a yearly cost outside the configured range is an error upstream
+    (EUR 513,672/year from a unit error). It is shown flagged and never scored."""
+    out: dict[str, float] = {}
+    for e in estimates:
+        r = sense.tco_per_year(e.annual_total, ages.get(e.car_id))
+        if r.ok:
+            out[e.car_id] = e.annual_total
+        else:
+            notices.append(notice(f"{e.label}: ownership cost {r.message} looks wrong; shown, not scored", "warning"))
+    return out
+
+
 async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]]) -> Computed:
     keyed = [(x, await compose.load_car(x.variant_id)) for x in case.cars if x.variant_id]
     cars = [car for _, car in keyed]
@@ -60,7 +75,7 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]])
         tco.compute(await compose.tco_car(car, _cond(x.condition), x.age_years, x.mileage_km), rates, case.annual_km)
         for x, car in keyed
     ]
-    costs = {e.car_id: e.annual_total for e in estimates}
+    costs = _checked_costs(estimates, {car["variant"].id: x.age_years for x, car in keyed}, notices)
     facts = [
         compose.facts(
             car,

@@ -40,7 +40,7 @@ because the verdict is built from insights. Both are P1 and together they are th
   - new table `value_challenges` with id, chat_id, turn_id, variant_id, attribute or claim_id, user_text, outcome `CONFIRMED`/`CORRECTED`/`REMOVED`/`UNRESOLVED`, details jsonb, created_at;
   - the downgrade reverses all of it.
 - [X] T008 Add the ORM models and columns for T007 in `backend/src/automind/infrastructure/db/` (models module), and add the new chat-scoped tables to chat deletion in `backend/src/automind/application/chats.py`
-- [ ] T009 [P] Extend `backend/tests/integration/test_migrations.py` to test 0007: upgrade, downgrade, upgrade again
+- [X] T009 [P] Extend `backend/tests/integration/test_migrations.py` to test 0007: upgrade, downgrade, upgrade again
 - [ ] T010 [P] Add the new block types `verdict`, `comparison`, `data_panel`, `value_retention`, `suggestions` and `section` to `frontend/src/lib/protocol.ts` exactly as in contracts/report-blocks-and-protocol.md. Also add the client messages `find`, `challenge`, `rating` and `suggestion` and the server messages `progress` and `challenge_result`. Extend `criteria_scores` with `relative`. Unknown blocks stay ignored. Add tests in `frontend/src/lib/protocol.test.ts`
 - [ ] T011 [P] Create the i18n skeleton: `frontend/src/i18n/en.ts`, `ru.ts`, `es.ts`, a typed key set (the `en` keys are the type) and `frontend/src/i18n/index.ts` with `useT()`. The language comes from the latest `assistant_message.language` unless the user switched it manually; a manual choice is stored in localStorage inside try/catch (research R12)
 
@@ -57,7 +57,7 @@ because the verdict is built from insights. Both are P1 and together they are th
 ### Tests first
 
 - [X] T012 [P] Write the 2026-11-02 defect regression set in `backend/tests/unit/domain/test_sense.py`: interval "16" → 16,000 km; "5" months next to "years" → 60 months; "1 speed" e-CVT → transmission e-CVT and no gear_count; TCO €513,672/year → flagged and not scored; seats 0 and boot 0 L → rejected. Each case asserts the rule id
-- [ ] T013 [P] Write identity tests in `backend/tests/unit/domain/test_identity_gearbox.py`:
+- [X] T013 [P] Write identity tests in `backend/tests/unit/domain/test_identity_gearbox.py`:
   - a "manual" claim for an automatic CX-5 variant is rejected as `OTHER_VARIANT`;
   - a title or URL that says "manual" for an automatic target gives OTHER_VARIANT in `domain/relevance.py`;
   - unanimous accepted claims fill an empty variant transmission;
@@ -65,13 +65,13 @@ because the verdict is built from insights. Both are P1 and together they are th
 
 ### Implementation
 
-- [ ] T014 Implement `backend/src/automind/domain/sense.py`. It is pure. `check(attribute, value, unit, excerpt, car_context, rules) -> SenseResult {ok, value, flags, rule_id}` covers magnitude, meaning, cross-checks (power vs mass vs 0–100, boot vs body class, consumption vs powertrain) and result ranges. The rules load from `config/sense.yaml`. Move the interval and month normalisation from its current place (specs/tco normalisation added after 003) into these rules, keeping its behaviour. Makes T012 pass
-- [ ] T015 Call the sense layer after unit normalisation and plausibility in `backend/src/automind/application/extraction.py`. Rejections store `reject_rule = sense.<attribute>.<rule>` on the claim. Computed TCO results go through the result-range rules in `backend/src/automind/application/compose.py` (`tco_car`), so a flagged TCO is shown as an estimate and not scored
-- [ ] T016 Count sense rejections per rule in the metrics endpoint (`backend/src/automind/api/rest.py` metrics query) and in `backend/tests/integration/test_metrics.py`
-- [ ] T017 Add `transmission` and `drive` to the `Target` dataclass and a gearbox/drive signal (manual, automatic, DSG/DCT, CVT, 4x4/AWD/AWD-i in the title or URL) in `backend/src/automind/domain/relevance.py`
-- [ ] T018 Make the resolver return transmission and drive when `generations.yaml` lists several (`backend/src/automind/application/resolve.py`, `backend/src/automind/orchestration/prompts/resolver.md`). Store them on the variant. In `backend/src/automind/application/research.py` or extraction, reject `transmission`/`drivetrain` claims that contradict the variant as `OTHER_VARIANT`
-- [ ] T019 Re-identify mixed variants in `backend/src/automind/application/resolve.py` (`revalidate`). Fill transmission and drive from unanimous accepted claims. A variant with conflicting accepted claims gets a GEARBOX question: add the question kind to `backend/src/automind/domain/policy.py` and `backend/config/questions.yaml`. Its claims of the other gearbox are marked `OTHER_VARIANT`. Makes T013 pass
-- [ ] T020 Data repair: a one-off step in migration 0007 (or `scripts/`) that runs the T019 re-identification on existing variants and reports the CX-5 result. Run it on the Docker DB and check that the CX-5 no longer has manual and automatic accepted together
+- [X] T014 Implement `backend/src/automind/domain/sense.py`. It is pure. `check(attribute, value, unit, excerpt, car_context, rules) -> SenseResult {ok, value, flags, rule_id}` covers magnitude, meaning, cross-checks (power vs mass vs 0–100, boot vs body class, consumption vs powertrain) and result ranges. The rules load from `config/sense.yaml`. Move the interval and month normalisation from its current place (specs/tco normalisation added after 003) into these rules, keeping its behaviour. Makes T012 pass
+- [X] T015 Call the sense layer after unit normalisation and plausibility in `backend/src/automind/application/extraction.py`. Rejections store `reject_rule = sense.<attribute>.<rule>` on the claim. Computed TCO results go through the result-range rules in `backend/src/automind/application/compose.py` (`tco_car`), so a flagged TCO is shown as an estimate and not scored
+- [X] T016 Count sense rejections per rule in the metrics endpoint (`backend/src/automind/api/rest.py` metrics query) and in `backend/tests/integration/test_metrics.py`
+- [X] T017 Add `transmission` and `drive` to the `Target` dataclass and a gearbox/drive signal (manual, automatic, DSG/DCT, CVT, 4x4/AWD/AWD-i in the title or URL) in `backend/src/automind/domain/relevance.py`
+- [X] T018 Make the resolver return transmission and drive when `generations.yaml` lists several (`backend/src/automind/application/resolve.py`, `backend/src/automind/orchestration/prompts/resolver.md`). Store them on the variant. In `backend/src/automind/application/research.py` or extraction, reject `transmission`/`drivetrain` claims that contradict the variant as `OTHER_VARIANT`
+- [X] T019 Re-identify mixed variants in `backend/src/automind/application/resolve.py` (`revalidate`). Fill transmission and drive from unanimous accepted claims. A variant with conflicting accepted claims gets a GEARBOX question: add the question kind to `backend/src/automind/domain/policy.py` and `backend/config/questions.yaml`. Its claims of the other gearbox are marked `OTHER_VARIANT`. Makes T013 pass
+- [X] T020 Data repair: a one-off step in migration 0007 (or `scripts/`) that runs the T019 re-identification on existing variants and reports the CX-5 result. Run it on the Docker DB and check that the CX-5 no longer has manual and automatic accepted together
 
 **Checkpoint**: `scripts/check.sh` is green and the regression set passes. The user stories can start.
 

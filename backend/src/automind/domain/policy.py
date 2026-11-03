@@ -59,6 +59,7 @@ class CarState(BaseModel):
     ambiguous: bool = False  # more than one catalog variant fits
     plausible_generations: int = 0  # generations that fit condition/year (0 = unknown)
     data_fresh: bool = False  # all areas needed by the current criteria are cached and fresh
+    gearbox_mixed: bool = False  # accepted values of several gearboxes for one variant (spec 004 FR-028)
 
 
 class Action(BaseModel):
@@ -145,6 +146,8 @@ def _questions(case: CaseFile, state: dict[str, CarState]) -> tuple[list[Questio
             needed.setdefault("CAR_IDENTITY", []).append(c.key)
         elif c.resolution == "UNKNOWN_MODEL":
             needed.setdefault("UNKNOWN_MODEL", []).append(c.key)
+        elif st.gearbox_mixed and not c.constraints.gearbox_hint:
+            needed.setdefault("GEARBOX", []).append(c.key)
         elif c.condition == "USED" and c.year is None and st.plausible_generations != 1:
             needed.setdefault("USED_AGE", []).append(c.key)
         if case.budget.max_eur and case.budget.intent == "UNKNOWN" and c.condition == "UNKNOWN":

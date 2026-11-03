@@ -115,3 +115,18 @@ def test_model_names_with_dashes_and_digits_are_recognised():
     cx5 = t("Mazda", "CX-5", "KF", 2017, 2025, "2.5 Skyactiv-G 194 CV", fuel="petrol", body="SUV")
     gens = [GenerationInfo("KE", 2012, 2016), GenerationInfo("KF", 2017, 2025)]
     assert judge(page("CX-5 2.5 194 CV ficha técnica (2019)", "Datos del CX-5"), cx5, gens).verdict != "NOT_ABOUT_CAR"
+
+
+def test_page_of_another_gearbox_or_drive_is_another_variant():
+    """spec 004 FR-028: a manual CX-5 page is not about the automatic one."""
+    from automind.domain.relevance import PageFacts, Target, judge
+
+    t = Target("Mazda", "CX-5", "KF", 2017, 2025, "2.0 Skyactiv-G 165 CV", transmission="automatic", drive="FWD")
+    manual = PageFacts("https://x.es/mazda-cx-5-2-0-165-cv-manual", "Mazda CX-5 2.0 165 CV manual", "Mazda CX-5 KF")
+    assert judge(manual, t, []).verdict == "OTHER_VARIANT"
+    awd = PageFacts("https://x.es/mazda-cx-5-awd", "Mazda CX-5 2.0 AWD automático", "Mazda CX-5 KF")
+    assert judge(awd, t, []).verdict == "OTHER_VARIANT"
+    same = PageFacts("https://x.es/mazda-cx-5-kf-automatico", "Mazda CX-5 KF 2.0 automático", "Mazda CX-5 KF")
+    assert judge(same, t, []).verdict == "RELEVANT"
+    unknown = Target("Mazda", "CX-5", "KF", 2017, 2025, "2.0 Skyactiv-G 165 CV")
+    assert judge(manual, unknown, []).verdict != "OTHER_VARIANT"  # gearbox not known: no signal

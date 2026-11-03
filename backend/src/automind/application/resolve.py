@@ -16,9 +16,10 @@ from pydantic import BaseModel, Field
 from rapidfuzz import fuzz
 from sqlalchemy import func, select
 
+from automind.application import research
 from automind.application.ports import Ports, Reference
 from automind.config import settings
-from automind.domain import identification, identity
+from automind.domain import identification, identity, sense
 from automind.domain.casefile import CaseCar
 from automind.domain.policy import CarState
 from automind.infrastructure import db
@@ -110,6 +111,11 @@ def _fits(
         return False
     if level and not car.constraints.trim_hint and car.condition != "USED" and v.trim_level and v.trim_level != level:
         return False  # another equipment level than the comparison's (spec 004 FR-029)
+    k = car.constraints
+    if k.gearbox_hint and v.transmission and sense.gearbox_conflict(v.transmission, k.gearbox_hint):
+        return False  # another gearbox than the user's (FR-028)
+    if k.drive_hint and v.drive and sense.drive_conflict(v.drive, k.drive_hint):
+        return False
     if ref is not None and not v.generation:  # a catalog row without a generation is not reused when config knows them
         make, model = identity.normalize_make_model(v.make, v.model, ref.aliases)
         if ref.generations.get(f"{make}|{model}"):
@@ -178,6 +184,7 @@ async def assess_car(car: CaseCar, ref: Reference, current_year: int, level: str
     fitting = [v for v in catalog if _fits(v, car, gen_hint, current_year, ref, level)]
     ranked, ambiguous = _rank(car, fitting, level)
     fresh = bool(car.variant_id) and not await stale_categories(car.variant_id or "")
+    mixed = bool(car.variant_id) and await gearbox_mixed(car.variant_id or "")
     return Assessment(
         state=CarState(
             identity_known=True,
@@ -185,6 +192,7 @@ async def assess_car(car: CaseCar, ref: Reference, current_year: int, level: str
             ambiguous=ambiguous,
             plausible_generations=len(plausible),
             data_fresh=fresh,
+            gearbox_mixed=mixed,
         ),
         candidates=[variant_dict(v) for v in ranked[:4]],
         generations=plausible,
@@ -410,6 +418,53 @@ async def revalidate(car: CaseCar, ref: Reference, current_year: int) -> str | N
     car.variant_id, car.label, car.resolution = None, None, "UNRESOLVED"
     reason = "no generation recorded" if not v.generation else f"{v.generation} is not the generation sold new now"
     return f"{car.key}: {old} re-identified ({reason})"
+
+
+async def gearbox_mixed(variant_id: str) -> bool:
+    """Accepted values of several gearboxes for one variant without a known gearbox (the CX-5 had manual and
+    automatic): the user is asked which one (spec 004 FR-028)."""
+    v = await get_variant(variant_id)
+    if v is None or v.transmission:
+        return False
+    return research.mixed_families(await research.accepted_gearboxes(variant_id))
+
+
+async def split_by_gearbox(car: CaseCar, ref: Reference) -> str | None:
+    """The user named the gearbox (or drive) of a mixed variant: identify the variant with that gearbox.
+    Returns a change note, or None when nothing changed."""
+    k = car.constraints
+    if not car.variant_id or not (k.gearbox_hint or k.drive_hint):
+        return None
+    v = await get_variant(car.variant_id)
+    if v is None:
+        return None
+    gb_ok = not k.gearbox_hint or (v.transmission and not sense.gearbox_conflict(v.transmission, k.gearbox_hint))
+    dr_ok = not k.drive_hint or (v.drive and not sense.drive_conflict(v.drive, k.drive_hint))
+    if gb_ok and dr_ok:
+        return None
+    if (v.transmission and k.gearbox_hint and sense.gearbox_conflict(v.transmission, k.gearbox_hint)) or (
+        v.drive and k.drive_hint and sense.drive_conflict(v.drive, k.drive_hint)
+    ):
+        old = car.label or v.label
+        car.variant_id, car.label, car.resolution = (
+            None,
+            None,
+            "UNRESOLVED",
+        )  # a known other gearbox: find the right one
+        return f"{car.key}: {old} is another gearbox or drive; identified again"
+    extra = " ".join(x for x in (k.gearbox_hint, k.drive_hint) if x)
+    ident = VariantIdentity(
+        make=v.make, model=v.model, generation=v.generation, generation_years_from=v.generation_years_from,
+        generation_years_to=v.generation_years_to, variant_name=f"{v.variant_name} {extra}",
+        powertrain=v.powertrain,  # type: ignore[arg-type]
+        body_class=v.body_class, vehicle_class=v.vehicle_class, segment=v.segment,  # type: ignore[arg-type]
+        transmission=k.gearbox_hint or v.transmission, drive=k.drive_hint or v.drive,  # type: ignore[arg-type]
+        trim=v.trim, trim_level=v.trim_level, price_eur=int(v.price_eur) if v.price_eur else None,  # type: ignore[arg-type]
+        certainty="exact",
+    )  # fmt: skip
+    new = await upsert_variant(ident, ref)
+    car.variant_id, car.label, car.resolution = new.id, new.label, "CONFIRMED"
+    return f"{car.key}: {new.label} (the gearbox you named)"
 
 
 async def get_variant(variant_id: str) -> db.Variant | None:

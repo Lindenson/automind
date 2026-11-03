@@ -82,7 +82,8 @@ def _relevance_target(v: db.Variant, ports: Ports) -> tuple[rel.Target, list[rel
     if v.generation and not any(g.code == v.generation for g in gens):
         gens.append(rel.GenerationInfo(v.generation, v.generation_years_from, v.generation_years_to))
     tgt = rel.Target(v.make, v.model, v.generation, v.generation_years_from, v.generation_years_to,
-                     v.variant_name, fuel_of(v.variant_name, v.powertrain), v.body_class)  # fmt: skip
+                     v.variant_name, fuel_of(v.variant_name, v.powertrain), v.body_class,
+                     v.transmission or _variant_gearbox(v), v.drive)  # fmt: skip
     return tgt, gens
 
 
@@ -513,7 +514,7 @@ async def _persist(
 def _plausibility_ctx(v: db.Variant, known: dict[str, float]) -> plausibility.Context:
     return plausibility.Context(
         powertrain=v.powertrain, fuel=fuel_of(v.variant_name, v.powertrain), known=known,
-        transmission=getattr(v, "transmission", None) or _variant_gearbox(v), drive=getattr(v, "drive", None),
+        transmission=v.transmission or _variant_gearbox(v), drive=v.drive,
     )  # fmt: skip
 
 
@@ -1034,8 +1035,41 @@ async def _interval_from_schedule(session: Any, variant_id: str, selected: dict[
     return {k: v for k, v in out.items() if k in want and v}
 
 
+async def accepted_gearboxes(variant_id: str) -> list[str]:
+    """Gearbox families of the accepted transmission claims of a variant."""
+    async with db.sessionmaker()() as s:
+        rows = await s.execute(
+            select(db.Claim.value_text).where(
+                db.Claim.variant_id == variant_id, db.Claim.attribute == "transmission", db.Claim.status == "ACCEPTED"
+            )
+        )
+        return [f for f in (sense.gearbox_family(t) for t in rows.scalars()) if f]
+
+
+def mixed_families(families: list[str]) -> bool:
+    return any(sense.gearbox_conflict(a, b) for i, a in enumerate(families) for b in families[i + 1 :])
+
+
+async def fill_gearbox(variant_id: str) -> None:
+    """Unanimous accepted transmission claims (≥ 2) give the variant its gearbox (spec 004 FR-028)."""
+    fams = await accepted_gearboxes(variant_id)
+    specific = [f for f in fams if f != "automatic"]
+    if len(fams) < 2 or mixed_families(fams):
+        return
+    fam = specific[0] if specific and len(set(specific)) == 1 else ("automatic" if not specific else None)
+    if fam is None:
+        return
+    async with db.sessionmaker()() as s:
+        v = await s.get(db.Variant, variant_id)
+        if v is not None and not v.transmission:
+            v.transmission = fam
+            await s.commit()
+
+
 async def reselect(variant_id: str) -> None:
-    """Recompute selected values for all attributes from all accepted claims (FR-017/FR-018)."""
+    """Recompute selected values for all attributes from all accepted claims (FR-017/FR-018); a variant without
+    a gearbox gets it from unanimous transmission claims (spec 004 FR-028)."""
+    await fill_gearbox(variant_id)
     async with db.sessionmaker()() as session:
         # parallel jobs for the same car recompute its values one at a time (delete + insert)
         await session.execute(text("SELECT pg_advisory_xact_lock(hashtext(:k))"), {"k": f"reselect:{variant_id}"})
