@@ -96,8 +96,7 @@ async def test_blocks_from_seeded_claims():
     table = blocks[0]
     power = next(r for r in table["rows"] if r["key"] == "max_power")["values"][0]
     assert power["confidence"] == "HIGH" and power["provenance"] == "MANUFACTURER_CLAIM" and power["sources"]
-    consumption = next(r for r in table["rows"] if r["key"] == "consumption")["values"][0]
-    assert consumption["available"] is False and consumption["display"] is None
+    assert not any(r["key"] == "consumption" for r in table["rows"])  # spec 004 FR-016: no empty rows
     assert blocks[2]["results"][0]["t_0_100"] > 5
     crit = blocks[3]["cars"][0]["parts"]
     assert crit["performance"]["score"] is not None and crit["efficiency"]["insufficient"]

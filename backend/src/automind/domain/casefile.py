@@ -177,6 +177,7 @@ class CaseFile(BaseModel):
     # spec 004 FR-029: all cars are compared at one equipment level (base unless the user named a version)
     compare_level: Literal["BASE", "MID", "TOP"] = "BASE"
     compare_level_source: Literal["DEFAULT", "USER_TRIM"] = "DEFAULT"
+    last_values: dict[str, int] = Field(default_factory=dict)  # validated values per car at the last report
     shown: list[Shown] = Field(default_factory=list)
 
     @property

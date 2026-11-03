@@ -149,3 +149,13 @@ def yes_or_no(text: str | None) -> str | None:
     if any(t.startswith(y) or words[0].startswith(y) for y in _YES):
         return "yes"
     return None
+
+
+def guess_language(texts: list[str]) -> str:
+    """Language of the conversation from the user's own words (for button requests without text)."""
+    t = " ".join(texts[-4:]).lower()
+    if any("а" <= ch <= "я" or ch == "ё" for ch in t):
+        return "ru"
+    if any(ch in t for ch in "ñ¿¡áéíóú") or any(w in f" {t} " for w in (" el ", " los ", " coche", " qué ")):
+        return "es"
+    return "en"

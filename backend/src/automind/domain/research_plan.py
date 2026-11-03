@@ -138,7 +138,7 @@ def plan(
             retry = area in (unmet or {}).get(car.variant_id, set()) and (
                 done.get(area) is None or now - done[area] >= timedelta(hours=RETRY_UNMET_HOURS)
             )
-            if area in wanted and (forced or retry or not is_fresh(area, done.get(area), now)):
+            if (area in wanted or forced) and (forced or retry or not is_fresh(area, done.get(area), now)):
                 jobs.append(Job(car.key, car.variant_id, area, fresh=forced))
         if car.age_years is not None and car.age_years > OLD_CAR_YEARS:
             warnings.append(Warning("OLD_CAR", car.key))

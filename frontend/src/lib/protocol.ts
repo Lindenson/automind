@@ -57,6 +57,8 @@ const SpecValueSchema = z.object({
   provenance: ProvenanceSchema.nullable(),
   confidence: ConfidenceSchema.nullable(),
   sources: z.array(SourceRefSchema),
+  missing: z.boolean().nullish(), // spec 004 FR-016
+  better: z.boolean().nullish(), // the clearly best car of a meaningful difference
 });
 export type SpecValue = z.infer<typeof SpecValueSchema>;
 
@@ -70,6 +72,7 @@ export const SpecTableBlockSchema = z.object({
       label: z.string(),
       unit: z.string().nullable(),
       values: z.array(SpecValueSchema),
+      meaningful: z.boolean().nullish(),
     }),
   ),
 });
@@ -457,7 +460,30 @@ export const VerdictBlockSchema = z.object({
   gaps: z.array(z.string()).default([]),
 });
 
+// spec 004 FR-014: one "what we know" panel per report
+export const DataPanelBlockSchema = z.object({
+  type: z.literal("data_panel"),
+  cars: z.array(
+    z.object({
+      car_id: z.string(),
+      car_key: z.string(),
+      label: z.string(),
+      values: z.number(),
+      areas: z.array(
+        z.object({
+          area: z.string(),
+          status: z.enum(["COMPLETE", "PARTIAL", "MISSING", "UNAVAILABLE"]),
+          reason: z.string().nullable(),
+          findable: z.boolean(),
+        }),
+      ),
+    }),
+  ),
+  changed: z.string().nullable(),
+});
+
 export const BlockSchema = z.discriminatedUnion("type", [
+  DataPanelBlockSchema,
   VerdictBlockSchema,
   QuickRepliesBlockSchema,
   FeasibilityBlockSchema,
@@ -757,4 +783,11 @@ export type ConfirmOut = {
   text?: string | null;
 };
 export type CancelOut = { type: "cancel"; turn_id?: string | null };
-export type ClientMsg = UserMessageOut | HelloOut | ConfirmOut | CancelOut;
+export type FindOut = {
+  type: "find";
+  focus_cars: string[];
+  areas: string[];
+  text?: string;
+  message_id?: string;
+};
+export type ClientMsg = UserMessageOut | HelloOut | ConfirmOut | CancelOut | FindOut;

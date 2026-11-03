@@ -51,6 +51,7 @@ interface ChatState {
   setHistoryLoading: (v: boolean) => void;
   handleRaw: (raw: unknown) => void;
   send: (text: string) => void;
+  find: (focusCars: string[], areas: string[], text: string) => void;
   answerConfirm: (choice: string, text?: string) => void;
   cancel: () => void;
   setCase: (c: CaseState) => void;
@@ -222,6 +223,21 @@ export const useChat = create<ChatState>((set, get) => ({
   cancel: () => {
     const { transport, turnId } = get();
     transport?.send({ type: "cancel", turn_id: turnId });
+  },
+
+  find: (focusCars, areas, text) => {
+    const { transport, pending } = get();
+    if (pending || !transport) return;
+    const message_id = uuid();
+    if (transport.send({ type: "find", focus_cars: focusCars, areas, text, message_id })) {
+      set((s) => ({
+        messages: [
+          ...s.messages,
+          { role: "user", message_id, created_at: now(), text, blocks: [] },
+        ],
+        pending: { userMessageId: message_id, startedAt: Date.now(), statuses: [] },
+      }));
+    }
   },
 
   send: (text) => {

@@ -218,15 +218,15 @@ because the verdict is built from insights. Both are P1 and together they are th
 
 ### Tests first
 
-- [ ] T056 [P] [US4] Write `backend/tests/unit/test_data_panel.py`: status per car × area COMPLETE/PARTIAL/MISSING/UNAVAILABLE from the area minimums and the unmet set. A hard reason (robots, not sold in Spain) within the retry window gives findable=false. The before/after diff text is tested too
+- [X] T056 [P] [US4] Write `backend/tests/unit/test_data_panel.py`: status per car × area COMPLETE/PARTIAL/MISSING/UNAVAILABLE from the area minimums and the unmet set. A hard reason (robots, not sold in Spain) within the retry window gives findable=false. The before/after diff text is tested too
 - [ ] T057 [P] [US4] Write golden `backend/tests/golden/g14_missing_data_find_it.yaml`: one data panel; "find it" closes a gap; the panel shows the change
 
 ### Implementation
 
-- [ ] T058 [US4] Add a `data_panel_block(cars, unmet, last_attempts, previous=None)` to `backend/src/automind/application/compose.py`. Replace `section_notices` warnings with it, so there is at most one data-quality element at the top level (SC-008). Keep the OLD_CAR/not-sold warnings as panel reasons
-- [ ] T059 [US4] Add a `comparison_block` in `backend/src/automind/application/compose.py` that replaces the spec table in reports. It keeps only rows with data for at least one car, marks missing cells, sets `meaningful` and `better` from the insights, and puts "find it" on a car column (FR-016)
-- [ ] T060 [US4] Handle the client `find {focus_cars, areas}` message in `backend/src/automind/api/ws.py` as a `research_more` turn with areas. Extend `research_more` with `areas` in `backend/src/automind/application/interpret.py`, `backend/src/automind/orchestration/nodes/understand.py` (`_plan` force only the given areas) and `backend/src/automind/domain/research_plan.py`. After the research, rebuild the report with `previous` counts so the panel shows "+N values"
-- [ ] T061 [P] [US4] Create `frontend/src/components/blocks/DataPanel.tsx` (compact grid, reasons, find it buttons that send `find`) and `frontend/src/components/blocks/ComparisonTable.tsx` (missing cells, meaningful highlight, find it on column header). Replace `Notice` walls in `BlockView.tsx`. Add vitest cases
+- [X] T058 [US4] Add a `data_panel_block(cars, unmet, last_attempts, previous=None)` to `backend/src/automind/application/compose.py`. Replace `section_notices` warnings with it, so there is at most one data-quality element at the top level (SC-008). Keep the OLD_CAR/not-sold warnings as panel reasons
+- [X] T059 [US4] (done as flags on `spec_table`: no empty rows, `missing`, `better`, row `meaningful`) Add a `comparison_block` in `backend/src/automind/application/compose.py` that replaces the spec table in reports. It keeps only rows with data for at least one car, marks missing cells, sets `meaningful` and `better` from the insights, and puts "find it" on a car column (FR-016)
+- [X] T060 [US4] Handle the client `find {focus_cars, areas}` message in `backend/src/automind/api/ws.py` as a `research_more` turn with areas. Extend `research_more` with `areas` in `backend/src/automind/application/interpret.py`, `backend/src/automind/orchestration/nodes/understand.py` (`_plan` force only the given areas) and `backend/src/automind/domain/research_plan.py`. After the research, rebuild the report with `previous` counts so the panel shows "+N values"
+- [X] T061 [P] [US4] Create `frontend/src/components/blocks/DataPanel.tsx` (compact grid, reasons, find it buttons that send `find`) and `frontend/src/components/blocks/ComparisonTable.tsx` (missing cells, meaningful highlight, find it on column header). Replace `Notice` walls in `BlockView.tsx`. Add vitest cases
 
 **Checkpoint**: gaps are in one place, and one click fixes them.
 

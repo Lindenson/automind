@@ -1,6 +1,7 @@
 """Chat WebSocket, protocol v2 (contracts/chat-protocol.md).
 
-Client → server: hello{last_seq} | user_message{message_id, text} | confirm{request_id, choice, text?} | cancel.
+Client → server: hello{last_seq} | user_message{message_id, text} | confirm{request_id, choice, text?} | cancel |
+find{focus_cars, areas, text?, language?} (spec 004).
 Server → client: every event from the EventBus, each with `seq` and `turn_id`. Turns run as
 background tasks, so a long research never blocks this connection, and a reconnecting client
 replays everything after its `last_seq`.
@@ -61,6 +62,12 @@ class ChatSocket:
             if text:
                 await self.chats.title_from_first_message(self.chat_id, text)
                 self._background(self.runner.run_turn(self.chat_id, text, msg.get("message_id")))
+        elif kind == "find":  # spec 004 FR-015: "find it" on the data panel / verdict card
+            cars = [str(x) for x in (msg.get("focus_cars") or [])][:3]
+            areas = [str(x) for x in (msg.get("areas") or [])][:10]
+            text = str(msg.get("text") or "").strip()[:200] or "Find the missing data: " + (", ".join(areas) or "all")
+            preset = {"kind": "research_more", "focus_cars": cars, "areas": areas, "language": msg.get("language")}
+            self._background(self.runner.run_turn(self.chat_id, text, msg.get("message_id"), preset=preset))
         elif kind == "confirm":
             payload = {"choice": msg.get("choice"), "text": msg.get("text"), "request_id": msg.get("request_id")}
             self._background(self.runner.resume(self.chat_id, payload))

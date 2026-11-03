@@ -48,6 +48,7 @@ class TurnState(TypedDict, total=False):
     limit_hit: dict[str, Any] | None  # research paused at a limit: {reason, jobs} (asks the user, never cancels)
     limit_extensions: int  # how many times the user said "continue" in this turn
     feasibility: dict[str, Any] | None  # {results, fingerprint} from application.feasibility (spec 003 US3)
+    preset: dict[str, Any] | None  # a request from a button (no interpretation): {kind, focus_cars, areas, language}
     not_understood: list[str]  # car keys whose question the last message did not answer (spec 004 FR-031)
 
 

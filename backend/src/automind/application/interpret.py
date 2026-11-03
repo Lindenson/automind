@@ -37,6 +37,11 @@ class Interpretation(BaseModel):
     focus_cars: list[str] = Field(
         default_factory=list, description="research_more: car keys the user named (empty = all cars)"
     )
+    focus_areas: list[str] = Field(
+        default_factory=list,
+        description="research_more: research areas the user named (specs, price, maintenance, reliability, "
+        "reviews, measured, engineering, manufacturer, depreciation); empty = every area below its minimum",
+    )
     constraints_evidence: list[str] = Field(
         default_factory=list,
         description="Verbatim words from the LATEST message that contain the numbers set in set_budget, "

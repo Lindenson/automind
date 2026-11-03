@@ -6,6 +6,7 @@ Used both by deterministic graph nodes and by the MCP server tools (same functio
 from __future__ import annotations
 
 from dataclasses import asdict
+from datetime import datetime
 from functools import lru_cache
 
 from sqlalchemy import select
@@ -301,16 +302,19 @@ def car_header(car: dict, from_cache: bool) -> dict:
     }
 
 
-def spec_table(cars: list[dict], from_cache: dict[str, bool]) -> dict:
+_INSIGHT_OF_ROW = {"claimed_0_100": "accel_0_100"}
+
+
+def spec_table(cars: list[dict], from_cache: dict[str, bool], insight_set: ins.InsightSet | None = None) -> dict:
+    """The comparison table (spec 004 FR-016): only rows with data for at least one car; missing cells are
+    marked; `better` marks the clearly best car of a meaningful difference (never a sub-threshold one)."""
     rows = []
     for key in TABLE_ROWS:
         attr = specs.ATTRS[key]
-        if all((c["values"].get(key) is None or not c["values"][key].available) for c in cars) and key in (
-            "battery_kwh",
-            "displacement",
-            "service_interval_months",
-        ):
+        if all((c["values"].get(key) is None or not c["values"][key].available) for c in cars):
             continue
+        insight = insight_set.get(_INSIGHT_OF_ROW.get(key, key)) if insight_set is not None else None
+        best = insight.better_car if insight is not None and insight.meaningful else None
         vals = []
         for c in cars:
             sv = c["values"].get(key)
@@ -325,10 +329,13 @@ def spec_table(cars: list[dict], from_cache: dict[str, bool]) -> dict:
                     "provenance": sv.provenance if available else None,
                     "confidence": sv.confidence if available else None,
                     "sources": sources,
+                    "missing": not available,
+                    "better": best == c["variant"].id,
                 }
             )
-        unit = "l or kWh /100 km" if key == "consumption" else attr.unit
-        rows.append({"key": key, "label": attr.label, "unit": unit, "values": vals})
+        unit = "l or kWh /100 km" if key.startswith("consumption") else attr.unit
+        meaningful = bool(insight is not None and insight.meaningful) if insight_set is not None else None
+        rows.append({"key": key, "label": attr.label, "unit": unit, "values": vals, "meaningful": meaningful})
     return {
         "type": "spec_table",
         "title": "Specifications (validated, with sources)",
@@ -468,31 +475,51 @@ def summary_for_llm(cars: list[dict], race: dragrace.RaceResult, criteria: Crite
     return out
 
 
-async def section_notices(cars: list[tuple[str, str]]) -> list[dict]:
-    """'Insufficient data' per car and area whose minimum was not met (FR-019), also for cached reports.
+DATA_AREAS = ("specs", "price", "maintenance", "reliability", "reviews", "measured", "engineering", "manufacturer",
+              "depreciation", "used_issues", "used_price")  # fmt: skip
+NO_SOURCES_RETRY_H = 12
 
-    `cars` are (variant_id, label). Areas never researched are not reported here.
-    """
-    out = []
-    async with db.sessionmaker()() as s:
-        for vid, label in cars:
-            runs = (
-                await s.execute(
-                    select(db.ResearchRun).where(
-                        db.ResearchRun.variant_id == vid, db.ResearchRun.minimum_met.is_(False)
-                    )
-                )
-            ).scalars()
-            areas = sorted(r.area.replace("_", " ") for r in runs)
-            if areas:
-                out.append(
-                    {
-                        "type": "notice",
-                        "level": "warning",
-                        "text": f"{label}: insufficient data for {', '.join(areas)} (minimum evidence not reached).",
-                    }
-                )
-    return out
+
+def data_panel_block(
+    cars: list[tuple[str, str, dict]],
+    areas: dict[str, set[str]],
+    now: datetime | None,
+    previous: dict[str, int] | None = None,
+) -> dict | None:
+    """One "what we know" panel instead of a warning per section (spec 004 FR-014, FR-015, SC-008).
+
+    `cars` are (case car key, short name, loaded car); `areas` the areas each car needs (by case key).
+    Status per area: COMPLETE (minimum met), PARTIAL (some evidence), MISSING (nothing yet), UNAVAILABLE
+    (searched recently and no source found: no "find it" until the retry window). `previous` holds the
+    accepted values per car from the last report, so the panel can say what changed after "find it"."""
+    out, total_now = [], 0
+    for key, name, car in cars:
+        runs = car["runs"]
+        rows = []
+        for area in (a for a in DATA_AREAS if a in areas.get(key, set())):
+            r = runs.get(area)
+            if r is None:
+                status, reason, findable = "MISSING", None, True
+            elif r.minimum_met:
+                status, reason, findable = "COMPLETE", None, False
+            elif (r.claims_accepted or 0) > 0 or (r.docs_used or 0) > 0:
+                status, reason, findable = "PARTIAL", "fewer independent sources than the minimum", True
+            else:
+                recent = now is not None and (now - r.completed_at).total_seconds() < NO_SOURCES_RETRY_H * 3600
+                status = "UNAVAILABLE" if recent else "MISSING"
+                reason, findable = "no usable sources found", not recent
+            rows.append({"area": area, "status": status, "reason": reason, "findable": findable})
+        values = sum(1 for sv in car["values"].values() if sv.available)
+        total_now += values
+        out.append({"car_id": car["variant"].id, "car_key": key, "label": name, "values": values, "areas": rows})
+    if not out:
+        return None
+    changed = None
+    if previous:
+        delta = total_now - sum(previous.values())
+        if delta:
+            changed = f"{delta:+d} values since the last report"
+    return {"type": "data_panel", "cars": out, "changed": changed}
 
 
 # ---------------- spec 002 blocks ----------------

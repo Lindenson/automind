@@ -101,8 +101,11 @@ class ChatRunner:
 
     # --- public API ---------------------------------------------------------------------------
 
-    async def run_turn(self, chat_id: str, text: str, message_id: str | None = None) -> TurnResult:
-        """Handle a user message: resume a pending confirmation, or start a new turn."""
+    async def run_turn(
+        self, chat_id: str, text: str, message_id: str | None = None, preset: dict[str, Any] | None = None
+    ) -> TurnResult:
+        """Handle a user message: resume a pending confirmation, or start a new turn. `preset` is a request a
+        button already knows (e.g. "find it": research_more for given cars and areas): no interpretation call."""
         active = await self.ports.turns.active(chat_id)
         if active is not None and active.status == "RUNNING":
             raise Busy("a turn is already running in this chat")
@@ -114,7 +117,7 @@ class ChatRunner:
             return await self._spawn(chat_id, active.id, Command(resume={"choice": "text", "text": text}))
         version, _, _ = await self.ports.cases.latest(chat_id)
         turn = await self.ports.turns.start(chat_id, msg.id, version)
-        inputs: dict[str, Any] = {"chat_id": chat_id, "turn_id": turn.id, "user_text": text}
+        inputs: dict[str, Any] = {"chat_id": chat_id, "turn_id": turn.id, "user_text": text, "preset": preset}
         if self.prepare_input is not None:
             inputs |= await self.prepare_input(chat_id, turn.id, text)
         return await self._spawn(chat_id, turn.id, inputs)

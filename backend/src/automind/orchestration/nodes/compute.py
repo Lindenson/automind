@@ -12,7 +12,7 @@ from typing import Any
 from automind.application import compose, research
 from automind.application import feasibility as fz_app
 from automind.domain import insights as ins
-from automind.domain import sense, tco
+from automind.domain import research_plan, sense, tco
 from automind.domain import verdict as vd
 from automind.domain.casefile import CaseFile
 from automind.domain.criteria import CriteriaScore, score, weights_for
@@ -140,6 +140,34 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
     model = c.ports.ref.criteria
     weights = weights_for(case, model)
     crit = score(facts, weights, model) if facts and weights else None
+    iset, verdict, vblock, check = await _insights(c, case, keyed, tcars, costs, crit, sims, rates, lang)
+    blocks = await _blocks(c, case, keyed, race, crit, estimates, iset)
+    out_notices = list(notices)
+    if case.unmapped_wishes:
+        out_notices.append(notice("Not assessable with data: " + ", ".join(case.unmapped_wishes)))
+    ordered = [vblock, *order_blocks(case.persona, out_notices + blocks, cars=len(cars))] if cars else []
+    summary = compose.summary_for_llm(cars, race, crit)
+    summary["ownership_cost"] = [
+        {
+            "label": e.label,
+            "annual_eur": e.annual_total,
+            "five_year_eur": e.five_year_total,
+            "items": [{"kind": i.kind, "annual_eur": i.annual_eur, "basis": i.basis} for i in e.items],
+        }
+        for e in estimates
+    ]
+    names = {car["variant"].id: compose.short_name(car["variant"]) for car in cars}
+    summary["insights"] = report_text.insights_for_llm(iset, verdict, names, lang)
+    return Computed(blocks=ordered, facts=summary, criteria=crit, cars=cars, tco=estimates, race=race,
+                    insights=iset, verdict=verdict, check=check)  # fmt: skip
+
+
+async def _blocks(
+    c: TurnContext, case: CaseFile, keyed: list[tuple[Any, dict[str, Any]]], race: Any, crit: CriteriaScore | None,
+    estimates: list[tco.TcoEstimate], iset: Any,
+) -> list[dict[str, Any]]:  # fmt: skip
+    cars = [car for _, car in keyed]
+    model = c.ports.ref.criteria
     blocks: list[dict[str, Any]] = [
         compose.case_summary_block(
             case.persona,
@@ -149,7 +177,7 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
                 for x in case.cars
             ],
         ),
-        compose.spec_table(cars, {}),
+        compose.spec_table(cars, {}, iset),
         compose.metric_bars(cars),
         compose.race_block(race, _predicted(case)),
         compose.sources_block(cars),
@@ -168,36 +196,24 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
         compose.manufacturer_block(cars),
         compose.reliability_block(cars, ages),
         compose.reviews_block(cars),
+        _data_panel(c, case, keyed),  # spec 004 FR-014: one panel instead of a warning per section
     ):
         if extra is not None:
             blocks.append(extra)
     if estimates:
         ids = [x for e in estimates for i in e.items for x in i.evidence_ids]
         blocks.append(compose.tco_block(estimates, await compose.evidence_refs(ids)))
-    out_notices = list(notices)
-    if case.unmapped_wishes:
-        out_notices.append(notice("Not assessable with data: " + ", ".join(case.unmapped_wishes)))
-    have = {n.get("text", "") for n in out_notices}
-    for n in await compose.section_notices([(car["variant"].id, car["variant"].label) for car in cars]):
-        label = n["text"].split(":")[0]
-        if not any(label in h and "insufficient" in h for h in have):
-            out_notices.append(n)
-    iset, verdict, vblock, check = await _insights(c, case, keyed, tcars, costs, crit, sims, rates, lang)
-    ordered = [vblock, *order_blocks(case.persona, out_notices + blocks, cars=len(cars))] if cars else []
-    summary = compose.summary_for_llm(cars, race, crit)
-    summary["ownership_cost"] = [
-        {
-            "label": e.label,
-            "annual_eur": e.annual_total,
-            "five_year_eur": e.five_year_total,
-            "items": [{"kind": i.kind, "annual_eur": i.annual_eur, "basis": i.basis} for i in e.items],
-        }
-        for e in estimates
-    ]
-    names = {car["variant"].id: compose.short_name(car["variant"]) for car in cars}
-    summary["insights"] = report_text.insights_for_llm(iset, verdict, names, lang)
-    return Computed(blocks=ordered, facts=summary, criteria=crit, cars=cars, tco=estimates, race=race,
-                    insights=iset, verdict=verdict, check=check)  # fmt: skip
+    return blocks
+
+
+def _data_panel(c: TurnContext, case: CaseFile, keyed: list[tuple[Any, dict[str, Any]]]) -> dict[str, Any] | None:
+    criteria = [p.criterion for p in case.priorities] + [k for k, w in case.weights.items() if w > 0]
+    budget_used = bool(case.budget.max_eur) and case.budget.intent in ("USED", "ANY")
+    areas = {x.key: research_plan.areas_for(case.persona, criteria, x.condition, budget_used) for x, _ in keyed}
+    clock = getattr(c.ports, "clock", None)
+    now = clock.now() if clock is not None else None
+    rows = [(x.key, compose.short_name(car["variant"]), car) for x, car in keyed]
+    return compose.data_panel_block(rows, areas, now, case.last_values or None)
 
 
 def _predicted(case: CaseFile) -> str | None:

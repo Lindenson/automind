@@ -16,6 +16,7 @@ import { Feasibility } from "./Feasibility";
 import { SpecTable } from "./SpecTable";
 import { QuickReplies } from "./QuickReplies";
 import { Verdict } from "./Verdict";
+import { DataPanel } from "./DataPanel";
 
 export function BlockView({ block }: { block: Block }) {
   switch (block.type) {
@@ -49,6 +50,8 @@ export function BlockView({ block }: { block: Block }) {
       return <Reliability b={block} />;
     case "reviews":
       return <Reviews b={block} />;
+    case "data_panel":
+      return <DataPanel b={block} />;
     case "verdict":
       return <Verdict b={block} />;
     case "quick_replies":

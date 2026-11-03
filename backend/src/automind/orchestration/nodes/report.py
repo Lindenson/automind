@@ -140,6 +140,9 @@ def make_report_node(tools: list[Any]):  # noqa: ANN201
             )
         )
         case.asked = []  # a useful answer was given: a later new ambiguity may be asked about again
+        panel = next((b for b in blocks if b.get("type") == "data_panel"), None)
+        if panel is not None:  # what the next "find it" is compared against (spec 004 FR-015)
+            case.last_values = {x["car_key"]: int(x["values"]) for x in panel["cars"]}
         version = await save_case(c, case, [], publish=False)
         await c.status("done", "Done")
         return {"reply_text": text, "blocks": blocks, "action": "REPORT", "fingerprint": fp, "case_version": version}

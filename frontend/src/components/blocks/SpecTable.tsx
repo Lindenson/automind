@@ -88,7 +88,14 @@ export function SpecTable({ b }: { b: BlockOf<"spec_table"> }) {
                   return (
                     <td key={c.id} className="px-3 py-2.5 align-top">
                       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-                        <span className="tabular font-medium text-fg">
+                        <span
+                          className={
+                            v.better
+                              ? "tabular font-semibold text-good"
+                              : "tabular font-medium text-fg"
+                          }
+                          title={v.better ? "clearly better (above the meaningful threshold)" : undefined}
+                        >
                           {text}
                         </span>
                         {v.confidence && <ConfidenceDot c={v.confidence} />}
