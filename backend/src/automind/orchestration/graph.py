@@ -59,7 +59,7 @@ def build_graph(checkpointer: Any = None, tools: list[Any] | None = None) -> Any
     g.add_node("wait_intake", confirm.wait_confirm)
     g.add_node("apply_intake", confirm.apply_intake)
     g.add_node("answer", report.answer_node)
-    g.add_node("report", report.make_report_node(tools if tools is not None else MCP_TOOLS))
+    g.add_node("report", report.make_report_node())
 
     g.add_edge(START, "load_case")
     g.add_edge("load_case", "interpret")

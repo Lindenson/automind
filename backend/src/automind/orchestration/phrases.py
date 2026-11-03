@@ -7,6 +7,41 @@ free, instant and testable. Unknown languages fall back to English.
 from __future__ import annotations
 
 PHRASES: dict[str, dict[str, str]] = {
+    # runner (reviewer 2026-11-03: these were English in every chat)
+    "run_limit": {
+        "en": 'I stopped here because a limit was reached ({what}). What was found is saved: say "continue" '
+        "and I will go on from it.",
+        "ru": "Я остановился: достигнут лимит ({what}). Найденное сохранено — напишите «продолжай», и я продолжу "
+        "с этого места.",
+        "es": "Me he detenido porque se alcanzó un límite ({what}). Lo encontrado está guardado: di «sigue» y "
+        "continúo desde aquí.",
+    },
+    "run_timeout": {
+        "en": 'This took too long, so I stopped. The data gathered so far is saved: say "continue" and I will '
+        "write the report from it.",
+        "ru": "Это заняло слишком много времени, и я остановился. Собранные данные сохранены — напишите "
+        "«продолжай», и я соберу отчёт из них.",
+        "es": "Esto ha tardado demasiado y me he detenido. Los datos reunidos están guardados: di «sigue» y "
+        "redacto el informe con ellos.",
+    },
+    "run_loop": {
+        "en": "I went round in circles on this request and stopped. Please rephrase what you need, or say what "
+        "to change in the cars or the profile.",
+        "ru": "Я зациклился на этом запросе и остановился. Переформулируйте, пожалуйста, что нужно, или скажите, "
+        "что поменять в машинах или профиле.",
+        "es": "Me he quedado dando vueltas con esta petición y me he detenido. Reformula lo que necesitas o dime "
+        "qué cambiar en los coches o el perfil.",
+    },
+    "run_no_answer": {
+        "en": "Sorry, I could not produce an answer.",
+        "ru": "Извините, не получилось сформировать ответ.",
+        "es": "Lo siento, no he podido generar una respuesta.",
+    },
+    "run_limits_notice": {
+        "en": "Limit reached this turn: {what}",
+        "ru": "На этом ходе достигнут лимит: {what}",
+        "es": "Límite alcanzado en este turno: {what}",
+    },
     "profile_KM_PER_YEAR": {
         "en": "To sharpen this: how many km a year do you drive? (I assumed {km} km.)",
         "ru": "Чтобы уточнить: сколько километров в год вы проезжаете? (Я принял {km} км.)",
@@ -227,3 +262,18 @@ def guess_language(texts: list[str]) -> str:
     if any(ch in t for ch in "ñ¿¡áéíóú") or any(w in f" {t} " for w in (" el ", " los ", " coche", " qué ")):
         return "es"
     return "en"
+
+
+def stable_language(detected: str | None, current: str, earlier: list[str]) -> str | None:
+    """The conversation language with hysteresis (reviewer 2026-11-03): one message with an English model name
+    or a quote must not switch a Russian chat. The language changes only when the new message is a sentence
+    (4+ words) that is itself written in the detected language."""
+    if not earlier or not detected:
+        return detected
+    prev = guess_language(earlier)
+    if detected == prev:
+        return detected
+    words = len(current.split())
+    if words >= 4 and (guess_language([current]) == detected or detected not in ("en", "ru", "es")):
+        return detected
+    return prev

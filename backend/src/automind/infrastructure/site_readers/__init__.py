@@ -9,6 +9,7 @@ Unknown layouts return None, so the page falls back to the LLM extractor.
 
 from __future__ import annotations
 
+import logging
 import re
 from collections.abc import Iterator, Mapping
 from datetime import UTC, datetime
@@ -84,6 +85,10 @@ def read_pairs(html: str, conf: Mapping[str, Any], reader_id: str) -> SiteReadin
     return SiteReading(reader=f"site:{reader_id}", rows=rows, ambiguous=ambiguous)
 
 
+log = logging.getLogger(__name__)
+ALERT_STREAK = 5
+
+
 class Registry:
     """Domain → reader for enabled favourites; counts ok/failed/ambiguous per site and day."""
 
@@ -96,6 +101,7 @@ class Registry:
                 for d in self.conf[rid].get("domains") or [f["domain"]]:
                     self.enabled[str(d)] = str(rid)
         self.stats: dict[tuple[str, str], dict[str, int]] = {}
+        self.fail_streak: dict[str, int] = {}  # pages in a row where the reader found nothing
 
     def reader_for(self, url: str) -> str | None:
         dom = domain_of(url)
@@ -113,6 +119,10 @@ class Registry:
         k = (domain_of(page.url), day)
         s = self.stats.setdefault(k, {"ok": 0, "failed": 0, "ambiguous": 0})
         s["failed" if out is None else "ambiguous" if out.ambiguous else "ok"] += 1
+        streak = self.fail_streak[k[0]] = self.fail_streak.get(k[0], 0) + 1 if out is None else 0
+        if streak == ALERT_STREAK:  # a redesign breaks label readers silently (reviewer 2026-11-03): say it once
+            log.warning("site_reader.broken reader=%s domain=%s pages_in_a_row=%d", rid, k[0], streak,
+                        extra={"event": "site_reader.broken", "reader": rid, "domain": k[0]})  # fmt: skip
         return out
 
     async def flush_stats(self) -> None:

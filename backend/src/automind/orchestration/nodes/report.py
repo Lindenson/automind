@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
+import structlog
 from langgraph.runtime import Runtime
 
 from automind.application import compose
@@ -25,7 +26,6 @@ from automind.orchestration.guard import (
     check_numbers,
     drop_sentences,
     numbers_in,
-    removal_notice,
     report_violations,
     violations_prompt,
 )
@@ -35,6 +35,14 @@ from automind.orchestration.state import TurnState
 
 from .common import ctx, history, load_case, save_case
 from .compute import compute
+
+log = structlog.get_logger()
+
+
+def _log_removed(c: TurnContext, where: str, n: int) -> None:
+    """Sentences the checks removed are an operator signal, not a message to the user (reviewer 2026-11-03)."""
+    if n:
+        log.info("guard.sentences_removed", where=where, count=n, chat_id=c.chat_id, turn_id=c.turn_id)
 
 
 def _case_summary(case: CaseFile) -> str:
@@ -53,26 +61,15 @@ def _case_summary(case: CaseFile) -> str:
     return "; ".join(bits)
 
 
-async def _explain(
-    c: TurnContext, role: str, system: str, request: str, facts: dict[str, Any], tools: list[Any]
-) -> tuple[str, list[Any]]:
-    """Analyst text via scoped MCP tools when available, else from the provided facts only."""
-    if tools:
-        try:
-            agent = c.ports.llm.agent(role, tools, system)
-            res = await agent.ainvoke({"messages": [("user", request)]}, {"recursion_limit": 14})
-            msgs = res["messages"]
-            outputs = [m.content for m in msgs if getattr(m, "type", "") == "tool"]
-            last = msgs[-1]
-            return (last.text if isinstance(getattr(last, "text", None), str) else str(last.content)), outputs
-        except Exception:  # noqa: BLE001 - fall back to the facts below
-            pass
-    text = await c.ports.llm.text(
+async def _explain(c: TurnContext, role: str, system: str, request: str, facts: dict[str, Any]) -> str:
+    """Analyst text from the computed facts only: verdict, insights, blocks and the ownership cost the user sees.
+    No tools (reviewer 2026-11-03): with tools the reporter saw no insights, chose its own weights, mileage and
+    chat id, and its tool outputs widened what the number check allowed beyond the blocks on screen."""
+    return await c.ports.llm.text(
         role,
         system + "\nYou have no tools; use only the JSON facts provided.",
         request + "\n\nValidated facts JSON:\n" + json.dumps(facts, ensure_ascii=False, default=str),
     )
-    return text, []
 
 
 async def _report_check(
@@ -129,7 +126,7 @@ def _critique_lead(state: TurnState, lang: str | None) -> str:
     return t("critique_reworked", lang, what=what)
 
 
-def make_report_node(tools: list[Any]):  # noqa: ANN201
+def make_report_node():  # noqa: ANN201
     async def report_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
         c = ctx(runtime)
         _, case = await load_case(c)
@@ -150,22 +147,18 @@ def make_report_node(tools: list[Any]):  # noqa: ANN201
         system = c.ports.ref.prompts[name].format(
             persona=case.persona, case_summary=_case_summary(case), language=state.get("language", "en")
         )
-        car_list = [{"car_id": x["variant"].id, "label": x["variant"].label} for x in comp.cars]
-        request = (
-            f"User message: {state.get('user_text', '')}\nchat_id (for get_case/score_criteria): {c.chat_id}\n"
-            f"Cars (car_ids for tools): {json.dumps(car_list)}"
-        )
+        car_list = [x["variant"].label for x in comp.cars]
+        request = f"User message: {state.get('user_text', '')}\nCars: {json.dumps(car_list, ensure_ascii=False)}"
         critique = state.get("request_kind") == "critique"
         if critique:  # spec 004 FR-021: rework with what the user disliked, and say what was done
             request += (f"\nThe user criticised the previous report: \"{state.get('user_text', '')}\". Rework it: go "
                         "deeper on what they ask for, use every meaningful difference, never apologise.")  # fmt: skip
-        text, outputs = await _explain(c, "reporter", system, request, comp.facts, agents.scoped_tools(tools, name))
-        allowed = (
-            numbers_in(comp.facts) | numbers_in(comp.blocks) | numbers_in(outputs) | numbers_in(_case_summary(case))
-        )
+        text = await _explain(c, "reporter", system, request, comp.facts)
+        allowed = numbers_in(comp.facts) | numbers_in(comp.blocks) | numbers_in(_case_summary(case))
         text, dropped = check_numbers(text, allowed)
         text, fixed = await _report_check(c, system, request, comp, text, allowed)
-        blocks = comp.blocks + ([removal_notice(dropped + fixed)] if dropped + fixed else [])
+        _log_removed(c, "report", dropped + fixed)
+        blocks = list(comp.blocks)
         if critique:
             text = _critique_lead(state, lang) + "\n\n" + text
         fp = fingerprint(case)
@@ -223,8 +216,7 @@ async def answer_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[s
             )
         )
         await save_case(c, case, [], publish=False)
-    if dropped:
-        blocks.append(removal_notice(dropped))
+    _log_removed(c, "answer", dropped)
     await c.status("done", "Done")
     return {"reply_text": text, "blocks": blocks, "action": "ANSWER_FROM_CONTEXT"}
 

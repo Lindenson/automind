@@ -91,3 +91,32 @@ async def _minimums(variant_id: str) -> None:
                 if row is not None:
                     row.minimum_met = met
                     await s.commit()
+
+
+async def reclassify_sources() -> dict[str, int]:
+    """Source types again with the current rules (reviewer 2026-11-03): fan clubs, dealers and part shops typed
+    MANUFACTURER, favourites without their own type. Claims follow with their provenance; selected values and
+    area minimums are recomputed for every changed car. Idempotent."""
+    from automind.domain import evidence as ev
+
+    stats: Counter[str] = Counter()
+    changed: set[str] = set()
+    async with db.sessionmaker()() as s:
+        moved: dict[str, str] = {}
+        for e in (await s.execute(select(db.Evidence))).scalars():
+            new = ev.classify_source(e.url)
+            if new != e.source_type:
+                stats[f"{e.source_type}->{new}"] += 1
+                e.source_type = new
+                moved[e.id] = new
+        if moved:
+            claims = (await s.execute(select(db.Claim).where(db.Claim.evidence_id.in_(list(moved))))).scalars()
+            for c in claims:
+                c.provenance = ev.assign_provenance(moved[c.evidence_id], c.attribute)
+                changed.add(c.variant_id)
+        await s.commit()
+    for vid in changed:
+        await rs.reselect(vid)
+        await _minimums(vid)
+    stats["variants_changed"] = len(changed)
+    return dict(stats)

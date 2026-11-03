@@ -279,8 +279,10 @@ def favourite_priority(ports: Ports, v: db.Variant | None, url: str) -> int | No
     """Priority of the favourite (or official manufacturer site) the URL belongs to, else None."""
     dom = ev.domain_of(url)
     full = dom + "/" + url.split(dom, 1)[-1].lstrip("/") if dom in url else dom
-    if v is not None and (m := ports.ref.manufacturer_sites.get(v.make)) and full.startswith(m.split("/")[0]):
-        return 0
+    if v is not None and (m := ports.ref.manufacturer_sites.get(v.make)):
+        host = m.split("/")[0].removeprefix("www.")
+        if dom == host or dom.endswith("." + host):  # the host itself (never toyota.es.example.com)
+            return 0
     best = None
     for f in ports.ref.favourites:
         d = str(f["domain"])
@@ -549,7 +551,7 @@ def _check(
     if c.attribute in MONEY_ATTRS and not (r := sense.money_marked(c.raw_value, c.excerpt)).ok:
         return "REJECTED_IMPLAUSIBLE", None, None, r.rule_id  # a number without a currency is not a price
     try:
-        val = specs.normalize(specs.ATTRS[c.attribute], c.raw_value, c.unit)
+        val = specs.normalize(specs.ATTRS[c.attribute], c.raw_value, c.unit, excerpt=c.excerpt, domain=d.url)
     except Exception:
         return "REJECTED_UNIT", None, None, None
     if ctx is not None and rules:

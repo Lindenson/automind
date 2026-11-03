@@ -36,3 +36,10 @@ def test_constraint_numbers_must_be_in_this_message():
     assert out.delta.set_budget.max_eur is None and out.delta.set_budget.intent == "NEW"  # 30000 not in the text
     assert out.delta.set_running_cost_limit.amount_eur == 150
     assert out.delta.set_needs.passengers == 4 and out.delta.set_needs.towing_kg is None
+
+
+def test_cyrillic_k_thousands_not_km():
+    from automind.application.interpret import numbers_in
+
+    assert 20000.0 in numbers_in("бюджет 20к")
+    assert 20000.0 not in numbers_in("20 км в день") and 20.0 in numbers_in("20 км в день")

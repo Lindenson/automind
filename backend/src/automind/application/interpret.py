@@ -172,7 +172,8 @@ def _persona_from_this_message(i: Interpretation, user_text: str) -> Interpretat
     return i.model_copy(update={"delta": i.delta.model_copy(update={"set_persona": None})})
 
 
-_NUM_RE = re.compile(r"(\d[\d.,\s]*\d|\d)\s*(k|mil|тыс\w*|thousand)?", re.I)
+# "20к" / "20k" is 20,000 but "20 км" / "20 km" is a distance (reviewer 2026-11-03: the Cyrillic к was missed)
+_NUM_RE = re.compile(r"(\d[\d.,\s]*\d|\d)\s*([kк](?![a-zа-яё])|mil\b|тыс\w*|thousand)?", re.I)
 
 
 def numbers_in(text: str) -> set[float]:

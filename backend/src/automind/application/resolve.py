@@ -289,6 +289,10 @@ async def resolve_with_llm(
             f"{ident.make} {ident.model} {ident.generation} ({ident.generation_years_from}–"
             f"{ident.generation_years_to or 'now'}) does not match ~{car.year}"
         )
+    if car.constraints.url and ident.price_eur is not None:
+        # a page the user sent is read for this chat only: its price never enters the shared catalogue, where it
+        # would reach every other chat (reviewer 2026-11-03); the price then comes from research with sources
+        ident = ident.model_copy(update={"price_eur": None})
     return await upsert_variant(ident, ports.ref), ident
 
 

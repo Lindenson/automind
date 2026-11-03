@@ -112,6 +112,7 @@ LABELS: dict[str, dict[str, str]] = {
     "ground_clearance": {"en": "Ground clearance", "ru": "Клиренс", "es": "Altura libre"},
     "rear_legroom": {"en": "Rear legroom", "ru": "Место сзади", "es": "Espacio trasero"},
     "euro_ncap_stars": {"en": "Euro NCAP", "ru": "Euro NCAP", "es": "Euro NCAP"},
+    "euro_ncap_year": {"en": "Euro NCAP year", "ru": "Год теста Euro NCAP", "es": "Año Euro NCAP"},
     "top_speed": {"en": "Top speed", "ru": "Максимальная скорость", "es": "Velocidad máxima"},
 }  # fmt: skip
 UNITS: dict[str, dict[str, str]] = {"EUR/year": {"en": "EUR/year", "ru": "€/год", "es": "€/año"},

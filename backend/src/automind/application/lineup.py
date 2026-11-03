@@ -79,11 +79,16 @@ def validate(make: str, entries: list[_Entry], docs: dict[str, tuple[str, str]],
         out.append(LineupModel(model=name, body=e.body.lower(), powertrains=pts, price_from_eur=price,
                                source_url=e.source_url))  # fmt: skip
         used[e.source_url] = {"url": e.source_url, "name": title or e.source_url, "priced": price is not None}
-    ok = any((official and official.split("/")[0] in u) or src["priced"] for u, src in used.items())
+    dom = official.split("/")[0].removeprefix("www.") if official else None
+
+    def _official(u: str) -> bool:  # the host itself, never a substring (nicebyd.com is not byd.com)
+        d = evidence.domain_of(u)
+        return bool(dom) and (d == dom or d.endswith("." + dom))
+
+    ok = any(_official(u) or src["priced"] for u, src in used.items())
     if not ok:
         return Lineup(make=make)
-    dom = official.split("/")[0] if official else None
-    srcs = [{"url": s["url"], "name": s["name"], "type": "MANUFACTURER" if dom and dom in s["url"] else "PUBLICATION"}
+    srcs = [{"url": s["url"], "name": s["name"], "type": "MANUFACTURER" if _official(s["url"]) else "PUBLICATION"}
             for s in used.values()]  # fmt: skip
     return Lineup(make=make, models=out, sources=srcs, fetched_at=datetime.now(UTC))
 

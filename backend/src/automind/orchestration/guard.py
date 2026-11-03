@@ -7,19 +7,50 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-_NUM_RE = re.compile(r"\d+(?:[.,]\d+)?")
+# A number as written in any of our languages: "25 000", "25.000", "25,000", "1.234,5", "6,58", "20k", "20 тыс".
+_NUM = r"\d{1,3}(?:[ \u00a0\u202f]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)*"
+_MULT = r"(?:\s?([kк](?![a-zа-яё])|тыс\.?|mil\b|thousand))?"
+_NUM_RE = re.compile(rf"({_NUM}){_MULT}", re.I)
 # Numbers inside model codes (J250, Mk8, F30, i30, D-4D) are names, not figures: not checked.
-_CHECKED_RE = re.compile(r"(?<![A-Za-z])(?<![A-Za-z]-)(?<![\d.,])\d+(?:[.,]\d+)?")
+_CHECKED_RE = re.compile(rf"(?<![A-Za-z])(?<![A-Za-z]-)(?<![\d.,])({_NUM}){_MULT}", re.I)
 ALWAYS_OK = {0.0, 100.0, 200.0, 400.0, 62.0, 60.0}  # 0-100 km/h, 0-200, 400 m, 0-62 mph
 
 
-def _to_float(n: str) -> float:
-    return float(n.replace(",", "."))
+def readings(token: str, mult: str | None = None) -> set[float]:
+    """Every value a written number can mean: "25.000" is 25,000 in Spanish and 25.0 in English, so both are
+    kept; "25 000" is one number, never 25 and 0 (reviewer 2026-11-03: "25 000 €" failed the check)."""
+    raw = re.sub(r"[ \u00a0\u202f]", "", token)
+    seps = re.findall(r"[.,]", raw)
+    out: set[float] = set()
+    try:
+        if not seps:
+            out.add(float(raw))
+        elif len(set(seps)) == 2:  # "1.234,5" / "1,234.5": the last one is the decimal mark
+            dec = raw[max(raw.rfind("."), raw.rfind(","))]
+            out.add(float(raw.replace("," if dec == "." else ".", "").replace(",", ".")))
+        elif len(seps) > 1:  # "1.234.567"
+            if all(len(g) == 3 for g in re.split(r"[.,]", raw)[1:]):
+                out.add(float(re.sub(r"[.,]", "", raw)))
+        else:
+            head, tail = re.split(r"[.,]", raw)
+            out.add(float(f"{head}.{tail}"))
+            if len(tail) == 3:
+                out.add(float(head + tail))
+    except ValueError:
+        return set()
+    if mult:
+        out = {x * 1000 for x in out}
+    return out
 
 
 def numbers_in(obj: Any) -> set[float]:
-    text = json.dumps(obj, ensure_ascii=False, default=str)
-    return {_to_float(n) for n in _NUM_RE.findall(text)}
+    text = obj if isinstance(obj, str) else json.dumps(obj, ensure_ascii=False, default=str)
+    out: set[float] = set()
+    for m in _NUM_RE.finditer(text):
+        out |= readings(m.group(1))
+        if m.group(2):
+            out |= readings(m.group(1), m.group(2))
+    return out
 
 
 def _ok(x: float, allowed: set[float]) -> bool:
@@ -28,13 +59,18 @@ def _ok(x: float, allowed: set[float]) -> bool:
     return any(abs(x - a) <= max(0.051, 0.005 * abs(a)) for a in allowed)
 
 
+def _token_ok(m: re.Match[str], allowed: set[float]) -> bool:
+    vals = readings(m.group(1), m.group(2))
+    return not vals or any(_ok(x, allowed) for x in vals)
+
+
 def check_numbers(text: str, allowed: set[float]) -> tuple[str, int]:
     """Drop sentences containing numbers not present in the allowed data. Returns (text, dropped)."""
     kept, dropped = [], 0
     for line in text.split("\n"):
         good = []
         for p in re.split(r"(?<=[.!?])\s+", line):
-            if all(_ok(_to_float(n), allowed) for n in _CHECKED_RE.findall(p)):
+            if all(_token_ok(m, allowed) for m in _CHECKED_RE.finditer(p)):
                 good.append(p)
             else:
                 dropped += 1

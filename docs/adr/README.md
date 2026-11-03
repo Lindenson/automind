@@ -25,3 +25,4 @@
 - [ADR-023](ADR-023.md) — Declarative sections, one data panel, parallel page pipelines (Accepted)
 - [ADR-024](ADR-024.md) — Open-world vehicle identity: make registry, sourced line-ups, identify every turn (Accepted)
 - [ADR-025](ADR-025.md) — One intake confirmation card (Accepted)
+- [ADR-026](ADR-026.md) — One API process; MANUFACTURER only for official domains; reporter without tools (Accepted)
