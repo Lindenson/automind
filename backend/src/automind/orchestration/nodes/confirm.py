@@ -34,7 +34,9 @@ async def ask_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str,
     gens = {k: a.get("generations", []) for k, a in state.get("assessments", {}).items()}
     lang = state.get("language", "en")
     ref = c.ports.ref
-    items = asking.intake_questions(decision["questions"], case, ref.questions_i18n or {}, gens, decision["cars"], lang)
+    gearboxes = {"automatic": t("gb_automatic", lang), "manual": t("gb_manual", lang)}
+    items = asking.intake_questions(decision["questions"], case, ref.questions_i18n or {}, gens, decision["cars"], lang,
+                                    gearboxes)  # fmt: skip
     if not items:  # nothing concrete to ask: fall back to the v1 templates (English, phrased by the asker)
         items = asking.fill_questions(decision["questions"], case, ref.questions, gens, decision["cars"])
     await c.status("asking", "Asking what I need to know")
@@ -57,7 +59,7 @@ async def ask_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str,
     version = await save_case(c, case, [f"asked: {', '.join(q['kind'] for q in items)}"])
     labels = {"new": t("cond_new", lang), "used": t("cond_used", lang), "yes": t("yes", lang),
               "no": t("no_other", lang), "choose": t("choose_for_me", lang),
-              "remove": t("remove_car", lang, car="{car}")}  # fmt: skip
+              "remove": t("remove_car", lang, car="{car}"), **gearboxes}  # fmt: skip
     for q in items:  # machine reasons of suggested models → the conversation language
         for ch in q.get("choices") or []:
             if ch.get("reason"):

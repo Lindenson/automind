@@ -128,12 +128,28 @@ def _fits(
         make, model = identity.normalize_make_model(v.make, v.model, ref.aliases)
         if ref.generations.get(f"{make}|{model}"):
             return False
+    return _years_fit(v, car, gen_hint, current_year, ref)
+
+
+def _years_fit(v: db.Variant, car: CaseCar, gen_hint: str | None, current_year: int, ref: Reference | None) -> bool:
     lo, hi = _years(v, ref)
     if car.year is not None:
+        if bought_now(car, current_year) and hi is not None and hi < current_year:
+            return False  # a new car bought now is the generation on sale now, even "a new 2025" (incident 2026-11-03)
         return lo is None or identity.generation_matches(car.year, lo, hi, tolerance=1)
     if car.condition in ("NEW", "UNKNOWN") and not gen_hint:
         return hi is None or hi >= current_year  # a new car is the current generation
     return True
+
+
+def bought_now(car: CaseCar, current_year: int) -> bool:
+    """A new car with no year or with this or last year's model year: what the dealer sells now."""
+    return car.condition == "NEW" and (car.year is None or car.year >= current_year - 1)
+
+
+def fits(v: db.Variant, car: CaseCar, current_year: int, ref: Reference | None = None) -> bool:
+    """The catalogued variant fits this car (generation on sale for a new car, gearbox, drive, engine)."""
+    return _fits(v, car, None, current_year, ref)
 
 
 async def known_models(make: str, ref: Reference) -> set[str]:
@@ -216,6 +232,8 @@ async def assess_car(car: CaseCar, ref: Reference, current_year: int, level: str
     catalog = await catalog_for(make, model)
     gens = _known_generations(ref, make, model, catalog)
     plausible = identity.plausible_generations(gens, condition=car.condition, year=car.year, current_year=current_year)
+    if car.year is not None and bought_now(car, current_year):
+        plausible = [g for g, _, hi in gens if g in plausible and (hi is None or hi >= current_year)] or plausible
     if gen_hint:
         plausible = [g for g in plausible if g.lower() == gen_hint.lower()] or [gen_hint]
     fitting = [v for v in catalog if _fits(v, car, gen_hint, current_year, ref, level)]
@@ -274,6 +292,11 @@ async def resolve_with_llm(
             user + f"\n\nThe car is bought NEW: it is the {current[0]} generation ({current[1]}–). "
             "Return that generation and one of its engines.",
         )  # fmt: skip
+        named = car.constraints.engine_hint is not None and not car.constraints.engine_hint.empty()
+        if (again.generation or "").lower() != current[0].lower() and named:
+            # the engine the user named belongs to another generation: never stamp the current generation on it
+            # (incident 2026-11-03: "3rd gen 2.0 165 CV" was a KF engine); the engines on sale are offered instead
+            raise NotOnSale(f"{again.make} {again.model} {again.generation or ''} {again.variant_name}".strip())
         ident = again if (again.generation or "").lower() == current[0].lower() else again.model_copy(
             update={"generation": current[0], "generation_years_from": current[1], "generation_years_to": None,
                     "note": (again.note + " " if again.note else "") + f"Generation set to {current[0]} (new car)."}
@@ -289,6 +312,13 @@ async def resolve_with_llm(
             f"{ident.make} {ident.model} {ident.generation} ({ident.generation_years_from}–"
             f"{ident.generation_years_to or 'now'}) does not match ~{car.year}"
         )
+    if (
+        ident.powertrain != "BEV"
+        and not (ident.engine_cc or ident.power_kw)
+        and not identity.parse_engine(ident.variant_name)
+    ):
+        # a version without an engine ("Homura (2025+)") is an equipment level, not a variant: never stored
+        raise NotOnSale(f"{ident.make} {ident.model} {ident.variant_name}: no engine named")
     if car.constraints.url and ident.price_eur is not None:
         # a page the user sent is read for this chat only: its price never enters the shared catalogue, where it
         # would reach every other chat (reviewer 2026-11-03); the price then comes from research with sources
@@ -368,7 +398,9 @@ async def _check_known(ref: Reference, car: CaseCar, ident: VariantIdentity, lin
 
 def current_generation(ref: Reference, car: CaseCar, current_year: int) -> tuple[str, int] | None:
     """For a NEW car without a year: the generation on sale now according to config/generations.yaml."""
-    if car.year is not None or car.condition == "USED" or not (car.make and car.model):
+    if car.condition == "USED" or not (car.make and car.model):
+        return None
+    if car.year is not None and not bought_now(car, current_year):
         return None
     make, model = identity.normalize_make_model(car.make, car.model, ref.aliases)
     gens = [(g, a, b) for g, a, b in ref.generations.get(f"{make}|{model}", []) if a is not None]
@@ -385,6 +417,11 @@ class UnknownModel(ValueError):
         self.checked = checked or []
 
 
+class NotOnSale(ValueError):
+    """The resolver could not name a version of the generation on sale with an engine (spec 007 F): the user is
+    offered the catalogued engines instead of an invented variant."""
+
+
 class GenerationMismatch(ValueError):
     """The resolver proposed a generation outside the requested years (never accepted silently)."""
 
@@ -396,7 +433,13 @@ async def upsert_variant(ident: VariantIdentity, ref: Reference) -> db.Variant:
         ident = ident.model_copy(update={"variant_name": f"{trim} {ident.variant_name}"})
     if ident.trim and ident.trim.lower() not in ident.variant_name.lower():  # the version is part of the identity
         ident = ident.model_copy(update={"variant_name": f"{ident.variant_name} {ident.trim}"})
+    name = _strip_prefix(ident.variant_name, make, model, ident.generation)
+    if name and name != ident.variant_name:  # "Mazda CX-5 2.0 …" → "2.0 …" (incident 2026-11-03)
+        ident = ident.model_copy(update={"variant_name": name})
     gen = identity.normalize_generation(make, model, ident.generation, ref.aliases)
+    sold = ref.gearboxes.get(f"{make}|{model}|{(gen or '').lower()}") or []
+    if len(sold) == 1 and ident.transmission != sold[0]:  # the generation is sold with one gearbox only
+        ident = ident.model_copy(update={"transmission": sold[0]})
     key = identity.canonical_key(make, model, gen, ident.variant_name, ident.powertrain, ref.aliases)
     async with db.sessionmaker()() as s:
         found = (await s.execute(select(db.Variant).where(db.Variant.canonical_key == key))).scalar_one_or_none()
@@ -447,6 +490,19 @@ async def upsert_variant(ident: VariantIdentity, ref: Reference) -> db.Variant:
         return v
 
 
+def _strip_prefix(name: str, make: str, model: str, generation: str | None) -> str:
+    """The variant name without the make, model and generation the resolver sometimes repeats in it."""
+    out = name.strip()
+    for _ in range(3):
+        before = out
+        for w in (make, model, generation):
+            if w and out.lower().startswith(w.lower() + " "):
+                out = out[len(w) :].strip()
+        if out == before:
+            break
+    return out or name
+
+
 async def compare_level(cars: list[CaseCar]) -> tuple[str, str]:
     """The equipment level of the comparison: the level of the first version the user named, else BASE."""
     named = []
@@ -473,7 +529,7 @@ async def revalidate_level(car: CaseCar, level: str) -> str | None:
 async def revalidate(car: CaseCar, ref: Reference, current_year: int) -> str | None:
     """A car resolved earlier by older rules may be the wrong generation now (a new car on a finished
     generation, a catalog row without a generation). Reset it so it is identified again; returns the reason."""
-    if not car.variant_id or car.condition == "USED" or car.year is not None:
+    if not car.variant_id or car.condition == "USED" or (car.year is not None and not bought_now(car, current_year)):
         return None
     v = await get_variant(car.variant_id)
     if v is None or _fits(v, car, None, current_year, ref):

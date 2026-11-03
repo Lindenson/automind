@@ -50,6 +50,7 @@ class TurnState(TypedDict, total=False):
     feasibility: dict[str, Any] | None  # {results, fingerprint} from application.feasibility (spec 003 US3)
     preset: dict[str, Any] | None  # a request from a button (no interpretation): {kind, focus_cars, areas, language}
     not_understood: list[str]  # car keys whose question the last message did not answer (spec 004 FR-031)
+    picked: bool  # the message was one of the offered options, applied by code (spec 007 F)
 
 
 PER_TURN_RESET: dict[str, Any] = {
@@ -69,6 +70,7 @@ PER_TURN_RESET: dict[str, Any] = {
     "limit_extensions": 0,
     "feasibility": None,
     "not_understood": [],
+    "picked": False,
     "confirm_payload": None,
     "resume": None,
     "research_results": [RESET],

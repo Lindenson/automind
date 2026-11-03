@@ -25,7 +25,7 @@ from automind.orchestration.phrases import t, yes_or_no
 from automind.orchestration.runner import TurnContext
 from automind.orchestration.state import RESET, TurnState
 
-from .common import ctx, load_case, notice, record_intake
+from .common import ctx, load_case, notice, record_intake, save_case
 
 
 def _plan(state: TurnState) -> rp.ResearchPlan:
@@ -247,4 +247,13 @@ async def after_research(state: TurnState, runtime: Runtime[TurnContext]) -> dic
                 "warning",
             )
         )
-    return {"research_done": True, "notices": notices, "jobs": []}
+    out: dict[str, Any] = {"research_done": True, "notices": notices, "jobs": []}
+    if state.get("request_kind") in ("research_more", "critique") and short:
+        for k, a in short:
+            vid = next((x.variant_id for x in case.cars if x.key == k and x.variant_id), None)
+            if vid and a not in case.find_tried.get(vid, []):
+                case.find_tried.setdefault(vid, []).append(a)
+        out["case_version"] = await save_case(
+            c, case, [f"searched deeper without the minimum: {', '.join(f'{k} {a}' for k, a in short)}"], publish=False
+        )
+    return out

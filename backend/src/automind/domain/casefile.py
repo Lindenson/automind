@@ -287,6 +287,9 @@ class CaseFile(BaseModel):
     compare_level: Literal["BASE", "MID", "TOP"] = "BASE"
     compare_level_source: Literal["DEFAULT", "USER_TRIM"] = "DEFAULT"
     last_values: dict[str, int] = Field(default_factory=dict)  # validated values per car at the last report
+    # spec 007 F: areas a "find it" searched deeper without reaching the minimum (variant id -> areas); the button
+    # is not offered again for them (incident 2026-11-03: three clicks, nothing new)
+    find_tried: dict[str, list[str]] = Field(default_factory=dict)
     # spec 007 FR-013: scores and weights at the last report, so the next one can show what changed
     last_scores: dict[str, dict[str, float]] = Field(default_factory=dict)
     last_weights: dict[str, float] = Field(default_factory=dict)

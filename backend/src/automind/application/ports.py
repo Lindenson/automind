@@ -55,6 +55,7 @@ class Reference:
     makes: Any = None  # application.makes.MakeRegistry (config/makes.yaml, spec 005)
     regions: dict[str, Any] = field(default_factory=dict)  # config/regions.yaml (spec 005)
     profile_defaults: dict[str, Any] = field(default_factory=dict)  # config/profile_defaults.yaml (spec 007)
+    gearboxes: dict[str, list[str]] = field(default_factory=dict)  # "Make|Model|generation" -> gearboxes sold new
 
 
 @dataclass

@@ -8,7 +8,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from automind.domain.insights import Insight, InsightSet
-from automind.domain.verdict import Limit, Verdict
+from automind.domain.verdict import MAX_BREAK_EVEN_YEARS, Limit, Verdict
 
 _T: dict[str, dict[str, str]] = {
     "pick": {
@@ -108,6 +108,13 @@ _T: dict[str, dict[str, str]] = {
         "en": "The {car} pays back its higher price only after about {be} years; you plan {years}",
         "ru": "{car} окупает более высокую цену только примерно за {be} лет, а вы планируете {years}",
         "es": "El {car} solo amortiza su mayor precio en unos {be} años; tú planeas {years}",
+    },
+    "no_payback": {
+        "en": "The {car} costs more to buy and its lower running costs do not pay that back in over 15 years; "
+        "you plan {years}",
+        "ru": "{car} дороже при покупке, и более низкие расходы не окупят разницу даже за 15 лет, а вы планируете "
+        "{years}",
+        "es": "El {car} cuesta más y su menor gasto de uso no lo compensa ni en 15 años; tú planeas {years}",
     },
     "conf_COVERAGE_HIGH": {
         "en": "the comparison covers what matters to you, from several sources",
@@ -269,6 +276,8 @@ def profile_lines(v: Verdict, names: Mapping[str, str], lang: str | None, years:
     t = v.trade_off
     if years and t is not None and t.break_even_years:
         key = "within_period" if t.break_even_years <= years else "beyond_period"
+        if t.break_even_years > MAX_BREAK_EVEN_YEARS:
+            key = "no_payback"
         out.append(tr(key, lang, years=years, car=names.get(t.gain_car, t.gain_car), be=_num(t.break_even_years, lang)))
     if v.other_profile is not None:
         out.append(tr("other_profile", lang, focus=_l(FOCUS, v.other_profile.persona, lang),
@@ -316,7 +325,7 @@ def _trade(v: Verdict, s: InsightSet, names: Mapping[str, str], lang: str | None
     numbers = [{"label": label(gain, lang), "value": round(gain.money_per_year or gain.diff, 0),
                 "unit": "EUR/year" if yearly else gain.unit},
                {"label": label(cost, lang), "value": cost.diff, "unit": cost.unit}]  # fmt: skip
-    if t.break_even_years:
+    if t.break_even_years and t.break_even_years <= MAX_BREAK_EVEN_YEARS:
         price = {c.car_id: c.value for c in cost.cars}
         extra = abs(price.get(t.gain_car, 0.0) - price.get(t.cost_car, 0.0))
         numbers[1] = {"label": label(cost, lang), "value": extra, "unit": cost.unit}

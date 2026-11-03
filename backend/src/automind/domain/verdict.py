@@ -109,8 +109,12 @@ def _confidence(share: float, decisive: Sequence[Insight], gaps: Sequence[str]) 
     return level, why
 
 
+MAX_BREAK_EVEN_YEARS = 15.0  # beyond this a payback is no payback ("after 77 years", incident 2026-11-03)
+
+
 def _would_change(pick: str | None, s: InsightSet, trade: TradeOff | None) -> WouldChange | None:
-    if trade is not None and trade.break_even_years and pick in (trade.gain_car, trade.cost_car):
+    if (trade is not None and trade.break_even_years and trade.break_even_years <= MAX_BREAK_EVEN_YEARS
+            and pick in (trade.gain_car, trade.cost_car)):  # fmt: skip
         other = trade.cost_car if pick == trade.gain_car else trade.gain_car
         return WouldChange("BREAK_EVEN", other, trade.gain, years=trade.break_even_years)
     rival = next((i for i in s.meaningful() if i.better_car and i.better_car != pick), None)

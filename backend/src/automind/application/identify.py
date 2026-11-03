@@ -168,6 +168,10 @@ async def _resolve_open(ports: Ports, case: CaseFile, car: CaseCar, year: int, l
                                               choices=_close_lineup(lineup, car)))  # fmt: skip
     except resolve.GenerationMismatch as e:
         return _done(car, IdentifyOutcome(outcome="NEED", need="YEAR", note=str(e)))
+    except resolve.NotOnSale as e:
+        choices = await _engines_on_sale(ports, car, year, [])
+        return _done(car, IdentifyOutcome(outcome="CHOICES" if choices else "NEED", need="ENGINE", choices=choices,
+                                          note=str(e)))  # fmt: skip
     except resolve.UnknownModel as e:
         names = e.closest or [f"{car.make} {m.model}" for m in _lineup_models(lineup)[:6]]
         choices = [Choice(label=n, make=car.make, model=n.removeprefix(f"{car.make} ")) for n in names]
@@ -176,12 +180,27 @@ async def _resolve_open(ports: Ports, case: CaseFile, car: CaseCar, year: int, l
     hint = car.constraints.engine_hint
     if hint is not None and not hint.empty() and not resolve.engine_of_fits(v, hint):
         # no version with the named engine (FR-015): offer the engines that exist
-        same = await resolve.catalog_for(car.make or "", car.model or "")
-        names = sorted({x.label for x in same} | {f"{car.make} {car.model} {a}" for a in ident.alternatives})
-        choices = [Choice(label=n, make=car.make, model=car.model) for n in names[:6]]
+        choices = await _engines_on_sale(ports, car, year, ident.alternatives)
         return _done(car, IdentifyOutcome(outcome="CHOICES" if choices else "NEED", need="ENGINE", choices=choices))
     car.variant_id, car.label, car.resolution = v.id, v.label, "PROPOSED"
     return _done(car, IdentifyOutcome(outcome="IDENTIFIED", note=ident.note))
+
+
+async def _engines_on_sale(ports: Ports, car: CaseCar, year: int, alternatives: list[str]) -> list[Choice]:
+    """Catalogued versions of this model that fit the car without the engine named (a new car: the generation on
+    sale now), each with its variant so a tap identifies it (spec 007 F); then the resolver's alternatives."""
+    probe = car.model_copy(deep=True)
+    probe.constraints.engine_hint = probe.constraints.trim_hint = probe.constraints.generation_hint = None
+    same = await resolve.catalog_for(car.make or "", car.model or "")
+    fits = sorted((v for v in same if resolve.fits(v, probe, year, ports.ref)), key=lambda v: v.label)
+    out = [Choice(label=v.label, make=v.make, model=v.model, variant_id=v.id) for v in fits]
+    seen = {c.label.lower() for c in out}
+    for a in alternatives:
+        label = a if a.lower().startswith((car.make or "").lower()) else f"{car.make} {car.model} {a}"
+        if label.lower() not in seen:
+            out.append(Choice(label=label, make=car.make, model=car.model))
+            seen.add(label.lower())
+    return out[:6]
 
 
 def _close_lineup(lineup: Any, car: CaseCar) -> list[Choice]:
