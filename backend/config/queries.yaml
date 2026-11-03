@@ -1,47 +1,51 @@
 # Search query templates per research area (spec 003 research R2).
 # favourite: one query per group of favourite sites ({sites} = `site:a OR site:b …`), run first.
 # open: open-web queries, run only when the favourites did not meet the area minimum.
-# Placeholders: {make} {model} {generation} {variant} {years} {sites}. Classifieds are deny-listed.
-version: 2
+# Placeholders: {make} {model} {generation} {variant} {years} {sites}, and {short} = make + model + a short
+# variant key ("BMW 320d Touring", "Volkswagen Golf Variant R 333"; spec 007 FR-020). Favourite queries are short
+# and in the market's language: `site:` queries need every word on the page, and pages never write "Mk8.5".
+# Classifieds are deny-listed.
+version: 3
 specs:
-  favourite: '{make} {model} {generation} {variant} {sites}'
-  favourite_by_market: {DE: '{make} {model} {generation} {variant} technische Daten Leistung Gewicht {sites}'}
+  favourite: '{short} ficha técnica {sites}'
+  favourite_by_market: {ES: '{short} ficha técnica {sites}', EN: '{short} specs {sites}', DE: '{short} technische Daten {sites}'}
   open:
     - '{make} {model} {generation} {variant} specifications power torque weight 0-100'
     - '{make} {model} {generation} {variant} ficha técnica peso potencia par'
 engineering:
-  favourite: '{make} {model} {generation} {variant} engine technical {sites}'
+  favourite: '{short} motor técnica {sites}'
+  favourite_by_market: {EN: '{short} engine technical {sites}', DE: '{short} Motor Technik {sites}'}
   open:
     - '{make} {model} {generation} {variant} engine bore stroke compression ratio platform
   suspension'
     - '{make} {model} {generation} technical analysis chassis drivetrain engineering'
     - '{make} {model} {generation} model year changes facelift update new engine'
 measured:
-  favourite: '{make} {model} {generation} {variant} test 0-100 {sites}'
-  favourite_by_market: {DE: '{make} {model} {generation} {variant} Test Messwerte Beschleunigung 0-100 Verbrauch {sites}'}
+  favourite: '{short} prueba 0-100 {sites}'
+  favourite_by_market: {ES: '{short} prueba 0-100 {sites}', EN: '{short} test 0-60 {sites}', DE: '{short} Test Messwerte {sites}'}
   open:
     - '{make} {model} {generation} {variant} instrumented test 0-100 km/h measured'
 price:
-  favourite: '{make} {model} {variant} precio {sites}'
+  favourite: '{short} precio {sites}'
   open:
     - '{make} {model} {variant} precio oficial España PVP'
     - '{make} {model} precio tarifa España {generation}'
 maintenance:
-  favourite: '{make} {model} {generation} mantenimiento service {sites}'
-  favourite_by_market: {DE: '{make} {model} {generation} Wartung Inspektion Intervall Kosten {sites}', EN: '{make} {model} {generation} service schedule maintenance cost {sites}'}
+  favourite: '{make} {model} mantenimiento {sites}'
+  favourite_by_market: {ES: '{make} {model} mantenimiento revisiones {sites}', EN: '{make} {model} service schedule {sites}', DE: '{make} {model} Wartung Inspektion {sites}'}
   open:
     - '{make} {model} {generation} {variant} service schedule maintenance intervals cost'
     - '{make} {model} {generation} plan de mantenimiento revisiones intervalos coste'
 reviews:
-  favourite: '{make} {model} {generation} {variant} review {sites}'
-  favourite_by_market: {DE: '{make} {model} {generation} {variant} Test Fahrbericht {sites}'}
+  favourite: '{short} prueba {sites}'
+  favourite_by_market: {ES: '{short} prueba opinión {sites}', EN: '{short} review {sites}', DE: '{short} Test {sites}'}
   open:
     - '{make} {model} {generation} {variant} review pros cons'
     - '{make} {model} {generation} owner reviews opinions problems'
     - '{make} {model} {generation} prueba opinión'
 reliability:
-  favourite: '{make} {model} {generation} reliability problems {sites}'
-  favourite_by_market: {DE: '{make} {model} {generation} Pannenstatistik TÜV-Report Mängelquote Probleme {sites}'}
+  favourite: '{make} {model} fiabilidad problemas {sites}'
+  favourite_by_market: {ES: '{make} {model} fiabilidad problemas {sites}', EN: '{make} {model} reliability problems {sites}', DE: '{make} {model} Pannenstatistik Mängel {sites}'}
   open:
     - '{make} {model} {generation} reliability common problems known issues'
     - '{make} {model} {generation} fiabilidad averías comunes'
@@ -57,20 +61,22 @@ manufacturer:
     - '{make} matriculaciones España cuota de mercado red de concesionarios'
     - '{make} concesionarios talleres red oficial España'
 depreciation:
-  favourite: '{make} {model} valor residual depreciación residual value {sites}'
+  favourite: '{make} {model} valor residual {sites}'
+  favourite_by_market: {ES: '{make} {model} valor residual {sites}', EN: '{make} {model} depreciation residual value {sites}', DE: '{make} {model} Wertverlust Restwert {sites}'}
   open:
     - '{make} {model} {generation} residual value after 3 years 5 years depreciation'
     - '{make} {model} valor residual depreciación 3 años 5 años'
     - '{make} {model} {generation} resale value retention ranking'
 used_issues:
-  favourite: '{make} {model} {generation} used buying guide {sites}'
-  favourite_by_market: {DE: '{make} {model} {generation} Gebrauchtwagen Kaufberatung Schwachstellen Mängel {sites}'}
+  favourite: '{make} {model} segunda mano problemas {sites}'
+  favourite_by_market: {ES: '{make} {model} segunda mano problemas {sites}', EN: '{make} {model} used buying guide {sites}', DE: '{make} {model} Gebrauchtwagen Schwachstellen {sites}'}
   open:
     - '{make} {model} {generation} {years} used buying guide what to check high mileage'
     - '{make} {model} {generation} timing belt gearbox rust problems age mileage'
     - '{make} {model} {generation} segunda mano qué revisar problemas'
 used_price:
-  favourite: '{make} {model} {generation} {years} used price {sites}'
+  favourite: '{make} {model} {years} precio segunda mano {sites}'
+  favourite_by_market: {ES: '{make} {model} {years} precio segunda mano {sites}', EN: '{make} {model} {years} used price {sites}'}
   open:
     - '{make} {model} {generation} segunda mano precio cuánto cuesta guía de compra'
     - '{make} {model} {generation} used buying guide how much to pay'

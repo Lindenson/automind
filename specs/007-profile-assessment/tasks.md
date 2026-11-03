@@ -20,7 +20,7 @@ Paths are relative to the repo root: `B/` = `backend/src/automind/`, `T/` = `bac
 
 ## Phase 1: Setup
 
-- [ ] T001 Add config keys to `C/search.yaml`:
+- [X] T001 (US5 keys done in increment A; intake, interpret and graph keys come with B and H) Add config keys to `C/search.yaml`:
   - `empty_result_ttl_hours: 6`
   - `favourite_retry: true`
   - `learned: {min_runs: 3, max_misses: 5, per_area: 4}`
@@ -60,49 +60,49 @@ Paths are relative to the repo root: `B/` = `backend/src/automind/`, `T/` = `bac
 
 ### Tests
 
-- [ ] T006 [P] [US5] Tests in `T/unit/domain/test_search_plan.py` for `short_identity()` / `variant_key()`:
+- [X] T006 [P] [US5] Tests in `T/unit/domain/test_search_plan.py` for `short_identity()` / `variant_key()`:
   - "Volkswagen Golf Mk8.5 Golf Variant R 2.0 TSI 333 CV DSG 4MOTION" → "Volkswagen Golf Variant R 333";
-  - "BMW 3 Series G21 320d Touring M Sport Steptronic" → "BMW 3 Series 320d Touring";
+  - "BMW 3 Series G21 320d Touring M Sport Steptronic" → "BMW 320d Touring" (the engine code names the model);
   - "Toyota C-HR 2.0 hybrid 197 CV" keeps "2.0 hybrid";
   - no Mk\d, chassis codes, DSG/xDrive/4MOTION or repeated words.
-- [ ] T007 [P] [US5] Tests in `T/unit/domain/test_search_plan.py` for templates and retry:
+- [X] T007 [P] [US5] Tests in `T/unit/domain/test_search_plan.py` for templates and retry:
   - a DE reliability favourite contains "Pannenstatistik";
   - an ES one contains "fiabilidad";
   - an EN one contains "reliability";
   - `shorter(query)` gives `{make} {model}` + the area words;
   - learned domains are appended after the configured ones, at most `per_area`, never denied.
-- [ ] T008 [P] [US5] Tests in `T/unit/domain/test_learned.py` for the rules in `B/domain/learned.py`:
+- [X] T008 [P] [US5] Tests in `T/unit/domain/test_learned.py` for the rules in `B/domain/learned.py`:
   - a domain is promoted at `min_runs`;
   - it expires at `max_misses`;
   - a denied domain is never active;
   - a configured favourite is not duplicated;
   - `source_type` comes from `classify_source` (a look-alike such as "bmw-club.es" is never MANUFACTURER).
-- [ ] T009 [P] [US5] Tests in `T/unit/infrastructure/test_search_cache.py`: an empty result is stored with `empty=True` and expires after `empty_result_ttl_hours`; a non-empty result keeps the area TTL.
+- [X] T009 [P] [US5] Tests in `T/unit/infrastructure/test_search_cache.py`: an empty result is stored with `empty=True` and expires after `empty_result_ttl_hours`; a non-empty result keeps the area TTL.
 
 ### Implementation
 
-- [ ] T010 [US5] Implement `short_identity`, `variant_key`, `shorter` and a `{short}` placeholder in `_render` in `B/domain/search_plan.py`. Add a `learned` parameter to `queries()` and the planned-query kind `FAVOURITE_RETRY`.
-- [ ] T011 [US5] Rewrite the favourite templates in `C/queries.yaml` to `'{short} <area words> {sites}'`, with `favourite_by_market` for ES, DE and EN in every area. Open templates are unchanged.
-- [ ] T012 [P] [US5] Implement `B/domain/learned.py`, with pure `update_row(row, accepted: bool) -> row` and `is_active(row, cfg, denied, favourites) -> bool`.
-- [ ] T013 [US5] Write migration `backend/alembic/versions/0010_learned_sources.py`:
+- [X] T010 [US5] Implement `short_identity`, `variant_key`, `shorter` and a `{short}` placeholder in `_render` in `B/domain/search_plan.py`. Add a `learned` parameter to `queries()` and the planned-query kind `FAVOURITE_RETRY`.
+- [X] T011 [US5] Rewrite the favourite templates in `C/queries.yaml` to `'{short} <area words> {sites}'`, with `favourite_by_market` for ES, DE and EN in every area. Open templates are unchanged.
+- [X] T012 [P] [US5] Implement `B/domain/learned.py`, with pure `update_row(row, accepted: bool) -> row` and `is_active(row, cfg, denied, favourites) -> bool`.
+- [X] T013 [US5] Write migration `backend/alembic/versions/0010_learned_sources.py`:
   - table `learned_sources` (id uuid pk, domain, area, market, source_type, accepted_runs int default 0, misses int default 0, first_seen, last_seen; unique (domain, area, market));
   - `search_cache.empty boolean not null default false`.
 
   Mirror it in `B/infrastructure/db/models.py` (`LearnedSource`, `SearchCache.empty`) so `alembic check` passes.
-- [ ] T014 [US5] Change `B/infrastructure/search/cache.py`: store `empty`, and use `empty_result_ttl_hours` for empty rows in `_ttl` / the lookup.
-- [ ] T015 [US5] Create `B/application/learned_sources.py`:
+- [X] T014 [US5] Change `B/infrastructure/search/cache.py`: store `empty`, and use `empty_result_ttl_hours` for empty rows in `_ttl` / the lookup.
+- [X] T015 [US5] Create `B/application/learned_sources.py`:
   - `load_active(session, area, market)`;
   - `update(session, run_id)`, which aggregates accepted claim domains per job's (area, market) and searched-but-not-accepted domains, as in contracts/learned-sources.md.
 
   Add a repository in `B/infrastructure/db/repositories.py`.
-- [ ] T016 [US5] Wire it into `B/application/research.py`:
+- [X] T016 [US5] Wire it into `B/application/research.py`:
   - `identity_of` keeps the full identity for open queries;
   - round 0 passes the learned domains;
   - one `FAVOURITE_RETRY` is issued when a favourite query returns 0 hits (counted in the limits);
   - `learned_sources.update` is called at the end of the run.
-- [ ] T017 [US5] Metrics: add `learned_sources` and `empty_search_share` to `GET /api/v1/research/metrics` (`B/api/rest.py` + the existing metrics query). Show both on the frontend metrics page if one exists, else skip the UI.
-- [ ] T018 [US5] Write the recorded replay `T/graph/test_recall_757cff3d.py`, with fixture search results keyed by the new short queries for BMW 320d Touring G21 and Golf Variant R. Assert round-0 pages > 0 for specs, measured and reliability, and that no query contains "Mk8.5" or a repeated model.
-- [ ] T019 [US5] Run `scripts/check.sh`, restart dev, run `scripts/deploy.sh up`, then commit, push, open a PR and merge to main ("007-A search recall").
+- [X] T017 [US5] Metrics (done in the API; empty share is computed from `research_jobs.queries[].empty`; the frontend page shows it only when a metrics page exists): add `learned_sources` and `empty_search_share` to `GET /api/v1/research/metrics` (`B/api/rest.py` + the existing metrics query). Show both on the frontend metrics page if one exists, else skip the UI.
+- [X] T018 [US5] Write the recorded replay (done as `T/unit/test_recall_757cff3d.py`, offline, real config), with fixture search results keyed by the new short queries for BMW 320d Touring G21 and Golf Variant R. Assert round-0 pages > 0 for specs, measured and reliability, and that no query contains "Mk8.5" or a repeated model.
+- [X] T019 [US5] Run `scripts/check.sh`, restart dev, run `scripts/deploy.sh up`, then commit, push, open a PR and merge to main ("007-A search recall").
 
 **Checkpoint**: increment A is shippable alone.
 

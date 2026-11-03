@@ -321,6 +321,23 @@ class SearchCache(Base):
     hits: Mapped[list[Any]] = mapped_column(JSONB)
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    empty: Mapped[bool] = mapped_column(Boolean, default=False, server_default=text("false"))
+
+
+class LearnedSource(Base):
+    """A domain that keeps giving accepted values for an area and market (spec 007 FR-022)."""
+
+    __tablename__ = "learned_sources"
+    __table_args__ = (UniqueConstraint("domain", "area", "market", name="uq_learned_source"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    domain: Mapped[str] = mapped_column(String(253))
+    area: Mapped[str] = mapped_column(String(40))
+    market: Mapped[str] = mapped_column(String(8))
+    source_type: Mapped[str] = mapped_column(String(30))
+    accepted_runs: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
+    misses: Mapped[int] = mapped_column(Integer, default=0, server_default=text("0"))
+    first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 
 class PageRelevance(Base):

@@ -8,13 +8,13 @@
 
 ## A. Search recall (increment A)
 
-1. Unit: `pytest backend/tests/unit/domain/test_search_plan.py -k short`. The variant "Volkswagen Golf Mk8.5 Golf Variant R 2.0 TSI 333 CV DSG 4MOTION" gives the short form "Volkswagen Golf Variant R 333". "BMW 3 Series G21 320d Touring M Sport Steptronic" gives "BMW 3 Series 320d Touring". No query contains "Mk8.5", "G21", "DSG" or a repeated word.
+1. Unit: `pytest backend/tests/unit/domain/test_search_plan.py -k short`. The variant "Volkswagen Golf Mk8.5 Golf Variant R 2.0 TSI 333 CV DSG 4MOTION" gives the short form "Volkswagen Golf Variant R 333". "BMW 3 Series G21 320d Touring M Sport Steptronic" gives "BMW 320d Touring" (the engine code names the model). No query contains "Mk8.5", "G21", "DSG" or a repeated word.
 2. Unit:
    - a DE reliability favourite uses "Pannenstatistik";
    - an ES one uses "fiabilidad";
    - a zero-hit favourite produces one retry query;
    - an empty cached result expires after 6 h.
-3. Recorded replay: `pytest backend/tests/graph/test_recall_757cff3d.py`. Round 0 has pages for specs, measured and reliability for both cars (SC-006).
+3. Recorded replay: `pytest backend/tests/unit/test_recall_757cff3d.py`. Round 0 has pages for specs, measured and reliability for both cars (SC-006).
 4. Learned sources: `pytest backend/tests/unit/domain/test_learned.py`. Expected behaviour:
    - promotion after 3 accepted runs;
    - expiry after 5 misses;
