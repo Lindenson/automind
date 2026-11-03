@@ -11,7 +11,7 @@ from automind.orchestration.runner import ChatRunner
 from tests.fakes.fake_llm import FakeLLM
 from tests.fakes.fixture_search import FixtureSearch
 
-from .conftest import budget_factory, make_ports
+from .conftest import budget_factory, forget_make, make_ports
 
 ENGLISH = re.compile(r"\b(the|which|did you mean|make and model|I don't know)\b", re.I)
 UNKNOWN_SEAL = {"make": "BYD", "model": "Seal U", "generation": None, "generation_years_from": None,
@@ -33,6 +33,7 @@ def _questions(text: str) -> str:
 
 
 async def test_unknown_brand_model_is_looked_up_again_and_never_asked_the_same_way(saver):
+    await forget_make("BYD")
     llm = FakeLLM()
     llm.responders["asker"] = lambda s, u: "Понял: сравниваем BYD с другой машиной для семьи."
     llm.queue("interpreter", _ru({"add_cars": [{"request_text": "byd", "make": "BYD"}]}))
@@ -67,6 +68,7 @@ async def test_unknown_brand_model_is_looked_up_again_and_never_asked_the_same_w
 
 
 async def test_nonsense_replies_rephrase_then_offer_removal(saver):
+    await forget_make("BYD")
     llm = FakeLLM()
     llm.responders["asker"] = lambda s, u: "Понял."
     nothing = _ru({})

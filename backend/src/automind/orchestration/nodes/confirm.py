@@ -17,7 +17,7 @@ from automind.application import resolve
 from automind.config import settings
 from automind.domain import intake
 from automind.domain.casefile import Choice, Pending
-from automind.orchestration.phrases import t
+from automind.orchestration.phrases import PHRASES, t
 from automind.orchestration.runner import TurnContext
 from automind.orchestration.state import TurnState
 
@@ -52,8 +52,14 @@ async def ask_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str,
     labels = {"new": t("cond_new", lang), "used": t("cond_used", lang), "yes": t("yes", lang),
               "no": t("no_other", lang), "choose": t("choose_for_me", lang),
               "remove": t("remove_car", lang, car="{car}")}  # fmt: skip
+    for q in items:  # machine reasons of suggested models → the conversation language
+        for ch in q.get("choices") or []:
+            if ch.get("reason"):
+                ch["reason"] = "; ".join(
+                    t(f"why_{k}", lang) for k in str(ch["reason"]).split(",") if f"why_{k}" in PHRASES
+                )
     replies = asking.intake_quick_replies(items, case, labels)
-    blocks = [{"type": "quick_replies", "items": replies}] if replies else []
+    blocks = [*state.get("notices", []), *([{"type": "quick_replies", "items": replies}] if replies else [])]
     return {"reply_text": text, "blocks": blocks, "action": "ASK", "case_version": version}
 
 

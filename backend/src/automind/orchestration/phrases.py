@@ -111,6 +111,27 @@ PHRASES: dict[str, dict[str, str]] = {
         "es": "No leo portales de anuncios ({site}). Escribe el coche con palabras, por favor.",
     },
     "suggested": {"en": "suggestion", "ru": "предложение", "es": "sugerencia"},
+    "why_family_body": {"en": "family-size body", "ru": "семейный кузов", "es": "carrocería familiar"},
+    "why_phev_low_running_cost": {
+        "en": "plug-in hybrid: low running cost at your km",
+        "ru": "плагин-гибрид: дёшево ездить при вашем пробеге",
+        "es": "híbrido enchufable: gasto bajo con tus km",
+    },
+    "why_bev_low_running_cost": {
+        "en": "electric: low running cost",
+        "ru": "электро: дёшево в эксплуатации",
+        "es": "eléctrico: gasto bajo",
+    },
+    "why_hybrid_low_running_cost": {
+        "en": "hybrid: low consumption",
+        "ru": "гибрид: низкий расход",
+        "es": "híbrido: consumo bajo",
+    },
+    "why_price_close": {
+        "en": "price close to the other car",
+        "ru": "цена близка к другой машине",
+        "es": "precio parecido al otro coche",
+    },
     "limit_continue": {"en": "Continue research", "ru": "Продолжить исследование", "es": "Seguir investigando"},
     "limit_stop": {"en": "Answer with what you have", "ru": "Ответить по собранному", "es": "Responder con lo que hay"},
     "feasibility_intro": {

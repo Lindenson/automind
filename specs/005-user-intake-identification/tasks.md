@@ -152,12 +152,12 @@ description: "Task list for 005 — Understanding the user: intake and identific
 
 ### Tests first
 
-- [ ] T025 [P] [US2] Write `backend/tests/unit/test_rank_lineup.py` (research R12):
+- [X] T025 [P] [US2] Write `backend/tests/unit/test_rank_lineup.py` (research R12):
   - FAMILY + 18,000 km + priorities efficiency/ownership_cost over a fake BYD line-up (Dolphin hatch BEV, Atto 3 SUV BEV, Seal U SUV PHEV, Seal sedan BEV, Sealion 7 SUV BEV) → SUVs first, PHEV/BEV ranked by km;
   - a price band near the other car (Ateca €30k ± 30%);
   - machine reasons;
   - deterministic order.
-- [ ] T026 [P] [US2] Write `backend/tests/integration/test_lineup.py` with a fake search and page store:
+- [X] T026 [P] [US2] Write `backend/tests/integration/test_lineup.py` with a fake search and page store:
   - models not occurring in the document are dropped;
   - a price without its excerpt is dropped;
   - no official or price-list source → not stored;
@@ -166,20 +166,20 @@ description: "Task list for 005 — Understanding the user: intake and identific
 
 ### Implementation
 
-- [ ] T028 [US2] Write prompt `backend/src/automind/orchestration/prompts/lineup.md` v1 (a web reader: `<untrusted_document>`, no tools). It returns `[{model, body, powertrains[], price_from_eur|null, excerpt}]` for the Spanish market only, and never adds a model that is not in the documents.
-- [ ] T029 [US2] Implement `backend/src/automind/application/lineup.py`: `get_lineup(ports, make) -> Lineup | None`.
+- [X] T028 [US2] Write prompt `backend/src/automind/orchestration/prompts/lineup.md` v1 (a web reader: `<untrusted_document>`, no tools). It returns `[{model, body, powertrains[], price_from_eur|null, excerpt}]` for the Spanish market only, and never adds a model that is not in the documents.
+- [X] T029 [US2] Implement `backend/src/automind/application/lineup.py`: `get_lineup(ports, make) -> Lineup | None`.
   - Cache-first `brand_lineups` (TTL from config).
   - Search ES `"<make> gama modelos precios España"` plus the official `es_site`, reading ≤ 2 pages through the page store (robots, deny-list).
   - The `lineup` role extracts; each model is checked with `evidence.occurs` and each price must be in its excerpt.
   - Stored only with ≥ 1 official or price-list source.
   Plug it into step 3 of `identify_car` (T019).
-- [ ] T030 [US2] Change `_check_known` in `backend/src/automind/application/resolve.py`. A model in the make's line-up is known without the resolver returning a generation; for a NEW car the generation is "current" and its label notes the line-up source. "Unknown" is returned only after the line-up lookup ran, and it comes with the closest line-up names (fuzzy). An empty list never reaches a question.
-- [ ] T031 [US2] Implement `rank_lineup(lineup, profile, other_cars, budget) -> list[Choice]` in `backend/src/automind/domain/intake.py` (top 1–3, machine reasons, `suggested=True`). Use it in `identify_car` when the make is known and the model is missing, or when the request is "find the matching model" / choose_for_me. Make T025 pass.
-- [ ] T032 [US2] Classify a URL in a reply in `backend/src/automind/application/identify.py` (research R10):
+- [X] T030 [US2] Change `_check_known` in `backend/src/automind/application/resolve.py`. A model in the make's line-up is known without the resolver returning a generation; for a NEW car the generation is "current" and its label notes the line-up source. "Unknown" is returned only after the line-up lookup ran, and it comes with the closest line-up names (fuzzy). An empty list never reaches a question.
+- [X] T031 [US2] Implement `rank_lineup(lineup, profile, other_cars, budget) -> list[Choice]` in `backend/src/automind/domain/intake.py` (top 1–3, machine reasons, `suggested=True`). Use it in `identify_car` when the make is known and the model is missing, or when the request is "find the matching model" / choose_for_me. Make T025 pass.
+- [X] T032 [US2] Classify a URL in a reply in `backend/src/automind/application/identify.py` (research R10):
   - deny-listed → refused, with the reason in the user's language;
   - a maker home page (domain in makes.yaml) → sets the make and shows the line-up;
   - a model page → read via the page store and resolved; the reply carries "from the page I took: …" (phrase in `backend/src/automind/orchestration/phrases.py`, en/ru/es).
-- [ ] T033 [US2] Pass the line-up documents to the resolver in `_resolver_docs` in `backend/src/automind/application/resolve.py` (when known), and add the Spanish km77 / official-site query for a make without a catalog entry. The resolver prompt `backend/src/automind/orchestration/prompts/resolver.md` v4: prefer the versions listed in the line-up; return engine_cc, power_kw and fuel.
+- [X] T033 [US2] Pass the line-up documents to the resolver in `_resolver_docs` in `backend/src/automind/application/resolve.py` (when known), and add the Spanish km77 / official-site query for a make without a catalog entry. The resolver prompt `backend/src/automind/orchestration/prompts/resolver.md` v4: prefer the versions listed in the line-up; return engine_cc, power_kw and fuel.
 
 **Checkpoint**: G22, G24, G25 and G26 pass; G21 identifies BYD from the line-up.
 

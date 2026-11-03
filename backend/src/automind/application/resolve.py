@@ -50,6 +50,11 @@ class VariantIdentity(BaseModel):
         default=None, description="Position of this version in the model's Spanish price list: BASE = cheapest"
     )
     price_eur: int | None = Field(default=None, description="Official Spanish list price of this version (PVP), EUR")
+    engine_cc: int | None = Field(default=None, description="Engine displacement in cm³ (e.g. 1498); null for BEV")
+    power_kw: int | None = Field(default=None, description="Maximum power in kW")
+    fuel: Literal["petrol", "diesel", "hybrid", "mhev", "phev", "bev", "lpg"] | None = Field(
+        default=None, description="Fuel / energy of this version"
+    )
     known_model: bool = Field(default=True, description="False if no such make/model exists or you are not sure")
     certainty: Literal["exact", "likely", "ambiguous"]
     alternatives: list[str] = Field(default_factory=list, description="Other plausible variants (max 3)")
@@ -214,7 +219,7 @@ async def resolve_with_llm(
     ports: Ports, car: CaseCar, current_year: int, level: str = "BASE", *, lineup: Any = None
 ) -> tuple[db.Variant, VariantIdentity]:
     """Catalog miss: ask the resolver with the case context, validate years, upsert with de-dup."""
-    docs = await _resolver_docs(ports, car)
+    docs = await _resolver_docs(ports, car, lineup)
     snippets = "\n\n".join(
         f'<untrusted_document url="{u}">\n{t}\n{x[:1500]}\n</untrusted_document>' for u, t, x in docs[:8]
     )
@@ -225,7 +230,7 @@ async def resolve_with_llm(
         f"Search results:\n{snippets or '(none)'}"
     )
     ident = await ports.llm.structured("resolver", VariantIdentity, ports.ref.prompts["resolver"], user)
-    await _check_known(ports.ref, car, ident)
+    await _check_known(ports.ref, car, ident, lineup)
     if current is not None and (ident.generation or "").lower() != current[0].lower():
         # a NEW car must be the current generation: ask once more with the generation named, then take it
         again = await ports.llm.structured(
@@ -267,11 +272,18 @@ def _context(car: CaseCar, current: tuple[str, int] | None, level: str) -> list[
     return context
 
 
-async def _resolver_docs(ports: Ports, car: CaseCar) -> list[tuple[str, str, str]]:
-    """Search results for the resolver: generations and engines, and (new cars) the Spanish price list of versions."""
+async def _resolver_docs(ports: Ports, car: CaseCar, lineup: Any = None) -> list[tuple[str, str, str]]:
+    """Search results for the resolver: generations and engines, and (new cars) the Spanish price list of versions.
+    A model of the make's line-up (spec 005) brings the line-up page that lists it."""
     query = " ".join(x for x in (car.make, car.model, car.constraints.generation_hint) if x) or car.request_text
     docs: list[tuple[str, str, str]] = []  # (url, title, text)
     store = ports.page_store
+    for m in getattr(lineup, "models", None) or []:
+        if car.model and m.model.lower() == car.model.lower() and m.source_url:
+            page = await store.get(m.source_url, area="price")
+            if page:
+                docs.append((page.url, page.title, page.text))
+            break
     if car.constraints.url:
         page = await store.get(car.constraints.url, area="specs")
         if page:
@@ -289,12 +301,16 @@ async def _resolver_docs(ports: Ports, car: CaseCar) -> list[tuple[str, str, str
     return docs
 
 
-async def _check_known(ref: Reference, car: CaseCar, ident: VariantIdentity) -> None:
-    """Never invent a variant: a model unknown to the catalog and config that the resolver cannot place (no
-    generation, or another model than asked) is reported with the closest known models (FR-031)."""
+async def _check_known(ref: Reference, car: CaseCar, ident: VariantIdentity, lineup: Any = None) -> None:
+    """Never invent a variant: a model unknown to the catalog, config and the make's line-up that the resolver
+    cannot place (no generation, or another model than asked) is reported with the closest known models
+    (FR-031; spec 005 FR-007, FR-009: "unknown" only after the line-up lookup)."""
     make, model = identity.normalize_make_model(car.make or ident.make, car.model or ident.model, ref.aliases)
-    known = await known_models(make, ref)
+    in_lineup = {m.model for m in getattr(lineup, "models", None) or []}
+    known = await known_models(make, ref) | in_lineup
     if any(model.lower() == m.lower() for m in known):
+        if in_lineup and not ident.generation and any(model.lower() == m.lower() for m in in_lineup):
+            ident.note = (ident.note + " " if ident.note else "") + "Model from the Spanish line-up of the make."
         return
     asked = model.lower().replace("-", "").replace(" ", "")
     got = ident.model.lower().replace("-", "").replace(" ", "")
@@ -303,7 +319,8 @@ async def _check_known(ref: Reference, car: CaseCar, ident: VariantIdentity) -> 
         return  # a model new to us but known to the resolver
     pool = known | ({ident.model} if ident.known_model and ident.model else set())
     closest = identification.closest_models(model, pool, fuzz.WRatio)
-    raise UnknownModel(f"{make} {model}", [f"{make} {m}" for m in closest])
+    checked = [str(src.get("url")) for src in getattr(lineup, "sources", None) or [] if src.get("url")]
+    raise UnknownModel(f"{make} {model}", [f"{make} {m}" for m in closest], checked)
 
 
 def current_generation(ref: Reference, car: CaseCar, current_year: int) -> tuple[str, int] | None:
@@ -378,6 +395,9 @@ async def upsert_variant(ident: VariantIdentity, ref: Reference) -> db.Variant:
             trim=(ident.trim or None) and ident.trim[:64],
             trim_level=ident.trim_level,
             price_eur=ident.price_eur,
+            engine_cc=ident.engine_cc if ident.engine_cc and 600 <= ident.engine_cc <= 8000 else None,
+            power_kw=ident.power_kw if ident.power_kw and 30 <= ident.power_kw <= 750 else None,
+            fuel=ident.fuel,
         )
         s.add(v)
         await s.commit()

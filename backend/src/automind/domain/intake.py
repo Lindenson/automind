@@ -231,7 +231,13 @@ def _score(m: LineupModel, fit: Fit) -> tuple[float, list[str]]:
 
 
 def rank_lineup(models: Sequence[LineupModel], fit: Fit, limit: int = 3) -> list[tuple[LineupModel, list[str]]]:
-    """Top models of a line-up for the person, each with machine reason keys (phrased by the caller)."""
-    scored = [(_score(m, fit), m) for m in models]
+    """Top models of a line-up for the person, each with machine reason keys (phrased by the caller). A model
+    priced over 1.3 × the user's own budget is never proposed."""
+    cap = fit.budget_eur * 1.3 if fit.budget_eur else None
+    pool = [m for m in models if not (cap and m.price_from_eur and m.price_from_eur > cap)]
+    family = [m for m in pool if any(b in m.body.lower() for b in _FAMILY_BODIES)]
+    if fit.family and family:  # a family is offered family-size bodies only
+        pool = family
+    scored = [(_score(m, fit), m) for m in pool]
     scored.sort(key=lambda x: (-x[0][0], x[1].price_from_eur or 10**9, x[1].model))
     return [(m, why) for (s, why), m in scored[:limit] if s > -2]

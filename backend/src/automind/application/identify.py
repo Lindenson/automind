@@ -17,10 +17,11 @@ import re
 import unicodedata
 from collections.abc import Awaitable, Callable
 from typing import Any
+from urllib.parse import urlparse
 
 from automind.application import resolve
 from automind.application.ports import Ports
-from automind.domain import intake
+from automind.domain import evidence, intake
 from automind.domain.casefile import CaseCar, CaseFile, Choice, IdentifyOutcome
 
 LineupLookup = Callable[[Ports, str], Awaitable[Any]]  # (ports, make) -> application.lineup.Lineup | None
@@ -47,15 +48,33 @@ def _lineup_models(lineup: Any) -> list[Any]:
     return list(getattr(lineup, "models", None) or [])
 
 
-def _choices_from_lineup(lineup: Any, make: str) -> list[Choice]:
+def _fit(case: CaseFile) -> intake.Fit:
+    others = [int(p) for p in (getattr(c, "price_eur", None) for c in case.cars) if p]  # set by the caller if known
+    return intake.Fit(
+        family=case.profile.family == "FAMILY" or "FAMILY" in case.usage or (case.needs.passengers or 0) >= 4,
+        annual_km=case.profile.annual_km_max or case.annual_km,
+        priorities=tuple(p.criterion for p in case.priorities),
+        budget_eur=case.budget.max_eur if case.budget.kind == "TOTAL" and case.budget.currency == "EUR" else None,
+        reference_price_eur=others[0] if others else None,
+    )
+
+
+def _choices_from_lineup(lineup: Any, make: str, case: CaseFile | None = None) -> list[Choice]:
+    """Models of the line-up as options; the 1–3 that fit the person come first, marked as suggestions with
+    machine reasons (FR-008, FR-024)."""
+    models = _lineup_models(lineup)
+    ranked = intake.rank_lineup(models, _fit(case)) if case is not None else []
+    why = {m.model: r for m, r in ranked if r}
+    order = [m for m, _ in ranked if m.model in why] + [m for m in models if m.model not in why]
     out = []
-    for m in _lineup_models(lineup)[:6]:
+    for m in order[:6]:
         pts = ", ".join(m.powertrains) if getattr(m, "powertrains", None) else None
         bits = ", ".join(x for x in (getattr(m, "body", "") or "", pts or "") if x)
         out.append(Choice(label=f"{make} {m.model}" + (f" ({bits})" if bits else ""), make=make, model=m.model,
                           body=getattr(m, "body", None) or None, powertrain=pts,
                           source_url=getattr(m, "source_url", None),
-                          price_from_eur=getattr(m, "price_from_eur", None)))  # fmt: skip
+                          price_from_eur=getattr(m, "price_from_eur", None),
+                          suggested=m.model in why, reason=",".join(why.get(m.model, [])) or None))  # fmt: skip
     return out
 
 
@@ -71,21 +90,22 @@ async def identify_car(
 ) -> IdentifyOutcome:
     """Identify one car in place (make/model canonical, variant proposed when found) and return the outcome."""
     reg = ports.ref.makes
+    note = _classify_url(car, reg)
     if reg is not None:
         canon = reg.canonical(car.make) if car.make else reg.match_make(car.request_text)
         if canon and _plain(canon) != _plain(car.make):  # "Skoda" / "Škoda": keep the catalog's spelling
             car.make = canon
     if not car.make:
-        return _done(car, IdentifyOutcome(outcome="NEED", need="MAKE"))
+        return _done(car, IdentifyOutcome(outcome="NEED", need="MAKE", note=note))
     lineup = await lineup_lookup(ports, car.make) if lineup_lookup is not None else None
     known = set(await resolve.known_models(car.make, ports.ref)) | {m.model for m in _lineup_models(lineup)}
     _match_model(car, reg, known)
     if not car.model:
-        choices = _choices_from_lineup(lineup, car.make) or [
+        choices = _choices_from_lineup(lineup, car.make, case) or [
             Choice(label=f"{car.make} {m}", make=car.make, model=m) for m in sorted(known)[:6]
         ]
         kind = "CHOICES" if choices else "NEED"
-        return _done(car, IdentifyOutcome(outcome=kind, need="MODEL", choices=choices))  # type: ignore[arg-type]
+        return _done(car, IdentifyOutcome(outcome=kind, need="MODEL", choices=choices, note=note))  # type: ignore[arg-type]
     if car.variant_id and car.resolution in ("CONFIRMED", "AUTO_OK", "PROPOSED"):
         return _done(car, IdentifyOutcome(outcome="IDENTIFIED"))
     if car.condition == "USED" and car.year is None and car.age_years is None and not car.constraints.generation_hint:
@@ -95,6 +115,23 @@ async def identify_car(
         resolve.auto_resolve(car, a)
         return _done(car, IdentifyOutcome(outcome="IDENTIFIED"))
     return await _resolve_open(ports, case, car, current_year, lineup)
+
+
+def _classify_url(car: CaseCar, reg: Any) -> str | None:
+    """A URL in the reply (R10): a classifieds site is never read; a maker's home page names the make only; a
+    model page stays for the resolver, which reads it (robots respected)."""
+    url = car.constraints.url
+    if not url:
+        return None
+    host = (urlparse(url if "//" in url else f"//{url}").hostname or url).removeprefix("www.")
+    if evidence.is_denied(url):
+        car.constraints.url = None
+        return f"refused:{host}"
+    if reg is not None and reg.is_home_page(url):
+        car.make = car.make or reg.make_of_url(url)
+        car.constraints.url = None
+        return None
+    return f"page:{host}"
 
 
 def _match_model(car: CaseCar, reg: Any, known: set[str]) -> None:

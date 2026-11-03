@@ -9,10 +9,11 @@ from langgraph.runtime import Runtime
 
 from automind.application import identify
 from automind.domain.casefile import MAX_CARS
+from automind.orchestration.phrases import t
 from automind.orchestration.runner import TurnContext
 from automind.orchestration.state import TurnState
 
-from .common import ctx, current_year, load_case, save_case
+from .common import ctx, current_year, load_case, notice, save_case
 
 _RANK = {None: 0, "NEED": 1, "NOT_FOUND": 1, "CHOICES": 2, "IDENTIFIED": 3}
 
@@ -25,6 +26,7 @@ async def identify_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict
     changes: list[str] = []
     lookup = getattr(c.ports, "lineup", None)
     ran = False
+    notices: list[dict[str, Any]] = []
     if len(case.cars) > MAX_CARS:  # which 3 to compare is asked first; nothing is looked up for a 4th car
         return {"not_understood": state.get("not_understood") or []}
     for car in case.cars:
@@ -32,7 +34,13 @@ async def identify_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict
             continue
         ran = True
         await c.status("resolving", f"Identifying {car.display_name}", car=car.display_name)
+        url = car.constraints.url
         o = await identify.identify_car(c.ports, case, car, year, lineup_lookup=lookup)
+        lang = state.get("language")
+        if o.note and o.note.startswith("refused:"):
+            notices.append(notice(t("page_refused", lang, site=o.note.split(":", 1)[1]), "warning"))
+        elif url and car.label and url == car.constraints.url:
+            notices.append(notice(t("page_taken", lang, what=car.label)))
         if o.outcome != before.get(car.key) or car.label:
             changes.append(f"{car.key}: {o.outcome.lower()}" + (f" → {car.label}" if car.label else ""))
     out: dict[str, Any] = {}
@@ -45,4 +53,6 @@ async def identify_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict
     touched = {x.get("target_key") for x in [*(delta.get("set_car_context") or []), *(delta.get("replace_cars") or [])]}
     keys = [k for k in state.get("not_understood") or [] if k not in improved and k not in touched]
     out["not_understood"] = keys
+    if notices:
+        out["notices"] = [*state.get("notices", []), *notices]
     return out
