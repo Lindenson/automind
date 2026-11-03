@@ -351,14 +351,20 @@ Still open from the previous review (already in later increments): SSRF in `fetc
 
 ## Phase 10: Graph robustness (FR-027 to FR-029) Increment H
 
-- [ ] T059 [P] Write graph tests in `T/graph/test_robustness.py`:
+- [x] T059 [P] Write graph tests in `T/graph/test_robustness.py`:
   - hops ≥ `max_hops` gives a partial localized answer, not FAILED;
   - a transient provider error in interpret is retried and then gives a localized "provider unavailable, data kept";
   - a timeout with saved research data gives a report from the saved data (rescore path).
-- [ ] T060 Add a `hops` counter to the graph state, incremented in the policy node; `B/domain/policy.py` applies rule 0.
-- [ ] T061 In `B/orchestration/graph.py`, add `RetryPolicy(max_attempts=2, retry_on=<transient provider errors>)` to the interpret, report and answer nodes. In `B/orchestration/runner.py`, the final failure gives a localized message (`B/orchestration/phrases.py`).
-- [ ] T062 In `B/orchestration/runner.py`, on timeout with research results saved, start a `rescore` preset turn instead of the bare `run_timeout` text. Keep the existing message when nothing was saved.
-- [ ] T063 Run check, restart dev, deploy, then commit, push and merge ("007-H graph robustness").
+- [x] T060 Add a `hops` counter to the graph state, incremented in the policy node; `B/domain/policy.py` applies rule 0.
+- [x] T061 In `B/orchestration/graph.py`, add `RetryPolicy(max_attempts=2, retry_on=<transient provider errors>)` to the interpret, report and answer nodes. In `B/orchestration/runner.py`, the final failure gives a localized message (`B/orchestration/phrases.py`).
+- [x] T062 In `B/orchestration/runner.py`, on timeout with research results saved, start a `rescore` preset turn instead of the bare `run_timeout` text. Keep the existing message when nothing was saved.
+- [x] T063 Run check, restart dev, deploy, then commit, push and merge ("007-H graph robustness").
+  - Done.
+    - Tests: `T/graph/test_robustness.py`.
+    - `hops` is in the state, and policy rule 0 applies at `MAX_HOPS=8`: a REPORT when a car has a variant, otherwise a plain answer.
+    - `LLM_RETRY` (2 attempts, transient provider errors only; `orchestration/retry.py`) covers interpret, report, answer and general.
+    - A provider still down after the retries ends with `run_provider_down` (localized, DONE, not FAILED).
+    - On a timeout with DONE research jobs, the user sees `run_timeout_saved`. A hidden follow-up turn (preset `report_saved`, policy rule 0) then writes the report from the saved data.
 
 ---
 

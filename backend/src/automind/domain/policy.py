@@ -47,6 +47,7 @@ RequestKind = Literal[
     "critique",
     "chitchat",
     "rescore",  # spec 007 FR-013: an edit in the case panel; set by code (preset), never by the interpreter
+    "report_saved",  # spec 007 FR-029: after a turn timeout, the report from the data already saved (code only)
 ]
 QUESTION_ORDER: tuple[QuestionKind, ...] = (
     "TOO_MANY_CARS", "CAR_IDENTITY", "MAKE_LINEUP", "UNKNOWN_MODEL", "ENGINE", "CONDITION", "USED_AGE", "TRIM",
@@ -57,6 +58,7 @@ _ITEM_KIND: dict[str, QuestionKind] = {"MAKE": "CAR_IDENTITY", "ENGINE": "ENGINE
                                        "MILEAGE": "USED_AGE", "CONDITION": "CONDITION", "CHOICE": "TRIM",
                                        "TRIM": "TRIM", "GEARBOX": "GEARBOX"}  # fmt: skip
 MAX_QUESTIONS = 3
+MAX_HOPS = 8  # spec 007 FR-027: policy passes in one turn before the turn ends with what it has
 DEFAULT_CONFIRM_THRESHOLD_EUR = 0.30
 DEFAULT_HARD_CAP_EUR = 1.00
 
@@ -96,11 +98,12 @@ def decide(
     confirm_threshold_eur: float = DEFAULT_CONFIRM_THRESHOLD_EUR,
     hard_cap_eur: float = DEFAULT_HARD_CAP_EUR,
     intake_limits: intake.Limits | None = None,
+    hops: int = 0,
+    max_hops: int = MAX_HOPS,
 ) -> Action:
-    # 0. spec 007 FR-012, FR-013: a panel edit recomputes from the validated data. It never researches, asks or
-    # confirms: when it needs new data, the next message decides.
-    if request == "rescore" and case.cars:
-        return _rescore(case, last_fingerprint)
+    early = _early(case, request, last_fingerprint, hops, max_hops)
+    if early is not None:
+        return early
     # 1. general
     if request in ("general_question", "chitchat") or not case.cars:
         return Action(kind="ANSWER_GENERAL", reason="general question or no cars in the case")
@@ -130,6 +133,25 @@ def decide(
             return Action(kind="CONFIRM_COST", cars=stale, over_cap=est > hard_cap_eur, reason=f"estimated €{est:.2f}")
         return Action(kind="RESEARCH", cars=stale, reason="data stale or missing for the current criteria")
     return _answer_or_report(case, request, last_fingerprint, case_changed, feasibility_pending)
+
+
+def _early(
+    case: CaseFile, request: RequestKind, last_fingerprint: str | None, hops: int, max_hops: int
+) -> Action | None:
+    """Rules before everything else (spec 007)."""
+    # FR-027: a turn that went round too often ends with a partial answer from what it has
+    if hops >= max_hops:
+        if any(c.variant_id for c in case.cars):
+            return Action(kind="REPORT", reason="hop limit: a report from the data at hand")
+        return Action(kind="ANSWER_GENERAL", reason="hop limit: a plain answer")
+    # FR-029: after a timeout, the report from the saved data (never research or questions again)
+    if request == "report_saved" and any(c.variant_id for c in case.cars):
+        return Action(kind="REPORT", reason="turn timeout: report from the saved data")
+    # FR-012, FR-013: a panel edit recomputes from the validated data. It never researches, asks or confirms: when
+    # it needs new data, the next message decides.
+    if request == "rescore" and case.cars:
+        return _rescore(case, last_fingerprint)
+    return None
 
 
 def _rescore(case: CaseFile, last_fingerprint: str | None) -> Action:
