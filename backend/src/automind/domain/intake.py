@@ -99,7 +99,7 @@ def next_step(case: CaseFile, limits: Limits = Limits()) -> Step:  # noqa: B008 
             return Step("PROPOSE", car_key=car.key)
         choices = tuple(car.identify.choices) if car.identify else ()
         items.append(StepItem(item, car.key, rephrase=n >= 1, choices=choices))
-    if limits.full_intake:
+    if limits.full_intake and items:  # asked together with an identity question, never on its own (FR-018)
         items += _condition_and_year(case, limits)
     if items:
         return Step("ASK", tuple(items[:MAX_ITEMS]))
@@ -137,6 +137,37 @@ def record_asked(case: CaseFile, asked: Iterable[tuple[StepItem, str]]) -> CaseF
         c.intake.bump(it.car_key or ALL, it.item)
         c.intake.last_questions = [*c.intake.last_questions, question_hash(it.car_key, it.item, text)][-6:]
     return c
+
+
+# --- the person: region, new or used (R11) -----------------------------------------------------------------
+
+_NEW = re.compile(r"\b(нов\w*|new|nuev\w*|0 ?km|с нуля|из салона)\b", re.I)
+_USED = re.compile(r"(подержан\w*|\bб/у\b|\bбу\b|с пробегом|\bused\b|second[- ]hand|segunda mano|ocasi[oó]n|seminuev\w*)",
+                   re.I)  # fmt: skip
+
+
+def condition_of(text: str | None) -> str | None:
+    """NEW / USED from a short answer ("новые", "б/у", "de segunda mano"); None when the text says neither."""
+    if not text:
+        return None
+    used, new = bool(_USED.search(text)), bool(_NEW.search(text))
+    if used == new:
+        return None
+    return "USED" if used else "NEW"
+
+
+def region_of(text: str | None, regions: dict[str, dict[str, object]]) -> tuple[str, str, str] | None:
+    """(code, climate, the words) of the most specific region named in the text (the longest name wins)."""
+    if not text:
+        return None
+    low = text.lower()
+    best: tuple[int, str, str, str] | None = None
+    for code, info in regions.items():
+        for name in info.get("names") or []:  # type: ignore[union-attr]
+            n = str(name).lower()
+            if re.search(rf"(?<![\w]){re.escape(n)}(?![\w])", low) and (best is None or len(n) > best[0]):
+                best = (len(n), code, str(info.get("climate")), n)
+    return (best[1], best[2], best[3]) if best else None
 
 
 # --- distances ---------------------------------------------------------------------------------------------

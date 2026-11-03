@@ -68,6 +68,11 @@ Rules
   e:HEV …), and `evidence` = the user's words. A correction of the engine ("1.5, not 1.0", "you wrote 1.0, that is
   wrong") is set_car_context with the new engine_hint, request correction.
 - A URL the user sends for a car goes to constraints.url of that car.
+- Where the car will be driven ("на юге Испании", "Sevilla", "Madrid") → set_profile.region with the user's words
+  (≤ 60 characters) and evidence {"region": "<words>"}. A distance per month or year ("1–2 тыс км в месяц",
+  "20.000 km al año") → set_annual_km with the middle value; code keeps the range from the user's words.
+- New or used for every car ("новые", "б/у", "de segunda mano") answers the pending new-or-used question:
+  set_car_context condition for every car.
 - A question about the current cars without new facts → follow_up_question, empty delta.
 - The user is not satisfied with the data and asks to find it or to redo the report ("why is there no data
   for the Mazda? find it and update the report", "search again", "look deeper", "this is incomplete") →

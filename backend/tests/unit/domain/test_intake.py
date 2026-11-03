@@ -94,7 +94,20 @@ def test_condition_asked_once_for_all_cars() -> None:
         ),  # fmt: skip
     ]
     s = intake.next_step(CaseFile(cars=cars), LIMITS)
-    assert s.kind == "ASK" and [i.item for i in s.items] == ["CONDITION"] and s.items[0].car_key is None
+    assert s.kind == "CARD"  # identified cars: new is assumed (shown on the card), not asked on its own
+    cars[1] = cars[1].model_copy(update={"identify": IdentifyOutcome(outcome="NEED", need="MODEL")})
+    s = intake.next_step(CaseFile(cars=cars), LIMITS)
+    assert [i.item for i in s.items] == ["MODEL", "CONDITION"] and s.items[1].car_key is None  # one for every car
+
+
+def test_condition_and_region_of_text() -> None:
+    assert intake.condition_of("Новые") == "NEW" and intake.condition_of("б/у") == "USED"
+    assert intake.condition_of("de segunda mano") == "USED" and intake.condition_of("hola") is None
+    regions = {"SOUTH": {"names": ["юге испании"], "climate": "HOT"}, "AN": {"names": ["севилья"], "climate": "HOT"},
+               "CT": {"names": ["barcelona"], "climate": "MILD"}}  # fmt: skip
+    assert intake.region_of("для эксплуатации на юге испании", regions) == ("SOUTH", "HOT", "юге испании")
+    assert intake.region_of("живу в Barcelona", regions)[:2] == ("CT", "MILD")  # type: ignore[index]
+    assert intake.region_of("для семьи", regions) is None
 
 
 def test_at_most_three_questions() -> None:

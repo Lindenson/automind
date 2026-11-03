@@ -67,6 +67,7 @@ async def apply_delta_node(state: TurnState, runtime: Runtime[TurnContext]) -> d
         # spec 005 FR-022: while an intake step is pending, every reply is an intake answer, never generic chat
         request = "compare"
         changes += _brand_from_text(new, case, state.get("user_text") or "", c.ports.ref.makes)
+    changes += _person_from_text(new, case, state.get("user_text") or "", c.ports.ref.regions)
     unclear = _not_understood(case, new, request)
     new, extra = _pending_answered(new, i, request)
     changes += extra
@@ -83,6 +84,29 @@ async def apply_delta_node(state: TurnState, runtime: Runtime[TurnContext]) -> d
 
 
 _INTAKE_PENDING = ("QUESTIONS", "CONFIRM_VARIANTS", "CONFIRM_INTAKE")
+
+
+def _person_from_text(new: CaseFile, before: CaseFile, text: str, regions: dict[str, Any]) -> list[str]:
+    """Deterministic facts about the person and the cars from the user's own words (spec 005 R11): region and
+    climate, a yearly distance range, and the answer to "new or used?" for every car still UNKNOWN."""
+    log: list[str] = []
+    p = new.profile
+    if (r := intake.region_of(text, regions)) is not None and r[0] != p.region_code:
+        p.region, p.region_code, p.climate = r[2][:60], r[0], r[1]  # type: ignore[assignment]
+        p.evidence["region"] = r[2]
+        log.append(f"region {r[2]} ({r[1].lower()} climate)")
+    if (d := intake.parse_distance(text)) is not None and (d[0], d[1]) != (p.annual_km_min, p.annual_km_max):
+        p.annual_km_min, p.annual_km_max = d
+        new.annual_km, new.annual_km_stated = round((d[0] + d[1]) / 2 / 500) * 500, True
+        p.evidence["annual_km"] = text[:120]
+        log.append(f"{d[0]:,}–{d[1]:,} km a year" if d[0] != d[1] else f"{d[0]:,} km a year")
+    asked_condition = before.pending is not None and any(it.get("kind") == "CONDITION" for it in before.pending.items)
+    if asked_condition and (cond := intake.condition_of(text)) is not None:
+        for car in new.cars:
+            if car.condition == "UNKNOWN":
+                car.condition = cond  # type: ignore[assignment]
+                log.append(f"{car.key}: {cond.lower()}")
+    return log
 
 
 def _brand_from_text(new: CaseFile, before: CaseFile, text: str, reg: Any) -> list[str]:

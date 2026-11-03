@@ -230,7 +230,7 @@ description: "Task list for 005 — Understanding the user: intake and identific
 
 ### Tests first
 
-- [ ] T040 [P] [US4] Write `backend/tests/unit/test_profile_intake.py`:
+- [X] T040 [P] [US4] Write `backend/tests/unit/test_profile_intake.py`:
   - region phrases → region_code and climate;
   - km range → annual_km middle;
   - CONDITION inferred from "new" / "0 km" / "replace my old" / a mileage / a past year;
@@ -240,18 +240,18 @@ description: "Task list for 005 — Understanding the user: intake and identific
 
 ### Implementation
 
-- [ ] T042 [US4] Apply region and km in `backend/src/automind/domain/casefile.py` `apply`: `set_profile.region` → region_code and climate via `regions.yaml` (`Reference.regions`, loaded in `backend/src/automind/infrastructure/config.py`); `set_annual_km_range` → min / max / middle, with evidence.
-- [ ] T043 [US4] Interpreter prompt v2 (`backend/src/automind/orchestration/prompts/interpreter.md`):
+- [X] T042 [US4] Apply region and km in `backend/src/automind/domain/casefile.py` `apply`: `set_profile.region` → region_code and climate via `regions.yaml` (`Reference.regions`, loaded in `backend/src/automind/infrastructure/config.py`); `set_annual_km_range` → min / max / middle, with evidence.
+- [X] T043 [US4] Interpreter prompt v2 (`backend/src/automind/orchestration/prompts/interpreter.md`):
   - region with verbatim evidence;
   - km range ("1-2 тыс в месяц") → `set_annual_km_range`;
   - new or used per car from words;
   - the deterministic `parse_distance` fallback merged in `backend/src/automind/application/interpret.py`.
-- [ ] T044 [US4] CONDITION and YEAR steps in `intake.next_step` (`backend/src/automind/domain/intake.py`):
+- [X] T044 [US4] CONDITION and YEAR steps in `intake.next_step` (`backend/src/automind/domain/intake.py`):
   - one CONDITION question for all cars with condition UNKNOWN;
   - a NEW car's year is "current" (ASSUMED);
   - a USED car asks YEAR and MILEAGE together;
   - profile questions (KM_PER_YEAR, FAMILY_SIZE) stay non-blocking, as in 004.
-- [ ] T045 [US4] Show region / climate and the km range in the case panel (`frontend/src/components/CasePanel.tsx` AboutYou) and in the i18n dictionaries `frontend/src/i18n/{en,ru,es}.ts`. Use the km range in `backend/src/automind/orchestration/nodes/compute.py` for the TCO label ("at 18,000 km/year (12,000–24,000)").
+- [X] T045 [US4] Show region / climate and the km range in the case panel (`frontend/src/components/CasePanel.tsx` AboutYou) and in the i18n dictionaries `frontend/src/i18n/{en,ru,es}.ts`. Use the km range in `backend/src/automind/orchestration/nodes/compute.py` for the TCO label ("at 18,000 km/year (12,000–24,000)").
 
 **Checkpoint**: G27 and G29 pass; the incident's first reply asks one CONDITION question with chips "новый / б/у".
 
