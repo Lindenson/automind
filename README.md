@@ -82,7 +82,7 @@ generations, criteria, TCO rates, severity rules, search queries, questions).
 - **Corrections.** The engine is part of the identity ("1.5, not 1.0" works). A correction drops the old version and is shown as "before → after".
 - **The person.** Region and climate (`config/regions.yaml`), km a year as a range, and new or used, asked once for all cars.
 - **One confirmation card** before research: cars, profile and cost. Each item is marked stated, inferred, found or assumed and can be edited with chips. One "yes" starts the research.
-- **Metrics.** `GET /api/v1/metrics` → `intake`: replies until the cars are confirmed, repeated questions, corrections, research on unconfirmed cars.
+- **Metrics.** `GET /api/v1/research/metrics` → `intake`: replies until the cars are confirmed, repeated questions, corrections, research on unconfirmed cars.
 - **Engine back-fill** for stored variants: `scripts/repair-data.sh --engine` (back up first).
 
 ## Run locally (development)

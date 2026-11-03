@@ -61,4 +61,4 @@ Expected:
 
 ## 5. Metrics
 
-`GET /api/v1/metrics` reports `intake.replies_to_confirmed` (median ≤ 3), `intake.repeated_questions` (0) and `intake.research_unconfirmed` (0).
+`GET /api/v1/research/metrics` reports `intake.replies_to_confirmed` (median ≤ 3), `intake.repeated_questions` (0) and `intake.research_unconfirmed` (0).

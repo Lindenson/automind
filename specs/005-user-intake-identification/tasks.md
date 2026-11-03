@@ -335,7 +335,7 @@ description: "Task list for 005 — Understanding the user: intake and identific
 - [X] T059 [P] Intake metrics in `backend/src/automind/domain/metrics.py` and the metrics endpoint: replies to confirmed identity (median), repeated questions, corrections changing identity, research on unconfirmed cars (must be 0). Test in `backend/tests/unit/test_metrics.py`.
 - [X] T060 [P] Write ADR-024 "Open-world vehicle identity (make registry plus sourced line-ups)" and ADR-025 "One intake confirmation card" in `docs/adr/`, and update `docs/adr/README.md`.
 - [X] T061 [P] Add a README section "Intake and identification (spec 005)" to `README.md`.
-- [ ] T062 Run `scripts/check.sh` (ruff, mypy, import-linter, pytest, vitest, build). Run the engine back-fill (T007) on the Docker DB after a backup. Restart dev (`pkill -x automind-api; scripts/dev.sh`) and `scripts/deploy.sh up`.
+- [X] T062 Run `scripts/check.sh` (ruff, mypy, import-linter, pytest, vitest, build). Run the engine back-fill (T007) on the Docker DB after a backup. Restart dev (`pkill -x automind-api; scripts/dev.sh`) and `scripts/deploy.sh up`.
 - [ ] T063 Run quickstart.md sections 1–3 (replay). Live recording of G21–G30 and the manual incident check (quickstart §4) need paid Gemini and search: announce a cost estimate first and run only after the user agrees.
 - [ ] T064 Update the project memory (`automind-project.md`) and close roadmap issue #3 when the live check passes. Mark PR #2 ready for review.
 
