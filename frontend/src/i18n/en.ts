@@ -149,6 +149,8 @@ export const en = {
   "block.metric_bars": "Metrics",
   "block.race_chart": "Drag race (simulated)",
   "block.criteria_scores": "Criteria and scores (0–100 indices, not measurements)",
+  "tco.over": "over {years}",
+  "tco.depreciation": "Depreciation (in the total, not in the yearly running cost)",
   "block.tco": "Cost of ownership",
   "block.reliability": "Reliability",
   "block.reviews": "Reviews",

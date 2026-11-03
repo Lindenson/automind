@@ -1,6 +1,10 @@
 export function uuid(): string {
   try {
-    if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+    if (
+      typeof crypto !== "undefined" &&
+      typeof crypto.randomUUID === "function"
+    )
+      return crypto.randomUUID();
   } catch {
     /* non-secure context */
   }
@@ -42,17 +46,30 @@ export function isMockMode(): boolean {
 }
 
 /** Distinct, colour-blind friendly-ish series colours (orange, sky, violet, lime). */
-export const CAR_COLORS = ["#f97316", "#38bdf8", "#a78bfa", "#84cc16", "#f472b6"] as const;
+export const CAR_COLORS = [
+  "#f97316",
+  "#38bdf8",
+  "#a78bfa",
+  "#84cc16",
+  "#f472b6",
+] as const;
 
 export function fmtNum(v: number | null | undefined, digits = 1): string {
   if (v === null || v === undefined || Number.isNaN(v)) return "—";
-  return v.toLocaleString("en-US", { maximumFractionDigits: digits, minimumFractionDigits: 0 });
+  return v.toLocaleString("en-US", {
+    maximumFractionDigits: digits,
+    minimumFractionDigits: 0,
+  });
 }
 
 export function fmtDate(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleDateString("en-GB", { year: "numeric", month: "short", day: "numeric" });
+  return d.toLocaleDateString("en-GB", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 }
 
 export function fmtTime(iso: string): string {
@@ -71,4 +88,16 @@ export function hostOf(url: string): string {
 
 export function cx(...parts: (string | false | null | undefined)[]): string {
   return parts.filter(Boolean).join(" ");
+}
+
+/** "8 years" in the interface language; Russian needs its three plural forms. */
+export function yearsLabel(n: number, lang: string, fallback: string): string {
+  if (lang !== "ru") return fallback;
+  const word =
+    n % 10 === 1 && n % 100 !== 11
+      ? "год"
+      : [2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100)
+        ? "года"
+        : "лет";
+  return `${n} ${word}`;
 }

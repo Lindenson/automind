@@ -8,7 +8,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from automind.domain.insights import Insight, InsightSet
-from automind.domain.verdict import Verdict
+from automind.domain.verdict import Limit, Verdict
 
 _T: dict[str, dict[str, str]] = {
     "pick": {
@@ -62,6 +62,52 @@ _T: dict[str, dict[str, str]] = {
         "en": "Missing data could change it: {gaps}",
         "ru": "Вывод может измениться, когда найдутся данные: {gaps}",
         "es": "Los datos que faltan podrían cambiarlo: {gaps}",
+    },
+    "best_if_budget": {
+        "en": "Best if the budget allows: the {car}",
+        "ru": "Лучший, если позволяет бюджет: {car}",
+        "es": "El mejor si el presupuesto lo permite: el {car}",
+    },
+    "OVER_BUDGET": {
+        "en": "The {car} costs {value}, over your budget of {limit}",
+        "ru": "{car} стоит {value} — больше вашего бюджета {limit}",
+        "es": "El {car} cuesta {value}, por encima de tu presupuesto de {limit}",
+    },
+    "OVER_MONTHLY": {
+        "en": "Running the {car} costs about {value} a month, over your limit of {limit}",
+        "ru": "Содержание {car} — около {value} в месяц, больше вашего лимита {limit}",
+        "es": "Mantener el {car} cuesta unos {value} al mes, por encima de tu límite de {limit}",
+    },
+    "moved_pick": {
+        "en": "The {best} scores a little higher but is over your limit; within it the {car} is the pick",
+        "ru": "{best} набирает чуть больше баллов, но выходит за ваш лимит; в его рамках лучший выбор — {car}",
+        "es": "El {best} puntúa algo más pero supera tu límite; dentro de él, la elección es el {car}",
+    },
+    "other_profile": {
+        "en": "Someone who cares most about {focus} would take the {car}",
+        "ru": "Тот, кому важнее всего {focus}, выбрал бы {car}",
+        "es": "Quien priorice {focus} elegiría el {car}",
+    },
+    "used_missing": {
+        "en": "{car} (used): not found yet — {missing}",
+        "ru": "{car} (б/у): пока не найдено — {missing}",
+        "es": "{car} (usado): aún no encontrado — {missing}",
+    },
+    "miss_price_used": {"en": "used prices", "ru": "цены на б/у", "es": "precios de segunda mano"},
+    "miss_wear": {
+        "en": "typical wear at this age",
+        "ru": "типичный износ в этом возрасте",
+        "es": "desgaste típico a esta edad",
+    },
+    "within_period": {
+        "en": "Over your {years} years the {car} pays back its higher price (break-even about {be} years)",
+        "ru": "За ваши {years} лет {car} окупает более высокую цену (окупаемость около {be} лет)",
+        "es": "En tus {years} años el {car} amortiza su mayor precio (en unos {be} años)",
+    },
+    "beyond_period": {
+        "en": "The {car} pays back its higher price only after about {be} years; you plan {years}",
+        "ru": "{car} окупает более высокую цену только примерно за {be} лет, а вы планируете {years}",
+        "es": "El {car} solo amortiza su mayor precio en unos {be} años; tú planeas {years}",
     },
     "conf_COVERAGE_HIGH": {
         "en": "the comparison covers what matters to you, from several sources",
@@ -183,17 +229,62 @@ def reason_text(i: Insight, names: Mapping[str, str], lang: str | None) -> str:
     return text
 
 
-def verdict_block(v: Verdict, s: InsightSet, names: Mapping[str, str], lang: str | None) -> dict[str, Any]:
+FOCUS: dict[str, dict[str, str]] = {
+    "PERFORMANCE": {"en": "driving and performance", "ru": "динамика и удовольствие от вождения",
+                    "es": "la conducción y las prestaciones"},
+    "BUYER": {"en": "practicality and running costs", "ru": "практичность и расходы",
+              "es": "la practicidad y el coste"},
+    "EXPERT": {"en": "engineering", "ru": "техника и инженерия", "es": "la ingeniería"},
+}  # fmt: skip
+
+
+def _l(table: Mapping[str, Mapping[str, str]], key: str, lang: str | None) -> str:
+    t = table.get(key) or {}
+    return t.get((lang or "en")[:2], t.get("en", key))
+
+
+def limit_text(x: Limit, names: Mapping[str, str], lang: str | None) -> str:
+    return tr(x.kind, lang, car=names.get(x.car_id, x.car_id), value=fmt(x.value_eur, "EUR"),
+              limit=fmt(x.limit_eur, "EUR"))  # fmt: skip
+
+
+def _headline(v: Verdict, s: InsightSet, names: Mapping[str, str], lang: str | None) -> str:
+    if v.not_enough_data:
+        return tr("no_data", lang)
+    if s.single:
+        return tr("single", lang, car=next(iter(names.values()), ""))
+    if v.tie:
+        return tr("tie", lang, cars=" / ".join(names.get(c, c) for c in v.tied_cars))
+    if v.best_if_budget and v.best_if_budget == v.pick_car_id:
+        return tr("best_if_budget", lang, car=names.get(v.pick_car_id or "", ""))
+    return tr("pick", lang, car=names.get(v.pick_car_id or "", ""))
+
+
+def profile_lines(v: Verdict, names: Mapping[str, str], lang: str | None, years: int | None = None) -> list[str]:
+    """What the profile changes in this verdict (spec 007 FR-017..FR-019): limits, another profile's pick,
+    the payback against the user's period, missing used data. Code facts only."""
+    out = [limit_text(x, names, lang) for x in v.limits]
+    if v.best_if_budget and v.pick_car_id and v.best_if_budget != v.pick_car_id:
+        out.append(tr("moved_pick", lang, best=names.get(v.best_if_budget, ""), car=names.get(v.pick_car_id, "")))
+    t = v.trade_off
+    if years and t is not None and t.break_even_years:
+        key = "within_period" if t.break_even_years <= years else "beyond_period"
+        out.append(tr(key, lang, years=years, car=names.get(t.gain_car, t.gain_car), be=_num(t.break_even_years, lang)))
+    if v.other_profile is not None:
+        out.append(tr("other_profile", lang, focus=_l(FOCUS, v.other_profile.persona, lang),
+                      car=names.get(v.other_profile.car_id, v.other_profile.car_id)))  # fmt: skip
+    for u in v.used_missing:
+        miss = ", ".join(tr(f"miss_{m}", lang) for m in u.missing)
+        out.append(tr("used_missing", lang, car=names.get(u.car_id, u.car_id), missing=miss))
+    return out
+
+
+def verdict_block(
+    v: Verdict, s: InsightSet, names: Mapping[str, str], lang: str | None, years: int | None = None
+) -> dict[str, Any]:
     """The verdict card (contracts/report-blocks-and-protocol.md). Every number is from the insights."""
     gaps = ", ".join(v.gaps[:4])
-    if v.not_enough_data:
-        headline = tr("no_data", lang)
-    elif s.single:
-        headline = tr("single", lang, car=next(iter(names.values()), ""))
-    elif v.tie:
-        headline = tr("tie", lang, cars=" / ".join(names.get(c, c) for c in v.tied_cars))
-    else:
-        headline = tr("pick", lang, car=names.get(v.pick_car_id or "", ""))
+    headline = _headline(v, s, names, lang)
     if v.different_needs:
         headline = tr("different", lang) + headline[0].lower() + headline[1:]
     reasons = [{"text": reason_text(i, names, lang), "insight_id": i.id}
@@ -209,6 +300,8 @@ def verdict_block(v: Verdict, s: InsightSet, names: Mapping[str, str], lang: str
         "confidence_reason": tr(f"conf_{v.confidence_reason}", lang, gaps=gaps or "—"),
         "would_change": _would_change(v, s, names, lang),
         "gaps": list(v.gaps),
+        "profile_notes": profile_lines(v, names, lang, years),
+        "best_if_budget": v.best_if_budget,
     }
 
 
@@ -251,10 +344,12 @@ def _would_change(v: Verdict, s: InsightSet, names: Mapping[str, str], lang: str
     return None
 
 
-def insights_for_llm(s: InsightSet, v: Verdict, names: Mapping[str, str], lang: str | None) -> dict[str, Any]:
+def insights_for_llm(
+    s: InsightSet, v: Verdict, names: Mapping[str, str], lang: str | None, years: int | None = None
+) -> dict[str, Any]:
     """What the writer receives first (FR-009): the verdict, the meaningful differences, and what is the same."""
     return {
-        "verdict": verdict_block(v, s, names, lang),
+        "verdict": verdict_block(v, s, names, lang, years),
         "meaningful_differences": [
             {
                 "attribute": i.label,

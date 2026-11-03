@@ -238,30 +238,56 @@ Paths are relative to the repo root: `B/` = `backend/src/automind/`, `T/` = `bac
 
 ### Tests
 
-- [ ] T043 [P] [US4] Tests in `T/unit/domain/test_tco.py`:
+- [x] T043 [P] [US4] Tests in `T/unit/domain/test_tco.py`:
   - the horizon comes from `ownership_years`, falling back to `rates.horizon_years`;
   - depreciation is interpolated between the 3- and 5-year points;
   - beyond 5 years it uses the assumption rate, labelled ASSUMPTION;
   - the period is shown in the block payload.
-- [ ] T044 [P] [US4] Tests in `T/unit/domain/test_insights.py`:
+- [x] T044 [P] [US4] Tests in `T/unit/domain/test_insights.py`:
   - `OVER_BUDGET`, `OVER_MONTHLY`;
   - the verdict rule (an over-budget car is "best if the budget allows"; the in-budget runner-up becomes the pick when within 2 × TIE_MARGIN);
   - `OTHER_PROFILE_WINS` appears only when another persona's winner differs;
   - the years and km counterfactuals use the user's numbers.
-- [ ] T045 [P] [US4] Write `T/graph/test_three_profiles.py`: the same fixture pair with racer/3 y, family/8 y/20,000 km, and used buyer/400 €/month. At least 2 verdicts differ, and each verdict text names the profile reason.
+- [x] T045 [P] [US4] Write `T/graph/test_three_profiles.py`: the same fixture pair with racer/3 y, family/8 y/20,000 km, and used buyer/400 €/month. At least 2 verdicts differ, and each verdict text names the profile reason.
 
 ### Implementation
 
-- [ ] T046 [US4] `B/domain/tco.py`: a `years` parameter and the depreciation-to-year logic. In `B/orchestration/nodes/compute.py`, pass `case.ownership_years`. In `B/application/compose.py:~772`, replace the hard-coded "over 5 years" title with a localized period.
-- [ ] T047 [US4] `B/domain/insights.py` (or the module where insights and the verdict live):
+- [x] T046 [US4] `B/domain/tco.py`: a `years` parameter and the depreciation-to-year logic. In `B/orchestration/nodes/compute.py`, pass `case.ownership_years`. In `B/application/compose.py:~772`, replace the hard-coded "over 5 years" title with a localized period.
+- [x] T047 [US4] `B/domain/insights.py` (or the module where insights and the verdict live):
   - budget findings;
   - the verdict rule documented in a docstring;
   - `persona_counterfactual` using `weights.breakdown` per persona;
   - `USED_DATA_MISSING` for USED cars without used prices (FR-019).
 
   Add the localized texts to `B/orchestration/report_text.py`.
-- [ ] T048 [US4] Reporter prompts (`B/orchestration/prompts/reporter_*.md`): pass the top 3 criteria by final weight and the profile summary. Lead with them, and say when another profile would choose differently, using only the counterfactual fact.
-- [ ] T049 [US4] Run check, restart dev, deploy, then commit, push and merge ("007-E verdict per profile").
+- [x] T048 [US4] Reporter prompts (`B/orchestration/prompts/reporter_*.md`): pass the top 3 criteria by final weight and the profile summary. Lead with them, and say when another profile would choose differently, using only the counterfactual fact.
+- [x] T049 [US4] Run check, restart dev, deploy, then commit, push and merge ("007-E verdict per profile").
+
+Notes (E): depreciation is a TCO item (`DEPRECIATION`) in the period total, not in the yearly running cost: the
+monthly limit and the ownership-cost score keep comparing running costs (scale calibrated on them). Budget and
+monthly findings come from the existing feasibility checks (only a clear "does not fit" with both numbers). When
+every car is over a limit the ranking stands and only the findings are shown. Verdict tests are in
+`test_verdict.py` (not `test_insights.py`). A panel edit cannot change a car's condition (that goes through the
+intake card, i.e. the normal path); used data still missing shows as a verdict note and a "find it" gap.
+
+---
+
+## Phase 7a: Rescore hardening and the third review (2026-11-03) Increment J
+
+**Goal**: panel edits never write a fake user message, never get lost, never fight a running turn; inferred guesses do not flip the verdict silently; learned sources cannot lock themselves in.
+
+**Independent Test**: `T/graph/test_rescore.py` and `T/integration/test_case_patch.py` extensions below; no paid runs.
+
+- [ ] T073 [J] A rescore turn writes no user message. `runner.run_turn` takes the preset without a stored user line (or stores it with role `edit`, hidden in the chat and excluded from the interpreter history). Test: after a weight edit the history has no "↻ weights: …" user message and the next interpret context does not contain it (`B/orchestration/runner.py`, `B/api/rest.py::_start_rescore`, history repo).
+- [ ] T074 [J] A background rescore never disappears silently. The rescore task catches `Busy` and any exception: Busy → the edit is queued and replayed after the active turn ends; other errors → logged and a `rescore_failed` event to the chat so the panel shows "report not updated, retry". Test: start a turn, PATCH, and the queued rescore runs after it (`B/api/rest.py`, `B/orchestration/runner.py`).
+- [ ] T075 [J] Edits are merged, not rejected. Backend: one pending rescore per chat; a new PATCH while a rescore runs cancels or supersedes it (the last edit wins, the fingerprint decides if a new run is needed); PATCH during a normal turn is accepted and applied after it, no 409 for slider moves. Frontend: debounce weight sliders (~600 ms), handle the `rescore` field (show "updating report…") and the `turn_running` code (retry later, no error toast) (`F/src/components/Weights.tsx`, `F/src/lib/case.ts`, `F/src/components/CasePanel.tsx`).
+- [ ] T076 [J] Optimistic locking for PATCH /case: the patch carries `if_version`; `save_version` compares and returns 409 `version_conflict` with the current case; a turn that saves over a newer version re-applies its delta on the newest case instead of overwriting the edit. Test: PATCH between a turn's load and save survives (`B/infrastructure/db/repositories.py`, `B/api/rest.py`, `B/orchestration/nodes/understand.py` save path).
+- [ ] T077 [J] An INFERRED profile field does not change the winner silently. Before the report, ask_value runs for every INFERRED field with that field treated as ASSUMED: if the winner or tie changes, the profile question for that field is asked first (one question max per turn) and the verdict shows "assuming <field>" until confirmed. Test: inferred FAMILY flips the winner → a question, not a verdict (`B/domain/weights.py`, `B/domain/ask_value.py`, `B/orchestration/nodes/report.py`).
+- [ ] T078 [J] Learned sources cannot reinforce themselves. A learned domain is searched at most every other run while on probation (or with a capped share of slots), `misses` only resets on an acceptance from a non-learned query slot or after the probation; pages from URLs the user pasted never count toward `accepted_runs`. Tests in `T/unit/domain/test_learned.py` and a research test for user URLs (`B/domain/learned.py`, `B/application/research.py::_record_learned`).
+- [ ] T079 [P] [J] Small items: drop the stale "applies from the next message" comment in `F/src/components/CasePanel.tsx`; pick one logger (structlog everywhere, via a `get_logger` helper) or document why `logging` stays.
+- [ ] T080 [J] Run check, restart dev, deploy, then commit, push and merge ("007-J rescore hardening").
+
+Still open from the previous review (already in later increments): SSRF in `fetch.py` (G, add a task there: block private, loopback and link-local addresses after DNS resolution and on every redirect), the guard letting "10 л/100 км" and "7 лет" through (G, T057), excerpt joined with "..." (G, T056), RetryPolicy and loop protection (H), spec 006 (energy on one scale, energy cost) is spec only — next after 007.
 
 ---
 
@@ -293,6 +319,7 @@ Paths are relative to the repo root: `B/` = `backend/src/automind/`, `T/` = `bac
 - [ ] T057 Make the following changes in `B/orchestration/guard.py`:
   - remove the blanket `x <= 12 or 1950 <= x <= 2035` (line ~57) and allow small ints and years only from the facts (plus the car count);
   - compile `_ABSENCE`, `_COMPARATIVE`, `_WINNER` and `TOPIC_WORDS` into word-boundary regexes (stems keep `\w*`).
+- [ ] T058a SSRF guard in `B/infrastructure/fetch.py` (or wherever pages are fetched): resolve the host, reject private, loopback, link-local and metadata addresses, check again on each redirect; tests with 127.0.0.1, 10.x, 169.254.169.254, a redirect to localhost.
 - [ ] T058 Run `scripts/repair-data.sh` in dry-run mode to see how many stored claims the stricter excerpt rules would reject. Report the count to the owner before applying (backup first in `backups/`). Then run check, deploy, commit, push and merge ("007-G validation gaps").
 
 ---
@@ -343,9 +370,10 @@ The order is:
    - US2 uses the basis from US1;
    - US3 needs the breakdown from US2;
    - US4 needs the rescore path from US3 to show changes, but its domain tests can start after US2.
-4. US6 (Phase 8), G (Phase 9) and H (Phase 10) are independent of US1–US4 and can run in any order after Phase 2. H's timeout path (T062) needs US3's rescore.
-5. US7 (Phase 11) comes after US1 and US2.
-6. Polish comes last.
+4. J (Phase 7a) comes right after E: it hardens the rescore path from US3.
+5. US6 (Phase 8), G (Phase 9) and H (Phase 10) are independent of US1–US4 and can run in any order after Phase 2. H's timeout path (T062) needs US3's rescore.
+6. US7 (Phase 11) comes after US1 and US2.
+7. Polish comes last.
 
 ### Parallel opportunities
 

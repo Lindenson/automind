@@ -150,6 +150,8 @@ export const es: Record<Key, string> = {
   "block.metric_bars": "Indicadores",
   "block.race_chart": "Aceleración (simulada)",
   "block.criteria_scores": "Criterios y puntuaciones (índices 0–100, no mediciones)",
+  "tco.over": "en {years}",
+  "tco.depreciation": "Depreciación (en el total, no en el coste anual)",
   "block.tco": "Coste de propiedad",
   "block.reliability": "Fiabilidad",
   "block.reviews": "Opiniones",

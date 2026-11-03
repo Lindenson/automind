@@ -32,7 +32,10 @@ export function Verdict({ b }: { b: BlockOf<"verdict"> }) {
           <span className="min-w-0">{b.headline}</span>
         </h2>
         <span
-          className={cx("shrink-0 rounded-full border px-2 py-0.5 text-xs", conf.cls)}
+          className={cx(
+            "shrink-0 rounded-full border px-2 py-0.5 text-xs",
+            conf.cls,
+          )}
           title={b.confidence_reason}
         >
           {t(`verdict.conf.${b.confidence}` as "verdict.conf.HIGH")}
@@ -55,6 +58,15 @@ export function Verdict({ b }: { b: BlockOf<"verdict"> }) {
           <span className="font-medium">{t("verdict.tradeoff")}</span>
           {b.trade_off.text}
         </p>
+      )}
+      {b.profile_notes.length > 0 && (
+        <ul className="space-y-1 rounded-lg border border-line/50 px-3 py-2 text-sm">
+          {b.profile_notes.map((n) => (
+            <li key={n} className="min-w-0">
+              {n}
+            </li>
+          ))}
+        </ul>
       )}
       <p className="text-xs text-muted">{b.confidence_reason}</p>
       {b.would_change && <p className="text-sm text-fg/80">{b.would_change}</p>}
