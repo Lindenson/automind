@@ -372,13 +372,19 @@ Still open from the previous review (already in later increments): SSRF in `fetc
 
 **Independent Test**: G36.
 
-- [ ] T064 [P] [US7] Write tests in `T/unit/domain/test_policy.py`:
+- [x] T064 [P] [US7] Write tests in `T/unit/domain/test_policy.py`:
   - no cars + class or need + budget → SELECT_CANDIDATES;
   - no cars and nothing else → general.
-- [ ] T065 [P] [US7] Write golden `T/golden/G36_advice_no_cars.yaml`. "посоветуй семейный кроссовер до 25к" gives a card with 2–3 candidates, each with a reason; a candidate without a sourced price shows "price to check".
-- [ ] T066 [US7] Implement `B/application/candidates.py`: rank models of the class sold in ES within the budget from `C/makes.yaml`, `brand_lineups` and the catalog, with a code-computed one-line reason from the persona weights.
-- [ ] T067 [US7] Wire SELECT_CANDIDATES into `B/orchestration/graph.py` and `B/orchestration/nodes/confirm.py`, reusing the intake card: remove or add a candidate, then confirm, then research.
-- [ ] T068 [US7] Run check, restart dev, deploy, then commit, push and merge ("007-I candidates").
+- [x] T065 [P] [US7] Write golden `T/golden/G36_advice_no_cars.yaml`. "посоветуй семейный кроссовер до 25к" gives a card with 2–3 candidates, each with a reason; a candidate without a sourced price shows "price to check".
+- [x] T066 [US7] Implement `B/application/candidates.py`: rank models of the class sold in ES within the budget from `C/makes.yaml`, `brand_lineups` and the catalog, with a code-computed one-line reason from the persona weights.
+- [x] T067 [US7] Wire SELECT_CANDIDATES into `B/orchestration/graph.py` and `B/orchestration/nodes/confirm.py`, reusing the intake card: remove or add a candidate, then confirm, then research.
+- [x] T068 [US7] Run check, restart dev, deploy, then commit, push and merge ("007-I candidates").
+  - Done.
+    - G36 is the graph test `T/graph/test_candidates.py`, not a golden yaml. It covers the policy rule, the body words, the ranking, and the card text with reasons and "price to check".
+    - The body is parsed by code from the user's words into `case.wanted_body`.
+    - The pool is the port `models_on_sale` (cached ES line-ups plus the catalog; no new search). Ranking is `intake.pick_candidates`: body, within budget, one per make first, unpriced only to fill.
+    - The node `select_candidates` adds the cars, then identify → the usual card (always shown for candidates) → research. When nothing fits, the answer is general.
+    - Open: when the line-up cache does not cover the class, candidates are few. A paid line-up refresh for the leading makes is a later option, with a cost estimate first.
 
 ---
 

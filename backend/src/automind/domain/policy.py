@@ -32,6 +32,7 @@ ActionKind = Literal[
     "REPORT",
     "FEASIBILITY",
     "CONFIRM_INTAKE",
+    "SELECT_CANDIDATES",  # spec 007 US7: no car named, but a need and a budget: propose 2–3 cars
 ]
 RequestKind = Literal[
     "compare",
@@ -104,7 +105,9 @@ def decide(
     early = _early(case, request, last_fingerprint, hops, max_hops)
     if early is not None:
         return early
-    # 1. general
+    # 1. general; spec 007 US7: no car but a need and a budget → candidates, not a general text
+    if request not in ("general_question", "chitchat") and wants_candidates(case):
+        return Action(kind="SELECT_CANDIDATES", reason="no car named: a need and a budget")
     if request in ("general_question", "chitchat") or not case.cars:
         return Action(kind="ANSWER_GENERAL", reason="general question or no cars in the case")
     state = {c.key: cars.get(c.key, CarState()) for c in case.cars}
@@ -133,6 +136,15 @@ def decide(
             return Action(kind="CONFIRM_COST", cars=stale, over_cap=est > hard_cap_eur, reason=f"estimated €{est:.2f}")
         return Action(kind="RESEARCH", cars=stale, reason="data stale or missing for the current criteria")
     return _answer_or_report(case, request, last_fingerprint, case_changed, feasibility_pending)
+
+
+def wants_candidates(case: CaseFile) -> bool:
+    """No car named, a budget, and a class or a need (a body, a family, passengers, a usage)."""
+    if case.cars or not case.budget.max_eur:
+        return False
+    need = (case.wanted_body is not None or case.profile.family == "FAMILY" or "FAMILY" in case.usage
+            or (case.needs.passengers or 0) >= 4)  # fmt: skip
+    return need
 
 
 def _early(
@@ -206,7 +218,8 @@ def _card(case: CaseFile, state: dict[str, CarState], est: float | None, decline
     proposed = any(c.resolution == "PROPOSED" for c in case.cars)
     stale = any(not state[c.key].data_fresh for c in case.cars)
     asked = bool(case.intake.last_questions)
-    if proposed or (stale and not declined and (asked or (est or 0.0) >= threshold)):
+    chosen_by_us = bool(case.candidates)  # spec 007 US7: candidates the user did not name are always confirmed
+    if proposed or chosen_by_us or (stale and not declined and (asked or (est or 0.0) >= threshold)):
         return Action(kind="CONFIRM_INTAKE", cars=[c.key for c in case.cars], over_cap=(est or 0.0) > hard_cap,
                       reason="confirm the cars, the profile and the research")  # fmt: skip
     return None

@@ -24,6 +24,7 @@ from automind.infrastructure.db.repositories import (
 )
 from automind.infrastructure.events import EventBus
 from automind.infrastructure.fetch import Fetcher, FetchPolicy
+from automind.infrastructure.models_on_sale import models_on_sale
 from automind.infrastructure.pages import DbPageStore
 from automind.infrastructure.search.cache import CachedSearcher
 from automind.infrastructure.search.serpapi import SerpApiProvider
@@ -79,6 +80,7 @@ def live_ports(events: EventBus, prompts: dict[str, str]) -> Ports:
         readers=live_readers(),
         feasibility=FeasibilityRepo(),
         lineup=get_lineup,
+        models_on_sale=models_on_sale,
         learned=LearnedSourceRepo(),
     )
 

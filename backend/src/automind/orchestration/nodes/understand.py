@@ -123,6 +123,9 @@ def _person_from_text(new: CaseFile, before: CaseFile, text: str, regions: dict[
         new.annual_km, new.annual_km_stated = round((d[0] + d[1]) / 2 / 500) * 500, True
         p.evidence["annual_km"] = text[:120]
         log.append(f"{d[0]:,}–{d[1]:,} km a year" if d[0] != d[1] else f"{d[0]:,} km a year")
+    if not new.cars and (body := intake.body_of(text)) and body != new.wanted_body:  # spec 007 US7
+        new.wanted_body = body  # type: ignore[assignment]
+        log.append(f"body wanted: {body}")
     asked_condition = before.pending is not None and any(it.get("kind") == "CONDITION" for it in before.pending.items)
     if asked_condition and (cond := intake.condition_of(text)) is not None:
         for car in new.cars:
@@ -329,4 +332,5 @@ def route_policy(state: TurnState) -> str:
         "RESCORE": "report",  # spec 007: the report node recomputes and says what changed
         "FEASIBILITY": "prepare_feasibility",
         "CONFIRM_INTAKE": "prepare_intake",
+        "SELECT_CANDIDATES": "select_candidates",
     }[state["decision"]["kind"]]

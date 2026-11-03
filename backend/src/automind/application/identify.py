@@ -48,7 +48,8 @@ def _lineup_models(lineup: Any) -> list[Any]:
     return list(getattr(lineup, "models", None) or [])
 
 
-def _fit(case: CaseFile) -> intake.Fit:
+def fit_of(case: CaseFile) -> intake.Fit:
+    """What the person needs, for ranking models of a line-up (FR-008) and candidates (spec 007 US7)."""
     others = [int(p) for p in (getattr(c, "price_eur", None) for c in case.cars) if p]  # set by the caller if known
     return intake.Fit(
         family=case.profile.family == "FAMILY" or "FAMILY" in case.usage or (case.needs.passengers or 0) >= 4,
@@ -63,7 +64,7 @@ def _choices_from_lineup(lineup: Any, make: str, case: CaseFile | None = None) -
     """Models of the line-up as options; the 1–3 that fit the person come first, marked as suggestions with
     machine reasons (FR-008, FR-024)."""
     models = _lineup_models(lineup)
-    ranked = intake.rank_lineup(models, _fit(case)) if case is not None else []
+    ranked = intake.rank_lineup(models, fit_of(case)) if case is not None else []
     why = {m.model: r for m, r in ranked if r}
     order = [m for m, _ in ranked if m.model in why] + [m for m in models if m.model not in why]
     out = []
