@@ -62,6 +62,11 @@ async def apply_delta_node(state: TurnState, runtime: Runtime[TurnContext]) -> d
     except ValueError:
         return {"action": "ASK", "done": True, "reply_text": t("which_car", i.language)}
     request = "choose_for_me" if phrases.choose_for_me(state.get("user_text")) else i.request
+    pending_intake = case.pending is not None and case.pending.kind in _INTAKE_PENDING
+    if pending_intake and request in ("general_question", "chitchat"):
+        # spec 005 FR-022: while an intake step is pending, every reply is an intake answer, never generic chat
+        request = "compare"
+        changes += _brand_from_text(new, case, state.get("user_text") or "", c.ports.ref.makes)
     unclear = _not_understood(case, new, request)
     new, extra = _pending_answered(new, i, request)
     changes += extra
@@ -75,6 +80,23 @@ async def apply_delta_node(state: TurnState, runtime: Runtime[TurnContext]) -> d
             "persona_changed": any(ch.startswith("persona:") for ch in changes),
         }
     return {**out, "case_changed": False}
+
+
+_INTAKE_PENDING = ("QUESTIONS", "CONFIRM_VARIANTS", "CONFIRM_INTAKE")
+
+
+def _brand_from_text(new: CaseFile, before: CaseFile, text: str, reg: Any) -> list[str]:
+    """ "BYD is Build Your Dream, Chinese": a brand explained by the user sets the make of the pending car."""
+    make = reg.match_make(text) if reg is not None else None
+    if not make or before.pending is None:
+        return []
+    keys = [str(it.get("car")) for it in before.pending.items if it.get("car")]
+    out = []
+    for car in new.cars:
+        if car.key in keys and not car.make:
+            car.make = make
+            out.append(f"{car.key}: make {make}")
+    return out
 
 
 def _not_understood(before: CaseFile, after: CaseFile, request: str) -> list[str]:

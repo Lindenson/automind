@@ -17,6 +17,7 @@ from automind.application import resolve
 from automind.config import settings
 from automind.domain import intake
 from automind.domain.casefile import Choice, Pending
+from automind.orchestration import phrases
 from automind.orchestration.phrases import PHRASES, t
 from automind.orchestration.runner import TurnContext
 from automind.orchestration.state import TurnState
@@ -38,6 +39,8 @@ async def ask_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str,
         items = asking.fill_questions(decision["questions"], case, ref.questions, gens, decision["cars"])
     await c.status("asking", "Asking what I need to know")
     ack = await asking.acknowledge(c.ports.llm, ref.prompts["asker"], lang, asking.understood_summary(case))
+    if lang in ("ru", "es", "en") and ack and phrases.guess_language([ack]) != lang:
+        ack = ""  # FR-023: a sentence in another language is dropped; the questions are templates in `lang`
     questions = [q["text"] for q in items]
     body = questions[0] if len(questions) == 1 else "\n".join(f"{i}. {q}" for i, q in enumerate(questions, 1))
     lead = _not_understood_lead(case, state, lang)

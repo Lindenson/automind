@@ -314,7 +314,7 @@ description: "Task list for 005 — Understanding the user: intake and identific
 
 ### Tests first
 
-- [ ] T054 [P] [US6] Write `backend/tests/graph/test_no_general_in_intake.py`:
+- [X] T054 [P] [US6] Write `backend/tests/graph/test_no_general_in_intake.py`:
   - pending QUESTIONS + "BYD это Build Your Dream, китайская компания" → an intake reply (make BYD, its line-up offered), never the `general` role;
   - pending CONFIRM_INTAKE + chitchat → the card again with an acknowledgement;
   - no pending → general as before.
@@ -322,9 +322,9 @@ description: "Task list for 005 — Understanding the user: intake and identific
 
 ### Implementation
 
-- [ ] T056 [US6] Add policy rule 0 in `backend/src/automind/domain/policy.py`: while `pending.kind in (QUESTIONS, CONFIRM_INTAKE, CONFIRM_VARIANTS)`, a request of `general_question` / `chitchat` is handled as an intake reply. A brand explanation is matched to the make registry (`makes.match_make` on the text, including "Build Your Dream").
-- [ ] T057 [US6] Write the general prompt v2 (`backend/src/automind/orchestration/prompts/general.md`): no greeting after the first assistant message (history passed in), never name a model the user did not name unless introduced as a suggestion, and in the conversation language.
-- [ ] T058 [US6] Add a language guard in `backend/src/automind/orchestration/nodes/confirm.py` and `report.py`. `phrases.guess_language(output)` ≠ conversation language → regenerate once, then use the template text. Localize the remaining intake notices (GenerationMismatch, variants skipped, unknown) in `backend/src/automind/orchestration/phrases.py`.
+- [X] T056 [US6] Add policy rule 0 in `backend/src/automind/domain/policy.py`: while `pending.kind in (QUESTIONS, CONFIRM_INTAKE, CONFIRM_VARIANTS)`, a request of `general_question` / `chitchat` is handled as an intake reply. A brand explanation is matched to the make registry (`makes.match_make` on the text, including "Build Your Dream").
+- [X] T057 [US6] Write the general prompt v2 (`backend/src/automind/orchestration/prompts/general.md`): no greeting after the first assistant message (history passed in), never name a model the user did not name unless introduced as a suggestion, and in the conversation language.
+- [X] T058 [US6] Add a language guard in `backend/src/automind/orchestration/nodes/confirm.py` and `report.py`. `phrases.guess_language(output)` ≠ conversation language → regenerate once, then use the template text. Localize the remaining intake notices (GenerationMismatch, variants skipped, unknown) in `backend/src/automind/orchestration/phrases.py`.
 
 **Checkpoint**: G21–G30 pass with the cross-cutting assertions.
 
