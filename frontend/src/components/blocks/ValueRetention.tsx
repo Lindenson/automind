@@ -13,7 +13,7 @@ export function ValueRetention({ b }: { b: BlockOf<"value_retention"> }) {
   const color = useCarColor();
   return (
     <BlockCard title={useBlockTitle(b.type, b.title)}>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {b.cars.map((car) => (
           <div key={car.car_id} className="rounded-xl border border-line/50 p-3 text-sm">
             <div className="mb-2 font-semibold" style={{ color: color(car.car_id) }}>

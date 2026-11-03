@@ -256,7 +256,7 @@ export function RaceChart({ b }: { b: BlockOf<"race_chart"> }) {
             </span>
             Model assumptions
           </summary>
-          <div className="grid gap-3 px-3 pb-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 px-3 pb-3 sm:grid-cols-2">
             {b.assumptions.map((a) => {
               const label =
                 b.series.find((s) => s.car_id === a.car_id)?.label ??

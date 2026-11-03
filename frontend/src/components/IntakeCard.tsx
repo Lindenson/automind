@@ -66,7 +66,7 @@ export function IntakeCard({ req, card }: { req: ConfirmRequest; card: Card }) {
   return (
     <div className="card animate-fadeUp space-y-3 border-accent/40 p-3 sm:p-4" role="group" aria-label={t("card.title")}>
       <p className="text-sm">{req.text}</p>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {card.cars.map((car) => (
           <section key={car.key} className="min-w-0 rounded-lg border border-line/60 bg-panel2/60 p-2">
             <h3 className="mb-1 break-words text-sm font-semibold">{car.display_name}</h3>
