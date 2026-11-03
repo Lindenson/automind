@@ -10,7 +10,7 @@ export function Engineering({ b }: { b: BlockOf<"engineering"> }) {
   const color = useCarColor();
   return (
     <BlockCard title={useBlockTitle(b.type, b.title)} icon={<WrenchIcon />}>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {b.cars.map((car) => (
           <div
             key={car.car_id}

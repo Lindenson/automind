@@ -55,7 +55,7 @@ export function Reviews({ b }: { b: BlockOf<"reviews"> }) {
   const color = useCarColor();
   return (
     <BlockCard title={useBlockTitle(b.type, b.title)} icon={<BookIcon />}>
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         {b.cars.map((car) => (
           <div
             key={car.car_id}
@@ -75,7 +75,7 @@ export function Reviews({ b }: { b: BlockOf<"reviews"> }) {
                 {car.minimum_met ? "" : " · insufficient data"}
               </span>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Points title="Pros" items={car.pros} tone="good" />
               <Points title="Cons" items={car.cons} tone="bad" />
             </div>

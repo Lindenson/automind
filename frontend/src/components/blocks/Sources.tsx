@@ -36,7 +36,7 @@ export function Sources({ b }: { b: BlockOf<"sources"> }) {
         </span>
       }
     >
-      <ol className="grid gap-3 text-sm md:grid-cols-2">
+      <ol className="grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
         {accepted.map((s, i) => (
           <li
             key={i}

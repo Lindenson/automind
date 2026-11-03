@@ -9,7 +9,7 @@ export function MetricBars({ b }: { b: BlockOf<"metric_bars"> }) {
   const color = useCarColor();
   return (
     <BlockCard title={useBlockTitle(b.type, b.title)} icon={<GaugeIcon />}>
-      <div className="grid gap-5 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         {b.metrics.map((m) => {
           const nums = m.values
             .map((v) => v.value)

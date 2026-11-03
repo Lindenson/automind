@@ -50,7 +50,7 @@ function Row({ it }: { it: Item }) {
       className="flex items-start justify-between gap-2 py-1 text-xs"
       title={it.inputs.join("\n")}
     >
-      <span className="min-w-0">
+      <span className="min-w-0 flex-1">
         <span className={cx(it.annual_eur === null && "text-muted")}>
           {it.label}
         </span>
@@ -95,8 +95,8 @@ function CarCost({
       ] as const,
   );
   return (
-    <div className="rounded-xl border border-line/50 p-3">
-      <div className="mb-2 flex items-baseline justify-between gap-2">
+    <div className="min-w-0 rounded-xl border border-line/50 p-3">
+      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
         <span
           className="min-w-0 truncate font-display text-sm font-semibold"
           style={{ color }}
@@ -108,12 +108,14 @@ function CarCost({
             </span>
           )}
         </span>
-        <span className="shrink-0 text-right">
+        <span className="ml-auto text-right">
           <span className="font-display text-xl font-bold tabular">
             {eur(car.annual_total)}
           </span>
-          <span className="text-xs text-muted">
-            /yr · {eur(car.five_year_total)} over 5 years
+          <span className="text-xs text-muted">/yr</span>
+          <span className="block text-xs text-muted sm:inline">
+            <span className="hidden sm:inline"> · </span>
+            {eur(car.five_year_total)} over 5 years
           </span>
         </span>
       </div>
@@ -182,7 +184,7 @@ export function Tco({ b }: { b: BlockOf<"tco"> }) {
       icon={<WrenchIcon />}
       right={<span className="chip">{fmtNum(b.annual_km, 0)} km/yr</span>}
     >
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         {b.cars.map((c) => (
           <CarCost key={c.car_id} car={c} color={color(c.car_id)} max={max} />
         ))}

@@ -30,7 +30,7 @@ export function Header({
       <div className="mx-auto flex h-14 max-w-4xl items-center justify-between gap-3 px-4">
         <div className="flex min-w-0 items-center gap-2.5">
           <Logo />
-          <div className="min-w-0 leading-tight">
+          <div className="hidden min-w-0 leading-tight min-[440px]:block">
             <div className="font-display text-base font-bold tracking-tight">
               Auto<span className="text-accent">Mind</span>
             </div>
@@ -39,7 +39,7 @@ export function Header({
             </div>
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           <LangSwitch />
           <span
             className="flex items-center gap-1.5 rounded-full border border-line/70 bg-panel/70 px-2.5 py-1 text-xs text-muted"
@@ -51,7 +51,7 @@ export function Header({
           <button
             type="button"
             onClick={onOpenChats}
-            className="rounded-full border border-line/70 bg-panel/70 px-3 py-1 text-xs font-medium text-fg transition hover:border-accent/60 hover:text-accent"
+            className="rounded-full border border-line/70 bg-panel/70 px-2.5 py-1 sm:px-3 text-xs font-medium text-fg transition hover:border-accent/60 hover:text-accent"
           >
             Chats
           </button>
@@ -60,10 +60,12 @@ export function Header({
             type="button"
             onClick={onNewChat}
             disabled={!canReset}
-            className="flex items-center gap-1.5 rounded-full border border-line/70 bg-panel/70 px-3 py-1 text-xs font-medium text-fg transition hover:border-accent/60 hover:text-accent disabled:cursor-not-allowed disabled:opacity-40"
+            aria-label="New chat"
+            title="New chat"
+            className="flex items-center gap-1.5 rounded-full border border-line/70 bg-panel/70 px-2.5 py-1 text-xs font-medium sm:px-3 text-fg transition hover:border-accent/60 hover:text-accent disabled:cursor-not-allowed disabled:opacity-40"
           >
             <PlusIcon />
-            New chat
+            <span className="hidden sm:inline">New chat</span>
           </button>
         </div>
       </div>
@@ -79,7 +81,7 @@ function CaseToggle() {
       aria-pressed={open}
       onClick={() => setOpen(!open)}
       className={cx(
-        "rounded-full border px-3 py-1 text-xs font-medium transition",
+        "rounded-full border px-2.5 py-1 text-xs font-medium transition sm:px-3",
         open
           ? "border-accent/60 text-accent"
           : "border-line/70 bg-panel/70 text-fg hover:border-accent/60 hover:text-accent",

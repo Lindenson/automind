@@ -9,7 +9,7 @@ export function Maintenance({ b }: { b: BlockOf<"maintenance"> }) {
   const color = useCarColor();
   return (
     <BlockCard title={useBlockTitle(b.type, b.title)} icon={<WrenchIcon />}>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {b.items.map((it) => {
           const interval = [
             it.interval_km !== null ? `${fmtNum(it.interval_km, 0)} km` : null,

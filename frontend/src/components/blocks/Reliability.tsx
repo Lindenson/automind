@@ -19,7 +19,7 @@ export function Reliability({ b }: { b: BlockOf<"reliability"> }) {
   const color = useCarColor();
   return (
     <BlockCard title={useBlockTitle(b.type, b.title)} icon={<WarnIcon />}>
-      <div className="grid gap-3 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         {b.cars.map((car) => (
           <div
             key={car.car_id}
