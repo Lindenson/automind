@@ -32,8 +32,17 @@ def test_pick_with_reasons_trade_off_and_would_change() -> None:
     assert v.pick_car_id == "rav4" and not v.tie
     assert v.reasons and v.reasons[0] == "consumption" and "boot_volume" not in v.reasons
     assert v.trade_off is not None and v.trade_off.break_even_years
-    assert v.would_change is not None and v.would_change.kind == "BREAK_EVEN" and v.would_change.car_id == "cx5"
+    # a payback of ~50 years is no payback: never offered as "what would change it" (incident 2026-11-03)
+    assert v.trade_off.break_even_years > vd.MAX_BREAK_EVEN_YEARS
+    assert v.would_change is not None and v.would_change.kind != "BREAK_EVEN"
     assert v.confidence == "HIGH" and v.confidence_reason == "COVERAGE_HIGH"
+
+
+def test_a_realistic_payback_is_what_would_change_it() -> None:
+    near = ins.build([A, _car("cx5", consumption=8.0, official_price_es=40_000, boot_volume=583)], PROFILE, RULES)
+    v = vd.build(_score({"rav4": 70, "cx5": 60}), near)
+    assert v.trade_off is not None and v.trade_off.break_even_years <= vd.MAX_BREAK_EVEN_YEARS
+    assert v.would_change is not None and v.would_change.kind == "BREAK_EVEN" and v.would_change.car_id == "cx5"
 
 
 def test_close_totals_are_a_tie_with_what_would_tip_it() -> None:

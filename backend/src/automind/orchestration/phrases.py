@@ -131,6 +131,8 @@ PHRASES: dict[str, dict[str, str]] = {
         "es": "¿Quizás quisiste decir: {options}?",
     },
     "choose_for_me": {"en": "Choose for me", "ru": "Выбери сам", "es": "Elige tú"},
+    "gb_automatic": {"en": "Automatic", "ru": "Автомат", "es": "Automático"},
+    "gb_manual": {"en": "Manual", "ru": "Механика", "es": "Manual"},
     "remove_car": {"en": "Remove {car}", "ru": "Убрать {car}", "es": "Quitar {car}"},
     "compared_at_level": {
         "en": "All cars are compared at the {level} level{why}.",
@@ -283,6 +285,16 @@ _CHOOSE = (
     "любой", "любая", "любую", "любое", "выбери сам", "выбери ты", "на твой выбор", "на ваш выбор", "всё равно",
     "все равно", "неважно", "не важно", "cualquiera", "elige tú", "elige tu", "me da igual", "da igual",
 )  # fmt: skip
+
+
+# spec 007 F: a gearbox named in one word (a tapped chip or typed) answers the gearbox question by code
+GEARBOX_WORDS: dict[str, str] = {
+    "automatic": "automatic", "auto": "automatic", "automatic gearbox": "automatic", "автомат": "automatic",
+    "автомат.": "automatic", "акпп": "automatic", "автоматическая": "automatic", "автоматическая коробка": "automatic",
+    "робот": "automatic", "automático": "automatic", "automatico": "automatic", "cambio automático": "automatic",
+    "manual": "manual", "manual gearbox": "manual", "механика": "manual", "мкпп": "manual", "ручка": "manual",
+    "механическая": "manual", "механическая коробка": "manual", "cambio manual": "manual",
+}  # fmt: skip
 
 
 def choose_for_me(text: str | None) -> bool:

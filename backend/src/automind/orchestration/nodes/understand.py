@@ -41,6 +41,11 @@ async def interpret_node(state: TurnState, runtime: Runtime[TurnContext]) -> dic
             focus_cars=list(preset.get("focus_cars") or []), focus_areas=list(preset.get("areas") or []),
         )  # fmt: skip
         return {"interpretation": i.model_dump(mode="json"), "request_kind": i.request, "language": i.language}
+    if _pick(case, state.get("user_text") or "") is not None:  # a tapped option: answered by code (spec 007 F)
+        said = [m["text"] for m in await history(c) if m["role"] == "user"]
+        i = Interpretation(request="compare", language=phrases.guess_language(said))
+        return {"interpretation": i.model_dump(mode="json"), "request_kind": i.request, "language": i.language,
+                "picked": True}  # fmt: skip
     try:
         i = await interpret(c.ports.llm, c.ports.ref.prompts["interpreter"], case, await history(c), state["user_text"])
     except InterpretError:
@@ -63,10 +68,12 @@ async def apply_delta_node(state: TurnState, runtime: Runtime[TurnContext]) -> d
     _, case = await load_case(c)
     i = Interpretation.model_validate(state["interpretation"])  # type: ignore[typeddict-item]
     year = current_year(c)
+    picked = _pick(case, state.get("user_text") or "") if state.get("picked") else None
     try:
-        new, changes = apply(case, i.delta, current_year=year)
+        new, changes = picked if picked is not None else apply(case, i.delta, current_year=year)
     except ValueError:
         return {"action": "ASK", "done": True, "reply_text": t("which_car", i.language)}
+    changes += intake.inherit_condition(case, new)
     sp = i.delta.set_persona
     if sp is not None and i.persona_evidence and new.persona == sp.persona:  # the words the persona came from
         new.profile.evidence["persona"] = i.persona_evidence.strip()[:120]
@@ -94,6 +101,12 @@ async def apply_delta_node(state: TurnState, runtime: Runtime[TurnContext]) -> d
 
 
 _INTAKE_PENDING = ("QUESTIONS", "CONFIRM_VARIANTS", "CONFIRM_INTAKE")
+
+
+def _pick(case: CaseFile, text: str) -> tuple[CaseFile, list[str]] | None:
+    """The reply is one of the options offered under the pending question (spec 007 F)."""
+    return intake.pick(case, text, gearbox_words=phrases.GEARBOX_WORDS, yes=phrases.yes_or_no(text) == "yes",
+                       choose=phrases.choose_for_me(text))  # fmt: skip
 
 
 def _person_from_text(new: CaseFile, before: CaseFile, text: str, regions: dict[str, Any]) -> list[str]:

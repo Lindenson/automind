@@ -305,11 +305,22 @@ Still open from the previous review (already in later increments): SSRF in `fetc
 
 **Independent Test**: the chat 757cff3d intake replay.
 
-- [ ] T050 [P] [US6] Write `T/graph/test_offered_option_text.py`. An offered label sent back as text ("BMW 3 Series BMW 320d Touring M Sport") resolves to that option's variant id, and the reply has no "no such engine". Option labels never repeat the make or model.
-- [ ] T051 [P] [US6] Tests in `T/unit/test_resolve_years.py`: with intent NEW/UNKNOWN and no year or code, the options and catalog reuse keep only current-generation rows (no F30/F31 for the 3 Series). With "used" or a year, older rows are allowed.
-- [ ] T052 [US6] `B/orchestration/nodes/confirm.py` (`apply_variants`, `ask_node`): match text against the pending offered labels (normalised, rapidfuzz ≥ 90) before interpret. Fix the label builder (`B/application/identify.py::_choices_from_lineup` / the label helper) to drop a repeated make or model.
-- [ ] T053 [US6] `B/application/resolve.py` (around :135 and the option lists): apply the current-generation filter. Add G20/G21 (3 Series, 2019–) to `C/generations.yaml` if it is missing.
-- [ ] T054 [US6] Run check, restart dev, deploy, then commit, push and merge ("007-F intake fixes").
+- [x] T050 [P] [US6] Write `T/graph/test_offered_option_text.py`. An offered label sent back as text ("BMW 3 Series BMW 320d Touring M Sport") resolves to that option's variant id, and the reply has no "no such engine". Option labels never repeat the make or model.
+- [x] T051 [P] [US6] Tests in `T/unit/test_resolve_years.py`: with intent NEW/UNKNOWN and no year or code, the options and catalog reuse keep only current-generation rows (no F30/F31 for the 3 Series). With "used" or a year, older rows are allowed.
+- [x] T052 [US6] `B/orchestration/nodes/confirm.py` (`apply_variants`, `ask_node`): match text against the pending offered labels (normalised, rapidfuzz ≥ 90) before interpret. Fix the label builder (`B/application/identify.py::_choices_from_lineup` / the label helper) to drop a repeated make or model.
+- [x] T053 [US6] `B/application/resolve.py` (around :135 and the option lists): apply the current-generation filter. Add G20/G21 (3 Series, 2019–) to `C/generations.yaml` if it is missing.
+- [x] T054 [US6] Run check, restart dev, deploy, then commit, push and merge ("007-F intake fixes").
+  - Done with incident chat 0d7fd924 (2026-11-03, Mazda CX-5 asked five times). Tests: `T/unit/test_incident_0d7fd924.py`. Changes:
+    - A reply equal to an offered option (normalised exact match, not fuzzy) is applied by code in `domain/intake.pick`, with no interpreter call. It drops the generation, engine and version hints left by an earlier option.
+    - "Yes" to a proposal takes the proposed option. The gearbox question offers Automatic/Manual chips, and "choose for me" picks the automatic.
+    - A new car bought now (no year, or a year ≥ current−1) is matched to the generation on sale only (`resolve.bought_now`).
+    - The resolver never stamps the current generation on an engine of the previous one (`NotOnSale`). A version without an engine is never stored.
+    - The make and model are stripped from model and variant names. A generation sold with one gearbox forces it.
+    - The engine options carry variant ids.
+    - A car added later inherits the shared condition and year.
+    - "Find it" is not offered again for areas a deeper search left below the minimum (`case.find_tried`).
+    - A payback beyond 15 years is "does not pay back".
+    - The service interval is capped at 60,000 km.
 
 ---
 

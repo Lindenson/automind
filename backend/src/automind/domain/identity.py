@@ -46,6 +46,12 @@ _EMPTY = Aliases()
 def normalize_make_model(make: str, model: str, aliases: Aliases = _EMPTY) -> tuple[str, str]:
     """Canonical (make, model). A model alias may also correct the make ("Land Rover Prado" → Toyota)."""
     mk = aliases.makes.get(_norm(make), make.strip())
+    model = model.strip()
+    if (hit := aliases.models.get(f"{_norm(mk)}|{_norm(model)}")) is not None:
+        return hit
+    for name in {make.strip(), mk}:  # "Mazda CX-5" as the model of Mazda is "CX-5" (incident 2026-11-03)
+        if name and model.lower().startswith(name.lower() + " ") and len(model) > len(name) + 1:
+            model = model[len(name) + 1 :].strip()
     hit = aliases.models.get(f"{_norm(mk)}|{_norm(model)}")
     if hit is not None:
         return hit

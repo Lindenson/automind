@@ -70,7 +70,7 @@ export function Verdict({ b }: { b: BlockOf<"verdict"> }) {
       )}
       <p className="text-xs text-muted">{b.confidence_reason}</p>
       {b.would_change && <p className="text-sm text-fg/80">{b.would_change}</p>}
-      {b.gaps.length > 0 && <FindIt />}
+      {b.gaps.length > 0 && b.find && <FindIt />}
     </section>
   );
 }

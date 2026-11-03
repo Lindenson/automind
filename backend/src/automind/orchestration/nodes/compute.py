@@ -219,6 +219,8 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
         if cars
         else None
     )  # fmt: skip
+    if not any(gaps_by_car.values()):
+        vblock["find"] = False  # nothing left a "find it" could bring (spec 007 F)
     head = [vblock, *([sugg] if sugg else [])]
     body = order_blocks(case.persona, out_notices + blocks, cars=len(cars))
     body = annotate_sections(case.persona, body, c.ports.ref.layouts or {})
@@ -315,7 +317,7 @@ def _data_panel(c: TurnContext, case: CaseFile, keyed: list[tuple[Any, dict[str,
     clock = getattr(c.ports, "clock", None)
     now = clock.now() if clock is not None else None
     rows = [(x.key, compose.short_name(car["variant"]), car) for x, car in keyed]
-    return compose.data_panel_block(rows, areas, now, case.last_values or None)
+    return compose.data_panel_block(rows, areas, now, case.last_values or None, case.find_tried)
 
 
 def _predicted(case: CaseFile) -> str | None:

@@ -101,6 +101,18 @@ def generations() -> dict[str, list[tuple[str, int | None, int | None]]]:
     }
 
 
+def gearboxes() -> dict[str, list[str]]:
+    """ "Make|Model|generation" (generation lower-case) -> gearboxes sold new in Spain (generations.yaml)."""
+    d = load_yaml("generations.yaml")
+    return {
+        f"{k}|{str(g['generation']).lower()}": [str(x) for x in g["transmissions"]]
+        for k, v in d.items()
+        if k != "version" and isinstance(v, list)
+        for g in v
+        if g.get("transmissions")
+    }
+
+
 def questions() -> dict[str, str]:
     """English question texts by kind (v1 shape, used by the 002–004 code paths)."""
     out = {}
@@ -194,6 +206,7 @@ def reference(prompts: dict[str, str]) -> Reference:
         makes=MakeRegistry.from_config(load_yaml("makes.yaml")),
         regions=dict(load_yaml("regions.yaml").get("regions") or {}),
         profile_defaults=load_yaml("profile_defaults.yaml"),
+        gearboxes=gearboxes(),
     )
 
 

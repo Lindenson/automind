@@ -273,3 +273,92 @@ def rank_lineup(models: Sequence[LineupModel], fit: Fit, limit: int = 3) -> list
     scored = [(_score(m, fit), m) for m in pool]
     scored.sort(key=lambda x: (-x[0][0], x[1].price_from_eur or 10**9, x[1].model))
     return [(m, why) for (s, why), m in scored[:limit] if s > -2]
+
+
+# --- spec 007 F: a tapped option is the answer (incident 2026-11-03, Mazda CX-5 asked five times) -------------
+
+
+def _plain_text(s: str | None) -> str:
+    return " ".join(re.sub(r"[^\w+.\-()]", " ", (s or "").lower()).split())
+
+
+def _without(label: str, *words: str | None) -> str:
+    out = label
+    for w in sorted({x for x in words if x}, key=len, reverse=True):
+        out = re.sub(rf"(?i)(?<![\w]){re.escape(w)}(?![\w])", " ", out)
+    return " ".join(out.split())
+
+
+def _apply_choice(car: CaseCar, ch: Choice) -> str:
+    """The user picked this option: it replaces what an earlier option left behind (generation, engine, version)."""
+    from .identity import parse_engine  # local import: identity imports casefile lazily
+
+    k = car.constraints
+    k.generation_hint = k.engine_hint = k.trim_hint = None
+    car.make = ch.make or car.make
+    car.model = ch.model or car.model
+    car.identify = None
+    if ch.variant_id:
+        car.variant_id, car.label, car.resolution = ch.variant_id, ch.label, "CONFIRMED"
+        return f"{car.key}: {ch.label} (picked)"
+    car.variant_id, car.label, car.resolution = None, None, "UNRESOLVED"
+    rest = _without(ch.label, car.make, car.model)
+    if ch.variant_id is None and rest and (e := parse_engine(rest)) is not None and not e.empty():
+        k.engine_hint = e
+    return f"{car.key}: {ch.label} (picked)"
+
+
+def pick(case: CaseFile, text: str, *, gearbox_words: dict[str, str], yes: bool = False,
+         choose: bool = False) -> tuple[CaseFile, list[str]] | None:  # fmt: skip
+    """A reply that is exactly one of the offered options (a tapped chip, or the option typed) answers the pending
+    question by code, without the interpreter: the option's variant, model or engine is set and the hints left by
+    an earlier option are dropped. "Yes" to a proposal takes the proposed option; "choose for me" on a gearbox
+    question takes the automatic. Returns None when the reply is not an offered option."""
+    p = case.pending
+    if p is None or p.kind != "QUESTIONS":
+        return None
+    said = _plain_text(text)
+    if not said:
+        return None
+    new = case.model_copy(deep=True)
+    for item in p.items:
+        key = str(item.get("car") or "")
+        if not key or not any(c.key == key for c in new.cars):
+            continue
+        car = new.car(key)
+        kind = item.get("kind")
+        if kind == "GEARBOX":
+            gb = gearbox_words.get(said) or ("automatic" if choose else None)
+            if gb:
+                car.constraints.gearbox_hint = gb  # type: ignore[assignment]
+                return new, [f"{key}: gearbox {gb}"]
+            continue
+        raw = item.get("choices")
+        choices = [Choice.model_validate(x) for x in raw] if isinstance(raw, list) else []
+        if kind == "PROPOSE" and yes and choices:
+            return new, [_apply_choice(car, choices[0])]
+        hit = next((ch for ch in choices if _plain_text(ch.label) == said), None)
+        if hit is not None:
+            return new, [_apply_choice(car, hit)]
+    return None
+
+
+def inherit_condition(before: CaseFile, after: CaseFile) -> list[str]:
+    """A car added later in the chat ("and the Mazda?") is bought like the cars already compared: when they all
+    share a condition (and, if new, a year), the added car takes it instead of asking "new or used?" again."""
+    old = {c.key for c in before.cars}
+    others = [c for c in after.cars if c.key in old]
+    conds = {c.condition for c in others}
+    if len(conds) != 1 or "UNKNOWN" in conds:
+        return []
+    cond = next(iter(conds))
+    years = {c.year for c in others}
+    log = []
+    for car in after.cars:
+        if car.key in old or car.condition != "UNKNOWN":
+            continue
+        car.condition = cond
+        if cond == "NEW" and len(years) == 1 and car.year is None:
+            car.year = next(iter(years))
+        log.append(f"{car.key}: {cond.lower()} like the other cars")
+    return log

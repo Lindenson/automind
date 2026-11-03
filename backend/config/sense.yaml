@@ -4,7 +4,7 @@ version: 1
 magnitude:
   service_interval_km:
     min: 1000
-    max: 300000
+    max: 60000                           # 180,000 km is a timing-belt or spark-plug interval, not a service
     thousands_if_between: [3, 300]       # "16" next to "thousand km" → 16,000 km
   service_interval_months:
     min: 1

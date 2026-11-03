@@ -166,9 +166,12 @@ def intake_questions(
     generations: dict[str, list[str]],
     concerned: list[str],
     lang: str,
+    gearboxes: dict[str, str] | None = None,
 ) -> list[dict[str, Any]]:
     """Question items in the conversation language with concrete options (spec 005 R9, FR-003, FR-009).
-    A question asked before for the same car and item uses its `rephrase` wording."""
+    A question asked before for the same car and item uses its `rephrase` wording. `gearboxes` are the gearbox
+    names in the conversation language (the options of a GEARBOX question)."""
+    gearboxes = gearboxes or {}
     items: list[dict[str, Any]] = []
     cars = {c.key: c for c in case.cars}
     for kind in kinds:
@@ -194,10 +197,7 @@ def intake_questions(
             if car is None or not _concerns(kind, car):
                 continue
             item = KIND_ITEM.get(kind, "MODEL")
-            choices = list(car.identify.choices) if car.identify else []
-            labels = [ch.label for ch in choices[:6]]
-            if kind in ("USED_AGE", "GEARBOX") or (kind == "TRIM" and not labels):
-                labels = list(generations.get(key, []))
+            choices, labels = _options(kind, car, generations.get(key, []), gearboxes)
             name = car.display_name
             if kind == "PROPOSE":
                 proposal = choices[0].label if choices else (car.label or "")
@@ -211,6 +211,18 @@ def intake_questions(
             items.append({"kind": kind, "car": key, "item": item, "text": text,
                           "choices": [ch.model_dump(mode="json") for ch in choices[:6]]})  # fmt: skip
     return items[:3]
+
+
+def _options(kind: str, car: Any, generations: list[str], gearboxes: dict[str, str]) -> tuple[list[Any], list[str]]:
+    """The offered choices of a car question and the option names in its text. A gearbox question offers
+    gearboxes, never the car's versions (incident 2026-11-03)."""
+    if kind == "GEARBOX":
+        return [], [gearboxes.get("automatic", "automatic"), gearboxes.get("manual", "manual")]
+    choices = list(car.identify.choices) if car.identify else []
+    labels = [ch.label for ch in choices[:6]]
+    if kind == "USED_AGE" or (kind == "TRIM" and not labels):
+        labels = list(generations)
+    return choices, labels
 
 
 def intake_quick_replies(items: list[dict[str, Any]], case: CaseFile, labels: dict[str, str]) -> list[dict[str, Any]]:
@@ -229,6 +241,8 @@ def intake_quick_replies(items: list[dict[str, Any]], case: CaseFile, labels: di
         if kind == "PROPOSE":
             out += [{"label": labels["yes"], "text": labels["yes"]}, {"label": labels["no"], "text": labels["no"]}]
             continue
+        if kind == "GEARBOX":
+            out += [{"label": labels[x], "text": labels[x]} for x in ("automatic", "manual") if labels.get(x)]
         for ch in q.get("choices") or []:
             chip: dict[str, Any] = {"label": ch["label"], "text": ch["label"]}
             if ch.get("suggested"):

@@ -495,6 +495,7 @@ def data_panel_block(
     areas: dict[str, set[str]],
     now: datetime | None,
     previous: dict[str, int] | None = None,
+    tried: dict[str, list[str]] | None = None,
 ) -> dict | None:
     """One "what we know" panel instead of a warning per section (spec 004 FR-014, FR-015, SC-008).
 
@@ -518,6 +519,8 @@ def data_panel_block(
                 recent = now is not None and (now - r.completed_at).total_seconds() < NO_SOURCES_RETRY_H * 3600
                 status = "UNAVAILABLE" if recent else "MISSING"
                 reason, findable = "no usable sources found", not recent
+            if findable and area in (tried or {}).get(car["variant"].id, []):
+                reason, findable = "searched deeper: no more independent sources", False
             rows.append({"area": area, "status": status, "reason": reason, "findable": findable})
         values = sum(1 for sv in car["values"].values() if sv.available)
         total_now += values

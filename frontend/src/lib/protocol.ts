@@ -519,6 +519,7 @@ export const VerdictBlockSchema = z.object({
   would_change: z.string().nullable().default(null),
   gaps: z.array(z.string()).default([]),
   profile_notes: z.array(z.string()).default([]),
+  find: z.boolean().default(true), // spec 007 F: false when a deeper search already found nothing more
   best_if_budget: z.string().nullable().default(null),
 });
 
