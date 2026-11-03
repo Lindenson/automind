@@ -75,7 +75,9 @@ def build_graph(checkpointer: Any = None, tools: list[Any] | None = None) -> Any
             "prepare_feasibility",
         ],
     )
-    g.add_edge("prepare_variants", "wait_variants")
+    g.add_conditional_edges(  # every car unknown: nothing to confirm, ask about the model instead
+        "prepare_variants", confirm.route_after_prepare, {"wait": "wait_variants", "assess": "assess"}
+    )
     g.add_edge("wait_variants", "apply_variants")
     g.add_conditional_edges(
         "apply_variants", confirm.route_after_apply, {"assess": "assess", "interpret": "interpret", "end": END}

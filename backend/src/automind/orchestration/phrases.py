@@ -7,6 +7,41 @@ free, instant and testable. Unknown languages fall back to English.
 from __future__ import annotations
 
 PHRASES: dict[str, dict[str, str]] = {
+    "not_understood": {
+        "en": "I did not understand “{answer}” for {car}.",
+        "ru": "Я не понял ответ «{answer}» для {car}.",
+        "es": "No he entendido «{answer}» para {car}.",
+    },
+    "unknown_model": {
+        "en": "I don't know the model “{car}”.",
+        "ru": "Я не знаю модель «{car}».",
+        "es": "No conozco el modelo «{car}».",
+    },
+    "did_you_mean": {
+        "en": "Did you mean: {options}?",
+        "ru": "Возможно, вы имели в виду: {options}?",
+        "es": "¿Quizás quisiste decir: {options}?",
+    },
+    "choose_for_me": {"en": "Choose for me", "ru": "Выбери сам", "es": "Elige tú"},
+    "remove_car": {"en": "Remove {car}", "ru": "Убрать {car}", "es": "Quitar {car}"},
+    "compared_at_level": {
+        "en": "All cars are compared at the {level} level{why}.",
+        "ru": "Все машины сравниваются в {level} комплектации{why}.",
+        "es": "Todos los coches se comparan en el nivel {level}{why}.",
+    },
+    "level_BASE": {"en": "base", "ru": "базовой", "es": "base"},
+    "level_MID": {"en": "mid", "ru": "средней", "es": "medio"},
+    "level_TOP": {"en": "top", "ru": "топовой", "es": "alto"},
+    "level_why_default": {
+        "en": " (the cheapest version on sale; name a version to change it)",
+        "ru": " (самая дешёвая версия в продаже; назовите версию, чтобы изменить)",
+        "es": " (la versión más barata a la venta; nombra una versión para cambiarlo)",
+    },
+    "level_why_user": {
+        "en": " (the level of the version you named)",
+        "ru": " (уровень названной вами версии)",
+        "es": " (el nivel de la versión que nombraste)",
+    },
     "confirm_variants": {
         "en": "Before I research, please confirm the exact variants:",
         "ru": "Прежде чем искать данные, подтвердите точные модификации:",
@@ -88,6 +123,19 @@ _YES = ("continue", "go on", "go ahead", "keep going", "yes", "ok", "okay", "sur
         "adelante", "vale")  # fmt: skip
 _NO = ("stop", "no", "enough", "answer", "nein", "нет", "стоп", "хватит", "достаточно", "отвечай", "ответь",
        "basta", "para", "responde")  # fmt: skip
+
+
+_CHOOSE = (
+    "choose for me", "you choose", "any", "whatever", "doesn't matter", "dont care", "don't care",
+    "любой", "любая", "любую", "любое", "выбери сам", "выбери ты", "на твой выбор", "на ваш выбор", "всё равно",
+    "все равно", "неважно", "не важно", "cualquiera", "elige tú", "elige tu", "me da igual", "da igual",
+)  # fmt: skip
+
+
+def choose_for_me(text: str | None) -> bool:
+    """ "Any" / "choose for me": the hub takes the base version (spec 004 FR-029, US8 scenario 6)."""
+    t = " ".join((text or "").lower().replace("!", " ").replace(".", " ").replace(",", " ").split())
+    return bool(t) and len(t) <= 40 and any(t == c or t.startswith(c + " ") or t.endswith(" " + c) for c in _CHOOSE)
 
 
 def yes_or_no(text: str | None) -> str | None:

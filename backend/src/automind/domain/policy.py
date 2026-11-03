@@ -18,6 +18,7 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from .casefile import MAX_CARS, CaseFile, QuestionKind
+from .identification import REASK
 
 ActionKind = Literal[
     "ANSWER_GENERAL",
@@ -39,10 +40,11 @@ RequestKind = Literal[
     "general_question",
     "confirm_yes",
     "confirm_no",
+    "choose_for_me",
     "chitchat",
 ]
 QUESTION_ORDER: tuple[QuestionKind, ...] = (
-    "TOO_MANY_CARS", "CAR_IDENTITY", "USED_AGE", "TRIM", "BUDGET_INTENT", "PERSONA",
+    "TOO_MANY_CARS", "CAR_IDENTITY", "UNKNOWN_MODEL", "USED_AGE", "TRIM", "GEARBOX", "BUDGET_INTENT", "PERSONA",
 )  # fmt: skip
 MAX_QUESTIONS = 3
 DEFAULT_CONFIRM_THRESHOLD_EUR = 0.30
@@ -141,11 +143,14 @@ def _questions(case: CaseFile, state: dict[str, CarState]) -> tuple[list[Questio
         st = state[c.key]
         if not st.identity_known:
             needed.setdefault("CAR_IDENTITY", []).append(c.key)
+        elif c.resolution == "UNKNOWN_MODEL":
+            needed.setdefault("UNKNOWN_MODEL", []).append(c.key)
         elif c.condition == "USED" and c.year is None and st.plausible_generations != 1:
             needed.setdefault("USED_AGE", []).append(c.key)
         if case.budget.max_eur and case.budget.intent == "UNKNOWN" and c.condition == "UNKNOWN":
             needed.setdefault("BUDGET_INTENT", []).append(c.key)  # new or used changes the answer (FR-021)
-    blocking = [q for q in QUESTION_ORDER if q in needed and q not in case.asked]
+    # a car question is asked again until the car is settled (spec 004 FR-031); the others only once
+    blocking = [q for q in QUESTION_ORDER if q in needed and (q in REASK or q not in case.asked)]
     if blocking and case.persona == "UNKNOWN" and "PERSONA" not in case.asked:
         blocking.append("PERSONA")  # FR-005a: only alongside another question, never a questionnaire
     blocking = blocking[:MAX_QUESTIONS]
@@ -157,6 +162,8 @@ def _needs_confirmation(case: CaseFile, key: str, st: CarState) -> bool:
     car = case.car(key)
     if car.resolution in ("CONFIRMED", "AUTO_OK"):
         return False
+    if car.resolution == "UNKNOWN_MODEL":
+        return False  # asked as a question, never proposed
     return st.ambiguous or car.condition == "USED" or not st.in_catalog
 
 
@@ -176,5 +183,6 @@ def fingerprint(case: CaseFile) -> str:
         "race": case.race_settings.model_dump() if case.race_settings else None,
         "prediction": case.prediction.winner_key if case.prediction else None,
         "profile_age": case.profile.age,
+        "level": case.compare_level,
     }
     return hashlib.sha256(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()[:32]

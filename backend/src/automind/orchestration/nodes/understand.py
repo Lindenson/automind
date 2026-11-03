@@ -10,9 +10,10 @@ from automind.application import feasibility as fz_app
 from automind.application import research, resolve
 from automind.application.interpret import Interpretation, InterpretError, interpret
 from automind.config import settings
-from automind.domain import research_plan
+from automind.domain import identification, research_plan
 from automind.domain.casefile import CaseFile, apply
 from automind.domain.policy import CarState, decide
+from automind.orchestration import phrases
 from automind.orchestration.nodes import feasibility as fz_nodes
 from automind.orchestration.phrases import t
 from automind.orchestration.runner import TurnContext
@@ -51,34 +52,61 @@ async def apply_delta_node(state: TurnState, runtime: Runtime[TurnContext]) -> d
         new, changes = apply(case, i.delta, current_year=year)
     except ValueError:
         return {"action": "ASK", "done": True, "reply_text": t("which_car", i.language)}
-    new, extra = _pending_answered(new, i)
+    request = "choose_for_me" if phrases.choose_for_me(state.get("user_text")) else i.request
+    unclear = _not_understood(case, new, request)
+    new, extra = _pending_answered(new, i, request, keep=bool(unclear))
     changes += extra
+    out: dict[str, Any] = {"not_understood": unclear, "request_kind": request}
     if changes or new != case:
         version = await save_case(c, new, changes)
         return {
+            **out,
             "case_version": version,
             "case_changed": bool(changes),
             "persona_changed": any(ch.startswith("persona:") for ch in changes),
         }
-    return {"case_changed": False}
+    return {**out, "case_changed": False}
 
 
-def _pending_answered(case: CaseFile, i: Interpretation) -> tuple[CaseFile, list[str]]:
-    """A message after a question clears it; a yes to proposed variants confirms them."""
+def _not_understood(before: CaseFile, after: CaseFile, request: str) -> list[str]:
+    """Car keys whose pending question or variant proposal the message did not answer (spec 004 FR-031)."""
+    p = before.pending
+    if p is None or p.kind == "CONFIRM_COST":
+        return []
+    keys: list[str] = []
+    for item in p.items:
+        key = str(item.get("car") or "")
+        kind = "CONFIRM_VARIANTS" if p.kind == "CONFIRM_VARIANTS" else str(item.get("kind") or "")
+        if not key or kind not in (*identification.CAR_QUESTIONS, "CONFIRM_VARIANTS"):
+            continue
+        b = next((x for x in before.cars if x.key == key), None)
+        a = next((x for x in after.cars if x.key == key), None)
+        if not identification.answer_settles(kind, b, a, request) and key not in keys:
+            keys.append(key)
+    return keys
+
+
+def _pending_answered(
+    case: CaseFile, i: Interpretation, request: str | None = None, *, keep: bool = False
+) -> tuple[CaseFile, list[str]]:
+    """A message after a question clears it; a yes (or "choose for me") to proposed variants confirms them.
+    A message that did not answer a car question keeps it open (`keep`), so it is asked again."""
     if case.pending is None:
         return case, []
+    request = request or i.request
     c = case.model_copy(deep=True)
     log: list[str] = []
-    if c.pending is not None and c.pending.kind == "CONFIRM_VARIANTS" and i.request == "confirm_yes":
+    if c.pending is not None and c.pending.kind == "CONFIRM_VARIANTS" and request in ("confirm_yes", "choose_for_me"):
         for car in c.cars:
             if car.resolution == "PROPOSED" and car.variant_id:
                 car.resolution = "CONFIRMED"
                 log.append(f"{car.key} confirmed: {car.label}")
-    if c.pending is not None and c.pending.kind == "CONFIRM_VARIANTS" and i.request == "confirm_no":
+    if c.pending is not None and c.pending.kind == "CONFIRM_VARIANTS" and request == "confirm_no":
         for car in c.cars:
             if car.resolution == "PROPOSED":
                 car.variant_id, car.label, car.resolution = None, None, "UNRESOLVED"
-    c.pending = None
+    if not keep:
+        c.pending = None
     return c, log
 
 
@@ -89,11 +117,15 @@ async def assess_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[s
     year = current_year(c)
     assessments: dict[str, dict[str, Any]] = {}
     changed: list[str] = []
+    level, source = await resolve.compare_level(case.cars)
+    if (level, source) != (case.compare_level, case.compare_level_source):
+        case.compare_level, case.compare_level_source = level, source  # type: ignore[assignment]
+        changed.append(f"comparison level: {level.lower()}")
     for car in case.cars:
-        reason = await resolve.revalidate(car, c.ports.ref, year)
+        reason = await resolve.revalidate(car, c.ports.ref, year) or await resolve.revalidate_level(car, level)
         if reason:
             changed.append(reason)
-        a = await resolve.assess_car(car, c.ports.ref, year)
+        a = await resolve.assess_car(car, c.ports.ref, year, level)
         if resolve.auto_resolve(car, a):
             changed.append(f"{car.key} → {car.label}")
         assessments[car.key] = a.model_dump(mode="json")

@@ -17,6 +17,7 @@ from sqlalchemy import (
     Integer,
     Numeric,
     PrimaryKeyConstraint,
+    SmallInteger,
     String,
     Text,
     UniqueConstraint,
@@ -54,6 +55,12 @@ class Variant(Base):
     vehicle_class: Mapped[str | None] = mapped_column("class", String(20))  # small|compact|mid_large|premium_suv_4x4
     segment: Mapped[str | None] = mapped_column(String(40))
     brand_positioning: Mapped[str | None] = mapped_column(String(12))  # PREMIUM|MAINSTREAM|BUDGET (sourced)
+    # spec 004: gearbox and driven wheels when a model is sold with several (FR-028); equipment level (FR-029)
+    transmission: Mapped[str | None] = mapped_column(String(16))  # manual|automatic|dct|cvt|e-cvt|single
+    drive: Mapped[str | None] = mapped_column(String(4))  # FWD | RWD | AWD
+    trim: Mapped[str | None] = mapped_column(String(64))  # equipment name, e.g. "Klass", "Homura"
+    trim_level: Mapped[str | None] = mapped_column(String(4))  # BASE | MID | TOP
+    price_eur: Mapped[float | None] = mapped_column(Numeric(10, 0))  # official price of this version (ES)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
     @property
@@ -428,13 +435,56 @@ class ManufacturerFact(Base):
     __tablename__ = "manufacturer_facts"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
     make: Mapped[str] = mapped_column(String(80), index=True)
-    fact_type: Mapped[str] = mapped_column(String(16))  # HISTORY | KEY_MODEL | MARKET_POSITION
+    # HISTORY | KEY_MODEL | MARKET_POSITION | MARKET_SHARE | FINANCIAL | RELIABILITY_REPUTATION | NETWORK_ES
+    fact_type: Mapped[str] = mapped_column(String(32))
+    value_num: Mapped[float | None] = mapped_column(Float)
+    year: Mapped[int | None] = mapped_column(Integer)
     text: Mapped[str] = mapped_column(Text)
     positioning: Mapped[str | None] = mapped_column(String(12))  # PREMIUM | MAINSTREAM | BUDGET
     excerpt: Mapped[str] = mapped_column(Text, default="")
     url: Mapped[str] = mapped_column(Text, default="")
     source_name: Mapped[str] = mapped_column(String(200), default="")
     retrieved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class ValueRetention(Base):
+    """Value left after N years (spec 004 FR-005): sourced, or the labelled depreciation curve."""
+
+    __tablename__ = "value_retention"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    variant_id: Mapped[str] = mapped_column(ForeignKey("vehicle_variants.id"), index=True)
+    evidence_id: Mapped[str | None] = mapped_column(ForeignKey("evidence.id"))
+    years: Mapped[int] = mapped_column(SmallInteger)
+    share: Mapped[float | None] = mapped_column(Numeric(4, 3))
+    eur: Mapped[float | None] = mapped_column(Numeric(10, 0))
+    market: Mapped[str] = mapped_column(String(4), default="ES")
+    quoted_on: Mapped[date | None] = mapped_column(Date)
+    basis: Mapped[str] = mapped_column(String(12))  # SOURCED | ASSUMPTION
+    excerpt: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class ReportRating(Base):
+    __tablename__ = "report_ratings"
+    message_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    chat_id: Mapped[str] = mapped_column(ForeignKey("chats.id", ondelete="CASCADE"), index=True)
+    rating: Mapped[int] = mapped_column(SmallInteger)
+    note: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class ValueChallenge(Base):
+    __tablename__ = "value_challenges"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    chat_id: Mapped[str] = mapped_column(ForeignKey("chats.id", ondelete="CASCADE"), index=True)
+    turn_id: Mapped[str | None] = mapped_column(String(36))
+    variant_id: Mapped[str] = mapped_column(ForeignKey("vehicle_variants.id"))
+    attribute: Mapped[str | None] = mapped_column(String(40))
+    claim_id: Mapped[str | None] = mapped_column(String(36))
+    user_text: Mapped[str] = mapped_column(Text, default="")
+    outcome: Mapped[str] = mapped_column(String(12), default="UNRESOLVED")  # CONFIRMED|CORRECTED|REMOVED|UNRESOLVED
+    details: Mapped[dict] = mapped_column(JSONB, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 
 # --- Deterministic computations stored per turn for reproducibility (data-model §5) -----------

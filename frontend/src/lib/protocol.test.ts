@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { mockBlocks } from "../mock/data";
-import { HistorySchema, parseBlocks, parseServerMsg } from "./protocol";
+import { CaseSchema, HistorySchema, parseBlocks, parseServerMsg } from "./protocol";
 
 describe("parseBlocks", () => {
   it("accepts every mock block type and drops unknown ones", () => {
@@ -185,5 +185,26 @@ describe("sources block (spec 003)", () => {
     expect(blocks).toHaveLength(1);
     const b = blocks[0] as { items: { rejected?: { reason: string } | null }[] };
     expect(b.items[1]?.rejected?.reason).toContain("G60");
+  });
+});
+
+describe("spec 004 US8", () => {
+  it("parses quick replies", () => {
+    const [b] = parseBlocks([
+      { type: "quick_replies", items: [{ label: "Toyota RAV4", text: "Toyota RAV4" }] },
+    ]);
+    expect(b?.type).toBe("quick_replies");
+  });
+  it("keeps a case with an unknown model and the comparison level", () => {
+    const c = CaseSchema.parse({
+      cars: [{ key: "car#1", request_text: "Rav7", resolution: "UNKNOWN_MODEL" }],
+      compare_level: "TOP",
+      compare_level_source: "USER_TRIM",
+    });
+    expect(c.cars[0]?.resolution).toBe("UNKNOWN_MODEL");
+    expect(c.compare_level).toBe("TOP");
+    expect(CaseSchema.parse({ cars: [{ key: "x", resolution: "NEW_STATE" }] }).cars[0]?.resolution).toBe(
+      "UNRESOLVED",
+    );
   });
 });

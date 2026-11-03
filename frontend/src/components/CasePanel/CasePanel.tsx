@@ -30,6 +30,7 @@ const RESOLUTION: Record<string, { label: string; cls: string }> = {
   PROPOSED: { label: "to confirm", cls: "text-warn border-warn/40" },
   CONFIRMED: { label: "confirmed", cls: "text-good border-good/40" },
   AUTO_OK: { label: "identified", cls: "text-good border-good/40" },
+  UNKNOWN_MODEL: { label: "unknown model", cls: "text-warn border-warn/40" },
 };
 const nice = (s: string) =>
   s.charAt(0) + s.slice(1).toLowerCase().replace(/_/g, " ");
@@ -130,6 +131,14 @@ export function CaseBody() {
 
       <Section title="Cars">
         {c.cars.length === 0 && <p className="text-sm text-muted">None yet.</p>}
+        {c.cars.length > 1 && (
+          <p className="mb-1.5 text-xs text-muted" data-testid="compare-level">
+            Compared at the {c.compare_level.toLowerCase()} equipment level
+            {c.compare_level_source === "USER_TRIM"
+              ? " (the version you named)"
+              : " (cheapest version on sale)"}
+          </p>
+        )}
         <ul className="space-y-1.5">
           {c.cars.map((car) => {
             const r = RESOLUTION[car.resolution] ?? RESOLUTION.UNRESOLVED!;

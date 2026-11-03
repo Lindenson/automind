@@ -14,6 +14,7 @@ import { Sources } from "./Sources";
 import { Tco } from "./Tco";
 import { Feasibility } from "./Feasibility";
 import { SpecTable } from "./SpecTable";
+import { QuickReplies } from "./QuickReplies";
 
 export function BlockView({ block }: { block: Block }) {
   switch (block.type) {
@@ -47,6 +48,8 @@ export function BlockView({ block }: { block: Block }) {
       return <Reliability b={block} />;
     case "reviews":
       return <Reviews b={block} />;
+    case "quick_replies":
+      return <QuickReplies b={block} />;
     default:
       return null;
   }

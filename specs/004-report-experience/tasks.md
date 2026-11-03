@@ -32,14 +32,14 @@ because the verdict is built from insights. Both are P1 and together they are th
 - [X] T004 [P] Create `backend/config/tech_explainers.yaml` with entries for power-split hybrid, series hybrid, e-CVT, DCT, torque-converter automatic, manual, MHEV, PHEV and BEV single-speed. Each entry has a short explanation, its consequences (consumption, reliability, feel) and a source or `editorial` (research R6)
 - [X] T005 [P] Add the optional `transmissions` and `drives` lists per generation to `backend/config/generations.yaml`, for the models sold with several (CX-5 KF: manual, automatic; FWD, AWD; RAV4 XA60 and CR-V where they apply) (research R5)
 - [X] T006 [P] Add the `depreciation` area to `backend/config/queries.yaml` and `backend/config/sources.yaml`, using the analyst favourites (Autovista24, cap hpi, iSeeCars, editorial buying guides). Add manufacturer queries for market share, financial results, reliability reputation and network in Spain, and `model_year_changes` queries for the engineering area (research R6)
-- [ ] T007 Write migration `backend/alembic/versions/0007_report_experience.py`:
+- [X] T007 Write migration `backend/alembic/versions/0007_report_experience.py`:
   - `vehicle_variants` gains `transmission varchar(16)` (`manual`, `automatic`, `dct`, `cvt`, `e-cvt`, `single`; null = unknown) and `drive varchar(4)` (`FWD`, `RWD`, `AWD`);
   - `manufacturer_facts.fact_type` gains `MARKET_SHARE`, `FINANCIAL`, `RELIABILITY_REPUTATION`, `NETWORK_ES`, plus `value_num` and `year`;
   - new table `value_retention` with id uuid PK, variant_id FK, evidence_id FK null, years smallint, share numeric(4,3) null, eur numeric(10,0) null, market varchar(4), quoted_on date null, basis varchar(12) `SOURCED`/`ASSUMPTION`, excerpt text;
   - new table `report_ratings` with message_id PK, chat_id, rating smallint 1–5, note, created_at; it is deleted with the chat;
   - new table `value_challenges` with id, chat_id, turn_id, variant_id, attribute or claim_id, user_text, outcome `CONFIRMED`/`CORRECTED`/`REMOVED`/`UNRESOLVED`, details jsonb, created_at;
   - the downgrade reverses all of it.
-- [ ] T008 Add the ORM models and columns for T007 in `backend/src/automind/infrastructure/db/` (models module), and add the new chat-scoped tables to chat deletion in `backend/src/automind/application/chats.py`
+- [X] T008 Add the ORM models and columns for T007 in `backend/src/automind/infrastructure/db/` (models module), and add the new chat-scoped tables to chat deletion in `backend/src/automind/application/chats.py`
 - [ ] T009 [P] Extend `backend/tests/integration/test_migrations.py` to test 0007: upgrade, downgrade, upgrade again
 - [ ] T010 [P] Add the new block types `verdict`, `comparison`, `data_panel`, `value_retention`, `suggestions` and `section` to `frontend/src/lib/protocol.ts` exactly as in contracts/report-blocks-and-protocol.md. Also add the client messages `find`, `challenge`, `rating` and `suggestion` and the server messages `progress` and `challenge_result`. Extend `criteria_scores` with `relative`. Unknown blocks stay ignored. Add tests in `frontend/src/lib/protocol.test.ts`
 - [ ] T011 [P] Create the i18n skeleton: `frontend/src/i18n/en.ts`, `ru.ts`, `es.ts`, a typed key set (the `en` keys are the type) and `frontend/src/i18n/index.ts` with `useT()`. The language comes from the latest `assistant_message.language` unless the user switched it manually; a manual choice is stored in localStorage inside try/catch (research R12)
@@ -94,13 +94,13 @@ because the verdict is built from insights. Both are P1 and together they are th
 
 ### Tests first
 
-- [ ] T021 [P] [US8] Write `backend/tests/unit/domain/test_identification.py` for `settled(car, assessment)`:
+- [X] T021 [P] [US8] Write `backend/tests/unit/domain/test_identification.py` for `settled(car, assessment)`:
   - make, model, unique generation and a confirmed or unique version → settled;
   - PROPOSED → not settled;
   - unknown model → not settled, reason UNKNOWN_MODEL.
 
   Also cover `answer_settles(pending_item, before, after, request)`: a field set, an option picked or a yes/no settles; a nonsense message with no delta does not. And cover `level_for(cars)`: no trim → BASE; "Homura" at the top of its price-ordered range → TOP for the others; a gearbox or drive wish narrows the range first.
-- [ ] T022 [P] [US8] Write graph tests in `backend/tests/graph/test_identification_loop.py`:
+- [X] T022 [P] [US8] Write graph tests in `backend/tests/graph/test_identification_loop.py`:
   - a nonsense answer to CAR_IDENTITY or TRIM re-asks the same question (pending kept, `asked` not consumed, a `not_understood` phrase);
   - a nonsense free-text answer to CONFIRM_VARIANTS re-proposes and never confirms;
   - no search, research or report node runs until every car is settled;
@@ -110,17 +110,17 @@ because the verdict is built from insights. Both are P1 and together they are th
 
 ### Implementation
 
-- [ ] T024 [US8] Add `trim varchar(64)`, `trim_level varchar(4)` (`BASE`, `MID`, `TOP`) and `price_eur numeric(10,0)` (official, null = unknown) to `vehicle_variants` in migration `backend/alembic/versions/0007_report_experience.py` and to the ORM model. Add `compare_level` BASE|MID|TOP and `compare_level_source` DEFAULT|USER_TRIM to the case in `backend/src/automind/domain/casefile.py`, and `attempts` and `not_understood` to `Pending.items`
-- [ ] T025 [US8] Implement `backend/src/automind/domain/identification.py`, pure: `settled`, `answer_settles`, `level_for`, `closest_models(name, known, scorer)` (the fuzzy scorer is passed in, so domain stays free of libraries). Makes T021 pass
-- [ ] T026 [US8] Policy: in `backend/src/automind/domain/policy.py`, while any car is not `settled`, return only ASK or CONFIRM_VARIANTS, never RESEARCH, REPORT or ANSWER (FR-030). `_questions` re-asks a car question whose pending answer did not settle it, even when it is in `asked`
-- [ ] T027 [US8] Answer check in `backend/src/automind/orchestration/nodes/understand.py` (`_pending_answered`):
+- [X] T024 [US8] Add `trim varchar(64)`, `trim_level varchar(4)` (`BASE`, `MID`, `TOP`) and `price_eur numeric(10,0)` (official, null = unknown) to `vehicle_variants` in migration `backend/alembic/versions/0007_report_experience.py` and to the ORM model. Add `compare_level` BASE|MID|TOP and `compare_level_source` DEFAULT|USER_TRIM to the case in `backend/src/automind/domain/casefile.py`, and `attempts` and `not_understood` to `Pending.items`
+- [X] T025 [US8] Implement `backend/src/automind/domain/identification.py`, pure: `settled`, `answer_settles`, `level_for`, `closest_models(name, known, scorer)` (the fuzzy scorer is passed in, so domain stays free of libraries). Makes T021 pass
+- [X] T026 [US8] Policy: in `backend/src/automind/domain/policy.py`, while any car is not `settled`, return only ASK or CONFIRM_VARIANTS, never RESEARCH, REPORT or ANSWER (FR-030). `_questions` re-asks a car question whose pending answer did not settle it, even when it is in `asked`
+- [X] T027 [US8] Answer check in `backend/src/automind/orchestration/nodes/understand.py` (`_pending_answered`):
   - compare the case before and after the delta with `answer_settles`;
   - when it does not settle, keep `pending`, increment `attempts`, do not consume `asked`, and route to `ask` with `not_understood`;
   - in `backend/src/automind/orchestration/nodes/confirm.py` (`apply_variants`), free text that is not an option, a yes/no or a car correction re-proposes the variants instead of continuing.
-- [ ] T028 [US8] Re-ask phrasing in `backend/src/automind/application/ask.py` and `backend/src/automind/orchestration/phrases.py`: "I did not understand <answer> for <car>", the same question, fewer options, and "choose for me" / "remove this car" buttons (`backend/config/questions.yaml`). Handle the buttons: "choose for me" → BASE level and the first proposal confirmed; "remove this car" → the car is dropped
-- [ ] T029 [US8] Unknown model: in `backend/src/automind/application/resolve.py`, when the make and model are not in the catalog or config and the resolver returns no generation, return UNKNOWN_MODEL with `closest_models` from `known_models`. The ask node offers them as options. The resolver never invents a variant (resolver prompt rule)
-- [ ] T030 [US8] Equal level. Extend `VariantIdentity` in `backend/src/automind/application/resolve.py` and `backend/src/automind/orchestration/prompts/resolver.md` with `trim`, `trim_level`, `price_eur` and `range` (versions on sale in Spain with official prices, price-ordered). The resolver returns the version at the requested level, taken from `case.compare_level`, which `level_for` sets in assess. Catalog reuse in `_fits` and `_rank` prefers variants at that level. Store the trim, level and price on the variant
-- [ ] T031 [US8] Show the level: "compared at base level" (or the user's level) in the verdict facts and the case summary in `backend/src/automind/application/compose.py`, and each version's trim in the car labels. In `frontend/src/components/CasePanel/CasePanel.tsx`, show the level and each car's settled state (settled / needs your answer). Add vitest cases
+- [X] T028 [US8] Re-ask phrasing in `backend/src/automind/application/ask.py` and `backend/src/automind/orchestration/phrases.py`: "I did not understand <answer> for <car>", the same question, fewer options, and "choose for me" / "remove this car" buttons (`backend/config/questions.yaml`). Handle the buttons: "choose for me" → BASE level and the first proposal confirmed; "remove this car" → the car is dropped
+- [X] T029 [US8] Unknown model: in `backend/src/automind/application/resolve.py`, when the make and model are not in the catalog or config and the resolver returns no generation, return UNKNOWN_MODEL with `closest_models` from `known_models`. The ask node offers them as options. The resolver never invents a variant (resolver prompt rule)
+- [X] T030 [US8] Equal level. Extend `VariantIdentity` in `backend/src/automind/application/resolve.py` and `backend/src/automind/orchestration/prompts/resolver.md` with `trim`, `trim_level`, `price_eur` and `range` (versions on sale in Spain with official prices, price-ordered). The resolver returns the version at the requested level, taken from `case.compare_level`, which `level_for` sets in assess. Catalog reuse in `_fits` and `_rank` prefers variants at that level. Store the trim, level and price on the variant
+- [X] T031 [US8] Show the level: "compared at base level" (or the user's level) in the verdict facts and the case summary in `backend/src/automind/application/compose.py`, and each version's trim in the car labels. In `frontend/src/components/CasePanel/CasePanel.tsx`, show the level and each car's settled state (settled / needs your answer). Add vitest cases
 
 **Checkpoint**: no research on an unsettled car. Nonsense answers are asked again. Equal-level comparisons are the default.
 

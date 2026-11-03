@@ -46,6 +46,11 @@ Rules
 - "and for a smart buyer?" after a report → weights_change with set_persona BUYER (ASKED).
 - Answers to a PENDING question fill the corresponding case fields. If PENDING is a variant or
   cost confirmation and the user simply agrees, request is confirm_yes; if they refuse, confirm_no.
+  If the user lets you choose the version ("any", "choose for me", "любой", "выбери сам", "cualquiera"),
+  request is choose_for_me. If the answer does not answer the question (nonsense, another topic, a model
+  you do not know), do NOT guess: leave the delta empty and keep request as it is; never invent a make or model.
+- A version (equipment level) named by the user ("Homura", "Klass", "GT Line", "base", "top version") goes to
+  constraints.trim_hint of that car.
 - A question about the current cars without new facts → follow_up_question, empty delta.
 - The user is not satisfied with the data and asks to find it or to redo the report ("why is there no data
   for the Mazda? find it and update the report", "search again", "look deeper", "this is incomplete") →

@@ -48,6 +48,7 @@ class TurnState(TypedDict, total=False):
     limit_hit: dict[str, Any] | None  # research paused at a limit: {reason, jobs} (asks the user, never cancels)
     limit_extensions: int  # how many times the user said "continue" in this turn
     feasibility: dict[str, Any] | None  # {results, fingerprint} from application.feasibility (spec 003 US3)
+    not_understood: list[str]  # car keys whose question the last message did not answer (spec 004 FR-031)
 
 
 PER_TURN_RESET: dict[str, Any] = {
@@ -66,6 +67,7 @@ PER_TURN_RESET: dict[str, Any] = {
     "limit_hit": None,
     "limit_extensions": 0,
     "feasibility": None,
+    "not_understood": [],
     "confirm_payload": None,
     "resume": None,
     "research_results": [RESET],

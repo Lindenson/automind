@@ -426,7 +426,14 @@ export const FeasibilityBlockSchema = z.object({
   ),
 });
 
+// spec 004 FR-031: one-tap answers under a question (closest models, "remove this car", "choose for me")
+export const QuickRepliesBlockSchema = z.object({
+  type: z.literal("quick_replies"),
+  items: z.array(z.object({ label: z.string(), text: z.string() })),
+});
+
 export const BlockSchema = z.discriminatedUnion("type", [
+  QuickRepliesBlockSchema,
   FeasibilityBlockSchema,
   SpecTableBlockSchema,
   MetricBarsBlockSchema,
@@ -559,8 +566,8 @@ export const CaseCarSchema = z.object({
   variant_id: z.string().nullish(),
   label: z.string().nullish(),
   resolution: z
-    .enum(["UNRESOLVED", "PROPOSED", "CONFIRMED", "AUTO_OK"])
-    .default("UNRESOLVED"),
+    .enum(["UNRESOLVED", "PROPOSED", "CONFIRMED", "AUTO_OK", "UNKNOWN_MODEL"])
+    .catch("UNRESOLVED"),
 });
 export const CaseSchema = z
   .object({
@@ -604,6 +611,9 @@ export const CaseSchema = z
     unmapped_wishes: z.array(z.string()).default([]),
     rates_override: z.record(z.string(), z.number().nullish()).default({}),
     cars: z.array(CaseCarSchema).default([]),
+    // spec 004 FR-029: the equipment level all cars are compared at
+    compare_level: z.enum(["BASE", "MID", "TOP"]).catch("BASE").default("BASE"),
+    compare_level_source: z.enum(["DEFAULT", "USER_TRIM"]).catch("DEFAULT").default("DEFAULT"),
   })
   .passthrough();
 export type CaseFile = z.infer<typeof CaseSchema>;

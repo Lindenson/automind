@@ -24,7 +24,9 @@ class Interpretation(BaseModel):
         "already discussed; weights_change: priorities/what matters changed; correction: user corrects a car or "
         "a fact; research_more: the user asks to find missing data, search again or redo/update the report "
         "('why is there no data for X? find it', 'update the report', 'look deeper'); general_question: general "
-        "automotive knowledge; confirm_yes/confirm_no: answer to a pending confirmation; chitchat: greetings/other"
+        "automotive knowledge; confirm_yes/confirm_no: answer to a pending confirmation; choose_for_me: the user "
+        "lets the hub pick the version ('any', 'choose for me', 'любой', 'на твой выбор', 'cualquiera'); "
+        "chitchat: greetings/other"
     )
     language: str = Field(description="ISO 639-1 code of the user's message, e.g. 'ru', 'en', 'es'")
     delta: CaseDelta = Field(default_factory=CaseDelta, description="Changes to the case file stated in THIS message")

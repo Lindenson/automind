@@ -46,9 +46,11 @@ PersonaSource = Literal["INFERRED", "ASKED", "USER_EDIT"]
 Usage = Literal["CITY", "MOTORWAY", "MOUNTAINS", "OFFROAD", "TRACK", "FAMILY"]
 Depth = Literal["QUICK", "STANDARD", "DEEP"]
 Condition = Literal["NEW", "USED", "UNKNOWN"]
-Resolution = Literal["UNRESOLVED", "PROPOSED", "CONFIRMED", "AUTO_OK"]
+Resolution = Literal["UNRESOLVED", "PROPOSED", "CONFIRMED", "AUTO_OK", "UNKNOWN_MODEL"]
 Strength = Literal["LOW", "MEDIUM", "HIGH"]
-QuestionKind = Literal["TOO_MANY_CARS", "CAR_IDENTITY", "USED_AGE", "TRIM", "PERSONA", "BUDGET_INTENT"]
+QuestionKind = Literal[
+    "TOO_MANY_CARS", "CAR_IDENTITY", "USED_AGE", "TRIM", "PERSONA", "BUDGET_INTENT", "UNKNOWN_MODEL", "GEARBOX"
+]  # fmt: skip
 BudgetIntent = Literal["NEW", "USED", "ANY", "UNKNOWN"]
 
 MAX_CARS = 3
@@ -170,6 +172,9 @@ class CaseFile(BaseModel):
     asked: list[QuestionKind] = Field(default_factory=list)  # question kinds already asked (one round, FR-005)
     declined_plan: str | None = None  # research plan the user declined; not offered again until it changes
     pending: Pending | None = None
+    # spec 004 FR-029: all cars are compared at one equipment level (base unless the user named a version)
+    compare_level: Literal["BASE", "MID", "TOP"] = "BASE"
+    compare_level_source: Literal["DEFAULT", "USER_TRIM"] = "DEFAULT"
     shown: list[Shown] = Field(default_factory=list)
 
     @property

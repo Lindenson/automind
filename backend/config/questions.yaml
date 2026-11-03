@@ -7,3 +7,5 @@ USED_AGE: "For the {car}: roughly how old, or which generation ({options})? The 
 TRIM: "Which version of the {car} do you mean ({options})?"
 PERSONA: "So I can tailor the answer: what matters most to you — low running costs and reliability, driving performance, or the engineering details?"
 BUDGET_INTENT: "With a budget of {options}: are you looking for a new car, a used one, or either?"
+UNKNOWN_MODEL: "I don't know a car called \"{car}\". Did you mean one of these: {options}? Or tell me the make and model again."
+GEARBOX: "The {car} is sold with several gearboxes or drives ({options}). Which one do you mean?"

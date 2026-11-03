@@ -40,6 +40,13 @@ def case_facts(case: CaseFile) -> list[str]:
     if case.priorities:
         out.append("priorities: " + ", ".join(p.criterion.replace("_", " ") for p in case.priorities))
     out.append(f"{case.annual_km:,} km per year")
+    if len(case.cars) > 1 and any(x.condition != "USED" for x in case.cars):  # spec 004 FR-029
+        why = (
+            "the level of the version you named"
+            if case.compare_level_source == "USER_TRIM"
+            else ("the cheapest version on sale; name a version to change it")
+        )
+        out.append(f"compared at the {case.compare_level.lower()} equipment level ({why})")
     return out
 
 
