@@ -15,6 +15,7 @@ area_markets:               # markets searched per area (German instrumented tes
   reliability: [ES, EN, DE]
   used_issues: [ES, EN, DE]
   used_price: [ES, EN]
+  depreciation: [ES, EN]   # residual values: Spanish and UK analysts (spec 004)
 sites_per_query: 4          # favourite sites grouped into one `site:a OR site:b` query
 ai_followup: {max_queries_per_area: 3, depths: [DEEP, STANDARD]}
 limits: {max_pages_per_job: 6, max_fetch_bytes_per_turn: 40000000}

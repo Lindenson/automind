@@ -78,6 +78,13 @@ async def load_car(variant_id: str) -> dict:
         facts_rows = list(
             (await s.execute(select(db.ManufacturerFact).where(db.ManufacturerFact.make == v.make))).scalars()
         )
+        retention = (
+            await s.execute(
+                select(db.ValueRetention, db.Evidence)
+                .join(db.Evidence, db.ValueRetention.evidence_id == db.Evidence.id, isouter=True)
+                .where(db.ValueRetention.variant_id == variant_id)
+            )
+        ).all()
         rejected_rows = (
             await s.execute(
                 select(db.PageRelevance, db.Document)
@@ -124,6 +131,7 @@ async def load_car(variant_id: str) -> dict:
         "reviews": [(r, e) for r, e in reviews],
         "manufacturer_facts": facts_rows,
         "stats": stats,
+        "retention": [(r, e) for r, e in retention],
     }
 
 
@@ -583,7 +591,7 @@ def case_summary_block(persona: str, facts_list: list[str], cars: list[dict]) ->
     return {"type": "case_summary", "persona": persona, "facts": facts_list, "cars": cars}
 
 
-def engineering_block(cars: list[dict]) -> dict | None:
+def engineering_block(cars: list[dict], explainers: dict | None = None) -> dict | None:
     out = []
     for c in cars:
         items = []
@@ -600,10 +608,31 @@ def engineering_block(cars: list[dict]) -> dict | None:
                     "sources": [_src(c, cid) for cid in (sv.claim_ids or []) if cid in c["claim_src"]],
                 }
             )
-        out.append({"car_id": c["variant"].id, "label": c["variant"].label, "items": items})
-    if not any(x["items"] for x in out):
+        out.append({"car_id": c["variant"].id, "label": c["variant"].label, "items": items,
+                    "explainers": tech_explainers(c, explainers or {})})  # fmt: skip
+    if not any(x["items"] or x["explainers"] for x in out):
         return None
     return {"type": "engineering", "title": "Engineering", "cars": out}
+
+
+def tech_explainers(car: dict, cfg: dict) -> list[dict]:
+    """What the car's drivetrain technology means (spec 004 FR-004): config text matched on the car's own
+    validated gearbox / engine / powertrain, never web text. Most specific match first, at most two."""
+    v = car["variant"]
+    words = " ".join(
+        str(x) for x in (_txt(car, "transmission"), _txt(car, "engine"), v.variant_name, v.powertrain,
+                         v.transmission) if x
+    ).lower()  # fmt: skip
+    hits = []
+    for key, e in (cfg.get("explainers") or {}).items():
+        if any(m in words for m in e.get("match", [])):
+            hits.append({"key": key, "title": e.get("title", key), "text": e.get("text", ""),
+                         "consumption": e.get("consumption"), "reliability": e.get("reliability"),
+                         "feel": e.get("feel"), "source": e.get("source", "editorial")})  # fmt: skip
+    hybrid = {"power_split_hybrid", "series_hybrid"}
+    if any(h["key"] in hybrid for h in hits):  # a hybrid's "automatic" label is not a torque converter
+        hits = [h for h in hits if h["key"] not in ("torque_converter", "cvt")]
+    return hits[:2]
 
 
 def manufacturer_block(cars: list[dict]) -> dict | None:
@@ -616,6 +645,7 @@ def manufacturer_block(cars: list[dict]) -> dict | None:
             {
                 "kind": f.fact_type,
                 "text": f.text,
+                "year": getattr(f, "year", None),
                 "sources": [
                     {
                         "name": f.source_name or f.url,
@@ -626,15 +656,31 @@ def manufacturer_block(cars: list[dict]) -> dict | None:
                     }
                 ],
             }
-            for f in c.get("manufacturer_facts", [])[:6]
+            for f in _manufacturer_facts(c.get("manufacturer_facts", []))
         ]
-    if not any(makes.values()):
+    if not makes:
         return None
+    # spec 004 FR-006: fewer than two facts for a make is shown as insufficient, with "find it"
     return {
         "type": "manufacturer",
         "title": "Manufacturer",
-        "makes": [{"make": m, "facts": f} for m, f in makes.items()],
+        "makes": [{"make": m, "facts": f, "insufficient": len(f) < 2} for m, f in makes.items()],
     }
+
+
+_FACT_ORDER = ("MARKET_SHARE", "FINANCIAL", "RELIABILITY_REPUTATION", "NETWORK_ES", "MARKET_POSITION", "KEY_MODEL",
+               "HISTORY")  # fmt: skip
+
+
+def _manufacturer_facts(rows: list) -> list:
+    """Two facts per kind at most, the situation first (share, finances, reliability, network), newest first."""
+    by: dict[str, list] = {}
+    for f in sorted(rows, key=lambda f: (-(getattr(f, "year", None) or 0), f.retrieved_at), reverse=False):
+        by.setdefault(f.fact_type, []).append(f)
+    out = []
+    for kind in (*_FACT_ORDER, *sorted(set(by) - set(_FACT_ORDER))):
+        out += by.get(kind, [])[:2]
+    return out[:10]
 
 
 def _src(car: dict, claim_id: str) -> dict:
@@ -928,6 +974,7 @@ def insight_values(
     reliability_score: float | None,
     energy_eur_per_unit: float | None,
     accel_0_100: float | None = None,
+    retention_curve: dict | None = None,
 ) -> ins.CarValues:
 
     v = car["variant"]
@@ -947,4 +994,57 @@ def insight_values(
         values["tco_per_year"], conf["tco_per_year"] = annual_cost, "MEDIUM"
     if reliability_score is not None:
         values["reliability_score"], conf["reliability_score"] = reliability_score, "MEDIUM"
+    five = next((p for p in retention_points(car, retention_curve or {}) if p["years"] == 5), None)
+    if five is not None and five["share"]:
+        values["value_retention_5y"] = round(five["share"] * 100, 1)
+        conf["value_retention_5y"] = "MEDIUM" if five["basis"] == "SOURCED" else "LOW"
     return ins.CarValues(v.id, short_name(v), values, conf, srcs, energy_eur_per_unit)
+
+
+# --- value retention (spec 004 FR-005) ----------------------------------------------------------------------
+
+RETENTION_YEARS = (3, 5)
+
+
+def retention_points(car: dict, curve: dict[str, dict[float, float]]) -> list[dict]:
+    """Value left after 3 and 5 years: sourced points (median per year when several), else the labelled
+    depreciation curve of the car's class (feasibility.yaml)."""
+    v = car["variant"]
+    out = []
+    for years in RETENTION_YEARS:
+        rows = [(r, e) for r, e in car.get("retention", []) if r.years == years and r.share is not None]
+        if rows:
+            shares = sorted(float(r.share) for r, _ in rows)
+            mid = shares[len(shares) // 2]
+            srcs = [{"name": e.source_name, "url": e.url, "type": e.source_type, "excerpt": r.excerpt,
+                     "retrieved_at": e.retrieved_at.isoformat()} for r, e in rows if e is not None][:3]  # fmt: skip
+            out.append({"years": years, "share": round(mid, 3), "eur": None, "basis": "SOURCED",
+                        "market": rows[0][0].market, "sources": srcs,
+                        "low": shares[0], "high": shares[-1]})  # fmt: skip
+            continue
+        table = curve.get(v.vehicle_class or "compact") or curve.get("compact") or {}
+        share = _interp(table, years)
+        if share is not None:
+            out.append({"years": years, "share": round(share, 3), "eur": None, "basis": "ASSUMPTION",
+                        "market": "ES", "sources": [], "low": None, "high": None})  # fmt: skip
+    price = _num(car, "official_price_es")
+    for p in out:
+        if price and p["share"]:
+            p["eur"] = round(price * p["share"], -2)
+    return out
+
+
+def _interp(table: dict, years: float) -> float | None:
+    pts = sorted((float(k), float(x)) for k, x in table.items())
+    for (a, va), (b, vb) in zip(pts, pts[1:], strict=False):
+        if a <= years <= b:
+            return va + (vb - va) * (years - a) / (b - a)
+    return None
+
+
+def value_retention_block(cars: list[dict], curve: dict[str, dict[float, float]]) -> dict | None:
+    rows = [{"car_id": c["variant"].id, "label": c["variant"].label, "points": retention_points(c, curve)}
+            for c in cars]  # fmt: skip
+    if not any(r["points"] for r in rows):
+        return None
+    return {"type": "value_retention", "title": "Value after 3 and 5 years", "cars": rows}

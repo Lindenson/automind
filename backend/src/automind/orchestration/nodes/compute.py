@@ -88,6 +88,7 @@ async def _insights(
             reliability_score=(rel.get(car["variant"].id).score if rel.get(car["variant"].id) else None),
             energy_eur_per_unit=energy.get(car["variant"].id),
             accel_0_100=getattr(sims.get(car["variant"].id), "t_0_100", None),
+            retention_curve=(c.ports.ref.feasibility or {}).get("depreciation"),
         )
         for _, car in keyed
     ]  # fmt: skip
@@ -192,10 +193,11 @@ async def _blocks(
         if fz_block is not None:
             blocks.append(fz_block)
     for extra in (
-        compose.engineering_block(cars),
+        compose.engineering_block(cars, c.ports.ref.explainers),
         compose.manufacturer_block(cars),
         compose.reliability_block(cars, ages),
         compose.reviews_block(cars),
+        compose.value_retention_block(cars, (c.ports.ref.feasibility or {}).get("depreciation") or {}),
         _data_panel(c, case, keyed),  # spec 004 FR-014: one panel instead of a warning per section
     ):
         if extra is not None:

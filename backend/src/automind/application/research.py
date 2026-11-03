@@ -786,13 +786,16 @@ def _issues(s: Any, v: db.Variant, area: str, e: db.Evidence, out: Any, k: _Coun
 
 def _manufacturer(s: Any, v: db.Variant, d: WebDoc, out: Any, k: _Counter) -> None:
     for f in out.facts:
-        if k.ok(f.excerpt):
+        number = getattr(f, "value_num", None)
+        if k.ok(f.excerpt, must=f"{number:g}" if number is not None else None):
             s.add(
                 db.ManufacturerFact(
                     make=v.make,
                     fact_type=f.fact_type,
                     text=f.text,
                     positioning=f.positioning if f.fact_type == "MARKET_POSITION" else None,
+                    value_num=number,
+                    year=getattr(f, "year", None),
                     excerpt=f.excerpt,
                     url=d.url,
                     source_name=d.title[:200],
@@ -817,7 +820,28 @@ async def _items(
         _manufacturer(s, v, d, out, k)
     elif area == "used_price":
         _used_prices(s, v, e, out, k, ports_rates=rates or {"EUR": 1.0})
+    elif area == "depreciation":
+        _retention(s, v, e, out, k)
     return k.accepted, k.rejected
+
+
+def _retention(s: Any, v: db.Variant, e: db.Evidence, out: Any, k: _Counter) -> None:
+    """Residual values (spec 004 FR-005): verbatim excerpt with the number, 1–10 years, 5–100% left."""
+    for p in out.points:
+        share = float(p.share_pct) / 100 if p.share_pct is not None else None
+        number = p.share_pct if p.share_pct is not None else p.eur
+        if number is None or not 1 <= int(p.years) <= 10 or (share is not None and not 0.05 <= share <= 1.0):
+            k.rejected += 1
+            continue
+        if not k.ok(p.excerpt, must=f"{number:g}" if share is None else None):
+            continue
+        s.add(
+            db.ValueRetention(
+                variant_id=v.id, evidence_id=e.id, years=int(p.years), share=share,
+                eur=float(p.eur) if share is None and p.eur else None, market=p.market,
+                quoted_on=_date(p.quoted_on), basis="SOURCED", excerpt=p.excerpt[:600],
+            )
+        )  # fmt: skip
 
 
 def _used_prices(s: Any, v: db.Variant, e: db.Evidence, out: Any, k: _Counter, ports_rates: dict[str, float]) -> None:
@@ -884,7 +908,7 @@ async def _maintenance_sources(s: Any, v: db.Variant) -> list[tuple[str, str]]:
 
 async def _table_sources(s: Any, v: db.Variant, area: str) -> list[tuple[str, str]]:
     table: Any = {"reviews": db.ReviewItem, "reliability": db.Issue, "used_issues": db.Issue,
-                  "used_price": db.UsedPriceRange}[area]  # fmt: skip
+                  "used_price": db.UsedPriceRange, "depreciation": db.ValueRetention}[area]  # fmt: skip
     q = select(db.Evidence.domain, db.Evidence.source_type).join(table, table.evidence_id == db.Evidence.id)
     q = q.where(table.variant_id == v.id)
     if table is db.UsedPriceRange:

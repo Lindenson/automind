@@ -43,6 +43,22 @@ export function Engineering({ b }: { b: BlockOf<"engineering"> }) {
                 ))}
               </dl>
             )}
+            {car.explainers.map((e) => (
+              <details key={e.key} className="mt-2 rounded-lg bg-panel2/60 p-2 text-xs">
+                <summary className="cursor-pointer font-medium">{e.title}</summary>
+                <p className="mt-1 text-fg/80">{e.text}</p>
+                <ul className="mt-1 space-y-0.5 text-muted">
+                  {e.consumption && <li>Consumption: {e.consumption}</li>}
+                  {e.reliability && <li>Reliability: {e.reliability}</li>}
+                  {e.feel && <li>Feel: {e.feel}</li>}
+                </ul>
+                {e.source === "editorial" && (
+                  <p className="mt-1 text-[10px] uppercase tracking-wide text-muted">
+                    editorial explanation
+                  </p>
+                )}
+              </details>
+            ))}
           </div>
         ))}
       </div>

@@ -360,6 +360,20 @@ export const EngineeringBlockSchema = z.object({
           sources: z.array(SourceRefSchema),
         }),
       ),
+      // spec 004 FR-004: what the drivetrain technology means (editorial config text)
+      explainers: z
+        .array(
+          z.object({
+            key: z.string(),
+            title: z.string(),
+            text: z.string(),
+            consumption: z.string().nullish(),
+            reliability: z.string().nullish(),
+            feel: z.string().nullish(),
+            source: z.string(),
+          }),
+        )
+        .default([]),
     }),
   ),
 });
@@ -372,9 +386,35 @@ export const ManufacturerBlockSchema = z.object({
       make: z.string(),
       facts: z.array(
         z.object({
-          kind: z.enum(["HISTORY", "KEY_MODEL", "MARKET_POSITION"]),
+          kind: z.string(), // HISTORY | KEY_MODEL | MARKET_POSITION | MARKET_SHARE | FINANCIAL | … (spec 004)
           text: z.string(),
+          year: z.number().nullish(),
           sources: z.array(SourceRefSchema),
+        }),
+      ),
+      insufficient: z.boolean().nullish(),
+    }),
+  ),
+});
+
+// spec 004 FR-005: value left after 3 and 5 years, sourced or the labelled depreciation curve
+export const ValueRetentionBlockSchema = z.object({
+  type: z.literal("value_retention"),
+  title: z.string(),
+  cars: z.array(
+    z.object({
+      car_id: z.string(),
+      label: z.string(),
+      points: z.array(
+        z.object({
+          years: z.number(),
+          share: z.number().nullable(),
+          eur: z.number().nullable(),
+          basis: z.enum(["SOURCED", "ASSUMPTION"]),
+          market: z.string(),
+          sources: z.array(SourceRefSchema.partial().passthrough()).default([]),
+          low: z.number().nullish(),
+          high: z.number().nullish(),
         }),
       ),
     }),
@@ -483,6 +523,7 @@ export const DataPanelBlockSchema = z.object({
 });
 
 export const BlockSchema = z.discriminatedUnion("type", [
+  ValueRetentionBlockSchema,
   DataPanelBlockSchema,
   VerdictBlockSchema,
   QuickRepliesBlockSchema,

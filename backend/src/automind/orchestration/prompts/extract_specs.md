@@ -8,3 +8,7 @@ Rules: never compute, convert, round or guess values; copy raw_value and the exc
 skip anything not present. Prices: only the official manufacturer price for a NEW car in Spain,
 never used-car or classified-ad prices. Measured performance: only instrumented test results.
 If the document is about another car or generation, set is_about_variant=false and return nothing.
+
+- model_year_changes (engineering area only): what changed between model years of this generation, as one short
+  text with the years ("2022 facelift: new 2.5 hybrid, larger screen; 2024: recall for the fuel pump fixed").
+  Only changes the document states; the excerpt must contain the year.

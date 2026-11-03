@@ -196,6 +196,8 @@ ATTRS: dict[str, Attr] = {
         Attr("platform", "Platform", None, "text", "engineering", 0, tier=2),
         Attr("suspension_front", "Front suspension", None, "text", "engineering", 0, tier=2),
         Attr("suspension_rear", "Rear suspension", None, "text", "engineering", 0, tier=2),
+        # spec 004 FR-007: what changed between model years (facelift, engine change, recall fixed), with the year
+        Attr("model_year_changes", "Model-year changes", None, "text", "engineering", 0, tier=2),
         Attr(
             "drag_coefficient",
             "Drag coefficient (Cd)",

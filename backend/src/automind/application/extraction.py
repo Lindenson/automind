@@ -27,6 +27,7 @@ AREA_ATTRS: dict[str, list[str]] = {
 SPEC_AREAS = ("specs", "engineering", "measured", "price")
 PROMPT_FOR_AREA = {
     "used_price": "extract_used_price",
+    "depreciation": "extract_depreciation",
     "specs": "extract_specs",
     "engineering": "extract_specs",
     "measured": "extract_specs",
@@ -111,9 +112,13 @@ class IssueItems(BaseModel):
 
 
 class ManufacturerEntry(_Excerpted):
-    fact_type: Literal["HISTORY", "KEY_MODEL", "MARKET_POSITION"]
+    fact_type: Literal[
+        "HISTORY", "KEY_MODEL", "MARKET_POSITION", "MARKET_SHARE", "FINANCIAL", "RELIABILITY_REPUTATION", "NETWORK_ES"
+    ]  # fmt: skip
     text: str
     positioning: Literal["PREMIUM", "MAINSTREAM", "BUDGET"] | None = None
+    value_num: float | None = Field(default=None, description="The key number of the fact, e.g. 6.1 (% share)")
+    year: int | None = Field(default=None, description="The year the fact is about, e.g. 2025")
 
 
 class ManufacturerFacts(BaseModel):
@@ -136,6 +141,22 @@ class UsedPriceItems(BaseModel):
     ranges: list[UsedPriceEntry] = Field(default_factory=list)
 
 
+class RetentionPoint(_Excerpted):
+    years: int = Field(description="Age in years the figure is for, e.g. 3 or 5")
+    share_pct: float | None = Field(default=None, description="Value left as % of the new price, e.g. 58")
+    eur: float | None = Field(default=None, description="Or the value left as an amount")
+    currency: Literal["EUR", "GBP", "USD"] = "EUR"
+    market: Literal["ES", "GB", "DE", "US", "EU"] = "ES"
+    quoted_on: str | None = None
+
+
+class DepreciationItems(BaseModel):
+    """spec 004 FR-005: residual value / value retention after N years, from analysts and editorial sources."""
+
+    is_about_variant: bool = True
+    points: list[RetentionPoint] = Field(default_factory=list)
+
+
 def schema_for(area: str) -> type[BaseModel]:
     if area in SPEC_AREAS:
         return spec_claims_schema(area)
@@ -146,6 +167,7 @@ def schema_for(area: str) -> type[BaseModel]:
         "used_issues": IssueItems,
         "manufacturer": ManufacturerFacts,
         "used_price": UsedPriceItems,
+        "depreciation": DepreciationItems,
     }[area]
 
 

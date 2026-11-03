@@ -13,11 +13,11 @@ from typing import Literal
 
 Area = Literal[
     "specs", "engineering", "measured", "price", "maintenance", "reviews", "reliability", "manufacturer", "used_issues",
-    "used_price",
+    "used_price", "depreciation",
 ]  # fmt: skip
 AREAS: tuple[Area, ...] = (
     "specs", "engineering", "measured", "price", "maintenance", "reviews", "reliability", "manufacturer", "used_issues",
-    "used_price",
+    "used_price", "depreciation",
 )  # fmt: skip
 
 FRESHNESS_DAYS: dict[str, int] = {
@@ -31,6 +31,7 @@ FRESHNESS_DAYS: dict[str, int] = {
     "price": 30,
     "manufacturer": 30,
     "used_price": 30,
+    "depreciation": 90,  # spec 004 FR-005: residual values after 3 and 5 years
 }
 ROUNDS: dict[str, int] = {"QUICK": 0, "STANDARD": 1, "DEEP": 2}
 RETRY_UNMET_HOURS = 12  # an area that missed its evidence minimum is tried again after this, not after months
@@ -41,6 +42,14 @@ PERSONA_AREAS: dict[str, set[str]] = {
     "PERFORMANCE": {"specs", "measured", "reviews"},
     "EXPERT": {"specs", "engineering", "manufacturer", "measured", "reliability"},
     "UNKNOWN": {"specs", "price", "maintenance", "reliability", "measured"},
+}
+# Context areas (spec 004 US2): researched alongside a car's other research, in DEEP research or by "find it",
+# never on their own for a car whose data is otherwise fresh (no surprise cost for cached reports).
+ENRICH_AREAS: dict[str, set[Area]] = {
+    "BUYER": {"depreciation", "manufacturer"},
+    "UNKNOWN": {"depreciation", "manufacturer"},
+    "EXPERT": {"depreciation"},
+    "PERFORMANCE": set(),
 }
 CRITERION_AREAS: dict[str, set[str]] = {
     "reliability": {"reliability"},
@@ -140,6 +149,13 @@ def plan(
             )
             if (area in wanted or forced) and (forced or retry or not is_fresh(area, done.get(area), now)):
                 jobs.append(Job(car.key, car.variant_id, area, fresh=forced))
+        # only alongside new or stale research of this car: not for "find it" or a retry of a missed minimum
+        has_jobs = any(j.car_key == car.key and not j.fresh and j.area not in (unmet or {}).get(car.variant_id, set())
+                       for j in jobs)  # fmt: skip
+        for area in sorted(ENRICH_AREAS.get(persona, set()) - {j.area for j in jobs if j.car_key == car.key}):
+            forced_car = bool((force or {}).get(car.variant_id))  # "find it": only the areas asked for
+            if not forced_car and (has_jobs or depth == "DEEP") and not is_fresh(area, done.get(area), now):
+                jobs.append(Job(car.key, car.variant_id, area))
         if car.age_years is not None and car.age_years > OLD_CAR_YEARS:
             warnings.append(Warning("OLD_CAR", car.key))
         if car.sold_in_es is False:
@@ -172,7 +188,7 @@ def minimum_met(area: str, hits: list[SourceHit]) -> bool:
         return sum(h.items for h in hits) >= 5 and len(domains) >= 2
     if area in ("reliability", "used_issues", "manufacturer"):
         return len(domains) >= 2
-    if area == "used_price":
+    if area in ("used_price", "depreciation"):
         return len(domains) >= 1  # one editorial range for the model years; otherwise the labelled estimate
     if area == "price":
         return _has_manufacturer(hits)
