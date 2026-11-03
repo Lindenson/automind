@@ -279,9 +279,9 @@ because the verdict is built from insights. Both are P1 and together they are th
 
 **Independent Test**: during a 3-car research, cells change within 5 s and end in a final state. After a reload the grid shows the current state.
 
-- [ ] T074 [P] [US6] Write a graph test in `backend/tests/graph/test_progress_events.py`: research jobs emit `progress {car, area, state, accepted}` for queued→searching→reading→done|failed|paused, and `EventBus.current` returns the latest snapshot on a WebSocket hello
-- [ ] T075 [US6] Emit `progress` events from the research jobs in `backend/src/automind/orchestration/nodes/research.py` and `backend/src/automind/application/research.py`. Keep the grid snapshot in `backend/src/automind/infrastructure/events.py` (`EventBus.current`) and resend it on reconnect in `backend/src/automind/api/ws.py`
-- [ ] T076 [P] [US6] Create `frontend/src/components/ProgressGrid.tsx` (car × area cells with state icons and one line of current activity). Keep the grid in `frontend/src/store/chat.ts`. Use it in place of `StatusTimeline.tsx` during research and show partial results as they come. Add vitest cases
+- [X] T074 [P] [US6] Write a graph test in `backend/tests/graph/test_progress_events.py`: research jobs emit `progress {car, area, state, accepted}` for queued→searching→reading→done|failed|paused, and `EventBus.current` returns the latest snapshot on a WebSocket hello
+- [X] T075 [US6] Emit `progress` events from the research jobs in `backend/src/automind/orchestration/nodes/research.py` and `backend/src/automind/application/research.py`. Keep the grid snapshot in `backend/src/automind/infrastructure/events.py` (`EventBus.current`) and resend it on reconnect in `backend/src/automind/api/ws.py`
+- [X] T076 [P] [US6] Create `frontend/src/components/ProgressGrid.tsx` (car × area cells with state icons and one line of current activity). Keep the grid in `frontend/src/store/chat.ts`. Use it in place of `StatusTimeline.tsx` during research and show partial results as they come. Add vitest cases
 
 ---
 

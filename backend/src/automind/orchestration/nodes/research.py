@@ -42,6 +42,11 @@ async def _create(c: TurnContext, jobs: list[rp.Job]) -> list[dict[str, Any]]:
             {"job_id": row.id, "car_key": j.car_key, "variant_id": j.variant_id, "area": j.area, "round": j.round,
              "fresh": j.fresh}
         )  # fmt: skip
+    _, case = await load_case(c)
+    for j in jobs:  # spec 004 FR-023: every cell of the grid appears at once, as queued
+        car = next((x for x in case.cars if x.key == j.car_key), None)
+        await c.emit("progress", {"car": (car.label or car.request_text) if car else j.car_key, "car_key": j.car_key,
+                                  "area": j.area, "state": "queued", "accepted": None, "round": j.round})  # fmt: skip
     return out
 
 
@@ -68,14 +73,22 @@ async def research_job(job: dict[str, Any], runtime: Runtime[TurnContext]) -> di
     car = next((x for x in case.cars if x.key == job["car_key"]), None)
     label = (car.label or car.request_text) if car else job["car_key"]
 
+    async def progress(state_: str, accepted: int | None = None) -> None:  # spec 004 FR-023: car × area grid
+        await c.emit("progress", {"car": label, "car_key": job["car_key"], "area": job["area"], "state": state_,
+                                  "accepted": accepted, "round": job.get("round", 0)})  # fmt: skip
+
     async def emit(stage: str, text: str) -> None:
         await c.status(stage, text, car=label, area=job["area"])
+        if stage in ("searching", "researching", "reading", "relevance", "validating"):
+            await progress("reading" if stage in ("reading", "relevance", "validating") else "searching")
 
     pause = c.budget.research_pause()
     if pause is not None:  # near a limit: do not start, ask the user whether to continue (never cancel)
+        await progress("paused")
         await c.ports.jobs.mark(job["job_id"], "FAILED", error=f"paused at the {pause} limit")
         return {"research_results": [{**job, "ok": False, "error": f"paused: {pause}", "limit": pause}]}
     await c.ports.jobs.mark(job["job_id"], "RUNNING")
+    await progress("searching")
     try:
         async with asyncio.timeout(c.budget.limits.job_timeout_s):
             res = await research.run_job(
@@ -86,14 +99,18 @@ async def research_job(job: dict[str, Any], runtime: Runtime[TurnContext]) -> di
                 emit,
             )
     except BudgetExceeded as e:
+        await progress("paused")
         await c.ports.jobs.mark(job["job_id"], "FAILED", error=str(e))
         return {"research_results": [{**job, "ok": False, "error": str(e), "limit": e.limit}]}
     except TimeoutError:
+        await progress("failed")
         if "job_timeout" not in c.budget.limits_reached:
             c.budget.limits_reached.append("job_timeout")
         await c.ports.jobs.mark(job["job_id"], "FAILED", error="timeout")
         return {"research_results": [{**job, "ok": False, "error": "timeout", "limit": "time"}]}
     status = "DONE" if res.ok else "FAILED"
+    await progress("done" if res.ok and res.minimum_met else ("partial" if res.ok and res.accepted else "failed"),
+                   res.accepted)  # fmt: skip
     await c.ports.jobs.mark(
         job["job_id"], status, docs=res.docs, accepted=res.accepted, rejected=res.rejected, error=res.error
     )

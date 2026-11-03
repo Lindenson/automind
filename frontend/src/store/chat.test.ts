@@ -77,3 +77,18 @@ describe("chat store (protocol v2)", () => {
     });
   });
 });
+
+describe("spec 004 progress grid", () => {
+  it("keeps the latest state per car and area", () => {
+    useChat.getState().newChat();
+    const { handleRaw } = useChat.getState();
+    const p = { type: "progress", seq: 1, turn_id: "t1", car: "Mazda CX-5", car_key: "car#1", round: 0 };
+    handleRaw({ ...p, area: "specs", state: "queued" });
+    handleRaw({ ...p, seq: 2, area: "specs", state: "done", accepted: 12 });
+    handleRaw({ ...p, seq: 3, area: "price", state: "searching" });
+    const grid = useChat.getState().pending?.grid ?? {};
+    expect(grid["car#1|specs"]?.state).toBe("done");
+    expect(grid["car#1|specs"]?.accepted).toBe(12);
+    expect(grid["car#1|price"]?.state).toBe("searching");
+  });
+});

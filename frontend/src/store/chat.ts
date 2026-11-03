@@ -6,6 +6,7 @@ import {
   type ConfirmRequest,
   type StatusMsg,
   type Usage,
+  type ProgressMsg,
 } from "../lib/protocol";
 import type { ConnState, Transport } from "../lib/transport";
 import { loadChatId, saveChatId, uuid } from "../lib/util";
@@ -24,6 +25,7 @@ export interface PendingTurn {
   userMessageId: string;
   startedAt: number;
   statuses: TimedStatus[];
+  grid?: Record<string, ProgressMsg>; // "car_key|area" -> latest state (spec 004 FR-023)
 }
 
 export interface CaseState {
@@ -95,6 +97,13 @@ export const useChat = create<ChatState>((set, get) => ({
     const msg = parseServerMsg(raw);
     if (!msg) return;
     switch (msg.type) {
+      case "progress":
+        set((s) => {
+          const pending = s.pending ?? { userMessageId: "", startedAt: Date.now(), statuses: [] };
+          const grid = { ...(pending.grid ?? {}), [`${msg.car_key}|${msg.area}`]: msg };
+          return { pending: { ...pending, grid }, turnId: msg.turn_id ?? s.turnId };
+        });
+        break;
       case "status":
         set((s) => {
           const entry = { ...msg, at: Date.now() };

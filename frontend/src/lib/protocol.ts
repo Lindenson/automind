@@ -804,7 +804,21 @@ export const ChallengeResultSchema = z.object({
   rejected: z.array(z.object({ source: z.string(), value: z.string(), why: z.string() })).default([]),
 });
 
+// spec 004 FR-023: one cell of the car × area research grid
+export const ProgressMsgSchema = z.object({
+  ...Envelope,
+  type: z.literal("progress"),
+  car: z.string(),
+  car_key: z.string(),
+  area: z.string(),
+  state: z.enum(["queued", "searching", "reading", "done", "partial", "failed", "paused"]),
+  accepted: z.number().nullish(),
+  round: z.number().default(0),
+});
+export type ProgressMsg = z.infer<typeof ProgressMsgSchema>;
+
 export const ServerMsgSchema = z.discriminatedUnion("type", [
+  ProgressMsgSchema,
   ChallengeResultSchema,
   StatusMsgSchema,
   AssistantMsgSchema,

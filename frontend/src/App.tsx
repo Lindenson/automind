@@ -8,6 +8,7 @@ import { EmptyState } from "./components/EmptyState";
 import { Header } from "./components/Header";
 import { Message } from "./components/Message";
 import { StatusTimeline } from "./components/StatusTimeline";
+import { ProgressGrid } from "./components/ProgressGrid";
 import { HistorySchema } from "./lib/protocol";
 import {
   createWsTransport,
@@ -151,7 +152,11 @@ export default function App() {
             )}
             {pending && (
               <div className="space-y-2 sm:pl-11">
-                <StatusTimeline pending={pending} />
+                {pending.grid && Object.keys(pending.grid).length > 0 ? (
+                  <ProgressGrid pending={pending} />
+                ) : (
+                  <StatusTimeline pending={pending} />
+                )}
                 <CancelButton />
               </div>
             )}
