@@ -19,7 +19,7 @@ def test_match_make_aliases_translit_fuzzy() -> None:
     assert REG.match_make("сеат атека") == "SEAT"
     assert REG.match_make("хендай туссан") == "Hyundai"
     assert REG.match_make("биад сил ю") == "BYD"
-    assert REG.match_make("шкода карок") == "Škoda"
+    assert REG.match_make("шкода карок") == "Skoda"
     assert REG.match_make("Mercedez GLC") == "Mercedes-Benz"  # fuzzy
     assert REG.match_make("для семьи на юге") is None
 

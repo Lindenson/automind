@@ -17,6 +17,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from . import intake
 from .casefile import MAX_CARS, CaseFile, QuestionKind
 from .identification import REASK
 
@@ -45,8 +46,13 @@ RequestKind = Literal[
     "chitchat",
 ]
 QUESTION_ORDER: tuple[QuestionKind, ...] = (
-    "TOO_MANY_CARS", "CAR_IDENTITY", "UNKNOWN_MODEL", "USED_AGE", "TRIM", "GEARBOX", "BUDGET_INTENT", "PERSONA",
+    "TOO_MANY_CARS", "CAR_IDENTITY", "MAKE_LINEUP", "UNKNOWN_MODEL", "ENGINE", "CONDITION", "USED_AGE", "TRIM",
+    "GEARBOX", "BUDGET_INTENT", "PERSONA",
 )  # fmt: skip
+# spec 005: intake item -> question kind (the outcome of the identify step decides between two kinds for MODEL)
+_ITEM_KIND: dict[str, QuestionKind] = {"MAKE": "CAR_IDENTITY", "ENGINE": "ENGINE", "YEAR": "USED_AGE",
+                                       "MILEAGE": "USED_AGE", "CONDITION": "CONDITION", "CHOICE": "TRIM",
+                                       "TRIM": "TRIM", "GEARBOX": "GEARBOX"}  # fmt: skip
 MAX_QUESTIONS = 3
 DEFAULT_CONFIRM_THRESHOLD_EUR = 0.30
 DEFAULT_HARD_CAP_EUR = 1.00
@@ -86,12 +92,16 @@ def decide(
     feasibility_pending: bool = False,
     confirm_threshold_eur: float = DEFAULT_CONFIRM_THRESHOLD_EUR,
     hard_cap_eur: float = DEFAULT_HARD_CAP_EUR,
+    intake_limits: intake.Limits | None = None,
 ) -> Action:
     # 1. general
     if request in ("general_question", "chitchat") or not case.cars:
         return Action(kind="ANSWER_GENERAL", reason="general question or no cars in the case")
     state = {c.key: cars.get(c.key, CarState()) for c in case.cars}
-    # 2. essentials
+    # 2. essentials: the intake step first (spec 005), then the other questions
+    step = _intake_step(case, intake_limits or intake.Limits(full_intake=False))
+    if step is not None:
+        return step
     questions, concerned = _questions(case, state)
     if questions:
         return Action(
@@ -141,6 +151,31 @@ def _answer_or_report(
     return Action(kind="REPORT", profile=single, reason="case changed")
 
 
+def _intake_step(case: CaseFile, limits: intake.Limits) -> Action | None:
+    """Questions about the identity of the cars (spec 005 R6): bounded attempts, then a proposal, then
+    "remove or choose for me". Cars without an identify outcome (cases before 005) use the rules below."""
+    if len(case.cars) > MAX_CARS or not any(c.identify is not None for c in case.cars):
+        return None  # which 3 to compare is asked first; cases before 005 use the rules below
+    step = intake.next_step(case, limits)
+    if step.kind in ("PROPOSE", "REMOVE_OR_CHOOSE"):
+        return Action(kind="ASK", questions=[step.kind], cars=[step.car_key or ""], reason="intake: " + step.kind)
+    if step.kind != "ASK":
+        return None
+    kinds: dict[QuestionKind, list[str]] = {}
+    for it in step.items:
+        car = case.car(it.car_key) if it.car_key else None
+        if it.item == "MODEL":
+            kind: QuestionKind = (
+                "UNKNOWN_MODEL" if car and car.identify and car.identify.outcome == "NOT_FOUND" else "MAKE_LINEUP"
+            )
+        else:
+            kind = _ITEM_KIND.get(it.item, "CAR_IDENTITY")
+        kinds.setdefault(kind, []).extend([it.car_key] if it.car_key else [c.key for c in case.cars])
+    ordered = [q for q in QUESTION_ORDER if q in kinds][:MAX_QUESTIONS]
+    cars = sorted({k for q in ordered for k in kinds[q]})
+    return Action(kind="ASK", questions=ordered, cars=cars, reason="intake: identity not settled")
+
+
 def _questions(case: CaseFile, state: dict[str, CarState]) -> tuple[list[QuestionKind], list[str]]:
     needed: dict[QuestionKind, list[str]] = {}
     if len(case.cars) > MAX_CARS:
@@ -172,6 +207,8 @@ def _needs_confirmation(case: CaseFile, key: str, st: CarState) -> bool:
         return False
     if car.resolution == "UNKNOWN_MODEL":
         return False  # asked as a question, never proposed
+    if car.resolution == "PROPOSED":
+        return True  # a proposed variant (catalog or resolver) is confirmed by the user, never silently (spec 005)
     return st.ambiguous or car.condition == "USED" or not st.in_catalog
 
 

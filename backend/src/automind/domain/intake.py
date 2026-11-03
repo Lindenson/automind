@@ -29,6 +29,7 @@ _RANK: dict[str | None, int] = {None: 0, "NEED": 1, "NOT_FOUND": 1, "CHOICES": 2
 class Limits:
     max_attempts_per_item: int = 2
     max_attempts_per_car: int = 4
+    full_intake: bool = True  # ask new/used for every car and the year of used ones (US4)
 
 
 @dataclass(frozen=True)
@@ -72,7 +73,7 @@ def _need(car: CaseCar) -> IntakeItem | None:
     if not car.model:
         return o.need if o and o.need in ("MODEL", "CHOICE") else "MODEL"
     if o is None:
-        return None if car.variant_id else "MODEL"
+        return None  # not identified yet in this turn (a case before 005, or a 4th car): the policy rules decide
     outcome: IdentifyKind = o.outcome
     if outcome == "IDENTIFIED":
         return None
@@ -98,7 +99,8 @@ def next_step(case: CaseFile, limits: Limits = Limits()) -> Step:  # noqa: B008 
             return Step("PROPOSE", car_key=car.key)
         choices = tuple(car.identify.choices) if car.identify else ()
         items.append(StepItem(item, car.key, rephrase=n >= 1, choices=choices))
-    items += _condition_and_year(case, limits)
+    if limits.full_intake:
+        items += _condition_and_year(case, limits)
     if items:
         return Step("ASK", tuple(items[:MAX_ITEMS]))
     if not case.cars or case.intake.card_confirmed:

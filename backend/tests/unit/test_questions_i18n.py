@@ -13,9 +13,12 @@ def test_every_kind_has_three_languages() -> None:
     for kind, t in Q.items():
         for lang in ("en", "ru", "es"):
             assert t.get(lang), (kind, lang)
-        if "rephrase" in t:
-            for lang in ("en", "ru", "es"):
-                assert t["rephrase"].get(lang), (kind, "rephrase", lang)
+        for variant in ("rephrase", "bare", "rephrase_bare"):
+            if variant in t:
+                for lang in ("en", "ru", "es"):
+                    assert t[variant].get(lang), (kind, variant, lang)
+        if "{options}" in str(t.get("rephrase", {}).get("en", "")):
+            assert "rephrase_bare" in t or "{options}" not in t["en"] or kind in ("TOO_MANY_CARS", "TRIM", "GEARBOX"), kind
 
 
 def test_no_english_in_ru_es() -> None:

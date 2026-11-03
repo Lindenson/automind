@@ -15,7 +15,8 @@ from langgraph.types import interrupt
 from automind.application import ask as asking
 from automind.application import resolve
 from automind.config import settings
-from automind.domain.casefile import Pending
+from automind.domain import intake
+from automind.domain.casefile import Choice, Pending
 from automind.orchestration.phrases import t
 from automind.orchestration.runner import TurnContext
 from automind.orchestration.state import TurnState
@@ -24,21 +25,36 @@ from .common import ctx, current_year, load_case, notice, save_case
 
 
 async def ask_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
+    """Questions in the conversation language with concrete options (spec 005 R6, R9): code writes them, the
+    asker adds one sentence of acknowledgement; a question asked before uses other words."""
     c = ctx(runtime)
     _, case = await load_case(c)
     decision = state["decision"]
     gens = {k: a.get("generations", []) for k, a in state.get("assessments", {}).items()}
     lang = state.get("language", "en")
-    items = asking.fill_questions(decision["questions"], case, c.ports.ref.questions, gens, decision["cars"])
+    ref = c.ports.ref
+    items = asking.intake_questions(decision["questions"], case, ref.questions_i18n or {}, gens, decision["cars"], lang)
+    if not items:  # nothing concrete to ask: fall back to the v1 templates (English, phrased by the asker)
+        items = asking.fill_questions(decision["questions"], case, ref.questions, gens, decision["cars"])
     await c.status("asking", "Asking what I need to know")
-    text = await asking.phrase(c.ports.llm, c.ports.ref.prompts["asker"], items, lang, asking.understood_summary(case))
+    ack = await asking.acknowledge(c.ports.llm, ref.prompts["asker"], lang, asking.understood_summary(case))
+    questions = [q["text"] for q in items]
+    body = questions[0] if len(questions) == 1 else "\n".join(f"{i}. {q}" for i, q in enumerate(questions, 1))
     lead = _not_understood_lead(case, state, lang)
+    text = "\n\n".join(x for x in (lead, ack, body) if x)
     case = asking.record(case, items)
+    for q in items:
+        if q.get("kind") == "PROPOSE" and q.get("choices"):
+            case.intake.proposed[q["car"]] = Choice.model_validate(q["choices"][0])
+    asked = [(intake.StepItem(q["item"], q.get("car")), q["text"]) for q in items if q.get("item")]
+    case = intake.record_asked(case, asked)
     version = await save_case(c, case, [f"asked: {', '.join(q['kind'] for q in items)}"])
-    replies = asking.quick_replies(items, case, lambda car: t("remove_car", lang, car=car), t("choose_for_me", lang))
+    labels = {"new": t("cond_new", lang), "used": t("cond_used", lang), "yes": t("yes", lang),
+              "no": t("no_other", lang), "choose": t("choose_for_me", lang),
+              "remove": t("remove_car", lang, car="{car}")}  # fmt: skip
+    replies = asking.intake_quick_replies(items, case, labels)
     blocks = [{"type": "quick_replies", "items": replies}] if replies else []
-    return {"reply_text": f"{lead}\n\n{text}" if lead else text, "blocks": blocks, "action": "ASK",
-            "case_version": version}  # fmt: skip
+    return {"reply_text": text, "blocks": blocks, "action": "ASK", "case_version": version}
 
 
 def _not_understood_lead(case: Any, state: TurnState, lang: str | None) -> str:
@@ -47,7 +63,7 @@ def _not_understood_lead(case: Any, state: TurnState, lang: str | None) -> str:
     if not keys:
         return ""
     answer = " ".join(str(state.get("user_text") or "").split())[:60]
-    names = ", ".join(case.car(k).request_text for k in keys if any(x.key == k for x in case.cars))
+    names = ", ".join(case.car(k).display_name for k in keys if any(x.key == k for x in case.cars))
     return t("not_understood", lang, answer=answer, car=names or "the car")
 
 

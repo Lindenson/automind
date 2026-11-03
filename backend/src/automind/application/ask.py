@@ -38,14 +38,14 @@ def fill_questions(
                 else:
                     opts = ", ".join(generations.get(key, [])) or "year or generation"
                 items.append(
-                    {"kind": kind, "car": key, "text": tpl.format(car=car.request_text, options=opts, count=1)}
+                    {"kind": kind, "car": key, "text": tpl.format(car=car.display_name, options=opts, count=1, make=car.make or "")}
                 )
         elif kind == "BUDGET_INTENT":
             b = case.budget
             amount = f"{b.max_eur:,} {b.currency}" + (" a month" if b.kind == "MONTHLY" else "")
             items.append({"kind": kind, "car": None, "text": tpl.format(car="", options=amount, count=0)})
         else:
-            items.append({"kind": kind, "car": None, "text": tpl.format(car="", options="", count=0)})
+            items.append({"kind": kind, "car": None, "text": tpl.format(car="", options="", count=0, make="")})
     return items[:3]
 
 
@@ -77,11 +77,13 @@ def quick_replies(
 
 def _concerns(kind: str, car: Any) -> bool:
     if kind == "UNKNOWN_MODEL":
-        return car.resolution == "UNKNOWN_MODEL"
+        return car.resolution == "UNKNOWN_MODEL" or bool(car.identify and car.identify.outcome == "NOT_FOUND")
+    if kind == "MAKE_LINEUP":
+        return bool(car.make) and not car.model
     if kind == "USED_AGE":
         return car.condition == "USED" and car.year is None
     if kind == "CAR_IDENTITY":
-        return not (car.make and car.model)
+        return not car.make if car.identify is not None else not (car.make and car.model)
     return True
 
 
@@ -133,6 +135,8 @@ def template(questions: dict[str, Any], kind: str, lang: str | None, *, rephrase
     variant: dict[str, Any] = t
     if rephrase and isinstance(t.get("rephrase"), dict) and (opts or "{options}" not in str(t["rephrase"].get(lang))):
         variant = t["rephrase"]
+    elif rephrase and not opts and isinstance(t.get("rephrase_bare"), dict):
+        variant = t["rephrase_bare"]
     elif not opts and "{options}" in str(t.get(lang) or t.get("en") or "") and isinstance(t.get("bare"), dict):
         variant = t["bare"]
     text = str(variant.get(lang) or variant.get("en") or t.get("en") or "")
@@ -141,3 +145,102 @@ def template(questions: dict[str, Any], kind: str, lang: str | None, *, rephrase
     if not opts:  # a template without a bare variant: drop the empty options clause
         out = re.sub(r"\s*\(\s*\)", "", out).replace(": ?", "?").replace(": .", ".")
     return out
+
+
+# spec 005: question kind -> the intake item it asks about (attempt counters, repeat detection)
+KIND_ITEM = {"CAR_IDENTITY": "MAKE", "MAKE_LINEUP": "MODEL", "UNKNOWN_MODEL": "MODEL", "ENGINE": "ENGINE",
+             "CONDITION": "CONDITION", "USED_AGE": "YEAR", "TRIM": "CHOICE", "GEARBOX": "GEARBOX",
+             "PROPOSE": "CHOICE", "REMOVE_OR_CHOOSE": "CHOICE"}  # fmt: skip
+CAR_KINDS = ("CAR_IDENTITY", "MAKE_LINEUP", "UNKNOWN_MODEL", "ENGINE", "USED_AGE", "TRIM", "GEARBOX", "PROPOSE",
+             "REMOVE_OR_CHOOSE")  # fmt: skip
+
+
+def intake_questions(
+    kinds: list[str],
+    case: CaseFile,
+    questions_i18n: dict[str, Any],
+    generations: dict[str, list[str]],
+    concerned: list[str],
+    lang: str,
+) -> list[dict[str, Any]]:
+    """Question items in the conversation language with concrete options (spec 005 R9, FR-003, FR-009).
+    A question asked before for the same car and item uses its `rephrase` wording."""
+    items: list[dict[str, Any]] = []
+    cars = {c.key: c for c in case.cars}
+    for kind in kinds:
+        if kind == "TOO_MANY_CARS":
+            opts = ", ".join(f"{c.key}: {c.display_name}" for c in case.cars)
+            items.append({"kind": kind, "car": None, "item": None,
+                          "text": template(questions_i18n, kind, lang, options=opts)})  # fmt: skip
+            continue
+        if kind == "BUDGET_INTENT":
+            b = case.budget
+            amount = f"{b.max_eur:,} {b.currency}" + (" / mes" if b.kind == "MONTHLY" else "")
+            items.append({"kind": kind, "car": None, "item": None,
+                          "text": template(questions_i18n, kind, lang, options=amount)})  # fmt: skip
+            continue
+        if kind not in CAR_KINDS:  # about the user or every car (CONDITION, PERSONA, …)
+            item = KIND_ITEM.get(kind)
+            rephrase = bool(item) and case.intake.attempt("*", item or "") >= 1
+            items.append({"kind": kind, "car": None, "item": item,
+                          "text": template(questions_i18n, kind, lang, rephrase=rephrase)})  # fmt: skip
+            continue
+        for key in concerned:
+            car = cars.get(key)
+            if car is None or not _concerns(kind, car):
+                continue
+            item = KIND_ITEM.get(kind, "MODEL")
+            choices = list(car.identify.choices) if car.identify else []
+            labels = [ch.label for ch in choices[:6]]
+            if kind in ("USED_AGE", "GEARBOX") or (kind == "TRIM" and not labels):
+                labels = list(generations.get(key, []))
+            name = car.display_name
+            if kind == "PROPOSE":
+                proposal = choices[0].label if choices else (car.label or "")
+                if not proposal:
+                    kind, item = "REMOVE_OR_CHOOSE", "CHOICE"
+                else:
+                    name = proposal
+            rephrase = case.intake.attempt(key, item) >= 1
+            text = template(questions_i18n, kind, lang, rephrase=rephrase, car=name, make=car.make or name,
+                            options=", ".join(labels))  # fmt: skip
+            items.append({"kind": kind, "car": key, "item": item, "text": text,
+                          "choices": [ch.model_dump(mode="json") for ch in choices[:6]]})  # fmt: skip
+    return items[:3]
+
+
+def intake_quick_replies(items: list[dict[str, Any]], case: CaseFile, labels: dict[str, str]) -> list[dict[str, Any]]:
+    """One-tap answers: the concrete options of each question (suggested ones marked), new/used, yes/no for a
+    proposal, remove or choose. Never an empty list item (contracts/intake-protocol.md)."""
+    out: list[dict[str, Any]] = []
+    cars = {c.key: c for c in case.cars}
+    for q in items:
+        kind = q["kind"]
+        if kind == "CONDITION":
+            out += [{"label": labels["new"], "text": labels["new"]}, {"label": labels["used"], "text": labels["used"]}]
+            continue
+        car = cars.get(str(q.get("car") or ""))
+        if car is None:
+            continue
+        if kind == "PROPOSE":
+            out += [{"label": labels["yes"], "text": labels["yes"]}, {"label": labels["no"], "text": labels["no"]}]
+            continue
+        for ch in q.get("choices") or []:
+            chip: dict[str, Any] = {"label": ch["label"], "text": ch["label"]}
+            if ch.get("suggested"):
+                chip |= {"suggested": True, "reason": ch.get("reason")}
+            out.append(chip)
+        if kind in ("MAKE_LINEUP", "TRIM", "GEARBOX", "REMOVE_OR_CHOOSE"):
+            out.append({"label": labels["choose"], "text": labels["choose"]})
+        if kind in CAR_KINDS:
+            rm = labels["remove"].format(car=car.display_name)
+            out.append({"label": rm, "text": rm})
+    seen: set[str] = set()
+    return [x for x in out if x["label"] and not (x["label"] in seen or seen.add(x["label"]))][:8]  # type: ignore[func-returns-value]
+
+
+async def acknowledge(llm: LLM, system_prompt: str, language: str, understood: str) -> str:
+    """One sentence restating what was understood (asker v2); the questions are added by code."""
+    return (
+        await llm.text("asker", system_prompt, f"Language: {language}\nWhat I understood so far: {understood}")
+    ).strip()

@@ -114,7 +114,7 @@ description: "Task list for 005 — Understanding the user: intake and identific
   - the Ateca engine is 1.5 TSI on the card;
   - all text in Russian.
   Extend `backend/tests/golden/schema.py` and `runner.py` with the assertions `no_repeated_question`, `identified_within`, `no_role: general`, `language` and `card_field`.
-- [ ] T018 [P] [US1] Write `backend/tests/graph/test_identify_loop.py`:
+- [X] T018 [P] [US1] Write `backend/tests/graph/test_identify_loop.py`:
   - the same make and model repeated after UNKNOWN triggers a new lookup (not "not understood");
   - after 2 failed attempts the reply is a PROPOSE with a yes/no;
   - after 4, remove or "choose for me" is offered;
@@ -122,23 +122,23 @@ description: "Task list for 005 — Understanding the user: intake and identific
 
 ### Implementation
 
-- [ ] T019 [US1] Implement `backend/src/automind/application/identify.py`: `identify_car(ports, car, case, year) -> Outcome`. The pipeline:
+- [X] T019 [US1] Implement `backend/src/automind/application/identify.py`: `identify_car(ports, car, case, year) -> Outcome`. The pipeline:
   1. make registry;
   2. catalog (`resolve.assess_car`);
   3. line-up (US2 hook, a no-op until T029);
   4. resolver (`resolve.resolve_with_llm`);
   5. engine match.
   It returns IDENTIFIED (one variant), CHOICES (2–6 Choice items), NEED (item) or NOT_FOUND (with `checked` URLs). It does not raise UnknownModel to the node.
-- [ ] T020 [US1] Add `backend/src/automind/orchestration/nodes/identify.py`. It runs `identify_car` for every car that is not settled or whose `identity_key` changed, stores `car.identify`, sets `variant_id` / `label` / `resolution` (AUTO_OK only for a single catalog fit of a NEW car with nothing missing) and records `intake_events`. Wire `apply_delta → identify → assess` in `backend/src/automind/orchestration/graph.py`.
-- [ ] T021 [US1] Replace `_not_understood` / `_pending_answered(keep=)` in `backend/src/automind/orchestration/nodes/understand.py` with `intake.progress`. A reply without progress increments `intake.attempts[car][item]`. The pending question is replaced by the next step every turn (never kept verbatim).
-- [ ] T022 [US1] Change policy rule 2 in `backend/src/automind/domain/policy.py` to use `intake.next_step` (ASK / PROPOSE / REMOVE_OR_CHOOSE). Remove the sticky `UNKNOWN_MODEL` question and the `REASK` set from `backend/src/automind/domain/identification.py`; `settled()` uses `car.identify.outcome`. Update `backend/tests/unit/test_identification.py` and `test_policy*.py` accordingly.
-- [ ] T023 [US1] Rewrite `ask_node` in `backend/src/automind/orchestration/nodes/confirm.py` to build questions from `intake.next_step`:
+- [X] T020 [US1] Add `backend/src/automind/orchestration/nodes/identify.py`. It runs `identify_car` for every car that is not settled or whose `identity_key` changed, stores `car.identify`, sets `variant_id` / `label` / `resolution` (AUTO_OK only for a single catalog fit of a NEW car with nothing missing) and records `intake_events`. Wire `apply_delta → identify → assess` in `backend/src/automind/orchestration/graph.py`.
+- [X] T021 [US1] Replace `_not_understood` / `_pending_answered(keep=)` in `backend/src/automind/orchestration/nodes/understand.py` with `intake.progress`. A reply without progress increments `intake.attempts[car][item]`. The pending question is replaced by the next step every turn (never kept verbatim).
+- [X] T022 [US1] Change policy rule 2 in `backend/src/automind/domain/policy.py` to use `intake.next_step` (ASK / PROPOSE / REMOVE_OR_CHOOSE). Remove the sticky `UNKNOWN_MODEL` question and the `REASK` set from `backend/src/automind/domain/identification.py`; `settled()` uses `car.identify.outcome`. Update `backend/tests/unit/test_identification.py` and `test_policy*.py` accordingly.
+- [X] T023 [US1] Rewrite `ask_node` in `backend/src/automind/orchestration/nodes/confirm.py` to build questions from `intake.next_step`:
   - localized templates (T016) with `display_name` instead of `request_text`;
   - concrete options from `car.identify.choices` as `quick_replies` (never empty; `suggested` flag);
   - the PROPOSE text with yes/no chips;
   - store the question hashes.
   The asker model only writes the one-line acknowledgement (prompt `backend/src/automind/orchestration/prompts/asker.md` v2).
-- [ ] T024 [US1] Treat a reply that restates the whole request as both an answer and a correction (FR-005). In `backend/src/automind/orchestration/prompts/interpreter.md` v2: while PENDING exists, cars named again map to their existing keys via `set_car_context` (never `add_cars` duplicates). Add example 7, from the incident: "ну дак сравни byd seal u с сеатом атека 1.5 двигателя" → set_car_context car#1 {make BYD, model Seal U}, car#2 {engine_hint 1.5}.
+- [X] T024 [US1] Treat a reply that restates the whole request as both an answer and a correction (FR-005). In `backend/src/automind/orchestration/prompts/interpreter.md` v2: while PENDING exists, cars named again map to their existing keys via `set_car_context` (never `add_cars` duplicates). Add example 7, from the incident: "ну дак сравни byd seal u с сеатом атека 1.5 двигателя" → set_car_context car#1 {make BYD, model Seal U}, car#2 {engine_hint 1.5}.
 
 **Checkpoint**: G21 passes up to the card (the card itself is US5: until then CONFIRM_VARIANTS is shown); T018 is green.
 

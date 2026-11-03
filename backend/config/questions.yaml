@@ -31,6 +31,10 @@ MAKE_LINEUP:
     en: "Pick one of the {make} models, or say «choose for me»: {options}."
     ru: "Выберите одну из моделей {make} или скажите «выбери сам»: {options}."
     es: "Elige uno de los modelos de {make} o di «elige tú»: {options}."
+  rephrase_bare:
+    en: "Which {make} model exactly? The model name is enough (for example from the {make} website), or say «choose for me»."
+    ru: "Какая именно модель {make}? Достаточно названия модели (например, с сайта {make}) — или скажите «выбери сам»."
+    es: "¿Qué modelo de {make} exactamente? Basta con el nombre del modelo (por ejemplo, de la web de {make}) o di «elige tú»."
 UNKNOWN_MODEL:
   en: "I could not find «{car}» on sale in Spain. Closest: {options}. Which one?"
   ru: "Я не нашёл «{car}» в продаже в Испании. Ближайшие: {options}. Какую из них?"
@@ -43,6 +47,10 @@ UNKNOWN_MODEL:
     en: "Still nothing for «{car}». Is it one of these: {options}?"
     ru: "По «{car}» по-прежнему ничего. Может быть, это одна из этих: {options}?"
     es: "Sigo sin encontrar «{car}». ¿Es alguno de estos: {options}?"
+  rephrase_bare:
+    en: "I still cannot find «{car}». Is the name written differently in Spain, or is it sold under another brand?"
+    ru: "Я всё ещё не нахожу «{car}». Может быть, в Испании модель называется иначе или продаётся под другой маркой?"
+    es: "Sigo sin encontrar «{car}». ¿Se llama distinto en España o se vende con otra marca?"
 CONDITION:
   en: "Are you looking at new cars or used ones?"
   ru: "Вы рассматриваете новые машины или подержанные?"
@@ -63,6 +71,10 @@ USED_AGE:
     en: "The year of the {car} is enough, for example «2019, 80,000 km»."
     ru: "Достаточно года {car}, например «2019, 80 тыс. км»."
     es: "Basta con el año del {car}, por ejemplo «2019, 80.000 km»."
+  rephrase_bare:
+    en: "Just the year of the {car} is enough, for example «2019»."
+    ru: "Достаточно только года {car}, например «2019»."
+    es: "Basta con el año del {car}, por ejemplo «2019»."
 ENGINE:
   en: "Which engine of the {car}: {options}?"
   ru: "Какой двигатель у {car}: {options}?"
@@ -75,6 +87,10 @@ ENGINE:
     en: "There is no such engine for the {car}. On sale: {options}. Which one?"
     ru: "Такого двигателя у {car} нет. В продаже: {options}. Какой из них?"
     es: "El {car} no tiene ese motor. A la venta: {options}. ¿Cuál?"
+  rephrase_bare:
+    en: "For the {car}, the displacement or the power is enough, for example «1.5» or «150 CV»."
+    ru: "Для {car} достаточно объёма или мощности, например «1.5» или «150 л.с.»."
+    es: "Para el {car} basta con la cilindrada o la potencia, por ejemplo «1.5» o «150 CV»."
 TRIM:
   en: "Which version of the {car} ({options})?"
   ru: "Какая версия {car} ({options})?"

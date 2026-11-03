@@ -187,6 +187,7 @@ class IdentifyOutcome(BaseModel):
     choices: list[Choice] = Field(default_factory=list)
     checked: list[str] = Field(default_factory=list)  # sources looked at before NOT_FOUND
     note: str | None = None  # e.g. "from the page I took: …"
+    key: str | None = None  # hash of the identity facts the outcome was computed for
 
 
 class CaseCar(BaseModel):

@@ -49,7 +49,7 @@ makes:
   Porsche: {aliases: [porsche], translit: [порше], es_site: porsche.com/spain}
   Renault: {aliases: [renault], translit: [рено], es_site: renault.es}
   SEAT: {aliases: [seat], translit: [сеат, сиат], es_site: seat.es}
-  Škoda: {aliases: [skoda, škoda], translit: [шкода], es_site: skoda.es}
+  Skoda: {aliases: [skoda, škoda], translit: [шкода], es_site: skoda.es}
   Smart: {aliases: [smart], translit: [смарт], es_site: smart.com/es}
   Subaru: {aliases: [subaru], translit: [субару], es_site: subaru.es}
   Suzuki: {aliases: [suzuki], translit: [сузуки], es_site: suzuki.es}

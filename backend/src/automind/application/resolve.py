@@ -201,8 +201,8 @@ async def assess_car(car: CaseCar, ref: Reference, current_year: int, level: str
 
 def auto_resolve(car: CaseCar, a: Assessment) -> bool:
     """Unambiguous, catalogued, not used: resolve without asking (FR-006). Returns True if set."""
-    if car.resolution in ("CONFIRMED", "AUTO_OK") or car.condition == "USED":
-        return False
+    if car.resolution in ("CONFIRMED", "AUTO_OK", "PROPOSED") or car.condition == "USED":
+        return False  # a proposal waits for the user (spec 005)
     if a.state.in_catalog and not a.state.ambiguous and a.candidates:
         best = a.candidates[0]
         car.variant_id, car.label, car.resolution = best["id"], best["label"], "AUTO_OK"
@@ -211,7 +211,7 @@ def auto_resolve(car: CaseCar, a: Assessment) -> bool:
 
 
 async def resolve_with_llm(
-    ports: Ports, car: CaseCar, current_year: int, level: str = "BASE"
+    ports: Ports, car: CaseCar, current_year: int, level: str = "BASE", *, lineup: Any = None
 ) -> tuple[db.Variant, VariantIdentity]:
     """Catalog miss: ask the resolver with the case context, validate years, upsert with de-dup."""
     docs = await _resolver_docs(ports, car)
@@ -319,9 +319,10 @@ def current_generation(ref: Reference, car: CaseCar, current_year: int) -> tuple
 class UnknownModel(ValueError):
     """The make/model is not known to the catalog, config or the resolver (spec 004 US8 scenario 2)."""
 
-    def __init__(self, name: str, closest: list[str]) -> None:
+    def __init__(self, name: str, closest: list[str], checked: list[str] | None = None) -> None:
         super().__init__(f"unknown model {name!r}")
         self.closest = closest
+        self.checked = checked or []
 
 
 class GenerationMismatch(ValueError):

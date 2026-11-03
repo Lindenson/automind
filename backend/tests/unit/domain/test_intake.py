@@ -3,7 +3,7 @@
 from automind.domain import intake
 from automind.domain.casefile import CaseCar, CaseFile, Constraints, EngineHint, IdentifyOutcome
 
-LIMITS = intake.Limits(max_attempts_per_item=2, max_attempts_per_car=4)
+LIMITS = intake.Limits(max_attempts_per_item=2, max_attempts_per_car=4, full_intake=True)
 
 
 def _car(**kw: object) -> CaseCar:

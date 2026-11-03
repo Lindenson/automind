@@ -10,7 +10,7 @@ from automind.application import feasibility as fz_app
 from automind.application import research, resolve
 from automind.application.interpret import Interpretation, InterpretError, interpret
 from automind.config import settings
-from automind.domain import identification, research_plan
+from automind.domain import identification, intake, research_plan
 from automind.domain.casefile import CaseFile, apply
 from automind.domain.policy import CarState, decide
 from automind.orchestration import phrases
@@ -63,7 +63,7 @@ async def apply_delta_node(state: TurnState, runtime: Runtime[TurnContext]) -> d
         return {"action": "ASK", "done": True, "reply_text": t("which_car", i.language)}
     request = "choose_for_me" if phrases.choose_for_me(state.get("user_text")) else i.request
     unclear = _not_understood(case, new, request)
-    new, extra = _pending_answered(new, i, request, keep=bool(unclear))
+    new, extra = _pending_answered(new, i, request)
     changes += extra
     out: dict[str, Any] = {"not_understood": unclear, "request_kind": request}
     if changes or new != case:
@@ -225,8 +225,18 @@ async def policy_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[s
         feasibility_pending=fz_nodes.pending(case, state.get("feasibility")),
         confirm_threshold_eur=s.cost_confirm_threshold_eur,
         hard_cap_eur=s.cost_hard_cap_eur,
+        intake_limits=_intake_limits(c),
     )
     return {"decision": action.model_dump(mode="json"), "action": action.kind}
+
+
+def _intake_limits(c: TurnContext) -> intake.Limits:
+    lim = c.ports.ref.search.get("intake") or {}
+    return intake.Limits(
+        max_attempts_per_item=int(lim.get("max_attempts_per_item", 2)),
+        max_attempts_per_car=int(lim.get("max_attempts_per_car", 4)),
+        full_intake=bool(lim.get("full_intake", False)),
+    )
 
 
 def route_after_interpret(state: TurnState) -> str:

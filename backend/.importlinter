@@ -50,10 +50,6 @@ ignore_imports =
     automind.application.repair -> sqlalchemy
     automind.application.challenge -> automind.infrastructure.**
     automind.application.challenge -> sqlalchemy
-    # spec 005: engine back-fill (one-off) and the brand line-up cache use the persistence directly, like resolve
+    # spec 005: the engine back-fill (one-off) uses the persistence directly, like repair
     automind.application.backfill -> automind.infrastructure.**
     automind.application.backfill -> sqlalchemy
-    automind.application.lineup -> automind.infrastructure.**
-    automind.application.lineup -> sqlalchemy
-    automind.application.identify -> automind.infrastructure.**
-    automind.application.identify -> sqlalchemy

@@ -94,6 +94,23 @@ PHRASES: dict[str, dict[str, str]] = {
     "limit_cost_cap": {"en": "cost", "ru": "стоимость", "es": "coste"},
     "limit_llm_calls": {"en": "AI calls", "ru": "вызовы ИИ", "es": "llamadas de IA"},
     "limit_time": {"en": "time", "ru": "время", "es": "tiempo"},
+    # spec 005: intake chips and notices
+    "cond_new": {"en": "New", "ru": "Новые", "es": "Nuevos"},
+    "cond_used": {"en": "Used", "ru": "Подержанные", "es": "De segunda mano"},
+    "yes": {"en": "Yes", "ru": "Да", "es": "Sí"},
+    "no_other": {"en": "No, another one", "ru": "Нет, другую", "es": "No, otro"},
+    "changed_car": {"en": "{before} → {after}", "ru": "{before} → {after}", "es": "{before} → {after}"},
+    "page_taken": {
+        "en": "From the page I took: {what}.",
+        "ru": "Со страницы я взял: {what}.",
+        "es": "De la página he tomado: {what}.",
+    },
+    "page_refused": {
+        "en": "I do not read classified-ads sites ({site}). Please write the car in words.",
+        "ru": "Сайты объявлений ({site}) я не читаю. Напишите, пожалуйста, машину словами.",
+        "es": "No leo portales de anuncios ({site}). Escribe el coche con palabras, por favor.",
+    },
+    "suggested": {"en": "suggestion", "ru": "предложение", "es": "sugerencia"},
     "limit_continue": {"en": "Continue research", "ru": "Продолжить исследование", "es": "Seguir investigando"},
     "limit_stop": {"en": "Answer with what you have", "ru": "Ответить по собранному", "es": "Responder con lo que hay"},
     "feasibility_intro": {

@@ -1,6 +1,6 @@
 """The turn graph (plan.md "Turn graph"; research R2, R5).
 
-    START → load_case → interpret (LLM) → apply_delta (code) → assess (catalog) → policy (code)
+    START → load_case → interpret (LLM) → apply_delta (code) → identify (spec 005) → assess (catalog) → policy
       ├─ ANSWER_GENERAL      → general
       ├─ ASK                 → ask → END (questions pending)
       ├─ CONFIRM_VARIANTS    → prepare_variants → wait (interrupt) → apply_variants → assess | interpret
@@ -19,7 +19,7 @@ from typing import Any
 
 from langgraph.graph import END, START, StateGraph
 
-from automind.orchestration.nodes import confirm, feasibility, report, research, understand
+from automind.orchestration.nodes import confirm, feasibility, identify, report, research, understand
 from automind.orchestration.runner import TurnContext
 from automind.orchestration.state import TurnState
 
@@ -31,6 +31,7 @@ def build_graph(checkpointer: Any = None, tools: list[Any] | None = None) -> Any
     g.add_node("load_case", understand.load_case_node)
     g.add_node("interpret", understand.interpret_node)
     g.add_node("apply_delta", understand.apply_delta_node)
+    g.add_node("identify", identify.identify_node)
     g.add_node("assess", understand.assess_node)
     g.add_node("policy", understand.policy_node)
     g.add_node("general", report.general_node)
@@ -59,7 +60,8 @@ def build_graph(checkpointer: Any = None, tools: list[Any] | None = None) -> Any
     g.add_edge(START, "load_case")
     g.add_edge("load_case", "interpret")
     g.add_conditional_edges("interpret", understand.route_after_interpret, {"end": END, "apply_delta": "apply_delta"})
-    g.add_conditional_edges("apply_delta", understand.route_after_apply, {"end": END, "assess": "assess"})
+    g.add_conditional_edges("apply_delta", understand.route_after_apply, {"end": END, "assess": "identify"})
+    g.add_edge("identify", "assess")
     g.add_edge("assess", "policy")
     g.add_conditional_edges(
         "policy",
