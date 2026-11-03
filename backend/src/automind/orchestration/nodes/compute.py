@@ -15,7 +15,7 @@ from automind.domain import insights as ins
 from automind.domain import research_plan, sense, suggestions, tco
 from automind.domain import verdict as vd
 from automind.domain.casefile import CaseFile
-from automind.domain.criteria import CriteriaScore, score, weights_for
+from automind.domain.criteria import CriteriaScore, score, weight_breakdown, weights_for
 from automind.domain.report_layout import annotate_sections, depths, order_blocks
 from automind.orchestration import report_text
 from automind.orchestration.guard import CheckInput as GuardInput
@@ -212,7 +212,7 @@ async def _blocks(
         compose.sources_block(cars),
     ]
     if crit is not None:
-        blocks.append(compose.criteria_block(crit, model, case.unmapped_wishes))
+        blocks.append(compose.criteria_block(crit, model, case.unmapped_wishes, weight_breakdown(case, model)))
     ages = {x.variant_id: x.age_years for x in case.cars if x.variant_id}
     if fz_app.has_constraints(case) and c.ports.feasibility is not None:  # spec 003: the verdict stays visible
         fz = await fz_app.evaluate(case, c.ports.ref.feasibility, c.ports.ref.rates or {}, c.ports.clock.now().year,

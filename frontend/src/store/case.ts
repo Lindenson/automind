@@ -22,6 +22,7 @@ export type CasePatch = Partial<{
   rates_override: Record<string, number | null>;
   depth: CaseFile["depth"];
   weights: Record<string, number>;
+  reset_weights: boolean;
   remove_priority: string;
 }>;
 

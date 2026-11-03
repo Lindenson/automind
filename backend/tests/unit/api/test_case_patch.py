@@ -18,8 +18,15 @@ def test_patch_weights_normalized_and_priority_removed():
     new, changes = apply_patch(
         case, CasePatch(weights={"status": 40, "reliability": 60}, remove_priority="status"), current_year=2026
     )
-    assert new.weights == {"status": 40.0, "reliability": 60.0} and new.weights_overridden
+    # spec 007 FR-010: kept as adjustments on top of the automatic weights; the result is what the user set
+    from automind.api.rest import _criteria_model
+    from automind.domain.criteria import weights_for
+
+    assert weights_for(new, _criteria_model()) == pytest.approx({"status": 40.0, "reliability": 60.0}, abs=0.01)
+    assert new.weight_adjustments and not new.weights_overridden
     assert new.priorities == [] and "priority removed: status" in changes
+    back, _ = apply_patch(new, CasePatch(reset_weights=True), current_year=2026)
+    assert back.weight_adjustments == {} and back.weights_excluded == []
 
 
 def test_patch_rejects_unknown_fields_and_bad_weights():

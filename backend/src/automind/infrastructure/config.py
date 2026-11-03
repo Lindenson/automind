@@ -185,7 +185,7 @@ def reference(prompts: dict[str, str]) -> Reference:
         manufacturer_sites=dict(load_yaml("sources.yaml").get("manufacturer_sites") or {}),
         plausibility=plausibility_rules(),
         feasibility=feasibility_rules(),
-        criteria=CriteriaModel.from_config(load_yaml("criteria.yaml")),
+        criteria=CriteriaModel.from_config(load_yaml("criteria.yaml"), load_yaml("profile_rules.yaml")),
         rates=rates(),
         insights=load_yaml("insights.yaml"),
         layouts=load_yaml("report_layouts.yaml"),

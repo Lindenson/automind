@@ -1,9 +1,11 @@
 /**
- * Criteria weights (FR-026): sliders show the current weights normalized to 100 %. Releasing a
- * slider sends the whole weight set (PATCH); scores are recomputed from cached data on the next turn.
+ * Criteria weights (FR-026; spec 007 US2): sliders show the current weights normalized to 100 %, each with its
+ * reasons (persona, profile, wishes, the user's own change). Releasing a slider sends the whole set (PATCH); it is
+ * kept as an adjustment on top of the automatic weights, and "back to automatic" removes it.
  */
 import { useEffect, useMemo, useState } from "react";
 import { patchCase } from "../../store/case";
+import { useT } from "../../i18n";
 import { useChat } from "../../store/chat";
 
 type Crit = { key: string; label: string; definition: string };
@@ -27,29 +29,79 @@ function useCriteria(): Crit[] {
   return list;
 }
 
-/** Effective weights: the user's override, else the ones used in the latest criteria scores. */
-function useEffectiveWeights(): Record<string, number> {
-  const override = useChat((s) =>
-    s.caseFile?.data.weights_overridden ? s.caseFile.data.weights : null,
+export type WeightLine = {
+  final: number;
+  base: number;
+  manual: number;
+  reasons: { code: string; points: number }[];
+};
+export type WeightsView = {
+  weights: Record<string, WeightLine>;
+  manual: boolean;
+  excluded: string[];
+};
+
+/** The current weights with their reasons (spec 007 FR-011), fetched after every case change, so the sliders
+ *  follow a persona or profile edit before the next research. */
+function useWeightsView(): WeightsView | null {
+  const chatId = useChat((s) => s.chatId);
+  const version = useChat((s) => s.caseFile?.version ?? 0);
+  const [view, setView] = useState<WeightsView | null>(null);
+  useEffect(() => {
+    if (!chatId) return;
+    let live = true;
+    fetch(`/api/v1/chats/${chatId}/weights`, {
+      headers: { Accept: "application/json" },
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: WeightsView | null) => {
+        if (live && d?.weights) setView(d);
+      })
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, [chatId, version]);
+  return view;
+}
+
+function useEffectiveWeights(view: WeightsView | null): Record<string, number> {
+  return useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(view?.weights ?? {})
+          .filter(([, l]) => l.final > 0)
+          .map(([k, l]) => [k, l.final]),
+      ),
+    [view],
   );
-  const messages = useChat((s) => s.messages);
-  return useMemo(() => {
-    if (override && Object.keys(override).length) return override;
-    for (let i = messages.length - 1; i >= 0; i--) {
-      const m = messages[i]!;
-      if (m.role !== "assistant") continue;
-      const b = m.blocks.find((x) => x.type === "criteria_scores");
-      if (b && b.type === "criteria_scores")
-        return Object.fromEntries(b.criteria.map((c) => [c.key, c.weight]));
-    }
-    return {};
-  }, [override, messages]);
+}
+
+/** "+10 % — family" for each reason of a weight. */
+export function ReasonLine({ line }: { line: WeightLine }) {
+  const t = useT();
+  const parts = line.reasons.map(
+    (r) =>
+      `${r.points > 0 ? "+" : ""}${Math.round(r.points)} ${t(`reason.${r.code}` as "reason.manual")}`,
+  );
+  if (Math.abs(line.manual) >= 0.5)
+    parts.push(
+      `${line.manual > 0 ? "+" : ""}${Math.round(line.manual)} ${t("reason.manual")}`,
+    );
+  if (parts.length === 0) return null;
+  return (
+    <span className="block text-[10px] leading-tight text-muted">
+      {parts.join(" · ")}
+    </span>
+  );
 }
 
 export function Weights({ onError }: { onError: (e: string | null) => void }) {
+  const t = useT();
   const chatId = useChat((s) => s.chatId);
   const criteria = useCriteria();
-  const effective = useEffectiveWeights();
+  const view = useWeightsView();
+  const effective = useEffectiveWeights(view);
   const [draft, setDraft] = useState<Record<string, number>>(effective);
   useEffect(() => setDraft(effective), [effective]);
   const [adding, setAdding] = useState("");
@@ -59,11 +111,9 @@ export function Weights({ onError }: { onError: (e: string | null) => void }) {
   const others = criteria.filter((c) => !((draft[c.key] ?? 0) > 0));
 
   const commit = async (next: Record<string, number>) => {
-    const clean = Object.fromEntries(
-      Object.entries(next).filter(([, v]) => v > 0),
-    );
-    if (Object.keys(clean).length === 0) return;
-    onError(await patchCase(chatId, { weights: clean }));
+    // zeros are sent too: a criterion set to 0 is excluded until "back to automatic" (spec 007 FR-010)
+    if (!Object.values(next).some((v) => v > 0)) return;
+    onError(await patchCase(chatId, { weights: next }));
   };
 
   if (criteria.length === 0 || Object.keys(effective).length === 0) {
@@ -75,6 +125,22 @@ export function Weights({ onError }: { onError: (e: string | null) => void }) {
   }
   return (
     <div className="space-y-2">
+      {view?.manual && (
+        <div className="flex items-center justify-between gap-2 text-xs">
+          <span className="rounded border border-amber-500/50 px-1.5 py-0.5 text-amber-300">
+            {t("weights.manual")}
+          </span>
+          <button
+            type="button"
+            className="underline-offset-2 hover:underline"
+            onClick={async () =>
+              onError(await patchCase(chatId, { reset_weights: true }))
+            }
+          >
+            {t("weights.reset")}
+          </button>
+        </div>
+      )}
       {shown.map((c) => (
         <label key={c.key} className="block text-xs" title={c.definition}>
           <span className="flex justify-between">
@@ -97,6 +163,7 @@ export function Weights({ onError }: { onError: (e: string | null) => void }) {
             onPointerUp={() => void commit(draft)}
             onKeyUp={() => void commit(draft)}
           />
+          {view?.weights[c.key] && <ReasonLine line={view.weights[c.key]!} />}
         </label>
       ))}
       {others.length > 0 && (

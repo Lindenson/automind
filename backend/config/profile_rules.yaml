@@ -1,0 +1,32 @@
+# Profile → criteria weights (spec 007 US2, FR-008, FR-009). Points are added to the persona's default weights
+# before normalisation to 100, and every addition is shown with its reason ("+10 practicality — family").
+# Only fields the user stated or that were inferred from their words count; assumed defaults never do.
+# Bands: "<N", "<=N", ">N", ">=N". Criteria must exist in criteria.yaml.
+version: 1
+cap: 50            # no criterion takes more than this share after normalisation
+rules:
+  family:
+    FAMILY: {practicality: 10, safety: 8, comfort: 5}
+    COUPLE: {comfort: 3}
+  driving_style:
+    SPORTY: {performance: 8, driving_fun: 8}
+    CALM: {comfort: 5, efficiency: 5}
+  usage:
+    MOUNTAINS: {performance: 5, traction_all_weather: 6}
+    CITY: {efficiency: 6, practicality: 3}
+    MOTORWAY: {comfort: 6, efficiency: 4}
+    TRACK: {performance: 10, driving_fun: 8}
+    OFFROAD: {offroad_mountain: 12, traction_all_weather: 4}
+    FAMILY: {practicality: 6, safety: 4}
+  climate:
+    COLD: {traction_all_weather: 5}
+    MOUNTAIN: {traction_all_weather: 5}
+    HOT: {comfort: 3}
+  annual_km:
+    ">25000": {efficiency: 8, ownership_cost: 5}
+    "<8000": {purchase_price: 5}
+  ownership_years:
+    ">=8": {reliability: 8, ownership_cost: 5}
+    "<=3": {purchase_price: 5}
+  condition:
+    USED: {reliability: 6}

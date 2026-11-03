@@ -24,7 +24,7 @@ from automind.infrastructure.db.repositories import CaseRepo
 
 configure_domain()
 mcp = FastMCP("automind")
-MODEL = CriteriaModel.from_config(load_yaml("criteria.yaml"))
+MODEL = CriteriaModel.from_config(load_yaml("criteria.yaml"), load_yaml("profile_rules.yaml"))
 SCORE_NOTE = "0–100 indices (scores), not measurements"
 
 
