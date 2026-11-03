@@ -6,6 +6,7 @@ import type { ChatMessage } from "../lib/protocol";
 import { fmtTime } from "../lib/util";
 import { useChat } from "../store/chat";
 import { BlockView } from "./blocks/BlockView";
+import type { Block } from "../lib/protocol";
 import { RatingControl } from "./RatingControl";
 import { buildCarColors, CarColorContext } from "./carColors";
 import { Logo } from "./Logo";
@@ -41,6 +42,30 @@ export const Message = memo(function Message({ m }: { m: UiMessage }) {
   }
   return <AssistantMessage m={m} />;
 });
+
+const SECTION_TITLES: Record<string, string> = {
+  comparison: "Comparison",
+  engineering: "Engineering and technology",
+  performance: "Performance",
+  cost_over_time: "Cost of ownership",
+  value_retention: "Value over time",
+  reliability: "Reliability",
+  reviews: "Reviews",
+  manufacturer: "Manufacturer",
+  data_panel: "What we know",
+  sources: "Specifications and sources",
+};
+
+/** Consecutive blocks of one section become one collapsible part (spec 004 FR-002). */
+function groupSections(blocks: Block[]): { section?: string; open: boolean; blocks: Block[] }[] {
+  const out: { section?: string; open: boolean; blocks: Block[] }[] = [];
+  for (const b of blocks) {
+    const last = out[out.length - 1];
+    if (b.section && last && last.section === b.section) last.blocks.push(b);
+    else out.push({ section: b.section, open: Boolean(b.open), blocks: [b] });
+  }
+  return out;
+}
 
 function AssistantMessage({ m }: { m: ChatMessage }) {
   const colors = useMemo(() => buildCarColors(m.blocks), [m.blocks]);
@@ -78,9 +103,22 @@ function AssistantMessage({ m }: { m: ChatMessage }) {
           </div>
         )}
         <CarColorContext.Provider value={colors}>
-          {rest.map((b, i) => (
-            <BlockView key={i} block={b} />
-          ))}
+          {groupSections(rest).map((g, i) =>
+            g.section ? (
+              <details key={i} open={g.open} className="group rounded-xl border border-line/40 p-2 sm:p-3">
+                <summary className="min-h-11 cursor-pointer select-none py-2 text-sm font-semibold capitalize">
+                  {SECTION_TITLES[g.section] ?? g.section.replace(/_/g, " ")}
+                </summary>
+                <div className="mt-2 space-y-3">
+                  {g.blocks.map((b, j) => (
+                    <BlockView key={j} block={b} />
+                  ))}
+                </div>
+              </details>
+            ) : (
+              g.blocks.map((b, j) => <BlockView key={`${i}-${j}`} block={b} />)
+            ),
+          )}
         </CarColorContext.Provider>
         {lead.length > 0 && <RatingControl messageId={m.message_id} />}
       </div>

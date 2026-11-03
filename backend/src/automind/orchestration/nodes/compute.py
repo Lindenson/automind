@@ -16,7 +16,7 @@ from automind.domain import research_plan, sense, suggestions, tco
 from automind.domain import verdict as vd
 from automind.domain.casefile import CaseFile
 from automind.domain.criteria import CriteriaScore, score, weights_for
-from automind.domain.report_layout import order_blocks
+from automind.domain.report_layout import annotate_sections, depths, order_blocks
 from automind.orchestration import report_text
 from automind.orchestration.guard import CheckInput as GuardInput
 from automind.orchestration.runner import TurnContext
@@ -160,7 +160,9 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
         else None
     )  # fmt: skip
     head = [vblock, *([sugg] if sugg else [])]
-    ordered = [*head, *order_blocks(case.persona, out_notices + blocks, cars=len(cars))] if cars else []
+    body = order_blocks(case.persona, out_notices + blocks, cars=len(cars))
+    body = annotate_sections(case.persona, body, c.ports.ref.layouts or {})
+    ordered = [*head, *body] if cars else []
     summary = compose.summary_for_llm(cars, race, crit)
     summary["ownership_cost"] = [
         {
@@ -172,6 +174,7 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
         for e in estimates
     ]
     summary["insights"] = report_text.insights_for_llm(iset, verdict, names, lang)
+    summary["section_depth"] = depths(case.persona, c.ports.ref.layouts or {})  # spec 004 FR-019
     return Computed(blocks=ordered, facts=summary, criteria=crit, cars=cars, tco=estimates, race=race,
                     insights=iset, verdict=verdict, check=check)  # fmt: skip
 

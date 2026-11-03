@@ -562,7 +562,9 @@ export const BlockSchema = z.discriminatedUnion("type", [
   EngineeringBlockSchema,
   ManufacturerBlockSchema,
 ]);
-export type Block = z.infer<typeof BlockSchema>;
+/** Layout of a block for the user's profile (spec 004 FR-002): its collapsible section and depth. */
+export type BlockMeta = { section?: string; open?: boolean; depth?: string };
+export type Block = z.infer<typeof BlockSchema> & BlockMeta;
 export type BlockOf<T extends Block["type"]> = Extract<Block, { type: T }>;
 
 const KNOWN_BLOCK_TYPES = new Set<string>(
@@ -584,7 +586,14 @@ export function parseBlocks(raw: unknown): Block[] {
         : undefined;
     if (typeof type !== "string" || !KNOWN_BLOCK_TYPES.has(type)) continue;
     const res = BlockSchema.safeParse(item);
-    if (res.success) out.push(res.data);
+    if (res.success) {
+      const m = item as BlockMeta;
+      const meta: BlockMeta = {};
+      if (typeof m.section === "string") meta.section = m.section;
+      if (typeof m.open === "boolean") meta.open = m.open;
+      if (typeof m.depth === "string") meta.depth = m.depth;
+      out.push({ ...res.data, ...meta });
+    }
     else
       console.warn(
         `[automind] dropped invalid ${type} block`,

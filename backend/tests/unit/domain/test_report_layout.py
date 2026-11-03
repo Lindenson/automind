@@ -116,3 +116,16 @@ def test_single_car_profile_has_no_race_and_no_winner():
 
 def test_unknown_block_types_are_kept_at_the_end():
     assert [b["type"] for b in order_blocks("BUYER", blocks("future_block", "tco"), cars=2)] == ["tco", "future_block"]
+
+
+def test_sections_follow_the_profile_layout():
+    from automind.domain.report_layout import annotate_sections, depths
+    from automind.infrastructure.config import load_yaml
+
+    layouts = load_yaml("report_layouts.yaml")
+    buyer = {b["type"]: b for b in annotate_sections("BUYER", blocks("verdict", "tco", "engineering"), layouts)}
+    expert = {b["type"]: b for b in annotate_sections("EXPERT", blocks("tco", "engineering"), layouts)}
+    assert "section" not in buyer["verdict"]
+    assert buyer["tco"]["open"] and not buyer["engineering"]["open"] and buyer["engineering"]["depth"] == "summary"
+    assert expert["engineering"]["open"] and expert["engineering"]["depth"] == "full" and not expert["tco"]["open"]
+    assert depths("BUYER", layouts)["cost_over_time"] == "full" and depths("EXPERT", layouts)["engineering"] == "full"

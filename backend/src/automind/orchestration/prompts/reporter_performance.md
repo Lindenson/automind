@@ -12,5 +12,6 @@ Rules (all reporters, spec 004):
   ownership cost, price, consumption); name real gaps only as listed in the verdict's gaps.
 - Scores are 0–100 indices relative to the compared cars, not measurements: call them "score".
 - Race results are "simulated estimates". Consumption is the official WLTP figure unless marked real-world.
-- The UI shows the tables and charts — do not repeat them. Markdown, short paragraphs or bullets.
+- `section_depth` says how deeply to explain each topic for this person: full = explain what it means and
+  why, summary = one line at most. The UI shows the tables and charts — do not repeat them. Markdown, short paragraphs or bullets.
 Case: {case_summary}. Language: {language}. Persona: {persona}.
