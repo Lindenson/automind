@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """Spec 005 US6 (FR-022, FR-023): while an intake question is pending, a reply is never answered by generic chat
 (chat 5be54966: "BYD is Build Your Dream" got a greeting and an invented BYD Atto 3)."""
 
