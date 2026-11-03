@@ -58,6 +58,23 @@ generations, criteria, TCO rates, severity rules, search queries, questions).
 - **Limits**: when research nears the per-turn limit of AI calls, cost or time, the hub asks whether to continue.
 - **Operator metrics**: `GET /api/v1/research/metrics?days=7`. Old chats: delete them from the chat list.
 
+## Reports (spec 004)
+
+- **Verdict first**: a card with the pick or a tie, the reasons in numbers, the main trade-off (e.g. "pays back
+  in 30 years"), a confidence with its reason and what would change it. Built by code
+  (`domain/insights.py`, `domain/verdict.py`, thresholds in `config/insights.yaml`); the AI only explains, and
+  `report_check` removes text that contradicts the blocks.
+- **Trustworthy values** (`domain/sense.py`, `config/sense.yaml`): consumption per test cycle (WLTP, older NEDC,
+  real-world), gear counts, service intervals, the market of prices and schedules, the gearbox and drive of the
+  variant. After a rule change: `scripts/repair-data.sh` (back up first).
+- **Exact cars**: unclear answers are asked again, unknown models are never invented, and every car is compared
+  at the same equipment level (base by default; a named version sets the level).
+- **Rich content**: value after 3 and 5 years, manufacturer situation, technology explainers
+  (`config/tech_explainers.yaml`), model-year changes.
+- **Dialogue**: one "what we know" panel with *Find it*, next-step suggestions, critique leads to research or
+  a reworked report, *wrong?* on any value re-checks it, a 1–5 rating under each report.
+- **Layout** per profile (`config/report_layouts.yaml`), research progress grid, interface in ru / es / en.
+
 ## Run locally (development)
 
 ```bash

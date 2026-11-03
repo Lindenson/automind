@@ -20,3 +20,6 @@
 - [ADR-018](ADR-018.md) — Own page store, relevance gate, deterministic site readers (Accepted)
 - [ADR-019](ADR-019.md) — Feasibility engine and the used-price estimate (Accepted)
 - [ADR-020](ADR-020.md) — One Docker Postgres for development, tests and deployment (Accepted)
+- [ADR-021](ADR-021.md) — Deterministic insights and a code-built verdict (Accepted)
+- [ADR-022](ADR-022.md) — Sense layer; gearbox, drive and equipment level in the variant identity (Accepted)
+- [ADR-023](ADR-023.md) — Declarative sections, one data panel, parallel page pipelines (Accepted)

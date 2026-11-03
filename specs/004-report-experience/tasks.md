@@ -305,8 +305,8 @@ because the verdict is built from insights. Both are P1 and together they are th
 
 ## Phase 10: Polish & validation
 
-- [ ] T080 [P] Write ADRs in `docs/adr/` for the deterministic insights and verdict (ADR-021), the sense layer and gearbox/drive identity (ADR-022), and the declarative layouts and data panel (ADR-023)
-- [ ] T081 [P] Update `README.md` and `backend/tests/golden/README.md` for the new blocks, config files and goldens G12–G18
+- [X] T080 [P] Write ADRs in `docs/adr/` for the deterministic insights and verdict (ADR-021), the sense layer and gearbox/drive identity (ADR-022), and the declarative layouts and data panel (ADR-023)
+- [X] T081 [P] Update `README.md` and `backend/tests/golden/README.md` for the new blocks, config files and goldens G12–G18
 - [X] T082 Run `scripts/check.sh` (ruff, format, mypy, import-linter, pytest, vitest). Fix it until green. Check that the new domain modules have no infrastructure imports
 - [X] T083 Check performance: insights and verdict take < 100 ms for 3 cars (a timing assertion in the unit tests), and the verdict card is ready from cached data in < 30 s (SC-007)
 - [ ] T084 Run quickstart.md sections 1–3 in replay. The live goldens G12–G18 and the RAV4 / CX-5 / CR-V manual check wait for paid Gemini: announce them with a cost estimate first
