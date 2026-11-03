@@ -27,6 +27,7 @@ from automind.application.ports import Page, Ports, WebDoc
 from automind.application.usage import BudgetExceeded, current_job
 from automind.domain import evidence as ev
 from automind.domain import identity, plausibility, research_plan, search_plan, sense, specs
+from automind.domain import learned as learned_rules
 from automind.domain import relevance as rel
 from automind.infrastructure import db
 
@@ -159,7 +160,12 @@ def identity_of(v: db.Variant) -> search_plan.Identity:
 
 
 def queries_for(
-    ports: Ports, v: db.Variant, area: str, round_: int, missing: list[str]
+    ports: Ports,
+    v: db.Variant,
+    area: str,
+    round_: int,
+    missing: list[str],
+    learned: dict[str, list[str]] | None = None,
 ) -> list[search_plan.PlannedQuery]:
     """Favourites first (round 0), open web for later rounds or when an area has no favourites (R2)."""
     cfg = ports.ref.search or {}
@@ -172,6 +178,7 @@ def queries_for(
             {area: ports.ref.queries.get(area, [])}, r,
             manufacturer_site=ports.ref.manufacturer_sites.get(v.make),
             sites_per_query=int(cfg.get("sites_per_query", 4)),
+            learned=learned, learned_per_area=_learned_cfg(ports).per_area,
         )  # fmt: skip
 
     out = plan(round_) or (plan(1) if round_ == 0 else [])
@@ -180,6 +187,39 @@ def queries_for(
         text = f"{v.make} {v.model} {v.generation or ''} {v.variant_name} {labels}"
         out.insert(0, search_plan.PlannedQuery(" ".join(text.split()), "OPEN", area, markets[0]))
     return out
+
+
+def _learned_cfg(ports: Ports) -> learned_rules.Config:
+    return learned_rules.Config.from_mapping((ports.ref.search or {}).get("learned"))
+
+
+async def learned_sites(ports: Ports, area: str) -> dict[str, list[str]]:
+    """Active learned domains per market for an area (spec 007 FR-022), best first."""
+    if ports.learned is None:
+        return {}
+    cfg = _learned_cfg(ports)
+    favs = {str(f["domain"]) for f in ports.ref.favourites if area in f.get("areas", ())}
+    out: dict[str, list[str]] = defaultdict(list)
+    try:
+        rows = await ports.learned.rows(area)
+    except Exception:  # noqa: BLE001 - learned sources are a hint; research works without them
+        return {}
+    for r in rows:
+        if learned_rules.is_active(r, cfg, favourites=favs):
+            out[r.market].append(r.domain)
+    return dict(out)
+
+
+async def _record_learned(ports: Ports, area: str, pages: list[Page], accepted_by_url: dict[str, int],
+                          url_market: dict[str, str]) -> None:  # fmt: skip
+    if ports.learned is None or not pages:
+        return
+    outcomes = [(learned_rules.domain_key(p.url), url_market.get(p.url, "ES"), accepted_by_url.get(p.url, 0) > 0)
+                for p in pages if not ev.is_denied(p.url)]  # fmt: skip
+    try:
+        await ports.learned.record(area, outcomes)
+    except Exception:  # noqa: BLE001 - never fail a job over the hint table
+        return
 
 
 async def run_job(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
@@ -212,6 +252,7 @@ async def _run(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
     gate: dict[str, int] = defaultdict(int)
     values_rejected: dict[str, int] = defaultdict(int)
     totals = {"accepted": 0, "rejected": 0, "reader": 0, "docs": 0}
+    accepted_by_url: dict[str, int] = defaultdict(int)
 
     async def one(p: Page) -> None:
         r = await judge(p)
@@ -238,8 +279,10 @@ async def _run(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
                 a, rj = await _persist(ports, v, job.area, d, out, target, uncertain, p, known, values_rejected)
         totals["accepted"] += a
         totals["rejected"] += rj
+        accepted_by_url[p.url] += a
 
     await asyncio.gather(*(one(p) for p in pages))
+    await _record_learned(ports, job.area, pages, accepted_by_url, stats.get("url_market", {}))
     for k, n in gate.items():
         stats["pages_rejected"][k] = stats["pages_rejected"].get(k, 0) + n
     if gate:
@@ -292,6 +335,34 @@ def favourite_priority(ports: Ports, v: db.Variant | None, url: str) -> int | No
     return best
 
 
+def _rank_hits(
+    ports: Ports, v: db.Variant | None, planned: list[search_plan.PlannedQuery], results: list[Any], seen: set[str]
+) -> tuple[dict[str, tuple[int, int, int]], dict[str, str], list[search_plan.PlannedQuery], int]:
+    """Favourites first, then by authority and rank; also which market found a URL and which queries were empty."""
+    from automind.application.usage import BudgetExceeded as _BE  # noqa: PLC0415
+
+    ranked: dict[str, tuple[int, int, int]] = {}
+    url_market: dict[str, str] = {}
+    empty: list[search_plan.PlannedQuery] = []
+    failures = 0
+    for q, r in zip(planned, results, strict=True):
+        if isinstance(r, _BE):
+            raise r
+        if isinstance(r, BaseException):
+            failures += 1
+            continue
+        if not r:
+            empty.append(q)
+        for h in r:
+            url_market.setdefault(h.url, q.market)
+            if h.url in seen or ev.is_denied(h.url):
+                continue
+            fav = favourite_priority(ports, v, h.url)
+            key = (NO_FAVOURITE if fav is None else fav, ev.AUTHORITY.index(ev.classify_source(h.url)), h.rank)
+            ranked[h.url] = min(ranked.get(h.url, key), key)
+    return ranked, url_market, empty, failures
+
+
 async def _collect(
     ports: Ports,
     planned: list[search_plan.PlannedQuery],
@@ -308,20 +379,7 @@ async def _collect(
         *(ports.search.search(q.text, market=q.market, area=area, fresh=fresh) for q in planned),
         return_exceptions=True,
     )
-    ranked: dict[str, tuple[int, int, int]] = {}
-    failures = 0
-    for r in results:
-        if isinstance(r, _BE):
-            raise r
-        if isinstance(r, BaseException):
-            failures += 1
-            continue
-        for h in r:
-            if h.url in seen or ev.is_denied(h.url):
-                continue
-            fav = favourite_priority(ports, v, h.url)
-            key = (NO_FAVOURITE if fav is None else fav, ev.AUTHORITY.index(ev.classify_source(h.url)), h.rank)
-            ranked[h.url] = min(ranked.get(h.url, key), key)
+    ranked, url_market, empty, failures = _rank_hits(ports, v, planned, results, seen)
     order = sorted(ranked, key=lambda u: ranked[u])
     limit = int(((ports.ref.search or {}).get("limits") or {}).get("max_pages_per_job", MAX_DOCS_PER_JOB))
     store = ports.page_store
@@ -345,6 +403,8 @@ async def _collect(
         "pages_cached": sum(1 for p in pages if p.from_cache),
         "pages_rejected": dict(rejected),
         "search_failures": failures,
+        "url_market": url_market,
+        "empty_queries": empty,
     }
     return pages, stats
 
@@ -352,11 +412,20 @@ async def _collect(
 async def _search_pages(
     ports: Ports, v: db.Variant, job: JobSpec, missing: list[str], seen: set[str], emit: Emit
 ) -> tuple[list[search_plan.PlannedQuery], list[Page], dict[str, Any]]:
-    planned = queries_for(ports, v, job.area, job.round, missing)
+    planned = queries_for(ports, v, job.area, job.round, missing,
+                          await learned_sites(ports, job.area) if job.round == 0 else None)  # fmt: skip
     if job.fresh and job.round == 0:  # search again: favourites and the open web together, past the cache
         planned += [q for q in queries_for(ports, v, job.area, 1, missing) if q.text not in {p.text for p in planned}]
     await emit("searching", f"{job.area}: {len(planned)} searches" + (" (follow-up)" if job.round else ""))
     pages, stats = await _collect(ports, planned, seen, job.area, v, fresh=job.fresh)
+    retry_on = bool((ports.ref.search or {}).get("favourite_retry", True))
+    retry = search_plan.retry_queries(stats["empty_queries"], identity_of(v), ports.ref.favourite_queries)
+    if retry_on and retry:  # a favourite query found nothing: once more, shorter (spec 007 FR-021)
+        await emit("searching", f"{job.area}: {len(retry)} shorter searches")
+        more, more_stats = await _collect(ports, retry, seen | {p.url for p in pages}, job.area, v)
+        pages += more
+        planned += retry
+        stats = _merge_stats(stats, more_stats)
     if job.round > 0 and len(pages) < 2:  # open web found too little: bounded AI-proposed queries (FR-004)
         extra = await _ai_queries(ports, v, job.area, missing, [q.text for q in planned])
         if extra:
@@ -420,6 +489,8 @@ def _merge_stats(a: dict[str, Any], b: dict[str, Any]) -> dict[str, Any]:
         "pages_cached": a["pages_cached"] + b["pages_cached"],
         "pages_rejected": rej,
         "search_failures": a["search_failures"] + b["search_failures"],
+        "url_market": {**b.get("url_market", {}), **a.get("url_market", {})},
+        "empty_queries": [*a.get("empty_queries", []), *b.get("empty_queries", [])],
     }
 
 
@@ -441,7 +512,9 @@ async def _job_metrics(job_id: str, planned: list[search_plan.PlannedQuery], sta
         job = await s.get(db.ResearchJob, job_id)
         if job is None:
             return
-        job.queries = [{"text": q.text, "kind": q.kind, "market": q.market} for q in planned]
+        empty = {(q.text, q.market) for q in stats.get("empty_queries", [])}
+        job.queries = [{"text": q.text, "kind": q.kind, "market": q.market, "learned": q.learned,
+                        "empty": (q.text, q.market) in empty} for q in planned]  # fmt: skip
         job.pages_found = stats["pages_found"]
         job.pages_cached = stats["pages_cached"]
         job.pages_rejected = {**(job.pages_rejected or {}), **stats["pages_rejected"]}

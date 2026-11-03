@@ -151,6 +151,15 @@ class NoReaders:
         return None
 
 
+class LearnedSources(Protocol):
+    """Domains that keep giving accepted values (spec 007 FR-022). Rows are `domain.learned.LearnedRow`."""
+
+    async def rows(self, area: str) -> list[Any]: ...
+
+    async def record(self, area: str, outcomes: list[tuple[str, str, bool]]) -> None:
+        """(domain, market, accepted) per fetched page of one research job."""
+
+
 class CaseRepo(Protocol):
     async def latest(self, chat_id: str) -> tuple[int, dict[str, Any] | None, str | None]: ...
 
@@ -229,6 +238,7 @@ class Ports:
     readers: SiteReaders = field(default_factory=NoReaders)
     feasibility: Any = None  # application.feasibility.FeasibilityStore (spec 003 US3)
     lineup: Any = None  # async (ports, make) -> application.lineup.Lineup | None (spec 005); None: no lookup
+    learned: LearnedSources | None = None  # spec 007 FR-022; None: no learned sources (test fakes)
 
     @property
     def page_store(self) -> PageStore:

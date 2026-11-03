@@ -459,6 +459,13 @@ class MetricsRepo:
             for key in ("pages_rejected", "values_rejected"):
                 for k, n in (getattr(j, key) or {}).items():
                     a[key][k] = a[key].get(k, 0) + int(n)
+        # spec 007 FR-023: share of searches that found nothing, per area and market
+        tried: dict[str, dict[str, list[bool]]] = {}
+        for j in jobs:
+            for q in j.queries or []:
+                if isinstance(q, dict) and "empty" in q:
+                    tried.setdefault(j.area, {}).setdefault(str(q.get("market", "ES")), []).append(bool(q["empty"]))
+        empty_share = {a: {m: round(sum(v) / len(v), 3) for m, v in ms.items()} for a, ms in tried.items()}
         met: dict[str, list[bool]] = {}
         for r in runs:
             met.setdefault(r.area, []).append(bool(r.minimum_met))
@@ -469,6 +476,8 @@ class MetricsRepo:
             "days": days,
             "areas": areas,
             "sense_rejections": {str(r): int(n) for r, n in sense_rows},  # spec 004 FR-027, per rule
+            "empty_search_share": empty_share,
+            "learned_sources": await LearnedSourceRepo().all(),
             "intake": intake_summary([(str(a), str(b), dict(c or {})) for a, b, c in intake_rows]),  # spec 005 R13
             "ratings": {"count": int(ratings[0] or 0), "average": round(float(ratings[1]), 2) if ratings[1] else None},
             "sites": [
@@ -505,6 +514,61 @@ class FeasibilityRepo:
             for r in rows:
                 s.add(FeasibilityCheck(chat_id=chat_id, turn_id=turn_id, **r))
             await s.commit()
+
+
+class LearnedSourceRepo:
+    """learned_sources table (spec 007 FR-022). The promotion and expiry rules are in domain.learned."""
+
+    async def rows(self, area: str) -> list[Any]:
+        from automind.domain.learned import LearnedRow  # noqa: PLC0415
+
+        from .models import LearnedSource  # noqa: PLC0415
+
+        async with sessionmaker()() as s:
+            got = (await s.execute(select(LearnedSource).where(LearnedSource.area == area))).scalars().all()
+        rows = [LearnedRow(r.domain, r.area, r.market, r.source_type, r.accepted_runs, r.misses) for r in got]
+        return sorted(rows, key=lambda r: (-r.accepted_runs, r.domain))
+
+    async def record(self, area: str, outcomes: list[tuple[str, str, bool]]) -> None:
+        from automind.domain import learned  # noqa: PLC0415
+
+        from .models import LearnedSource  # noqa: PLC0415
+
+        # one outcome per (domain, market): accepted if any page of that domain gave an accepted value
+        merged: dict[tuple[str, str], bool] = {}
+        for d, m, ok in outcomes:
+            if d:
+                merged[(d, m)] = merged.get((d, m), False) or ok
+        if not merged:
+            return
+        async with sessionmaker()() as s:
+            have = {
+                (r.domain, r.market): r
+                for r in (await s.execute(select(LearnedSource).where(LearnedSource.area == area))).scalars()
+            }
+            for (d, m), ok in merged.items():
+                row = have.get((d, m))
+                if row is None:
+                    if not ok:
+                        continue  # new rows only from accepted values
+                    row = LearnedSource(domain=d, area=area, market=m, accepted_runs=0, misses=0,
+                                        source_type=learned.source_type_of(f"https://{d}/"))  # fmt: skip
+                    s.add(row)
+                lr = learned.update_row(learned.LearnedRow(d, area, m, row.source_type, row.accepted_runs or 0,
+                                                           row.misses or 0), accepted=ok)  # fmt: skip
+                row.accepted_runs, row.misses = lr.accepted_runs, lr.misses
+                if ok:
+                    row.last_seen = now()
+            await s.commit()
+
+    async def all(self) -> list[dict[str, Any]]:
+        from .models import LearnedSource  # noqa: PLC0415
+
+        async with sessionmaker()() as s:
+            got = (await s.execute(select(LearnedSource).order_by(LearnedSource.accepted_runs.desc()))).scalars()
+            return [{"domain": r.domain, "area": r.area, "market": r.market, "source_type": r.source_type,
+                     "accepted_runs": r.accepted_runs, "misses": r.misses,
+                     "last_seen": r.last_seen.isoformat() if r.last_seen else None} for r in got]  # fmt: skip
 
 
 class RatingRepo:

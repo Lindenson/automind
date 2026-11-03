@@ -17,6 +17,7 @@ from automind.infrastructure.db.repositories import (
     CaseRepo,
     FeasibilityRepo,
     JobRepo,
+    LearnedSourceRepo,
     MessageRepo,
     TurnRepo,
     UsageRepo,
@@ -78,6 +79,7 @@ def live_ports(events: EventBus, prompts: dict[str, str]) -> Ports:
         readers=live_readers(),
         feasibility=FeasibilityRepo(),
         lineup=get_lineup,
+        learned=LearnedSourceRepo(),
     )
 
 

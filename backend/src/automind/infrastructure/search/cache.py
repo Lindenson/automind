@@ -41,6 +41,15 @@ def _hits(rows: list[dict[str, Any]]) -> list[SearchHit]:
             for r in rows]  # fmt: skip
 
 
+def cache_ttl(config: dict[str, Any], area: str | None, *, empty: bool) -> timedelta:
+    """Area TTL for results; a short TTL for an empty answer (spec 007 FR-021: empty `site:` answers were kept
+    for a week and blocked every new search of that query)."""
+    if empty:
+        return timedelta(hours=float(config.get("empty_result_ttl_hours", 6)))
+    days = config.get("cache_ttl_days") or {}
+    return timedelta(days=float(days.get(area or "", days.get("default", 7))))
+
+
 class CachedSearcher:
     def __init__(self, providers: Sequence[SearchProvider], config: dict[str, Any]) -> None:
         if not providers:
@@ -52,10 +61,6 @@ class CachedSearcher:
     def _locale(self, market: str) -> tuple[str, str]:
         m = (self.config.get("markets") or {}).get(market) or (self.config.get("markets") or {}).get("ES") or {}
         return str(m.get("gl", "es")), str(m.get("hl", "es"))
-
-    def _ttl(self, area: str | None) -> timedelta:
-        days = self.config.get("cache_ttl_days") or {}
-        return timedelta(days=float(days.get(area or "", days.get("default", 7))))
 
     async def _record(self, provider: str, cost: float, cached: bool, area: str | None) -> None:
         b = current_budget.get()
@@ -96,7 +101,8 @@ class CachedSearcher:
             async with sessionmaker()() as s:
                 values = {
                     "key": key, "provider": p.name, "query": query, "gl": gl, "hl": hl,
-                    "hits": [h.__dict__ for h in hits], "fetched_at": now, "expires_at": now + self._ttl(area),
+                    "hits": [h.__dict__ for h in hits], "fetched_at": now, "empty": not hits,
+                    "expires_at": now + cache_ttl(self.config, area, empty=not hits),
                 }  # fmt: skip
                 stmt = insert(SearchCache).values(**values)
                 await s.execute(stmt.on_conflict_do_update(index_elements=["key"], set_=values))

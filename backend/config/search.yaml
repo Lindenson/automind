@@ -5,6 +5,11 @@ provider: serper            # serper | serpapi | tavily
 fallback: [tavily]          # tried in order when the provider fails, has no key or no credit
 num: 10                     # results per query
 cache_ttl_days: {default: 7, price: 3}
+empty_result_ttl_hours: 6   # an empty answer is kept briefly, so the next research searches again (spec 007 FR-021)
+favourite_retry: true       # a favourite query with no hits is tried once more, shorter (FR-021)
+# Learned sources (FR-022): a domain with accepted values in `min_runs` research runs joins round 0 after the
+# configured favourites (at most `per_area` per market); it drops out after `max_misses` runs without a value.
+learned: {min_runs: 3, max_misses: 5, per_area: 4}
 markets:                    # case market → provider locale
   ES: {gl: es, hl: es}
   EN: {gl: gb, hl: en}
