@@ -312,6 +312,7 @@ def route_policy(state: TurnState) -> str:
         "RESEARCH": "plan_research",
         "ANSWER_FROM_CONTEXT": "answer",
         "REPORT": "report",
+        "RESCORE": "report",  # spec 007: the report node recomputes and says what changed
         "FEASIBILITY": "prepare_feasibility",
         "CONFIRM_INTAKE": "prepare_intake",
     }[state["decision"]["kind"]]

@@ -23,6 +23,12 @@ export type CasePatch = Partial<{
   depth: CaseFile["depth"];
   weights: Record<string, number>;
   reset_weights: boolean;
+  profile: Partial<{
+    family: "SINGLE" | "COUPLE" | "FAMILY" | null;
+    driving_style: "CALM" | "MIXED" | "SPORTY" | null;
+    age_band: "UNDER_25" | "25_40" | "40_60" | "OVER_60" | null;
+  }>;
+  ownership_years: number;
   remove_priority: string;
 }>;
 

@@ -133,6 +133,37 @@ def _profile_question(case: CaseFile, comp: Any, lang: str | None, probes: Any =
     return [{"type": "quick_replies", "question": q, "items": items}]
 
 
+def _mark_score_changes(case: CaseFile, blocks: list[dict[str, Any]]) -> None:
+    """Annotate the criteria block with the change of each total and criterion score against the previous report,
+    and remember these scores for the next one (spec 007 FR-013)."""
+    crit = next((b for b in blocks if b.get("type") == "criteria_scores"), None)
+    if crit is None:
+        return
+    now: dict[str, dict[str, float]] = {}
+    for car in crit.get("cars", []):
+        now[str(car.get("car_id"))] = _mark_car(car, case.last_scores.get(str(car.get("car_id"))))
+    prev_weights = case.last_weights
+    if prev_weights:
+        for row in crit.get("criteria", []):
+            row["delta"] = round(float(row["weight"]) - prev_weights.get(row["key"], 0.0), 1)
+    case.last_scores = now
+    case.last_weights = {row["key"]: float(row["weight"]) for row in crit.get("criteria", [])}
+
+
+def _mark_car(car: dict[str, Any], before: dict[str, float] | None) -> dict[str, float]:
+    parts = car.get("parts") or {}
+    scores = {k: float(p["score"]) for k, p in parts.items() if p.get("score") is not None}
+    if car.get("total") is not None:
+        scores["_total"] = float(car["total"])
+    if before is not None:
+        if "_total" in scores and "_total" in before:
+            car["delta"] = round(scores["_total"] - before["_total"], 1)
+        for k, part in parts.items():
+            if k in scores and k in before:
+                part["delta"] = round(scores[k] - before[k], 1)
+    return scores
+
+
 def _critique_lead(state: TurnState, lang: str | None) -> str:
     """What was done about the critique, by code (never only an apology)."""
     areas = sorted({str(r.get("area")) for r in state.get("research_results", []) if r.get("area")})
@@ -166,6 +197,12 @@ def make_report_node():  # noqa: ANN201
         car_list = [x["variant"].label for x in comp.cars]
         request = f"User message: {state.get('user_text', '')}\nCars: {json.dumps(car_list, ensure_ascii=False)}"
         critique = state.get("request_kind") == "critique"
+        rescore = (state.get("decision") or {}).get("kind") == "RESCORE"
+        if rescore:  # spec 007 FR-013: a panel edit; the blocks are recomputed, the text says only what changed
+            changes = "; ".join(str(x) for x in ((state.get("preset") or {}).get("changes") or [])) or "the profile"
+            request += (f"\nThe user changed in the case panel: {changes}. Do not write a full report. In 2-4 short "
+                        "sentences say what this changed in the result: the weights, the scores and whether the winner "
+                        "or the tie changed, and why, using only the facts.")  # fmt: skip
         if critique:  # spec 004 FR-021: rework with what the user disliked, and say what was done
             request += (f"\nThe user criticised the previous report: \"{state.get('user_text', '')}\". Rework it: go "
                         "deeper on what they ask for, use every meaningful difference, never apologise.")  # fmt: skip
@@ -175,6 +212,7 @@ def make_report_node():  # noqa: ANN201
         text, fixed = await _report_check(c, system, request, comp, text, allowed)
         _log_removed(c, "report", dropped + fixed)
         blocks = list(comp.blocks)
+        _mark_score_changes(case, blocks)  # spec 007 FR-013: changed scores are highlighted
         if critique:
             text = _critique_lead(state, lang) + "\n\n" + text
         fp = fingerprint(case)
@@ -190,6 +228,7 @@ def make_report_node():  # noqa: ANN201
             case.last_values = {x["car_key"]: int(x["values"]) for x in panel["cars"]}
         version = await save_case(c, case, [], publish=False)
         await c.status("done", "Done")
+        # a rescore is a report too: its fingerprint is what the next "nothing new" is compared against
         return {"reply_text": text, "blocks": blocks, "action": "REPORT", "fingerprint": fp, "case_version": version}
 
     return report_node

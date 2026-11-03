@@ -11,6 +11,24 @@ import { TrophyIcon } from "../icons";
 
 const SHADES = [1, 0.8, 0.62, 0.48, 0.36, 0.27, 0.2];
 
+/** Change since the previous report (spec 007 FR-013): shown only when it moved. */
+function Delta({ d, small }: { d?: number | null; small?: boolean }) {
+  if (d == null || Math.abs(d) < 0.5) return null;
+  return (
+    <span
+      className={cx(
+        "ml-1 rounded px-1 align-middle font-semibold tabular",
+        small ? "text-[10px]" : "text-xs",
+        d > 0 ? "bg-good/15 text-good" : "bg-bad/15 text-bad",
+      )}
+      title="change since the previous report"
+    >
+      {d > 0 ? "▲" : "▼"}
+      {fmtNum(Math.abs(d), 0)}
+    </span>
+  );
+}
+
 export function CriteriaScores({ b }: { b: BlockOf<"criteria_scores"> }) {
   const t = useT();
   const color = useCarColor();
@@ -59,6 +77,7 @@ export function CriteriaScores({ b }: { b: BlockOf<"criteria_scores"> }) {
                 >
                   {car.total === null ? "—" : fmtNum(car.total, 0)}
                   <span className="text-xs font-medium text-muted">/100</span>
+                  <Delta d={car.delta} />
                 </span>
               </div>
               <div
@@ -101,12 +120,15 @@ export function CriteriaScores({ b }: { b: BlockOf<"criteria_scores"> }) {
                           ) : (
                             <>
                               {fmtNum(part!.score, 0)}
-                              {b.relative?.[cr.key]?.[car.car_id] !== undefined && (
+                              <Delta d={part!.delta} small />
+                              {b.relative?.[cr.key]?.[car.car_id] !==
+                                undefined && (
                                 <span
                                   className="ml-1 text-muted"
                                   title="relative to the best of the compared cars (= 100)"
                                 >
-                                  ({fmtNum(b.relative[cr.key]![car.car_id]!, 0)}% {t("scores.ofBest")})
+                                  ({fmtNum(b.relative[cr.key]![car.car_id]!, 0)}
+                                  % {t("scores.ofBest")})
                                 </span>
                               )}
                             </>
@@ -167,9 +189,7 @@ export function CriteriaScores({ b }: { b: BlockOf<"criteria_scores"> }) {
         </p>
       )}
       {b.single && (
-        <p className="mt-2 text-xs text-muted">
-          {t("scores.single")}
-        </p>
+        <p className="mt-2 text-xs text-muted">{t("scores.single")}</p>
       )}
       {b.unmapped_wishes.length > 0 && (
         <p className="mt-2 text-xs text-muted">
