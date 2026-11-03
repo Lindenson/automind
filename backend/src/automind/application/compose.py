@@ -8,6 +8,7 @@ from __future__ import annotations
 from dataclasses import asdict
 from datetime import datetime
 from functools import lru_cache
+from typing import Any
 
 from sqlalchemy import select
 
@@ -534,8 +535,10 @@ def data_panel_block(
 # ---------------- spec 002 blocks ----------------
 
 
-def criteria_block(sc: CriteriaScore, model: CriteriaModel, unmapped: list[str]) -> dict:
-    """criteria_scores (contracts/chat-protocol.md): 0–100 indices, labelled as scores, with inputs."""
+def criteria_block(sc: CriteriaScore, model: CriteriaModel, unmapped: list[str], breakdown: Any = None) -> dict:
+    """criteria_scores (contracts/chat-protocol.md): 0–100 indices, labelled as scores, with inputs; each weight
+    with its reasons (spec 007 FR-011)."""
+    lines = breakdown.lines if breakdown is not None else {}
     return {
         "type": "criteria_scores",
         "title": "Criteria and scores (0–100 indices, not measurements)",
@@ -546,9 +549,12 @@ def criteria_block(sc: CriteriaScore, model: CriteriaModel, unmapped: list[str])
                 "label": model.criteria[k].label,
                 "weight": round(w, 1),
                 "definition": model.criteria[k].definition,
+                "reasons": [{"code": c, "points": p} for c, p in lines[k].contributions] if k in lines else [],
+                "manual": lines[k].manual if k in lines else 0.0,
             }
             for k, w in sorted(sc.weights.items(), key=lambda x: -x[1])
         ],
+        "manual_weights": bool(breakdown.manual) if breakdown is not None else False,
         "cars": [
             {
                 "car_id": c.car_id,

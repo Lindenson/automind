@@ -11,6 +11,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field, replace
 from typing import Any
 
+from . import weights
 from .casefile import CRITERION_KEYS, CaseFile
 from .metrics import CarFacts, ReliabilitySummary, ReviewSummary, lin, metrics
 
@@ -33,9 +34,10 @@ class CriteriaModel:
     personas: dict[str, dict[str, float]]
     strength_points: dict[str, float]
     min_coverage: float
+    rules: weights.ProfileRules | None = None  # config/profile_rules.yaml (spec 007)
 
     @classmethod
-    def from_config(cls, d: Mapping[str, Any]) -> CriteriaModel:
+    def from_config(cls, d: Mapping[str, Any], rules: Mapping[str, Any] | None = None) -> CriteriaModel:
         crit = {
             k: Criterion(k, v["label"], v["definition"], list(v.get("inputs", [])), dict(v.get("scale", {})))
             for k, v in d["criteria"].items()
@@ -49,6 +51,7 @@ class CriteriaModel:
             personas={p: {k: float(w) for k, w in ws.items()} for p, ws in d["personas"].items()},
             strength_points={k: float(v) for k, v in d["strength_points"].items()},
             min_coverage=float(d["min_coverage"]),
+            rules=weights.ProfileRules.from_config(rules) if rules is not None else None,
         )
 
 
@@ -57,14 +60,42 @@ def _normalize(raw: Mapping[str, float]) -> dict[str, float]:
     return {k: round(v * 100 / total, 4) for k, v in raw.items() if v > 0} if total else {}
 
 
+def weight_breakdown(case: CaseFile, model: CriteriaModel) -> weights.WeightBreakdown:
+    """Persona + profile rules + wishes + the user's adjustments, each with its reason (spec 007 FR-008)."""
+    return weights.breakdown(case, model.personas, model.strength_points, model.rules)
+
+
+def automatic_weights(case: CaseFile, model: CriteriaModel) -> dict[str, float]:
+    return weights.automatic(case, model.personas, model.strength_points, model.rules)[0]
+
+
+def set_manual_weights(case: CaseFile, raw: Mapping[str, float], model: CriteriaModel) -> CaseFile:
+    """The user set weights in the panel (FR-026; spec 007 FR-010): kept as adjustments on top of the automatic
+    weights, so a later persona or profile change still moves the rest; a 0 excludes the criterion."""
+    unknown = [k for k in raw if k not in CRITERION_KEYS]
+    if unknown:
+        raise ValueError(f"unknown criteria: {', '.join(unknown)}")
+    if any(v < 0 for v in raw.values()):
+        raise ValueError("weights must be ≥ 0")
+    c = case.model_copy(deep=True)
+    c.weights, c.weights_overridden = {}, False  # the old absolute form is replaced
+    auto = automatic_weights(c, model)
+    c.weight_adjustments = weights.manual_adjustments(c, {k: v for k, v in raw.items() if v > 0}, auto)
+    c.weights_excluded = sorted(k for k, v in raw.items() if v == 0 and auto.get(k, 0) > 0)
+    for k in c.weights_excluded:
+        c.weight_adjustments.pop(k, None)
+    return c
+
+
+def reset_weights(case: CaseFile) -> CaseFile:
+    c = case.model_copy(deep=True)
+    c.weights, c.weights_overridden, c.weight_adjustments, c.weights_excluded = {}, False, {}, []
+    return c
+
+
 def weights_for(case: CaseFile, model: CriteriaModel) -> dict[str, float]:
-    """Persona defaults + wish points, normalized to 100; a user override wins (FR-026)."""
-    if case.weights_overridden and case.weights:
-        return dict(case.weights)
-    raw = dict(model.personas.get(case.persona, model.personas["UNKNOWN"]))
-    for p in case.priorities:
-        raw[p.criterion] = raw.get(p.criterion, 0.0) + model.strength_points[p.strength]
-    return _normalize(raw)
+    """The final weights, normalized to 100 (FR-026; spec 007 FR-008)."""
+    return weight_breakdown(case, model).final
 
 
 @dataclass(frozen=True)

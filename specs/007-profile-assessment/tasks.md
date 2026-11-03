@@ -46,7 +46,7 @@ Paths are relative to the repo root: `B/` = `backend/src/automind/`, `T/` = `bac
   - `weight_adjustments: dict[CriterionKey, float]`;
   - a `model_validator(mode="before")` upgrade of old rows (the conversion to adjustments needs the automatic weights: do it lazily via `weights.upgrade_adjustments()` in T020; keep `weights` and `weights_overridden` read-only until then);
   - `apply()` respecting basis precedence.
-- [ ] T005 [P] Write a loader for `profile_rules.yaml` / `profile_defaults.yaml` in `B/infrastructure/config.py`. It rejects unknown criteria, unknown fields and malformed bands (`<N`, `<=N`, `>N`, `>=N`). Test it in `T/unit/test_domain.py::test_profile_rules_loader`.
+- [X] T005 [P] (done as `weights.ProfileRules.from_config`, tested in test_weights.py) Write a loader for `profile_rules.yaml` / `profile_defaults.yaml` in `B/infrastructure/config.py`. It rejects unknown criteria, unknown fields and malformed bands (`<N`, `<=N`, `>N`, `>=N`). Test it in `T/unit/test_domain.py::test_profile_rules_loader`.
 
 **Checkpoint**: case files load and save with the new fields; all existing tests stay green.
 
@@ -161,7 +161,7 @@ Paths are relative to the repo root: `B/` = `backend/src/automind/`, `T/` = `bac
 
 ### Tests
 
-- [ ] T030 [P] [US2] Tests in `T/unit/domain/test_weights.py`:
+- [X] T030 [P] [US2] Tests in `T/unit/domain/test_weights.py`:
   - one test per rule in `C/profile_rules.yaml` (the field value adds those points with that reason);
   - the cap of 50 and normalisation to 100;
   - negatives are clipped;
@@ -173,10 +173,10 @@ Paths are relative to the repo root: `B/` = `backend/src/automind/`, `T/` = `bac
 
 ### Implementation
 
-- [ ] T031 [US2] Implement `B/domain/weights.py`: `WeightLine`, `WeightBreakdown`, `breakdown(case, model, rules)` and `upgrade_adjustments(case, model, rules)`. Make `B/domain/criteria.py::weights_for` return `breakdown(...).final`. Change `set_weights` in casefile.py to store `weight_adjustments` (absolute weights minus automatic) instead of setting `weights_overridden`.
-- [ ] T032 [US2] Make `B/orchestration/nodes/compute.py` and `B/application/compose.py` put the breakdown into the `criteria_scores` block (contracts/case-patch-and-rescore.md "Weight breakdown in blocks"). Add the reason-code labels en/ru/es to `B/orchestration/report_text.py` and the frontend i18n.
-- [ ] T033 [US2] In `F/components/CasePanel/Weights.tsx`, show the reasons per weight, a "set manually" badge and a "back to automatic" button (sends `reset_weights: true`). Update the types in `F/lib/protocol.ts`. Add a vitest test in `frontend/src/components/CasePanel/Weights.test.tsx`.
-- [ ] T034 [US2] Run check, restart dev, deploy, then commit, push and merge ("007-C weights from profile").
+- [X] T031 [US2] Implement `B/domain/weights.py`: `WeightLine`, `WeightBreakdown`, `breakdown(case, model, rules)` and `upgrade_adjustments(case, model, rules)`. Make `B/domain/criteria.py::weights_for` return `breakdown(...).final`. Change `set_weights` in casefile.py to store `weight_adjustments` (absolute weights minus automatic) instead of setting `weights_overridden`.
+- [X] T032 [US2] Make `B/orchestration/nodes/compute.py` and `B/application/compose.py` put the breakdown into the `criteria_scores` block (contracts/case-patch-and-rescore.md "Weight breakdown in blocks"). Add the reason-code labels en/ru/es to `B/orchestration/report_text.py` and the frontend i18n.
+- [X] T033 [US2] (the panel reads `GET /api/v1/chats/{id}/weights` after every case change; no component-test setup exists, so a backend test checks that every reason code has a label) In `F/components/CasePanel/Weights.tsx`, show the reasons per weight, a "set manually" badge and a "back to automatic" button (sends `reset_weights: true`). Update the types in `F/lib/protocol.ts`. Add a vitest test in `frontend/src/components/CasePanel/Weights.test.tsx`.
+- [X] T034 [US2] Run check, restart dev, deploy, then commit, push and merge ("007-C weights from profile").
 
 ---
 

@@ -271,7 +271,10 @@ class CaseFile(BaseModel):
     depth: Depth = "STANDARD"
     priorities: list[Priority] = Field(default_factory=list)
     weights: dict[str, float] = Field(default_factory=dict)
-    weights_overridden: bool = False
+    weights_overridden: bool = False  # before spec 007: `weights` were absolute; now read as adjustments
+    # spec 007 FR-010: manual weights are points on top of the automatic ones; excluded criteria stay at 0
+    weight_adjustments: dict[str, float] = Field(default_factory=dict)
+    weights_excluded: list[str] = Field(default_factory=list)
     unmapped_wishes: list[str] = Field(default_factory=list)
     cars: list[CaseCar] = Field(default_factory=list)
     next_car_no: int = 1

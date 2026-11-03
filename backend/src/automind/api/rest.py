@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 from datetime import UTC, datetime
 from typing import Any, Literal
 
@@ -19,7 +20,13 @@ from automind.domain.casefile import (
     Rates,
     RunningLimit,
     apply,
-    set_weights,
+)
+from automind.domain.criteria import (
+    CriteriaModel,
+    reset_weights,
+    set_manual_weights,
+    weight_breakdown,
+    weights_for,
 )
 from automind.infrastructure import config as cfg
 from automind.infrastructure import llm_gateway
@@ -129,7 +136,8 @@ class CasePatch(BaseModel):
     annual_km: int | None = None
     rates_override: Rates | None = None
     depth: Literal["QUICK", "STANDARD", "DEEP"] | None = None
-    weights: dict[str, float] | None = None
+    weights: dict[str, float] | None = None  # absolute weights from the sliders; kept as adjustments (spec 007)
+    reset_weights: bool = False  # "back to automatic"
     remove_priority: str | None = None
 
 
@@ -144,6 +152,27 @@ async def get_case(chat_id: str, request: Request) -> dict[str, Any] | JSONRespo
     version, data, changed_by = await request.app.state.cases.latest(chat_id)
     case = CaseFile.model_validate(data) if data else CaseFile()
     return {"version": version, "case": case.model_dump(mode="json"), "changed_by": changed_by}
+
+
+@router.get("/api/v1/chats/{chat_id}/weights", response_model=None)
+async def case_weights(chat_id: str, request: Request) -> dict[str, Any]:
+    """The current weights with their reasons (spec 007 FR-011): persona base, profile rules, wishes, the user's
+    adjustments. Read by the panel after every case change, so the sliders follow a profile edit at once."""
+    version, data, _ = await request.app.state.cases.latest(chat_id)
+    case = CaseFile.model_validate(data) if data else CaseFile()
+    return {"version": version, **weights_view(case, _criteria_model())}
+
+
+def weights_view(case: CaseFile, model: CriteriaModel) -> dict[str, Any]:
+    b = weight_breakdown(case, model)
+    return {
+        "weights": {
+            k: {"final": round(ln.final, 1), "base": ln.base, "manual": ln.manual,
+                "reasons": [{"code": c, "points": p} for c, p in ln.contributions]}
+            for k, ln in b.lines.items()
+        },
+        "manual": b.manual, "capped": list(b.capped), "excluded": list(b.excluded),
+    }  # fmt: skip
 
 
 @router.patch("/api/v1/chats/{chat_id}/case", response_model=None)
@@ -195,10 +224,19 @@ def apply_patch(case: CaseFile, patch: CasePatch, *, current_year: int) -> tuple
                 "rates: "
                 + (", ".join(f"{k}={v}" for k, v in rates.model_dump(exclude_none=True).items()) or "defaults")
             )
+    if patch.reset_weights:
+        new = reset_weights(new)
+        changes.append("weights: automatic")
     if patch.weights is not None:
-        new = set_weights(new, patch.weights)
-        changes.append("weights: " + ", ".join(f"{k} {v:.0f}%" for k, v in new.weights.items() if v))
+        model = _criteria_model()
+        new = set_manual_weights(new, patch.weights, model)
+        changes.append("weights: " + ", ".join(f"{k} {v:.0f}%" for k, v in weights_for(new, model).items() if v))
     return new, changes
+
+
+@functools.cache
+def _criteria_model() -> CriteriaModel:
+    return CriteriaModel.from_config(cfg.load_yaml("criteria.yaml"), cfg.load_yaml("profile_rules.yaml"))
 
 
 @router.get("/api/v1/research/metrics")
