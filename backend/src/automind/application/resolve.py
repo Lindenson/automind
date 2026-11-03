@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import timedelta
 from typing import Any, Literal
 
@@ -165,6 +166,24 @@ async def catalog_for(make: str, model: str) -> list[db.Variant]:
         return list(rows.scalars())
 
 
+_POWERTRAIN_WORDS = {"dmi", "dmp", "phev", "hev", "mhev", "ev", "hybrid", "electric", "electrico", "ehev", "etech"}
+
+
+def same_model(asked: str | None, got: str | None) -> bool:
+    """The resolved model is the model the user named (spec 005: never another model of the make). The variant may
+    be more specific ("Seal U" → "Seal U DM-i"); the user's name may carry a powertrain word ("Seal U DM-i")."""
+    if not asked or not got:
+        return True
+    a = re.sub(r"[^a-z0-9]", "", identity.transliterate_ru(asked.lower()))
+    g = re.sub(r"[^a-z0-9]", "", identity.transliterate_ru(got.lower()))
+    if a == g or g.startswith(a):
+        return True
+    if a.startswith(g):
+        rest = a[len(g) :]
+        return rest in _POWERTRAIN_WORDS
+    return fuzz.ratio(a, g) >= 90
+
+
 def engine_of_fits(v: db.Variant, hint: Any) -> bool:
     """The variant's engine (stored, else parsed from its name) fits the engine the user named."""
     cc, kw, fuel = v.engine_cc, v.power_kw, v.fuel
@@ -229,7 +248,7 @@ def auto_resolve(car: CaseCar, a: Assessment) -> bool:
 
 
 async def resolve_with_llm(
-    ports: Ports, car: CaseCar, current_year: int, level: str = "BASE", *, lineup: Any = None
+    ports: Ports, car: CaseCar, current_year: int, level: str = "BASE", *, lineup: Any = None, insist: str = ""
 ) -> tuple[db.Variant, VariantIdentity]:
     """Catalog miss: ask the resolver with the case context, validate years, upsert with de-dup."""
     docs = await _resolver_docs(ports, car, lineup)
@@ -238,10 +257,14 @@ async def resolve_with_llm(
     )
     current = current_generation(ports.ref, car, current_year)
     context = _context(car, current, level)
+    named = " ".join(x for x in (car.make, car.model) if x)
     user = (
-        f"User's car: {car.request_text}\nCase context: {'; '.join(context)}\nCurrent year: {current_year}\n\n"
+        f"User's car: {car.display_name} (the user's words: {car.request_text})\n"
+        + (f"Model asked: {named} — return a version of exactly this model, never another model of the make.\n"
+           if car.make and car.model else "")
+        + f"Case context: {'; '.join(context)}\nCurrent year: {current_year}\n{insist}\n"
         f"Search results:\n{snippets or '(none)'}"
-    )
+    )  # fmt: skip
     ident = await ports.llm.structured("resolver", VariantIdentity, ports.ref.prompts["resolver"], user)
     await _check_known(ports.ref, car, ident, lineup)
     if current is not None and (ident.generation or "").lower() != current[0].lower():
@@ -284,7 +307,7 @@ def _context(car: CaseCar, current: tuple[str, int] | None, level: str) -> list[
     if car.constraints.trim_hint:
         context.append(f"version named by the user: {car.constraints.trim_hint} (return its trim_level)")
     elif car.condition != "USED":
-        context.append(f"equipment level wanted: {level} (BASE = the cheapest version on sale in Spain)")
+        context.append(f"equipment level wanted: {level} (BASE = the cheapest version OF THIS MODEL on sale in Spain)")
     return context
 
 

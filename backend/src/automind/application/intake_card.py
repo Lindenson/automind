@@ -62,6 +62,9 @@ def _engine_text(v: Any) -> str:
     return " · ".join(bits) or v.variant_name
 
 
+_STABLE = {"make", "model", "generation", "engine", "gearbox", "year", "mileage", "trim", "price_eur"}
+
+
 def _car_items(car: CaseCar, v: Any, lang: str, options: list[str], before: dict[str, str]) -> list[dict[str, Any]]:
     k = car.constraints
     src = {"name": _w(WORDS, "catalog", lang), "url": None}
@@ -87,6 +90,8 @@ def _car_items(car: CaseCar, v: Any, lang: str, options: list[str], before: dict
     if v.price_eur and car.condition != "USED":
         items.append(_item("price_eur", f"€{int(v.price_eur):,}".replace(",", " "), "LOOKED_UP", source=src))
     for it in items:
+        if it["field"] not in _STABLE:
+            continue  # translated values (fuel, condition) differ by language, not by change
         if before and before.get(it["field"]) not in (None, it["value"]):
             it["changed"], it["before"] = True, before[it["field"]]
     return items

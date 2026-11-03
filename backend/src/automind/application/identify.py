@@ -156,6 +156,16 @@ async def _resolve_open(ports: Ports, case: CaseFile, car: CaseCar, year: int, l
     """Catalog miss: the resolver with sources; a model of the make's line-up is known even without a generation."""
     try:
         v, ident = await resolve.resolve_with_llm(ports, car, year, case.compare_level, lineup=lineup)
+        if not resolve.same_model(car.model, v.model):  # the resolver answered another model: insist once
+            v, ident = await resolve.resolve_with_llm(
+                ports, car, year, case.compare_level, lineup=lineup,
+                insist=f"Your previous answer was {v.model}, which is NOT the model asked ({car.model}). "
+                "Return a version of the model asked, or known_model=false.",
+            )  # fmt: skip
+        if not resolve.same_model(car.model, v.model):  # still another model: never accepted, ask with real options
+            car.resolution, car.variant_id, car.label = "UNRESOLVED", None, None
+            return _done(car, IdentifyOutcome(outcome="NOT_FOUND", need="MODEL", note=f"resolver returned {v.model}",
+                                              choices=_close_lineup(lineup, car)))  # fmt: skip
     except resolve.GenerationMismatch as e:
         return _done(car, IdentifyOutcome(outcome="NEED", need="YEAR", note=str(e)))
     except resolve.UnknownModel as e:
@@ -172,6 +182,27 @@ async def _resolve_open(ports: Ports, case: CaseFile, car: CaseCar, year: int, l
         return _done(car, IdentifyOutcome(outcome="CHOICES" if choices else "NEED", need="ENGINE", choices=choices))
     car.variant_id, car.label, car.resolution = v.id, v.label, "PROPOSED"
     return _done(car, IdentifyOutcome(outcome="IDENTIFIED", note=ident.note))
+
+
+def _close_lineup(lineup: Any, car: CaseCar) -> list[Choice]:
+    """Models of the make's line-up close to the name the user gave (the same model first)."""
+    models = _lineup_models(lineup)
+    close = [m for m in models if resolve.same_model(car.model, m.model) or resolve.same_model(m.model, car.model)]
+    rest = [m for m in models if m not in close]
+    return [Choice(label=f"{car.make} {m.model}", make=car.make, model=m.model, source_url=m.source_url)
+            for m in [*close, *rest][:6]]  # fmt: skip
+
+
+async def drop_wrong_variant(car: CaseCar) -> bool:
+    """A stored version of another model than the one named (an earlier wrong resolution) is dropped (spec 005)."""
+    if not (car.variant_id and car.model):
+        return False
+    v = await resolve.get_variant(car.variant_id)
+    if v is None or resolve.same_model(car.model, v.model):
+        return False
+    car.previous_label = car.label or v.label
+    car.variant_id, car.label, car.resolution, car.identify = None, None, "UNRESOLVED", None
+    return True
 
 
 def _done(car: CaseCar, o: IdentifyOutcome) -> IdentifyOutcome:

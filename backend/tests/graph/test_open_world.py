@@ -88,3 +88,59 @@ async def test_classifieds_link_is_refused_and_maker_home_page_names_the_make(sa
     r2 = await rn.run_turn(chat, "https://www.byd.com/ вот он!")
     _, data, _ = await rn.ports.cases.latest(chat)
     assert data["cars"][0]["make"] == "BYD" and "Seal U DM-i" in r2.reply_text
+
+
+DOLPHIN = {"make": "BYD", "model": "Dolphin", "generation": None, "generation_years_from": None,
+           "generation_years_to": None, "variant_name": "Active 95 CV 44.9 kWh", "powertrain": "BEV",
+           "engine_cc": None, "power_kw": 70, "fuel": "bev", "trim_level": "BASE", "known_model": True,
+           "certainty": "likely", "note": "Dolphin is BYD's base model in Spain."}  # fmt: skip
+
+
+async def test_resolver_answering_another_model_is_never_accepted(saver):
+    """Live chat 2026-11-03: "BYD Seal U" became "BYD Dolphin Active" (the cheapest BYD) and stayed on the card."""
+    llm = FakeLLM().queue("lineup", LINEUP)
+    llm.responders["asker"] = lambda s, u: "Понял."
+    llm.queue("interpreter", _ru({"add_cars": [{"request_text": "byd seal u", "make": "BYD", "model": "Seal U",
+                                                "condition": "NEW"}]}))  # fmt: skip
+    llm.queue("resolver", DOLPHIN, DOLPHIN)  # wrong twice: asked again with "insist", still wrong
+    rn = await _runner(saver, llm)
+    chat = str(uuid.uuid4())
+    r = await rn.run_turn(chat, "BYD Seal U")
+    assert r.action == "ASK", (r.status, r.reply_text)
+    assert llm.roles_called().count("resolver") == 2
+    assert "Dolphin" not in r.reply_text.split("\n\n")[-1].split(":")[0]
+    chips = [c["label"] for c in next(b for b in r.blocks if b["type"] == "quick_replies")["items"]]
+    assert chips[0].startswith("BYD Seal U"), chips  # the model the user named comes first
+    _, data, _ = await rn.ports.cases.latest(chat)
+    assert data["cars"][0]["variant_id"] is None
+
+    # the user insists; this time the resolver returns the right model
+    llm.queue("interpreter", _ru({"set_car_context": [{"target_key": "car#1", "make": "BYD", "model": "Seal U"}]}))
+    llm.queue("resolver", SEAL_U)
+    w = await rn.run_turn(chat, "не правильно. модель SEAL U")
+    assert w.confirm is not None and "Seal U" in w.confirm["card"]["cars"][0]["display_name"], (w.status, w.reply_text)
+
+
+async def test_a_stored_wrong_model_is_dropped_on_the_next_turn(saver):
+    llm = FakeLLM().queue("lineup", LINEUP)
+    llm.responders["asker"] = lambda s, u: "Понял."
+    llm.queue("interpreter", _ru({"add_cars": [{"request_text": "byd", "make": "BYD", "condition": "NEW"}]}))
+    rn = await _runner(saver, llm)
+    chat = str(uuid.uuid4())
+    await rn.run_turn(chat, "byd")
+    from automind.application import resolve as rs
+
+    v = await rn.ports.cases.latest(chat)
+    dolphin = await rs.upsert_variant(rs.VariantIdentity.model_validate(DOLPHIN), rn.ports.ref)
+    _, data, _ = v
+    data["cars"][0].update(
+        {"model": "Seal U", "variant_id": dolphin.id, "label": dolphin.label, "resolution": "PROPOSED"}
+    )
+    await rn.ports.cases.save_version(chat, data, "test", ["a wrong proposal from before the fix"])
+    llm.queue("interpreter", _ru({}))
+    llm.queue("resolver", SEAL_U)
+    w = await rn.run_turn(chat, "BYD model Seal U")
+    _, data, _ = await rn.ports.cases.latest(chat)
+    assert "Dolphin" not in (data["cars"][0]["label"] or ""), data["cars"][0]
+    assert "Dolphin" in (data["cars"][0]["previous_label"] or "")
+    assert w.status in ("WAITING_CONFIRMATION", "DONE")

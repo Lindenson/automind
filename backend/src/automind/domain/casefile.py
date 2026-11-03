@@ -215,8 +215,9 @@ class CaseCar(BaseModel):
         if not (self.make and self.model):
             return self.make or self.request_text
         k = self.constraints
-        bits = [self.make, self.model, k.generation_hint or "", k.engine_hint.text() if k.engine_hint else "",
-                k.trim_hint or ""]  # fmt: skip
+        engine = k.engine_hint.text() if k.engine_hint else ""
+        trim = k.trim_hint if k.trim_hint and k.trim_hint not in engine else ""
+        bits = [self.make, self.model, k.generation_hint or "", engine, trim]
         return " ".join(b for b in bits if b)
 
 

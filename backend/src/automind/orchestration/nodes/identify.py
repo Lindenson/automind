@@ -43,6 +43,8 @@ async def identify_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict
     if len(case.cars) > MAX_CARS:  # which 3 to compare is asked first; nothing is looked up for a 4th car
         return {"not_understood": state.get("not_understood") or []}
     for car in case.cars:
+        if await identify.drop_wrong_variant(car):
+            changes.append(f"{car.key}: {car.previous_label} is not a {car.model} — identified again")
         if not identify.needs_identify(car):
             continue
         ran = True
@@ -53,7 +55,7 @@ async def identify_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict
         if o.outcome != before.get(car.key) or car.label:
             changes.append(f"{car.key}: {o.outcome.lower()}" + (f" → {car.label}" if car.label else ""))
     out: dict[str, Any] = {}
-    if ran:
+    if ran or changes:
         out["case_version"] = await save_case(c, case, changes, publish=bool(changes))
     # an answer that made the identification better was understood, even with the same make and model (R6)
     improved = {k for k, b in before.items() if _RANK.get(case.car(k).identify.outcome if case.car(k).identify

@@ -20,6 +20,9 @@ Rules:
   set certainty="ambiguous", say so in note and list the engines that exist in alternatives.
 - A model from the make's Spanish line-up (the documents include it) exists: return it with the current generation
   name if the documents give one, else generation null — never known_model=false for it.
+- "Model asked" is binding: return a version of exactly that model. The equipment level (BASE / MID / TOP) is chosen
+  WITHIN that model, never by switching to a cheaper model of the make. If the documents do not show that model,
+  set known_model=false — never return another model instead.
 - Never invent a make or model. If the user's car does not exist or you cannot tell which model it is, set
   known_model=false and put the closest real models in alternatives.
 - vehicle_class: small | compact | mid_large | premium_suv_4x4. segment: short market segment.
