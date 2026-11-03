@@ -14,6 +14,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     PrimaryKeyConstraint,
@@ -21,6 +22,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -228,7 +230,11 @@ TURN_STATUSES = ("RUNNING", "WAITING_CONFIRMATION", "DONE", "CANCELLED", "FAILED
 
 class Turn(Base):
     __tablename__ = "turns"
-    __table_args__ = (UniqueConstraint("chat_id", "seq"),)
+    __table_args__ = (
+        UniqueConstraint("chat_id", "seq"),
+        # one RUNNING turn per chat (migration 0009, ADR-026)
+        Index("uq_turns_one_running_per_chat", "chat_id", unique=True, postgresql_where=text("status = 'RUNNING'")),
+    )
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
     chat_id: Mapped[str] = mapped_column(String(36), index=True)
     seq: Mapped[int] = mapped_column(Integer)

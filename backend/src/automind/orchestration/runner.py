@@ -20,10 +20,12 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
 
+from langgraph.errors import GraphRecursionError
 from langgraph.types import Command
 
-from automind.application.ports import Ports
+from automind.application.ports import Ports, TurnBusy
 from automind.application.usage import BudgetExceeded, TurnBudget, current_budget
+from automind.orchestration.phrases import t
 
 
 @dataclass
@@ -116,7 +118,10 @@ class ChatRunner:
         if active is not None and active.status == "WAITING_CONFIRMATION":
             return await self._spawn(chat_id, active.id, Command(resume={"choice": "text", "text": text}))
         version, _, _ = await self.ports.cases.latest(chat_id)
-        turn = await self.ports.turns.start(chat_id, msg.id, version)
+        try:
+            turn = await self.ports.turns.start(chat_id, msg.id, version)
+        except TurnBusy as e:  # another tab started a turn between the check above and this insert
+            raise Busy(str(e)) from e
         inputs: dict[str, Any] = {"chat_id": chat_id, "turn_id": turn.id, "user_text": text, "preset": preset}
         if self.prepare_input is not None:
             inputs |= await self.prepare_input(chat_id, turn.id, text)
@@ -161,6 +166,14 @@ class ChatRunner:
 
     # --- internals ----------------------------------------------------------------------------
 
+    async def _language(self, chat_id: str, turn_id: str) -> str | None:
+        """The conversation language from the turn state (for the runner's own messages)."""
+        try:
+            snap = await self.graph.aget_state(self._config(chat_id, turn_id))
+            return (snap.values or {}).get("language")
+        except Exception:  # noqa: BLE001 - English then
+            return None
+
     def _config(self, chat_id: str, turn_id: str) -> dict[str, Any]:
         thread = f"{chat_id}:{turn_id}" if self.thread_per_turn else chat_id
         return {"configurable": {"thread_id": thread}, "recursion_limit": self.recursion_limit}
@@ -198,11 +211,18 @@ class ChatRunner:
             await self._finish_cancelled(chat_id, turn_id)
             raise
         except BudgetExceeded as e:
-            final = {"reply_text": f"I stopped here because a limit was reached: {e}.", "blocks": []}
+            lang = await self._language(chat_id, turn_id)
+            final = {"reply_text": t("run_limit", lang, what=str(e)), "blocks": [], "language": lang}
             return await self._done(ctx, final, started)
         except TimeoutError:
             budget.limits_reached.append("turn_timeout")
-            final = {"reply_text": "I stopped because the turn took too long. Ask again to continue.", "blocks": []}
+            lang = await self._language(chat_id, turn_id)
+            final = {"reply_text": t("run_timeout", lang), "blocks": [], "language": lang}
+            return await self._done(ctx, final, started)
+        except GraphRecursionError:  # a loop the counters did not stop: a plain answer, never a bare FAILED
+            budget.limits_reached.append("graph_steps")
+            lang = await self._language(chat_id, turn_id)
+            final = {"reply_text": t("run_loop", lang), "blocks": [], "language": lang}
             return await self._done(ctx, final, started)
         except Exception as e:
             await self.ports.turns.update(turn_id, status="FAILED", usage=budget.snapshot())
@@ -228,7 +248,8 @@ class ChatRunner:
         )
 
     async def _done(self, ctx: TurnContext, final: dict[str, Any], started: float) -> TurnResult:
-        reply = final.get("reply_text") or "Sorry, I could not produce an answer."
+        lang = final.get("language")
+        reply = final.get("reply_text") or t("run_no_answer", lang)
         blocks = list(final.get("blocks") or [])
         if ctx.budget.limits_reached:
             blocks.insert(
@@ -236,7 +257,7 @@ class ChatRunner:
                 {
                     "type": "notice",
                     "level": "warning",
-                    "text": "Limit reached this turn: " + ", ".join(ctx.budget.limits_reached),
+                    "text": t("run_limits_notice", lang, what=", ".join(ctx.budget.limits_reached)),
                 },
             )
         action = final.get("action")

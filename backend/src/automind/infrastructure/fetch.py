@@ -2,14 +2,20 @@
 
 Order of checks for every request: deny-list → robots.txt (cached per host) → per-host rate limit
 → request with timeout → content type and size limit. Classified-ads sites are never contacted.
+Transient failures (429, 5xx, timeouts, connection errors) are retried a bounded number of times.
 """
 
 from __future__ import annotations
 
 import asyncio
+import codecs
+import logging
 import re
 import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from html.parser import HTMLParser
 from typing import Any
 from urllib.parse import urlparse
@@ -20,13 +26,26 @@ import httpx
 from automind.application.ports import WebDoc
 from automind.domain.evidence import is_denied
 
+log = logging.getLogger(__name__)
+
+REDIRECT_STATUSES = (301, 302, 303, 307, 308)
+
 
 class FetchRefused(RuntimeError):
-    """The URL may not be fetched (deny-list, robots, type or size). `reason` explains why."""
+    """The URL may not be fetched (deny-list, robots, type or size). `reason` explains why.
 
-    def __init__(self, reason: str) -> None:
+    `transient` is True when the refusal came from a failure that may go away (429 or 5xx after the
+    retries were used up): the page store then remembers it only briefly.
+    """
+
+    def __init__(self, reason: str, *, transient: bool = False) -> None:
         super().__init__(reason)
         self.reason = reason
+        self.transient = transient
+
+
+def _retryable_status(status: int) -> bool:
+    return status == 429 or 500 <= status <= 599
 
 
 @dataclass
@@ -40,6 +59,9 @@ class FetchPolicy:
     max_concurrency_per_host: int = 2
     max_concurrency_total: int = 8
     max_redirects: int = 5
+    retries: int = 2
+    retry_backoff_s: tuple[float, ...] = (1.0, 3.0)
+    retry_after_cap_s: float = 10.0
 
     @classmethod
     def from_config(cls, d: dict[str, Any]) -> FetchPolicy:
@@ -53,7 +75,79 @@ class FetchPolicy:
             max_concurrency_per_host=int(d.get("max_concurrency_per_host", 2)),
             max_concurrency_total=int(d.get("max_concurrency_total", 8)),
             max_redirects=int(d.get("max_redirects", 5)),
+            retries=int(d.get("retries", 2)),
+            retry_backoff_s=tuple(float(x) for x in d.get("retry_backoff_s", cls.retry_backoff_s)),
+            retry_after_cap_s=float(d.get("retry_after_cap_s", 10)),
         )
+
+    def backoff(self, attempt: int, retry_after: str | None = None) -> float:
+        """Seconds to wait before retry number `attempt` (0-based); Retry-After wins, capped."""
+        ra = _retry_after_s(retry_after)
+        if ra is not None:
+            return min(ra, self.retry_after_cap_s)
+        if not self.retry_backoff_s:
+            return 0.0
+        return self.retry_backoff_s[min(attempt, len(self.retry_backoff_s) - 1)]
+
+
+def _retry_after_s(value: str | None) -> float | None:
+    """Retry-After as seconds: delta-seconds or an HTTP date; None when absent or unreadable."""
+    if not value:
+        return None
+    value = value.strip()
+    if value.isdigit():
+        return float(value)
+    try:
+        when = parsedate_to_datetime(value)
+    except (TypeError, ValueError):
+        return None
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=UTC)
+    return max(0.0, (when - datetime.now(UTC)).total_seconds())
+
+
+# Browsers decode these labels as windows-1252 (WHATWG Encoding); Spanish sites rely on it (€, “ ”).
+_AS_CP1252 = {"iso-8859-1", "latin-1", "latin1", "iso8859-1", "us-ascii", "ascii", "iso-8859-15"}
+_META_CHARSET = re.compile(rb"""<meta[^>]+charset\s*=\s*["']?\s*([A-Za-z0-9_.:-]+)""", re.IGNORECASE)
+SNIFF_BYTES = 4096
+
+
+def _codec(label: str | None) -> str | None:
+    """A Python codec name for a charset label, or None when the label is unknown."""
+    if not label:
+        return None
+    label = label.strip().strip("\"'").lower()
+    if label in _AS_CP1252 and label != "iso-8859-15":
+        return "cp1252"
+    try:
+        return codecs.lookup(label).name
+    except LookupError:
+        return None
+
+
+def decode_body(body: bytes, header_charset: str | None = None) -> str:
+    """Bytes → text: header charset, else <meta charset>, else UTF-8, else detected (cp1252 at worst)."""
+    enc = _codec(header_charset)
+    if enc is None:
+        m = _META_CHARSET.search(body[:SNIFF_BYTES])
+        enc = _codec(m.group(1).decode("ascii", "ignore")) if m else None
+    if enc is not None:
+        if enc == "utf-8" and body.startswith(codecs.BOM_UTF8):
+            enc = "utf-8-sig"
+        return body.decode(enc, errors="replace")
+    try:
+        return body.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        pass
+    try:
+        from charset_normalizer import from_bytes  # noqa: PLC0415
+
+        best = from_bytes(body).best()
+        if best is not None:
+            return str(best)
+    except ImportError:  # pragma: no cover - charset_normalizer comes with httpx's usual stack
+        pass
+    return body.decode("cp1252", errors="replace")
 
 
 class _Text(HTMLParser):
@@ -98,7 +192,10 @@ class RawPage:
     url: str  # final URL after redirects
     content_type: str
     body: bytes
-    encoding: str | None
+    encoding: str | None  # charset from the Content-Type header only; None when the header has none
+
+    def text(self) -> str:
+        return decode_body(self.body, self.encoding)
 
 
 @dataclass
@@ -107,6 +204,10 @@ class Fetcher:
 
     Every hop (including redirects) is checked against the deny-list and robots.txt. robots.txt 401/403
     means "disallow all"; its Crawl-delay is honoured on top of the configured per-host interval.
+    robots.txt itself is fetched under the same rules: no deny-listed host, redirects followed by hand
+    up to `max_redirects`. Transient failures of a GET are retried (`retries`, backoff, Retry-After),
+    each attempt waiting its turn under the per-host rate limit. Refusals are counted per domain in
+    `refusals` (operator view: share of 403/REFUSED by domain) and logged as `fetch.refused`.
     """
 
     policy: FetchPolicy = field(default_factory=FetchPolicy)
@@ -117,6 +218,27 @@ class Fetcher:
     _locks: dict[str, asyncio.Lock] = field(default_factory=dict)
     _host_sem: dict[str, asyncio.Semaphore] = field(default_factory=dict)
     _total_sem: asyncio.Semaphore | None = None
+    sleep: Callable[[float], Awaitable[None]] = asyncio.sleep
+    requests: dict[str, int] = field(default_factory=dict)
+    refusals: dict[str, dict[str, int]] = field(default_factory=dict)
+
+    def _refused(self, url: str, reason: str, status: int | None = None) -> FetchRefused:
+        domain = urlparse(url).netloc.lower()
+        kind = f"http_{status}" if status is not None else reason.split(" ")[0] if reason else "refused"
+        by = self.refusals.setdefault(domain, {})
+        by[kind] = by.get(kind, 0) + 1
+        log.info("fetch.refused domain=%s status=%s reason=%s", domain, status, reason,
+                 extra={"event": "fetch.refused", "domain": domain, "status": status, "reason": reason})  # fmt: skip
+        return FetchRefused(reason, transient=status is not None and _retryable_status(status))
+
+    def refusal_stats(self) -> dict[str, dict[str, float]]:
+        """Per domain: requests sent, refusals and their share (an operator view of blocked sites)."""
+        out: dict[str, dict[str, float]] = {}
+        for domain in set(self.requests) | set(self.refusals):
+            n_ref = sum(self.refusals.get(domain, {}).values())
+            n_req = self.requests.get(domain, 0)
+            out[domain] = {"requests": n_req, "refused": n_ref, "share": n_ref / n_req if n_req else 1.0}
+        return out
 
     def _client(self) -> httpx.AsyncClient:
         if self.client is None:
@@ -136,9 +258,9 @@ class Fetcher:
             rp: RobotFileParser | None = None
             deny_all = False
             try:
-                r = await self._client().get(f"{host}/robots.txt", follow_redirects=True)
-                if r.status_code in (401, 403):
-                    deny_all = True  # access to robots.txt forbidden: treat the site as disallowing us
+                r = await self._get_robots(f"{host}/robots.txt")
+                if r is None or r.status_code in (401, 403):
+                    deny_all = True  # robots.txt forbidden or behind a denied host: the site disallows us
                 elif r.status_code < 400:
                     rp = RobotFileParser()
                     rp.parse(r.text.splitlines())
@@ -147,6 +269,23 @@ class Fetcher:
             cached = (time.monotonic(), rp, deny_all)
             self._robots[host] = cached
         return cached[1], cached[2]
+
+    async def _get_robots(self, url: str) -> httpx.Response | None:
+        """GET robots.txt following redirects by hand: each hop must be http(s) and not deny-listed.
+
+        None when a hop leads to a denied host; too many redirects count as "no robots.txt" (RFC 9309).
+        """
+        current = url
+        for _ in range(self.policy.max_redirects + 1):
+            u = urlparse(current)
+            if u.scheme not in ("http", "https") or not u.netloc or is_denied(current):
+                return None
+            r = await self._client().get(current, follow_redirects=False)
+            if r.status_code in REDIRECT_STATUSES and r.headers.get("location"):
+                current = str(httpx.URL(current).join(r.headers["location"]))
+                continue
+            return r
+        return httpx.Response(404)
 
     async def _robots_allows(self, url: str) -> bool:
         rp, deny_all = await self._robots_for(url)
@@ -170,7 +309,7 @@ class Fetcher:
             interval = max(self.policy.min_interval_per_host_s, crawl_delay)
             wait = self._last.get(host, 0) + interval - time.monotonic()
             if wait > 0:
-                await asyncio.sleep(wait)
+                await self.sleep(wait)
             self._last[host] = time.monotonic()
 
     async def _check(self, url: str) -> None:
@@ -178,36 +317,63 @@ class Fetcher:
         if u.scheme not in ("http", "https") or not u.netloc:
             raise FetchRefused("not an http(s) URL")
         if is_denied(url):
-            raise FetchRefused("site is on the deny-list (classifieds or automated access forbidden)")
+            raise self._refused(url, "site is on the deny-list (classifieds or automated access forbidden)")
         if not await self._robots_allows(url):
-            raise FetchRefused("disallowed by robots.txt")
+            raise self._refused(url, "disallowed by robots.txt")
 
     async def fetch_raw(self, url: str) -> RawPage:
-        if self._total_sem is None:
-            self._total_sem = asyncio.Semaphore(self.policy.max_concurrency_total)
         current = url
         for _ in range(self.policy.max_redirects + 1):
             await self._check(current)
-            host = urlparse(current).netloc
-            sem = self._host_sem.setdefault(host, asyncio.Semaphore(self.policy.max_concurrency_per_host))
-            async with self._total_sem, sem:
-                await self._wait_turn(host, await self._crawl_delay(current))
-                async with self._client().stream("GET", current) as r:
-                    if r.status_code in (301, 302, 303, 307, 308) and r.headers.get("location"):
-                        current = str(httpx.URL(current).join(r.headers["location"]))
-                        continue
+            result = await self._get_with_retries(current)
+            if isinstance(result, RawPage):
+                return result
+            current = result  # a redirect: the next hop is checked again
+        raise self._refused(url, f"more than {self.policy.max_redirects} redirects")
+
+    async def _get_with_retries(self, url: str) -> RawPage | str:
+        """One hop: the page, or the redirect target. Retries 429/5xx/transport errors only."""
+        attempt = 0
+        while True:
+            try:
+                return await self._get_once(url)
+            except _Retry as r:
+                if attempt >= self.policy.retries:
+                    if r.error is not None:
+                        raise r.error from None
+                    raise self._refused(url, f"HTTP {r.status}", r.status) from None
+                delay = self.policy.backoff(attempt, r.retry_after)
+            attempt += 1
+            await self.sleep(delay)
+
+    async def _get_once(self, url: str) -> RawPage | str:
+        if self._total_sem is None:
+            self._total_sem = asyncio.Semaphore(self.policy.max_concurrency_total)
+        host = urlparse(url).netloc
+        sem = self._host_sem.setdefault(host, asyncio.Semaphore(self.policy.max_concurrency_per_host))
+        async with self._total_sem, sem:
+            await self._wait_turn(host, await self._crawl_delay(url))
+            domain = host.lower()
+            self.requests[domain] = self.requests.get(domain, 0) + 1
+            try:
+                async with self._client().stream("GET", url) as r:
+                    if r.status_code in REDIRECT_STATUSES and r.headers.get("location"):
+                        return str(httpx.URL(url).join(r.headers["location"]))
+                    if _retryable_status(r.status_code):
+                        raise _Retry(status=r.status_code, retry_after=r.headers.get("retry-after"))
                     if r.status_code >= 400:
-                        raise FetchRefused(f"HTTP {r.status_code}")
+                        raise self._refused(url, f"HTTP {r.status_code}", r.status_code)
                     ctype = r.headers.get("content-type", "").split(";")[0].strip().lower()
                     if ctype not in self.policy.allowed_content_types:
-                        raise FetchRefused(f"content type {ctype or 'unknown'} not allowed")
+                        raise self._refused(url, f"content type {ctype or 'unknown'} not allowed")
                     body = bytearray()
                     async for chunk in r.aiter_bytes():
                         body += chunk
                         if len(body) > self.policy.max_bytes:
-                            raise FetchRefused(f"larger than {self.policy.max_bytes} bytes")
-                    return RawPage(url=str(r.url), content_type=ctype, body=bytes(body), encoding=r.encoding)
-        raise FetchRefused(f"more than {self.policy.max_redirects} redirects")
+                            raise self._refused(url, f"larger than {self.policy.max_bytes} bytes")
+                    return RawPage(url=str(r.url), content_type=ctype, body=bytes(body), encoding=r.charset_encoding)
+            except httpx.TransportError as e:  # timeouts, connect/read errors: worth another try
+                raise _Retry(error=e) from e
 
     async def fetch(self, url: str) -> WebDoc:
         """Fetch and convert to plain text (pasted URLs; the page store does its own extraction)."""
@@ -216,10 +382,19 @@ class Fetcher:
             from automind.infrastructure.pages import pdf_text  # noqa: PLC0415
 
             return WebDoc(url=raw.url, title=url, text=pdf_text(raw.body)[: self.max_chars], snippet_only=False)
-        text_ = raw.body.decode(raw.encoding or "utf-8", errors="replace")
+        text_ = raw.text()
         title, text = html_to_text(text_) if raw.content_type == "text/html" else ("", text_)
         return WebDoc(url=raw.url, title=title or url, text=text[: self.max_chars], snippet_only=False)
 
     async def aclose(self) -> None:
         if self.client is not None:
             await self.client.aclose()
+
+
+class _Retry(Exception):  # noqa: N818 - internal control flow, not an error for callers
+    def __init__(self, *, status: int | None = None, retry_after: str | None = None,
+                 error: Exception | None = None) -> None:  # fmt: skip
+        super().__init__(status or error)
+        self.status = status
+        self.retry_after = retry_after
+        self.error = error

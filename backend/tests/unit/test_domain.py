@@ -52,11 +52,38 @@ def test_excerpt_validation():
     assert not evidence.validate_excerpt("produces 180 kW (245 PS)", "200", DOC)  # value not in excerpt
 
 
+@pytest.mark.parametrize(
+    "url",
+    ["https://toyota-club.net/f", "https://clubseat.es/a", "https://bmwfans.info/", "https://kiaclub.ru/",
+     "https://audiworld.com/", "https://hondapartsnow.com/p", "https://img.cdn.com/mg.png", "https://marinmazda.net/",
+     "https://toyota.es.example.com/", "https://nicebyd.com/"],
+)  # fmt: skip
+def test_brand_inside_a_name_is_not_the_manufacturer(url):
+    """Reviewer 2026-11-03: a fan club, a dealer, a parts shop or a CDN got the highest authority."""
+    assert evidence.classify_source(url) == "PUBLICATION"
+
+
+@pytest.mark.parametrize(
+    "url",
+    ["https://www.toyota.es/x", "https://bmw.com.sg/", "https://owners-manual.mazda.com/", "https://byd.com/es",
+     "https://seat-cupra-mediacenter.es/x", "https://press.bmwgroup.com/x", "https://www.mercedes-benz.es/",
+     "https://concesionarios.seat/"],
+)  # fmt: skip
+def test_official_maker_sites(url):
+    assert evidence.classify_source(url) == "MANUFACTURER"
+
+
+def test_favourite_type_and_domain_boundary():
+    assert evidence.classify_source("https://www.autopista.es/x") == "INSTRUMENTED_TEST"
+    assert evidence.classify_source("https://autobild.de/x") == "INSTRUMENTED_TEST"
+    assert evidence.classify_source("https://fooautobild.de/x") == "PUBLICATION"
+
+
 def test_source_classification_and_provenance():
     assert evidence.classify_source("https://www.volkswagen.es/es/modelos/golf-gti.html") == "MANUFACTURER"
     assert evidence.classify_source("https://en.wikipedia.org/wiki/Golf") == "ENCYCLOPEDIA"
     assert evidence.classify_source("https://www.ultimatespecs.com/x") == "SPEC_DATABASE"
-    assert evidence.classify_source("https://www.km77.com/x") == "PUBLICATION"
+    assert evidence.classify_source("https://www.km77.com/x") == "SPEC_DATABASE"  # the favourite's own type
     assert evidence.is_denied("https://www.coches.net/x")
     assert evidence.assign_provenance("MANUFACTURER", "max_power") == "MANUFACTURER_CLAIM"
     assert evidence.assign_provenance("INSTRUMENTED_TEST", "max_power") == "SOURCED_FACT"
@@ -148,7 +175,7 @@ def test_ranges_and_consumption_units_rejected():
     with pytest.raises(units.UnitError):
         specs.normalize(specs.ATTRS["curb_mass"], "1381-1502 kg", "kg")
     with pytest.raises(units.UnitError):
-        specs.normalize(specs.ATTRS["consumption"], "30 mpg", "mpg")
+        specs.normalize(specs.ATTRS["consumption"], "18 km/l", "km/l")  # mpg is converted now (review 3.5)
     assert specs.normalize(specs.ATTRS["consumption"], "7,2", "l/100 km") == 7.2
 
 
@@ -196,3 +223,32 @@ def test_transmission_is_normalised_and_cvt_is_not_one_speed():
     assert n("Manual") == "manual"
     assert n("7-speed DSG") == "dual-clutch 7-speed"
     assert n("blue") is None
+
+
+def test_euro_ncap_year_and_protocol_periods():
+    from automind.domain.criteria import ncap_comparable
+    from automind.domain.metrics import CarFacts
+
+    assert specs.normalize(specs.ATTRS["euro_ncap_year"], "2024", None) == 2024
+    a = CarFacts(car_id="A", label="A", powertrain="ICE", euro_ncap=5, euro_ncap_year=2015)
+    b = CarFacts(car_id="B", label="B", powertrain="ICE", euro_ncap=5, euro_ncap_year=2024)
+    c = CarFacts(car_id="C", label="C", powertrain="ICE", euro_ncap=4, euro_ncap_year=2023)
+    d = CarFacts(car_id="D", label="D", powertrain="ICE", euro_ncap=4)
+    assert not ncap_comparable([a, b]) and ncap_comparable([b, c]) and ncap_comparable([a, d])
+
+
+def test_favourite_query_in_the_market_language():
+    from automind.domain import search_plan
+
+    car = search_plan.Identity(make="Toyota", model="RAV4", generation="XA50", variant="2.5 Hybrid")
+    favs = [
+        {"domain": "adac.de", "areas": ["reliability"], "markets": ["DE"], "priority": 1},
+        {"domain": "honestjohn.co.uk", "areas": ["reliability"], "markets": ["EN"], "priority": 1},
+    ]
+    tpl = {
+        "reliability": "{make} {model} reliability {sites}",
+        "reliability@DE": "{make} {model} Pannenstatistik {sites}",
+    }
+    qs = search_plan.queries("reliability", car, ["EN", "DE"], favs, tpl, {}, 0)
+    by = {q.market: q.text for q in qs}
+    assert "Pannenstatistik" in by["DE"] and "reliability" in by["EN"]

@@ -5,6 +5,7 @@
 version: 2
 specs:
   favourite: '{make} {model} {generation} {variant} {sites}'
+  favourite_by_market: {DE: '{make} {model} {generation} {variant} technische Daten Leistung Gewicht {sites}'}
   open:
     - '{make} {model} {generation} {variant} specifications power torque weight 0-100'
     - '{make} {model} {generation} {variant} ficha técnica peso potencia par'
@@ -17,6 +18,7 @@ engineering:
     - '{make} {model} {generation} model year changes facelift update new engine'
 measured:
   favourite: '{make} {model} {generation} {variant} test 0-100 {sites}'
+  favourite_by_market: {DE: '{make} {model} {generation} {variant} Test Messwerte Beschleunigung 0-100 Verbrauch {sites}'}
   open:
     - '{make} {model} {generation} {variant} instrumented test 0-100 km/h measured'
 price:
@@ -26,21 +28,25 @@ price:
     - '{make} {model} precio tarifa España {generation}'
 maintenance:
   favourite: '{make} {model} {generation} mantenimiento service {sites}'
+  favourite_by_market: {DE: '{make} {model} {generation} Wartung Inspektion Intervall Kosten {sites}', EN: '{make} {model} {generation} service schedule maintenance cost {sites}'}
   open:
     - '{make} {model} {generation} {variant} service schedule maintenance intervals cost'
     - '{make} {model} {generation} plan de mantenimiento revisiones intervalos coste'
 reviews:
   favourite: '{make} {model} {generation} {variant} review {sites}'
+  favourite_by_market: {DE: '{make} {model} {generation} {variant} Test Fahrbericht {sites}'}
   open:
     - '{make} {model} {generation} {variant} review pros cons'
     - '{make} {model} {generation} owner reviews opinions problems'
     - '{make} {model} {generation} prueba opinión'
 reliability:
   favourite: '{make} {model} {generation} reliability problems {sites}'
+  favourite_by_market: {DE: '{make} {model} {generation} Pannenstatistik TÜV-Report Mängelquote Probleme {sites}'}
   open:
     - '{make} {model} {generation} reliability common problems known issues'
     - '{make} {model} {generation} fiabilidad averías comunes'
     - '{make} {model} {generation} TÜV report breakdown statistics'
+    - '{make} {model} {generation} ADAC Pannenstatistik TÜV-Report Mängelquote'
 manufacturer:
   favourite: '{make} ventas España cuota de mercado concesionarios {sites}'
   open:
@@ -58,6 +64,7 @@ depreciation:
     - '{make} {model} {generation} resale value retention ranking'
 used_issues:
   favourite: '{make} {model} {generation} used buying guide {sites}'
+  favourite_by_market: {DE: '{make} {model} {generation} Gebrauchtwagen Kaufberatung Schwachstellen Mängel {sites}'}
   open:
     - '{make} {model} {generation} {years} used buying guide what to check high mileage'
     - '{make} {model} {generation} timing belt gearbox rust problems age mileage'

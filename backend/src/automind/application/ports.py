@@ -19,6 +19,10 @@ from automind.domain.identity import Aliases
 T = TypeVar("T", bound=BaseModel)
 
 
+class TurnBusy(RuntimeError):
+    """A turn of this chat is already running: the turn store checks it under a per-chat lock."""
+
+
 @dataclass(frozen=True)
 class Reference:
     """Static reference data from config/*.yaml, loaded by infrastructure and passed in."""

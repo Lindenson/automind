@@ -111,8 +111,10 @@ class DbPageStore:
             raw = await self.fetcher.fetch_raw(url)
         except FetchRefused as e:
             self._reasons[url] = e.reason
-            await self._store(url, title=None, text="", status="REFUSED", fail_reason=e.reason,
-                              expires_at=now + REFUSED_TTL)  # fmt: skip
+            # 429/5xx after the retries: remembered briefly like network errors, not for a month
+            status, ttl = ("ERROR", ERROR_TTL) if e.transient else ("REFUSED", REFUSED_TTL)
+            await self._store(url, title=None, text="", status=status, fail_reason=e.reason,
+                              expires_at=now + ttl)  # fmt: skip
             return None
         except Exception as e:  # noqa: BLE001 - network errors: remember briefly, never fail the job
             self._reasons[url] = f"{type(e).__name__}"
@@ -126,10 +128,10 @@ class DbPageStore:
         if raw.content_type == "application/pdf":
             title, text, reader = url.rsplit("/", 1)[-1], pdf_text(raw.body), "pdf"
         elif raw.content_type == "text/html":
-            html = raw.body.decode(raw.encoding or "utf-8", errors="replace")
+            html = raw.text()
             (title, text), reader = main_content(html, raw.url), "main_content"
         else:
-            title, text, reader = url, raw.body.decode(raw.encoding or "utf-8", errors="replace"), "text"
+            title, text, reader = url, raw.text(), "text"
         text = text[:MAX_STORED_CHARS]
         common = {"final_url": raw.url, "content_type": raw.content_type, "bytes": len(raw.body), "reader": reader,
                   "content_sha256": hashlib.sha256(text.encode()).hexdigest()}  # fmt: skip

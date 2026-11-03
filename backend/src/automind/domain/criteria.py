@@ -309,6 +309,22 @@ def _car_score(c: CarFacts, weights: Mapping[str, float], model: CriteriaModel, 
 TIE_MARGIN = 3.0  # points: closer totals are reported as a tie, not as a win
 
 
+# Euro NCAP protocol periods: stars are comparable only within one (reviewer 2026-11-03)
+NCAP_PERIODS = ((2009, 2015), (2016, 2019), (2020, 2022), (2023, 2025), (2026, 2035))
+
+
+def ncap_period(year: float | None) -> int | None:
+    if year is None:
+        return None
+    return next((i for i, (a, b) in enumerate(NCAP_PERIODS) if a <= year <= b), None)
+
+
+def ncap_comparable(cars: list[CarFacts]) -> bool:
+    """Stars of the compared cars come from one protocol period; an unknown year is not assumed different."""
+    periods = {ncap_period(c.euro_ncap_year) for c in cars if c.euro_ncap is not None and c.euro_ncap_year}
+    return len(periods) <= 1
+
+
 def score(cars: list[CarFacts], weights: Mapping[str, float], model: CriteriaModel) -> CriteriaScore:
     """Deterministic criteria scores. A single car is a profile: absolute scores, no ranking (FR-012).
 
@@ -318,6 +334,8 @@ def score(cars: list[CarFacts], weights: Mapping[str, float], model: CriteriaMod
     if unknown:
         raise ValueError(f"unknown criteria: {unknown}")
     ranking = len(cars) > 1
+    if ranking and not ncap_comparable(cars):  # 5★ of 2015 vs 5★ of 2024: safety is not ranked on stars
+        cars = [replace(c, euro_ncap=None) for c in cars]
     scored = [_car_score(c, weights, model, ranking) for c in cars]
     if not ranking:
         return CriteriaScore(model.version, scored, None, dict(weights))

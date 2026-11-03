@@ -1,9 +1,24 @@
 # Source typing, deny-list and fetch policy (constitution I, VIII; FR-017, FR-022).
 # Loaded by automind.infrastructure.config and passed into automind.domain.evidence.
 version: 1
-manufacturer_markers: [volkswagen, vw., hyundai, tesla, bmw, mercedes, audi, seat, cupra, skoda, toyota, honda,
-  porsche, renault, peugeot, citroen, kia, ford, mazda, nissan, volvo, opel, fiat, alfaromeo, lexus, mini., polestar,
-  byd, mg., subaru, dacia, landrover, jaguar, jeep, suzuki, mitsubishi, ds.]
+# Brands whose own sites are MANUFACTURER sources: the host's registrable name must be exactly one of these
+# (toyota.es, bmw.com.sg, owners-manual.mazda.com) or a brand TLD (concesionarios.seat). A brand inside a longer
+# name is a publication: toyota-club.net, clubseat.es, marinmazda.net (dealer), hondapartsnow.com, img.cdn.com.
+manufacturer_markers: [volkswagen, vw, hyundai, tesla, bmw, mercedes, mercedesbenz, audi, seat, cupra, skoda, toyota,
+  honda, porsche, renault, peugeot, citroen, kia, ford, mazda, nissan, volvo, volvocars, opel, fiat, alfaromeo, lexus,
+  mini, polestar, byd, mg, subaru, dacia, landrover, jaguar, jeep, suzuki, mitsubishi, ds, dsautomobiles, smart,
+  genesis, lynkco, omoda, jaecoo, leapmotor, xpeng, nio, zeekr, chery, ssangyong, kgm, maserati, ferrari,
+  lamborghini, bentley, astonmartin, rollsroyce, bugatti, lotus, mclaren, alpine, abarth, lancia, infiniti]
+# Official domains whose name is not a bare brand: press and media centres, groups, regional official sites.
+# The hosts of manufacturer_sites below are official too.
+official_domains: [seat-cupra-mediacenter.es, seat-mediacenter.com, cupraofficial.com, bmwgroup.com,
+  press.bmwgroup.com, mercedes-benz.com, group-media.mercedes-benz.com, renaultgroup.com, stellantis.com,
+  media.stellantis.com, mazda-press.com, skoda-auto.com, skoda-storyboard.com, hyundai-n.com, hyundainews.com,
+  kianewscenter.com, toyota-europe.com, newsroom.toyota.eu, vwgroup.com, volkswagen-newsroom.com,
+  volkswagenag.com, audi-mediacenter.com, porsche-newsroom.com, volvocars.com, media.volvocars.com,
+  bydukmedia.com, bydeurope.com, mgmotor.eu, mgmotor.co.uk, mgmotor.es, nissan-global.com, honda-mideast.com,
+  ford.co.uk, fordmedia.eu, media.ford.com, polestar.com, lexus-europe.com, dsautomobiles.com, jaguarlandrover.com,
+  media.jaguarlandrover.com]
 non_manufacturer_hints: [forum, blog, news, magazine, review, wiki]
 instrumented: [caranddriver.com, motortrend.com, auto-motor-und-sport.de, autobild.de, whatcar.com, evo.co.uk]
 encyclopedia: [wikipedia.org]
@@ -18,9 +33,12 @@ fetch:
   robots_cache_hours: 24
   user_agent: "AutoMindResearchBot/0.2 (+local single-user research tool)"
   allowed_content_types: [text/html, application/pdf, text/plain]
-max_concurrency_per_host: 2
-max_concurrency_total: 8
-max_redirects: 5
+  max_concurrency_per_host: 2
+  max_concurrency_total: 8
+  max_redirects: 5
+  retries: 2                  # retries of a GET after 429, 5xx, timeout or connection error
+  retry_backoff_s: [1, 3]     # wait before retry 1, 2 (the last value repeats)
+  retry_after_cap_s: 10       # a Retry-After header (429/503) is honoured up to this many seconds
 
 # Favourite sources (spec 003 FR-011, research R5): queried first, per research area and market.
 # source_type: MANUFACTURER | INSTRUMENTED_TEST | SPEC_DATABASE | PUBLICATION | ENCYCLOPEDIA.
@@ -35,6 +53,8 @@ favourites:
   - {domain: autopista.es, source_type: INSTRUMENTED_TEST, areas: [measured, reviews, reliability, used_issues, used_price, price, depreciation], markets: [ES], priority: 1, reader: null, tos_checked: null}
   - {domain: fichasmotor.com, source_type: SPEC_DATABASE, areas: [specs], markets: [ES], priority: 3, reader: null, tos_checked: null}
   # --- English ---
+  # Euro NCAP: the safety rating itself; stars of different protocol years are not comparable (store the year).
+  - {domain: euroncap.com, source_type: INSTRUMENTED_TEST, areas: [specs], markets: [ANY], priority: 1, reader: null, tos_checked: null}
   - {domain: ultimatespecs.com, source_type: SPEC_DATABASE, areas: [specs, engineering], markets: [ANY], priority: 1, reader: ultimatespecs, tos_checked: 2026-11-02}
   - {domain: auto-data.net, source_type: SPEC_DATABASE, areas: [specs, engineering], markets: [ANY], priority: 1, reader: auto_data, tos_checked: 2026-11-02}
   - {domain: cars-data.com, source_type: SPEC_DATABASE, areas: [specs], markets: [EN], priority: 3, reader: null, tos_checked: null}

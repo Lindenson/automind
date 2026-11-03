@@ -244,6 +244,7 @@ def facts(
         ground_clearance_mm=_num(car, "ground_clearance"),
         low_range=_txt(car, "low_range"),
         euro_ncap=_num(car, "euro_ncap_stars"),
+        euro_ncap_year=_num(car, "euro_ncap_year"),
         vehicle_class=v.vehicle_class,
         brand_positioning=v.brand_positioning,
         condition=condition,

@@ -77,11 +77,12 @@ def queries(
             out.append(q)
 
     if round_ == 0:
-        template = favourite_templates.get(area)
-        if not template:
+        if not favourite_templates.get(area):
             return out
         used: set[str] = set()
         for market in dict.fromkeys(markets):  # keep order, drop duplicates
+            # the market's own words when configured ("reliability@DE": Pannenstatistik, TÜV-Report)
+            template = favourite_templates.get(f"{area}@{market}") or favourite_templates[area]
             sites = favourite_sites(area, market, favourites)
             official = manufacturer_site and market == "ES" and area in ("price", "specs", "maintenance")
             if official and manufacturer_site and not is_denied(f"https://{manufacturer_site}/"):

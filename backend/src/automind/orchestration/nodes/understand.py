@@ -49,6 +49,12 @@ async def interpret_node(state: TurnState, runtime: Runtime[TurnContext]) -> dic
             "done": True,
             "reply_text": t("rephrase", state.get("language")),
         }
+    said = [m["text"] for m in await history(c) if m["role"] == "user"]
+    if said and said[-1] == state["user_text"]:
+        said = said[:-1]
+    lang = phrases.stable_language(i.language, state["user_text"], said)
+    if lang != i.language:
+        i = i.model_copy(update={"language": lang})
     return {"interpretation": i.model_dump(mode="json"), "request_kind": i.request, "language": i.language}
 
 

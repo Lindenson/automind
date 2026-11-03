@@ -12,6 +12,7 @@ from typing import Any
 from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.exc import IntegrityError
 
+from automind.application.ports import TurnBusy
 from automind.domain.metrics import intake_summary
 
 from .models import (
@@ -147,6 +148,11 @@ class CaseRepo:
 class TurnRepo:
     async def start(self, chat_id: str, user_message_id: str | None, case_version: int) -> Turn:
         async with sessionmaker()() as s:
+            # two tabs / a double click: the check and the insert happen under one per-chat lock (reviewer 2026-11-03)
+            await s.execute(text("SELECT pg_advisory_xact_lock(hashtext(:k))"), {"k": f"turns:{chat_id}"})
+            running = await s.execute(select(Turn.id).where(Turn.chat_id == chat_id, Turn.status == "RUNNING").limit(1))
+            if running.scalar_one_or_none() is not None:
+                raise TurnBusy("a turn is already running in this chat")  # also the unique index (migration 0009)
             seq = (await s.execute(select(func.max(Turn.seq)).where(Turn.chat_id == chat_id))).scalar()
             turn = Turn(
                 id=uid(),
@@ -157,7 +163,10 @@ class TurnRepo:
                 status="RUNNING",
             )
             s.add(turn)
-            await s.commit()
+            try:
+                await s.commit()
+            except IntegrityError as e:  # uq_turns_one_running_per_chat
+                raise TurnBusy("a turn is already running in this chat") from e
             return turn
 
     async def get(self, turn_id: str) -> Turn | None:

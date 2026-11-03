@@ -55,6 +55,7 @@ class CarFacts:
     ground_clearance_mm: float | None = None
     low_range: str | None = None  # YES | NO
     euro_ncap: float | None = None
+    euro_ncap_year: float | None = None
     vehicle_class: str | None = None  # small | compact | mid_large | premium_suv_4x4
     brand_positioning: str | None = None  # PREMIUM | MAINSTREAM | BUDGET (sourced)
     condition: str = "NEW"

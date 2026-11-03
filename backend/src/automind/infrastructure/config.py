@@ -30,6 +30,11 @@ def load_yaml(name: str) -> dict[str, Any]:
     return data
 
 
+def _official_domains(d: dict[str, Any]) -> tuple[str, ...]:
+    sites = {str(x).split("/")[0].removeprefix("www.").lower() for x in (d.get("manufacturer_sites") or {}).values()}
+    return tuple(sorted(sites | {str(x).lower() for x in d.get("official_domains") or ()}))
+
+
 def source_policy() -> evidence.SourcePolicy:
     d = load_yaml("sources.yaml")
     return evidence.SourcePolicy(
@@ -39,6 +44,12 @@ def source_policy() -> evidence.SourcePolicy:
         spec_db=tuple(d["spec_db"]),
         denylist=tuple(d["denylist"]),
         non_manufacturer_hints=tuple(d.get("non_manufacturer_hints", ())),
+        official_domains=_official_domains(d),
+        typed_domains=tuple(
+            (str(f["domain"]).lower(), str(f["source_type"]))
+            for f in d.get("favourites") or []
+            if f.get("source_type") in SOURCE_TYPES
+        ),
     )
 
 
@@ -112,7 +123,11 @@ def open_queries() -> dict[str, list[str]]:
 
 
 def favourite_queries() -> dict[str, str]:
-    return {k: str(v["favourite"]) for k, v in _query_areas().items() if v.get("favourite")}
+    out = {k: str(v["favourite"]) for k, v in _query_areas().items() if v.get("favourite")}
+    for k, v in _query_areas().items():  # per-market wording: favourite_by_market: {DE: '…'}
+        for market, tpl in (v.get("favourite_by_market") or {}).items():
+            out[f"{k}@{str(market).upper()}"] = str(tpl)
+    return out
 
 
 PROVIDERS = ("serper", "serpapi", "tavily")

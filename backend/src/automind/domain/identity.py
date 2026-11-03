@@ -135,17 +135,26 @@ _FAMILIES: dict[str, str | None] = {  # canonical family -> fuel it implies
     "GDi": "petrol", "Skyactiv-G": "petrol", "Skyactiv-D": "diesel", "Skyactiv-X": "petrol", "e-Power": "hybrid",
     "E-Tech": "hybrid", "MHEV": "mhev", "PHEV": "phev", "HEV": "hybrid",
 }  # fmt: skip
-_FAMILY_RE = re.compile(
-    r"(?<![\w-])(" + "|".join(re.escape(f) for f in sorted(_FAMILIES, key=len, reverse=True)) + r")(?![\w-])", re.I
-)
-_FUEL_WORDS: tuple[tuple[str, str], ...] = (
-    (r"plug[- ]?in|\bphev\b|enchufable|подключаем|подзаряж|розетк", "phev"),
-    (r"mild[- ]?hybrid|\bmhev\b|мягк\w* гибрид|micro ?h[ií]brid", "mhev"),
+_FAMILY_ALT = "|".join(re.escape(f) for f in sorted(_FAMILIES, key=len, reverse=True))
+_FAMILY_RE = re.compile(r"(?<![\w-])(" + _FAMILY_ALT + r")(?![\w-])", re.I)
+_FUEL_WORDS: tuple[tuple[str, str], ...] = (  # first match wins: plug-in and mild before plain hybrid, hybrid
+    # before electric ("híbrido eléctrico", "hybrid electric" are HEV); VW "e-Hybrid" is a plug-in
+    (r"plug[- ]?in|\bphev\b|enchufable|(?<![\w-])e-?hybrid\b|подключаем|подзаряж|розетк", "phev"),
+    (r"mild[- ]?hybrid|\bmhev\b|мягк\w* гибрид|micro[- ]?h[iíy]brid|(?<![\d.,])48 ?v\b", "mhev"),
+    (r"h[iíy]brid|гибрид|\bhev\b", "hybrid"),
     (r"el[eé]ctric|электр|\bbev\b|\bev\b|\b100 ?% ?el", "bev"),
-    (r"h[ií]brid|гибрид|\bhev\b", "hybrid"),
     (r"diesel|дизел|gas[oó]leo|солярк", "diesel"),
     (r"gasolina|бензин|petrol|gasoline", "petrol"),
     (r"\bglp\b|\blpg\b|\bгаз\b|autogas", "lpg"),
+)
+_ELECTRIFIED = ("phev", "hybrid", "mhev", "bev")
+_GENERIC_FAMILIES = {"MHEV", "PHEV", "HEV"}
+# "Corolla hybrid 140", "1.5 TSI 150": a bare number right after the engine word is its power (PS) when nothing
+# else follows it (not "140 000 km", "140 €", "140H")
+_BARE_HP = re.compile(
+    r"(?<!\w)(?:" + _FAMILY_ALT + r"|h[iíy]brid[oa]?|гибрид)"
+    r"\s+(\d{2,3})(?![.,]?\d)(?!\s*\d)(?!\s*[^\W\d_])(?!\s*[€$£%])",
+    re.I,
 )
 _NEG_BEFORE = re.compile(r"(?:\bне|\bnot|\bno|\bни|написал\w*|wrote|escribiste|pusiste|было|был)\s*$", re.I)
 _DISP = re.compile(r"(?<![\d.,])([0-8])[.,](\d)(?!\d)(?!\s*(?:тыс|k\b|mil|000|км|km))", re.I)
@@ -175,13 +184,19 @@ def parse_engine(text: str | None) -> Any:
     kw = int(m.group(1)) if (m := _last_positive(text, _KW)) and 30 <= int(m.group(1)) <= 750 else None
     if kw is None and hp is not None:
         kw = round(hp * 0.7355)
-    family = None
-    if m := _FAMILY_RE.search(text):
-        family = next(f for f in _FAMILIES if f.lower() == m.group(1).lower())
-    fuel = _FAMILIES.get(family) if family else None
-    if fuel is None:
-        low = text.lower()
-        fuel = next((f for pat, f in _FUEL_WORDS if re.search(pat, low)), None)
+    found = [next(f for f in _FAMILIES if f.lower() == m.group(1).lower()) for m in _FAMILY_RE.finditer(text)]
+    family = next((f for f in found if f not in _GENERIC_FAMILIES), found[0] if found else None)
+    fam_fuels = [_FAMILIES[f] for f in found if _FAMILIES[f]]
+    fam_fuel = next((f for f in _ELECTRIFIED if f in fam_fuels), fam_fuels[0] if fam_fuels else None)
+    low = text.lower()
+    word_fuel = next((f for pat, f in _FUEL_WORDS if re.search(pat, low)), None)
+    # a plug-in family (DM-i) is decisive and petrol/diesel words never override a family; otherwise an
+    # electrified word does: "T-GDi 48V" → mhev, "T-GDi PHEV" → phev, "E-Tech electric" → bev
+    keep_family = fam_fuel == "phev" or word_fuel not in _ELECTRIFIED
+    fuel = (fam_fuel or word_fuel) if keep_family else word_fuel
+    if hp is None and kw is None and (m := _BARE_HP.search(text)) and 60 <= int(m.group(1)) <= 500:
+        hp = int(m.group(1))
+        kw = round(hp * 0.7355)
     if disp is not None and not 0.6 <= disp <= 8.0:
         disp = None
     if not any((disp, hp, kw, family, fuel)):

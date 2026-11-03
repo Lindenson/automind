@@ -2,6 +2,7 @@
 # Re-check stored values with the current verification rules (spec 004 FR-027) and recompute selected values.
 # Usage: scripts/repair-data.sh [--engine]   (Docker Postgres must run; take a backup first)
 #   --engine: only fill engine_cc / power_kw / fuel of stored variants from their names (spec 005)
+#   --sources: only type the stored sources again (official maker domains, favourites' own types) and reselect
 set -euo pipefail
 cd "$(dirname "$0")/.."
 if [[ -f .env.docker ]]; then set -a; . ./.env.docker; set +a; fi
@@ -9,6 +10,10 @@ export DATABASE_URL="postgresql+asyncpg://automind:${POSTGRES_PASSWORD}@127.0.0.
 cd backend
 if [[ "${1:-}" == "--engine" ]]; then
   uv run python -c 'import asyncio, json; from automind.application.backfill import backfill_engines; print(json.dumps(asyncio.run(backfill_engines())))'
+  exit 0
+fi
+if [[ "${1:-}" == "--sources" ]]; then
+  uv run python -c 'import asyncio, json; from automind.infrastructure.config import configure_domain; configure_domain(); from automind.application.repair import reclassify_sources; print(json.dumps(asyncio.run(reclassify_sources()), indent=1, sort_keys=True))'
   exit 0
 fi
 uv run python - <<'PY'
