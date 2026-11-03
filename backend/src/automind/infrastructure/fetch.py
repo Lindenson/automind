@@ -9,8 +9,10 @@ from __future__ import annotations
 
 import asyncio
 import codecs
+import ipaddress
 import logging
 import re
+import socket
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -42,6 +44,37 @@ class FetchRefused(RuntimeError):
         super().__init__(reason)
         self.reason = reason
         self.transient = transient
+
+
+HostIps = Callable[[str], Awaitable[list[str]]]
+
+
+async def system_host_ips(host: str) -> list[str]:
+    """Addresses the host resolves to (A and AAAA)."""
+    infos = await asyncio.get_running_loop().getaddrinfo(host, None, type=socket.SOCK_STREAM)
+    return sorted({str(i[4][0]) for i in infos})
+
+
+def public_ip(addr: str) -> bool:
+    """Spec 007 T058a (SSRF): only global addresses; never loopback, private, link-local (169.254.169.254, the
+    cloud metadata service), reserved, multicast or unspecified."""
+    try:
+        ip = ipaddress.ip_address(addr.split("%", 1)[0])
+    except ValueError:
+        return False
+    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
+        ip = ip.ipv4_mapped
+    return ip.is_global and not (ip.is_loopback or ip.is_private or ip.is_link_local or ip.is_multicast
+                                 or ip.is_reserved or ip.is_unspecified)  # fmt: skip
+
+
+def _literal_ip(host: str) -> str | None:
+    h = host.strip("[]")
+    try:
+        ipaddress.ip_address(h.split("%", 1)[0])
+    except ValueError:
+        return None
+    return h
 
 
 def _retryable_status(status: int) -> bool:
@@ -221,6 +254,27 @@ class Fetcher:
     sleep: Callable[[float], Awaitable[None]] = asyncio.sleep
     requests: dict[str, int] = field(default_factory=dict)
     refusals: dict[str, dict[str, int]] = field(default_factory=dict)
+    # SSRF guard (T058a): the resolver of host addresses. None = the system resolver when this fetcher owns its
+    # HTTP client; an injected client (tests) checks only literal IP hosts unless a resolver is given.
+    host_ips: HostIps | None = None
+
+    async def _public_host(self, url: str) -> bool:
+        """Every address of the URL's host is public (checked on each hop, so a redirect cannot reach inside)."""
+        host = (urlparse(url).hostname or "").lower()
+        if not host:
+            return False
+        if host in ("localhost", "localhost.localdomain") or host.endswith(".localhost"):
+            return False
+        if (lit := _literal_ip(host)) is not None:
+            return public_ip(lit)
+        resolve = self.host_ips or (system_host_ips if self.client is None else None)
+        if resolve is None:
+            return True
+        try:
+            addrs = await resolve(host)
+        except (OSError, UnicodeError):
+            return False
+        return bool(addrs) and all(public_ip(a) for a in addrs)
 
     def _refused(self, url: str, reason: str, status: int | None = None) -> FetchRefused:
         domain = urlparse(url).netloc.lower()
@@ -280,6 +334,8 @@ class Fetcher:
             u = urlparse(current)
             if u.scheme not in ("http", "https") or not u.netloc or is_denied(current):
                 return None
+            if not await self._public_host(current):
+                return None
             r = await self._client().get(current, follow_redirects=False)
             if r.status_code in REDIRECT_STATUSES and r.headers.get("location"):
                 current = str(httpx.URL(current).join(r.headers["location"]))
@@ -318,6 +374,8 @@ class Fetcher:
             raise FetchRefused("not an http(s) URL")
         if is_denied(url):
             raise self._refused(url, "site is on the deny-list (classifieds or automated access forbidden)")
+        if not await self._public_host(url):
+            raise self._refused(url, "private or local address (not fetched)")
         if not await self._robots_allows(url):
             raise self._refused(url, "disallowed by robots.txt")
 
