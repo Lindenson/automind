@@ -326,22 +326,26 @@ Still open from the previous review (already in later increments): SSRF in `fetc
 
 ## Phase 9: Validation gaps (FR-030 to FR-034) Increment G
 
-- [ ] T055 [P] Write the parametrised regression set `T/unit/test_review_regressions.py`, using the review's examples:
+- [x] T055 [P] Write the parametrised regression set `T/unit/test_review_regressions.py`, using the review's examples:
   - "Golf 1.0 TSI ... 1.500 kg" with parts 6,000 characters apart is rejected;
   - "150" inside "1500 rpm" is rejected;
   - gearbox "DSG" vs "manual" conflicts;
   - guard: "Расход 10 л/100 км, гарантия 7 лет" and "2019 год, 5 звёзд NCAP" are removed when they are not in the facts;
   - "Además, el precio del Golf es razonable." is not `sub_threshold`;
   - "moreover" is not a comparative.
-- [ ] T056 Make the following changes in `B/domain/evidence.py`:
+- [x] T056 Make the following changes in `B/domain/evidence.py`:
   - `occurs` takes `max_gap_chars` (200);
   - `validate_excerpt` matches digits at number boundaries;
   - `_agree` compares gearbox, body and fuel normalised.
-- [ ] T057 Make the following changes in `B/orchestration/guard.py`:
+- [x] T057 Make the following changes in `B/orchestration/guard.py`:
   - remove the blanket `x <= 12 or 1950 <= x <= 2035` (line ~57) and allow small ints and years only from the facts (plus the car count);
   - compile `_ABSENCE`, `_COMPARATIVE`, `_WINNER` and `TOPIC_WORDS` into word-boundary regexes (stems keep `\w*`).
-- [ ] T058a SSRF guard in `B/infrastructure/fetch.py` (or wherever pages are fetched): resolve the host, reject private, loopback, link-local and metadata addresses, check again on each redirect; tests with 127.0.0.1, 10.x, 169.254.169.254, a redirect to localhost.
-- [ ] T058 Run `scripts/repair-data.sh` in dry-run mode to see how many stored claims the stricter excerpt rules would reject. Report the count to the owner before applying (backup first in `backups/`). Then run check, deploy, commit, push and merge ("007-G validation gaps").
+- [x] T058a SSRF guard in `B/infrastructure/fetch.py` (or wherever pages are fetched): resolve the host, reject private, loopback, link-local and metadata addresses, check again on each redirect; tests with 127.0.0.1, 10.x, 169.254.169.254, a redirect to localhost.
+- [x] T058 Run `scripts/repair-data.sh` in dry-run mode to see how many stored claims the stricter excerpt rules would reject. Report the count to the owner before applying (backup first in `backups/`). Then run check, deploy, commit, push and merge ("007-G validation gaps").
+  - Done.
+    - Tests: `T/unit/test_review_regressions.py` and `T/unit/infrastructure/test_fetch_ssrf.py`.
+    - Read-only dry run over 1,740 accepted claims: the stricter excerpt rules would reject 2. Both are true positives (an ellipsis skipping more than 200 characters). `repair_claims` never drops an accepted value for a stricter excerpt match, so no data was changed.
+    - Guard: list numbers at the start of a line and the car count are not figures. Stems in the word lists are marked with `*`; every other entry matches a whole word.
 
 ---
 

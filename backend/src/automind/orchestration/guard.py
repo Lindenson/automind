@@ -54,7 +54,8 @@ def numbers_in(obj: Any) -> set[float]:
 
 
 def _ok(x: float, allowed: set[float]) -> bool:
-    if x in ALWAYS_OK or (x.is_integer() and (x <= 12 or 1950 <= x <= 2035)):
+    # FR-033: no blanket pass for small integers and years: "10 л/100 км" and "7 лет" must be in the facts
+    if x in ALWAYS_OK:
         return True
     return any(abs(x - a) <= max(0.051, 0.005 * abs(a)) for a in allowed)
 
@@ -64,11 +65,20 @@ def _token_ok(m: re.Match[str], allowed: set[float]) -> bool:
     return not vals or any(_ok(x, allowed) for x in vals)
 
 
-def check_numbers(text: str, allowed: set[float]) -> tuple[str, int]:
-    """Drop sentences containing numbers not present in the allowed data. Returns (text, dropped)."""
+_LIST_MARK = re.compile(r"^\s*(?:\d{1,2}[.)]|[-*•])\s+")
+
+
+def check_numbers(text: str, allowed: set[float], cars: int = 0) -> tuple[str, int]:
+    """Drop sentences containing numbers not present in the allowed data. Returns (text, dropped). The count of
+    cars compared (1..cars) and a list number at the start of a line are not figures."""
+    allowed = allowed | {float(n) for n in range(1, cars + 1)}
     kept, dropped = [], 0
     for line in text.split("\n"):
         good = []
+        mark = _LIST_MARK.match(line)
+        if mark:
+            good.append(mark.group(0).strip())
+            line = line[mark.end() :]
         for p in re.split(r"(?<=[.!?])\s+", line):
             if all(_token_ok(m, allowed) for m in _CHECKED_RE.finditer(p)):
                 good.append(p)
@@ -90,44 +100,60 @@ def removal_notice(dropped: int) -> dict[str, str]:
 # The text must not contradict the blocks: no "no data" where a block has data, no advantage below the
 # threshold, no winner in a tie. Numbers are checked by `check_numbers` above.
 
+# A word ending in "*" is a stem (any ending); every other entry matches as a whole word or phrase (FR-034).
 _ABSENCE = ("no data", "not available", "insufficient data", "no information", "not found", "unknown",
-            "нет данных", "данных нет", "недостаточно данных", "нет информации", "не найден", "неизвестн",
-            "sin datos", "no hay datos", "datos insuficientes", "no disponible", "desconocid")  # fmt: skip
-_COMPARATIVE = ("better", "more", "bigger", "larger", "wins", "advantage", "superior", "beats", "ahead",
-                "лучше", "больше", "вместительн", "выигрыва", "преимуществ", "превосход", "опережа",
-                "mejor", "más", "mayor", "gana", "ventaja", "supera")  # fmt: skip
+            "нет данных", "данных нет", "недостаточно данных", "нет информации", "не найден*", "неизвестн*",
+            "sin datos", "no hay datos", "datos insuficientes", "no disponible", "desconocid*")  # fmt: skip
+_COMPARATIVE = ("better", "more", "bigger", "larger", "wins", "advantage*", "superior", "beats", "ahead",
+                "лучше", "больше", "вместительн*", "выигрыва*", "преимуществ*", "превосход*", "опережа*",
+                "mejor", "más", "mayor", "gana", "ventaja*", "supera")  # fmt: skip
 _WINNER = ("best choice", "the winner", "wins overall", "we recommend", "i recommend", "clear choice", "pick the",
-           "лучший выбор", "победител", "рекомендую", "однозначно", "явный выбор", "выбирайте",
+           "лучший выбор", "победител*", "рекомендую", "однозначно", "явный выбор", "выбирайте",
            "mejor opción", "ganador", "recomiendo", "elección clara")  # fmt: skip
 
 # area / attribute → words that name it in the text (en, ru, es)
 TOPIC_WORDS: dict[str, tuple[str, ...]] = {
     "tco": (
-        "ownership cost",
-        "running cost",
+        "ownership cost*",
+        "running cost*",
         "cost of ownership",
-        "стоимост",
-        "владени",
-        "расходы на содерж",
+        "стоимост*",
+        "владени*",
+        "расходы на содерж*",
         "coste de propiedad",
         "costes",
         "mantener",
-    ),
-    "maintenance": ("maintenance", "service interval", "servicing", "обслуживан", "то ", "mantenimiento", "revisi"),
-    "price": ("price", "цена", "стоимость покупки", "precio"),
-    "consumption": ("consumption", "fuel economy", "расход", "consumo"),
-    "reliability": ("reliability", "надёжн", "надежн", "fiabilidad"),
-    "boot_volume": ("boot", "trunk", "luggage", "багажник", "maletero"),
-    "accel_0_100": ("acceleration", "0-100", "0–100", "разгон", "aceleración"),
-    "max_power": ("power", "мощност", "potencia"),
-    "curb_mass": ("weight", "масс", "вес ", "peso"),
-    "ground_clearance": ("ground clearance", "клиренс", "altura libre"),
-    "official_price_es": ("price", "цена", "стоит", "precio"),
-    "tco_per_year": ("ownership cost", "running cost", "стоимост", "владени", "coste"),
-    "value_retention_5y": ("resale", "residual", "depreciation", "остаточн", "потеря стоимости", "valor residual"),
+    ),  # fmt: skip
+    "maintenance": ("maintenance", "service interval*", "servicing", "обслуживан*", "mantenimiento", "revisi*"),
+    "price": ("price*", "цена", "цены", "цене", "стоимость покупки", "precio*"),
+    "consumption": ("consumption", "fuel economy", "расход*", "consumo*"),
+    "reliability": ("reliability", "надёжн*", "надежн*", "fiabilidad"),
+    "boot_volume": ("boot", "trunk", "luggage", "багажник*", "maletero*"),
+    "accel_0_100": ("acceleration", "0-100", "0–100", "разгон*", "aceleración"),
+    "max_power": ("power", "мощност*", "potencia"),
+    "curb_mass": ("weight", "масс*", "вес", "веса", "peso"),
+    "ground_clearance": ("ground clearance", "клиренс*", "altura libre"),
+    "official_price_es": ("price*", "цена", "цены", "цене", "стоит", "precio*"),
+    "tco_per_year": ("ownership cost*", "running cost*", "стоимост*", "владени*", "coste*"),
+    "value_retention_5y": ("resale", "residual", "depreciation", "остаточн*", "потеря стоимости", "valor residual"),
 }
 
 _SENT = re.compile(r"(?<=[.!?])\s+|\n+")
+
+
+def _words(words: tuple[str, ...]) -> re.Pattern[str]:
+    """FR-034: words match at word boundaries ("más" is not in "además", "more" not in "moreover"); a stem
+    ("надёжн", "desconocid") matches the word it starts."""
+    alts = []
+    for w in sorted({x.strip() for x in words if x.strip()}, key=len, reverse=True):
+        alts.append(re.escape(w[:-1]) + r"\w*" if w.endswith("*") else re.escape(w) + r"(?!\w)")
+    return re.compile(r"(?<!\w)(?:" + "|".join(alts) + r")", re.I)
+
+
+_ABSENCE_RE = _words(_ABSENCE)
+_COMPARATIVE_RE = _words(_COMPARATIVE)
+_WINNER_RE = _words(_WINNER)
+_TOPIC_RE = {k: _words(v) for k, v in TOPIC_WORDS.items()}
 
 
 @dataclass(frozen=True)
@@ -146,8 +172,8 @@ class CheckInput:
 
 
 def _mentions(sentence: str, topic: str) -> bool:
-    s = f" {sentence.lower()} "
-    return any(w in s for w in TOPIC_WORDS.get(topic, ()))
+    rx = _TOPIC_RE.get(topic)
+    return rx is not None and rx.search(sentence) is not None
 
 
 def report_violations(text: str, ci: CheckInput) -> list[Violation]:
@@ -157,17 +183,17 @@ def report_violations(text: str, ci: CheckInput) -> list[Violation]:
         if not s:
             continue
         low = s.lower()
-        if any(w in low for w in _ABSENCE):
+        if _ABSENCE_RE.search(s):
             topic = next((t for t in sorted(ci.has_data) if _mentions(s, t)), None)
             if topic:
                 out.append(Violation("absence", s, topic))
                 continue
-        if any(w in low for w in _COMPARATIVE):
+        if _COMPARATIVE_RE.search(s):
             topic = next((t for t in sorted(ci.ties) if _mentions(s, t)), None)
             if topic:
                 out.append(Violation("sub_threshold", s, topic))
                 continue
-        if ci.tie and any(w in low for w in _WINNER) and any(n.lower() in low for n in ci.car_names if n):
+        if ci.tie and _WINNER_RE.search(s) and any(n.lower() in low for n in ci.car_names if n):
             out.append(Violation("tie_winner", s))
     return out
 

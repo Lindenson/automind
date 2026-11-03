@@ -95,7 +95,7 @@ async def _report_check(
         raise
     except Exception:  # noqa: BLE001 - no second text: remove the offending sentences instead
         return drop_sentences(text, bad), len(bad)
-    again, dropped = check_numbers(again, allowed)
+    again, dropped = check_numbers(again, allowed, len(comp.cars))
     still = report_violations(again, comp.check)
     return (drop_sentences(again, still), dropped + len(still)) if still else (again, dropped)
 
@@ -255,7 +255,7 @@ def make_report_node():  # noqa: ANN201
                         "deeper on what they ask for, use every meaningful difference, never apologise.")  # fmt: skip
         text = await _explain(c, "reporter", system, request, comp.facts)
         allowed = numbers_in(comp.facts) | numbers_in(comp.blocks) | numbers_in(_case_summary(case))
-        text, dropped = check_numbers(text, allowed)
+        text, dropped = check_numbers(text, allowed, len(case.cars))
         text, fixed = await _report_check(c, system, request, comp, text, allowed)
         _log_removed(c, "report", dropped + fixed)
         blocks = list(comp.blocks)
@@ -308,7 +308,7 @@ async def answer_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[s
         f"User message: {state.get('user_text', '')}\n\nFacts JSON:\n"
         + json.dumps(facts, ensure_ascii=False, default=str),
     )
-    text, dropped = check_numbers(text, numbers_in(facts))
+    text, dropped = check_numbers(text, numbers_in(facts), len(case.cars))
     last = case.shown[-1].persona if case.shown else None
     persona_changed = bool(state.get("persona_changed")) or (last is not None and last != case.persona)
     blocks: list[dict[str, Any]] = [] if nothing_new else _changed_blocks(state, comp.blocks, persona_changed)

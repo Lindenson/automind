@@ -11,6 +11,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from urllib.parse import urlparse
 
+from .sense import gearbox_conflict
 from .specs import ATTRS
 
 RULES_VERSION = "1.0"
@@ -123,19 +124,39 @@ def _norm(text: str) -> str:
     return re.sub(r"\s+", " ", t).strip()
 
 
-def occurs(excerpt: str, document_text: str) -> bool:
-    """The excerpt occurs in the document; an ellipsis in the excerpt ("Klass ... Precio") skips text, and
-    the parts must occur in order."""
+MAX_GAP_CHARS = 200  # FR-030: an ellipsis skips a few words, never half a page
+
+
+def occurs(excerpt: str, document_text: str, max_gap_chars: int = MAX_GAP_CHARS) -> bool:
+    """The excerpt occurs in the document; an ellipsis in the excerpt ("Klass ... Precio") skips at most
+    `max_gap_chars` of text, and the parts must occur in order (spec 007 FR-030: "Golf 1.0 TSI ... 1.500 kg"
+    with the parts 6,000 characters apart is not an excerpt)."""
     doc = _norm(document_text)
-    parts = [_norm(p) for p in _GAP.split(excerpt)]
-    parts = [p for p in parts if p]
-    pos = 0
-    for p in parts:
-        i = doc.find(p, pos)
-        if i < 0:
-            return False
-        pos = i + len(p)
-    return bool(parts)
+    parts = [p for p in (_norm(x) for x in _GAP.split(excerpt)) if p]
+    if not parts:
+        return False
+
+    def chain(k: int, pos: int) -> bool:
+        if k == len(parts):
+            return True
+        i = doc.find(parts[k], pos)
+        while i >= 0 and i - pos <= max_gap_chars:
+            if chain(k + 1, i + len(parts[k])):
+                return True
+            i = doc.find(parts[k], i + 1)
+        return False
+
+    start = doc.find(parts[0])
+    while start >= 0:
+        if chain(1, start + len(parts[0])):
+            return True
+        start = doc.find(parts[0], start + 1)
+    return False
+
+
+def _number_in(number: str, text: str) -> bool:
+    """The number occurs as a whole number (FR-031: "150" is not in "1500 rpm", nor "1,5" in "11,5")."""
+    return re.search(rf"(?<![\d.,]){re.escape(number)}(?![\d]|[.,]\d)", text) is not None
 
 
 def validate_excerpt(excerpt: str, raw_value: str, document_text: str) -> bool:
@@ -146,10 +167,10 @@ def validate_excerpt(excerpt: str, raw_value: str, document_text: str) -> bool:
     if not occurs(excerpt, document_text):
         return False
     val = _norm(raw_value)
-    if val in ex:
+    if re.search(r"\d", val) is None and val in ex:
         return True
-    digits = re.findall(r"\d+(?:[.,]\d+)?", val)
-    return bool(digits) and all(d in ex for d in digits)
+    digits = re.findall(r"\d+(?:[.,]\d+)*", val)  # "44.250,00" is one number
+    return bool(digits) and all(_number_in(d, ex) for d in digits)
 
 
 def assign_provenance(source_type: str, attribute: str) -> str:
@@ -184,10 +205,45 @@ class Selected:
     alternatives: list[float | str] = field(default_factory=list)
 
 
+_FUELS = {
+    "diesel": ("diesel", "dci", "tdi", "crdi", "hdi", "bluehdi", "d-4d", "gasóleo", "gasoleo", "дизель"),
+    "petrol": ("petrol", "gasoline", "gasolina", "benzin", "tsi", "tfsi", "бензин"),
+    "electric": ("electric", "eléctrico", "electrico", "bev", "электро"),
+}  # fmt: skip
+_DRIVES = {"awd": "AWD", "4wd": "AWD", "4x4": "AWD", "all-wheel": "AWD", "all wheel": "AWD", "quattro": "AWD",
+           "xdrive": "AWD", "4motion": "AWD", "fwd": "FWD", "front": "FWD", "delantera": "FWD", "rwd": "RWD",
+           "rear": "RWD", "trasera": "RWD"}  # fmt: skip
+
+
+def _fuel(text: str) -> str | None:
+    t = f" {text.lower()} "
+    found = {f for f, words in _FUELS.items() if any(w in t for w in words)}
+    return next(iter(found)) if len(found) == 1 else None
+
+
+def _drive(text: str) -> str | None:
+    t = text.lower()
+    found = {d for w, d in _DRIVES.items() if w in t}
+    return next(iter(found)) if len(found) == 1 else None
+
+
+def _agree_text(key: str, a: str, b: str) -> bool:
+    """FR-032: gearbox, drive and fuel are compared normalised; other texts are not compared."""
+    if key == "transmission":
+        return not gearbox_conflict(a, b)
+    if key == "drivetrain":
+        da, db = _drive(a), _drive(b)
+        return da == db if da and db else a.strip().lower() == b.strip().lower()
+    if key == "engine":
+        fa, fb = _fuel(a), _fuel(b)
+        return not (fa and fb and fa != fb)
+    return True
+
+
 def _agree(attr_key: str, a: float | str, b: float | str) -> bool:
     attr = ATTRS[attr_key]
     if attr.kind == "text" or isinstance(a, str) or isinstance(b, str):
-        return str(a).strip().lower() == str(b).strip().lower() if attr.key == "drivetrain" else True
+        return _agree_text(attr.key, str(a), str(b))
     if attr.tolerance == 0:
         return float(a) == float(b)
     ref = max(abs(float(a)), abs(float(b)), 1e-9)
