@@ -277,6 +277,7 @@ The ownership cost shows its energy split (electricity vs fuel). Short explainer
   - cars without an energy line;
   - rejected EV values by rule;
   - the number of times a weighted figure was offered as a consumption and blocked.
+- **FR-023** (code review 2026-11-03, item 5.6): The efficiency criterion MUST compare cars of different powertrains on one scale, the energy cost per 100 km at the user's prices and charging mix (from FR-001–FR-006). Two separate kWh and litre scales MUST NOT be used. When a car has no energy cost, efficiency MUST be left out of the ranking for every car in the comparison (as for any criterion without data for all cars).
 
 ### Key Entities
 
