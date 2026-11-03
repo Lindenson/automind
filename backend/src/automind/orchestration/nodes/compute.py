@@ -12,7 +12,7 @@ from typing import Any
 from automind.application import compose, research
 from automind.application import feasibility as fz_app
 from automind.domain import insights as ins
-from automind.domain import research_plan, sense, tco
+from automind.domain import research_plan, sense, suggestions, tco
 from automind.domain import verdict as vd
 from automind.domain.casefile import CaseFile
 from automind.domain.criteria import CriteriaScore, score, weights_for
@@ -146,7 +146,21 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
     out_notices = list(notices)
     if case.unmapped_wishes:
         out_notices.append(notice("Not assessable with data: " + ", ".join(case.unmapped_wishes)))
-    ordered = [vblock, *order_blocks(case.persona, out_notices + blocks, cars=len(cars))] if cars else []
+    panel = next((b for b in blocks if b.get("type") == "data_panel"), None)
+    gaps_by_car = {x["car_key"]: [a["area"] for a in x["areas"] if a["findable"] and a["status"] != "COMPLETE"]
+                   for x in (panel or {}).get("cars", [])}  # fmt: skip
+    names = {car["variant"].id: compose.short_name(car["variant"]) for car in cars}
+    sugg = (
+        report_text.suggestions_block(
+            suggestions.build(verdict, iset, all_new=all(x.condition != "USED" for x, _ in keyed),
+                              gaps_by_car=gaps_by_car),
+            names, lang,
+        )
+        if cars
+        else None
+    )  # fmt: skip
+    head = [vblock, *([sugg] if sugg else [])]
+    ordered = [*head, *order_blocks(case.persona, out_notices + blocks, cars=len(cars))] if cars else []
     summary = compose.summary_for_llm(cars, race, crit)
     summary["ownership_cost"] = [
         {
@@ -157,7 +171,6 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
         }
         for e in estimates
     ]
-    names = {car["variant"].id: compose.short_name(car["variant"]) for car in cars}
     summary["insights"] = report_text.insights_for_llm(iset, verdict, names, lang)
     return Computed(blocks=ordered, facts=summary, criteria=crit, cars=cars, tco=estimates, race=race,
                     insights=iset, verdict=verdict, check=check)  # fmt: skip

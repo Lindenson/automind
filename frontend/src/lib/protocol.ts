@@ -522,7 +522,25 @@ export const DataPanelBlockSchema = z.object({
   changed: z.string().nullable(),
 });
 
+// spec 004 FR-020: next steps
+export const SuggestionsBlockSchema = z.object({
+  type: z.literal("suggestions"),
+  items: z.array(
+    z.object({
+      id: z.string(),
+      label: z.string(),
+      request: z.object({
+        kind: z.string(),
+        text: z.string(),
+        focus_cars: z.array(z.string()).nullish(),
+        areas: z.array(z.string()).nullish(),
+      }),
+    }),
+  ),
+});
+
 export const BlockSchema = z.discriminatedUnion("type", [
+  SuggestionsBlockSchema,
   ValueRetentionBlockSchema,
   DataPanelBlockSchema,
   VerdictBlockSchema,
@@ -831,4 +849,5 @@ export type FindOut = {
   text?: string;
   message_id?: string;
 };
-export type ClientMsg = UserMessageOut | HelloOut | ConfirmOut | CancelOut | FindOut;
+export type RatingOut = { type: "rating"; message_id: string; rating: number; note: string };
+export type ClientMsg = UserMessageOut | HelloOut | ConfirmOut | CancelOut | FindOut | RatingOut;

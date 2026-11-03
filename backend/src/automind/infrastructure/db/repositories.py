@@ -489,3 +489,19 @@ class FeasibilityRepo:
             for r in rows:
                 s.add(FeasibilityCheck(chat_id=chat_id, turn_id=turn_id, **r))
             await s.commit()
+
+
+class RatingRepo:
+    """Report ratings (spec 004 FR-026): one per assistant message, the latest wins."""
+
+    async def save(self, chat_id: str, message_id: str, rating: int, note: str = "") -> None:
+        from sqlalchemy.dialects.postgresql import insert  # noqa: PLC0415
+
+        values = {"message_id": message_id[:36], "chat_id": chat_id, "rating": max(1, min(5, int(rating))),
+                  "note": (note or "")[:1000]}  # fmt: skip
+        async with sessionmaker()() as s:
+            if await s.get(Chat, chat_id) is None:
+                return
+            stmt = insert(ReportRating).values(**values)
+            await s.execute(stmt.on_conflict_do_update(index_elements=["message_id"], set_=values))
+            await s.commit()

@@ -52,6 +52,7 @@ interface ChatState {
   handleRaw: (raw: unknown) => void;
   send: (text: string) => void;
   find: (focusCars: string[], areas: string[], text: string) => void;
+  rate: (messageId: string, rating: number, note: string) => void;
   answerConfirm: (choice: string, text?: string) => void;
   cancel: () => void;
   setCase: (c: CaseState) => void;
@@ -223,6 +224,10 @@ export const useChat = create<ChatState>((set, get) => ({
   cancel: () => {
     const { transport, turnId } = get();
     transport?.send({ type: "cancel", turn_id: turnId });
+  },
+
+  rate: (messageId, rating, note) => {
+    get().transport?.send({ type: "rating", message_id: messageId, rating, note });
   },
 
   find: (focusCars, areas, text) => {

@@ -68,6 +68,12 @@ class ChatSocket:
             text = str(msg.get("text") or "").strip()[:200] or "Find the missing data: " + (", ".join(areas) or "all")
             preset = {"kind": "research_more", "focus_cars": cars, "areas": areas, "language": msg.get("language")}
             self._background(self.runner.run_turn(self.chat_id, text, msg.get("message_id"), preset=preset))
+        elif kind == "rating":  # spec 004 FR-026
+            from automind.infrastructure.db.repositories import RatingRepo  # noqa: PLC0415
+
+            with contextlib.suppress(TypeError, ValueError):
+                await RatingRepo().save(self.chat_id, str(msg.get("message_id") or ""), int(msg.get("rating") or 0),
+                                        str(msg.get("note") or ""))  # fmt: skip
         elif kind == "confirm":
             payload = {"choice": msg.get("choice"), "text": msg.get("text"), "request_id": msg.get("request_id")}
             self._background(self.runner.resume(self.chat_id, payload))

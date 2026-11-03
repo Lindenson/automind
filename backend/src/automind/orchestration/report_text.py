@@ -128,6 +128,34 @@ def _num(x: float, lang: str | None) -> str:
     return s.replace(".", ",") if (lang or "en")[:2] in ("ru", "es") else s
 
 
+_S: dict[str, dict[str, str]] = {
+    "WHY_AHEAD": {"en": "Why is the {car} ahead?", "ru": "Почему {car} впереди?", "es": "¿Por qué gana el {car}?"},
+    "TIE_BREAK": {"en": "What would tip it for me?", "ru": "Что склонит выбор в мою пользу?",
+                  "es": "¿Qué inclinaría la balanza para mí?"},
+    "FIND_MISSING": {"en": "Find the missing data", "ru": "Найти недостающие данные",
+                     "es": "Buscar los datos que faltan"},
+    "COMPARE_RELIABILITY": {"en": "Compare them on reliability", "ru": "Сравнить по надёжности",
+                            "es": "Compararlos en fiabilidad"},
+    "WHAT_IF_USED": {"en": "And if I buy used, 3–5 years old?", "ru": "А если брать б/у, 3–5 лет?",
+                     "es": "¿Y si compro de segunda mano, de 3–5 años?"},
+    "CHEAPER_ALTERNATIVE": {"en": "A cheaper alternative to the {car}?", "ru": "Есть дешевле альтернатива {car}?",
+                            "es": "¿Una alternativa más barata al {car}?"},
+}  # fmt: skip
+
+
+def suggestions_block(items: list[Any], names: Mapping[str, str], lang: str | None) -> dict[str, Any] | None:
+    """One-click next steps (spec 004 FR-020). FIND_MISSING sends a "find it" request, the others a message."""
+    out = []
+    for i, sg in enumerate(items):
+        table = _S[sg.kind]
+        label = table.get((lang or "en")[:2], table["en"]).format(car=names.get(sg.car_id or "", ""))
+        req: dict[str, Any] = {"kind": "find" if sg.kind == "FIND_MISSING" else "message", "text": label}
+        if sg.kind == "FIND_MISSING":
+            req |= {"focus_cars": list(sg.focus_cars), "areas": list(sg.areas)}
+        out.append({"id": f"s{i + 1}-{sg.kind.lower()}", "label": label, "request": req})
+    return {"type": "suggestions", "items": out} if out else None
+
+
 def tr(key: str, lang: str | None, **kw: Any) -> str:
     table = _T[key]
     return table.get((lang or "en")[:2], table["en"]).format(**kw)

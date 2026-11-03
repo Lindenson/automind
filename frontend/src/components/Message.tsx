@@ -6,6 +6,7 @@ import type { ChatMessage } from "../lib/protocol";
 import { fmtTime } from "../lib/util";
 import { useChat } from "../store/chat";
 import { BlockView } from "./blocks/BlockView";
+import { RatingControl } from "./RatingControl";
 import { buildCarColors, CarColorContext } from "./carColors";
 import { Logo } from "./Logo";
 import { WarnIcon } from "./icons";
@@ -43,6 +44,9 @@ export const Message = memo(function Message({ m }: { m: UiMessage }) {
 
 function AssistantMessage({ m }: { m: ChatMessage }) {
   const colors = useMemo(() => buildCarColors(m.blocks), [m.blocks]);
+  // spec 004 FR-001: the verdict card comes first, before the explanation
+  const lead = m.blocks.filter((b) => b.type === "verdict");
+  const rest = m.blocks.filter((b) => b.type !== "verdict");
   return (
     <div className="flex animate-fadeUp gap-3">
       <div className="hidden shrink-0 sm:block">
@@ -54,6 +58,11 @@ function AssistantMessage({ m }: { m: ChatMessage }) {
           <span>{fmtTime(m.created_at)}</span>
           <UsageBadge turnId={m.turn_id} />
         </div>
+        <CarColorContext.Provider value={colors}>
+          {lead.map((b, i) => (
+            <BlockView key={`lead-${i}`} block={b} />
+          ))}
+        </CarColorContext.Provider>
         {m.text && (
           <div className="md">
             <ReactMarkdown
@@ -69,10 +78,11 @@ function AssistantMessage({ m }: { m: ChatMessage }) {
           </div>
         )}
         <CarColorContext.Provider value={colors}>
-          {m.blocks.map((b, i) => (
+          {rest.map((b, i) => (
             <BlockView key={i} block={b} />
           ))}
         </CarColorContext.Provider>
+        {lead.length > 0 && <RatingControl messageId={m.message_id} />}
       </div>
     </div>
   );

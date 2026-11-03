@@ -17,12 +17,12 @@ turns:
     expect:
       action: REPORT
       no_search: true
-      block_order_starts_with: [verdict, case_summary, race_chart]
+      block_order_starts_with: [verdict, suggestions, case_summary, race_chart]
       case: {persona: PERFORMANCE}
   - user: "and for a smart buyer?"
     expect:
       action: ANSWER_FROM_CONTEXT
       no_search: true
       researched: []
-      block_order_starts_with: [verdict, case_summary, criteria_scores, tco]
+      block_order_starts_with: [verdict, suggestions, case_summary, criteria_scores, tco]
       case: {persona: BUYER}

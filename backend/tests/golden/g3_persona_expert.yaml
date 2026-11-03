@@ -25,12 +25,12 @@ turns:
     expect:
       action: REPORT
       no_search: true
-      block_order_starts_with: [verdict, case_summary, criteria_scores]
+      block_order_starts_with: [verdict, suggestions, case_summary, criteria_scores]
   - user: "the same, but I'm a car engineer"
     expect:
       action: ANSWER_FROM_CONTEXT
       no_search: true
-      block_order_starts_with: [verdict, case_summary, engineering]
+      block_order_starts_with: [verdict, suggestions, case_summary, engineering]
       case:
         persona: EXPERT
         persona_source: ASKED
