@@ -183,3 +183,16 @@ def test_newer_generation_wins_over_an_older_year() -> None:
 def test_versions_round_trip_json() -> None:
     v = OCTAVIA[4]
     assert ladder.version_of_json(ladder.version_to_json(v)) == v
+
+
+def test_a_petrol_mild_hybrid_is_not_a_diesel() -> None:
+    vs = [
+        Version("1.0 TSI m-HEV 110 CV", "mhev", 999, 81, ("dct",), ("FWD",)),
+        Version("1.5 TSI m-HEV 150 CV", "mhev", 1498, 110, ("dct",), ("FWD",)),
+        Version("2.0 TDI 150 CV", "diesel", 1968, 110, ("dct",), ("FWD",)),
+    ]
+    s = step(vs, said("Octavia diesel"))
+    assert s.kind == "DONE" and s.version is not None and s.version.engine == "2.0 TDI 150 CV"
+    found = ladder.narrow(vs[:2], said("Octavia 2.0 diesel"))
+    assert found.missing == ["diesel", "2.0"]
+    assert ladder.narrow(vs[:2], said("Octavia petrol")).missing == []

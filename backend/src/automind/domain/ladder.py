@@ -145,10 +145,22 @@ class Narrowed:
     missing: list[str] = field(default_factory=list)  # what the user said that no version (of this year) has
 
 
-def _fuel_ok(want: str, have: str | None) -> bool:
+def _base_fuel(v: Version) -> str | None:
+    """The liquid fuel of a mild hybrid from its engine family ("1.5 TSI m-HEV" → petrol, "2.0 TDI MHEV" → diesel)."""
+    low = v.engine.lower()
+    hit = next((f for f in _IMPLIED_FUEL if re.search(rf"(?<![\w-]){re.escape(f)}(?![\w-])", low)), None)
+    if hit and _IMPLIED_FUEL[hit] in ("petrol", "diesel"):
+        return _IMPLIED_FUEL[hit]
+    return "diesel" if re.search(r"di[eé]sel|\bd\b|\bdci\b", low) else None
+
+
+def _fuel_ok(want: str, have: str | None, v: Version | None = None) -> bool:
     if have is None or want == have:
         return True
-    return have == "mhev" and want in ("petrol", "diesel", "hybrid")  # a mild hybrid is still a petrol or diesel
+    if have == "mhev":  # a mild hybrid is still a petrol or a diesel: which one, from its engine family
+        base = _base_fuel(v) if v is not None else None
+        return want == "hybrid" or (want in ("petrol", "diesel") and base in (want, None))
+    return False
 
 
 def _family_ok(family: str, v: Version) -> bool:
@@ -159,7 +171,7 @@ def _family_ok(family: str, v: Version) -> bool:
     # source names another family
     implied = _IMPLIED_FUEL.get(fam)
     named = any(re.search(rf"(?<![\w-]){re.escape(f)}(?![\w-])", low) for f in _IMPLIED_FUEL)
-    return implied is not None and not named and v.fuel is not None and _fuel_ok(implied, v.fuel)
+    return implied is not None and not named and v.fuel is not None and _fuel_ok(implied, v.fuel, v)
 
 
 def _gearbox_ok(v: Version, wanted: str) -> bool:
@@ -190,7 +202,7 @@ def narrow(versions: Sequence[Version], w: Wanted) -> Narrowed:
         if exact:
             pool = exact
     checks: list[tuple[str | None, Any]] = [
-        (w.fuel, lambda v: _fuel_ok(w.fuel or "", v.fuel)),
+        (w.fuel, lambda v: _fuel_ok(w.fuel or "", v.fuel, v)),
         (f"{w.displacement_l:.1f}" if w.displacement_l else None,
          lambda v: v.engine_cc is None or abs(v.engine_cc / 1000 - (w.displacement_l or 0)) <= 0.05),
         (w.family, lambda v: _family_ok(w.family or "", v)),
