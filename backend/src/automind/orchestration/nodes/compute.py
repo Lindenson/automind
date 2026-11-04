@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field, replace
 from typing import Any
 
-from automind.application import compose, research
+from automind.application import compose, electric_block, research
 from automind.application import feasibility as fz_app
 from automind.domain import incentives, research_plan, sense, suggestions, tco
 from automind.domain import insights as ins
@@ -112,6 +112,7 @@ def verdict_extras(keyed: list[Any], tcars: list[tco.TcoCar], estimates: list[tc
         b = incentives.break_even(e.price_eur, c0.price_eur, run.get(e.car_id), run.get(c0.car_id),
                                   ownership_years=case.ownership_years)  # fmt: skip
         out["break_even"] = {"electrified_car_id": e.car_id, "against_car_id": c0.car_id, "verdict": b.verdict,
+                             "electrified_label": e.label, "against_label": c0.label,
                              "years": b.years, "beyond_ownership": b.beyond_ownership, "inputs": b.inputs}  # fmt: skip
     return out
 
@@ -298,8 +299,11 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
     other = persona_counterfactual(case, outcome) if crit is not None and len(keyed) > 1 else None
     iset, verdict, vblock, check = await _insights(c, case, keyed, tcars, costs, crit, sims, rates, lang,
                                                    limits_from(case, fz), other)  # fmt: skip
-    vblock.update(verdict_extras(keyed, tcars, estimates, case, year))
+    extras = verdict_extras(keyed, tcars, estimates, case, year)
+    vblock.update(extras)
     blocks = await _blocks(c, case, keyed, race, crit, estimates, iset, fz)
+    if (eb := electric_block.build(cars, tcars, estimates, rates, extras["labels"], lang)) is not None:
+        blocks.append(eb)
     out_notices = list(notices)
     if case.unmapped_wishes:
         out_notices.append(notice("Not assessable with data: " + ", ".join(case.unmapped_wishes)))

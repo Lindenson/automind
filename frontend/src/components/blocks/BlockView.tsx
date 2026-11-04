@@ -19,6 +19,7 @@ import { Verdict } from "./Verdict";
 import { DataPanel } from "./DataPanel";
 import { ValueRetention } from "./ValueRetention";
 import { Suggestions } from "./Suggestions";
+import { Electric } from "./Electric";
 
 export function BlockView({ block }: { block: Block }) {
   switch (block.type) {
@@ -46,6 +47,8 @@ export function BlockView({ block }: { block: Block }) {
       return <Manufacturer b={block} />;
     case "tco":
       return <Tco b={block} />;
+    case "electric":
+      return <Electric b={block} />;
     case "feasibility":
       return <Feasibility b={block} />;
     case "reliability":

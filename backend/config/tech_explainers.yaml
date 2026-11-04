@@ -79,3 +79,28 @@ explainers:
     reliability: Very few moving parts; the battery is the main long-term question.
     feel: Instant torque and silence.
     source: editorial
+  # spec 006 FR-021: the terms behind an electric or plug-in car's figures
+  plug_in_figures:
+    match: [phev, erev, plug-in, enchufable, dm-i]
+    title: Plug-in hybrid figures (weighted WLTP, empty battery)
+    text: >-
+      The headline WLTP consumption of a plug-in hybrid (often 0.5–1.5 l/100 km) is a weighted figure: it
+      assumes a full battery at the start of most trips. It is not what the car uses; the cost here comes from
+      the electric consumption for the km you can drive on a charge and the consumption with an empty battery
+      (charge-sustaining) for the rest.
+    consumption: With daily charging and short trips most km are electric; on long trips it drives as a hybrid.
+    reliability: Two drivetrains to maintain; the battery warranty (years, km, guaranteed capacity) matters.
+    feel: Silent and quick on electricity; the engine joins when the battery is low or under hard acceleration.
+    source: editorial
+  ev_figures:
+    match: [bev, phev, erev]
+    title: Battery and charging figures (usable vs gross, DC peak, losses)
+    text: >-
+      Usable capacity is what the car can draw; gross includes a reserve and is larger. The DC figure is a peak
+      held only at low charge: the 10–80 % time shows real fast-charging speed. Charging loses about 10 % at home
+      (AC) and about 5 % on DC; EU WLTP consumption already includes these losses, figures read from the car's
+      display do not.
+    consumption: Rises in cold weather (heating) and at motorway speed; air conditioning costs less.
+    reliability: Batteries usually keep 80–90 % after 8 years; the warranty states the guaranteed minimum.
+    feel: Instant torque; range depends strongly on speed and temperature.
+    source: editorial

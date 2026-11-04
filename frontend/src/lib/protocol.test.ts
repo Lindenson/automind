@@ -277,3 +277,44 @@ describe("spec 005 intake card", () => {
     expect(b.items[0]?.suggested).toBe(true);
   });
 });
+
+describe("spec 006 electric section and energy split", () => {
+  const ev = {
+    battery: { usable_kwh: 18.3, gross_kwh: null, chemistry: "LFP" },
+    range: { wltp_km: 80, real_km: 62, real_basis: "ASSUMPTION", how: "WLTP 80 km ÷ 1.30" },
+    consumption: { kwh_per_100km: null, real_kwh_per_100km: null },
+    charging_home: { ac_kw: 6.6, full_h: 3.1 },
+    charging_dc: { peak_kw: null, min_10_80: null },
+    electric_share: { share: 0.6, inputs: ["≈60 km a day"] },
+    cost_per_100km: { used_eur: 6.2, home_eur: 6.2, public_eur: 9.8, missing: [] },
+    label: { label: "ZERO", rule: "plug-in with 80 km electric range (≥ 40 km): ZERO" },
+  };
+
+  it("parses the electric block with gaps as null", () => {
+    const [b] = parseBlocks([
+      { type: "electric", title: "Электро", rows: ["battery", "charging_dc"], notes: [],
+        cars: [{ car_id: "b", label: "BYD Seal U DM-i", powertrain: "PHEV", values: ev }],
+        not_electric: [{ car_id: "a", label: "SEAT Ateca", cost_per_100km_eur: 12.4 }] },
+    ]);
+    expect(b.type).toBe("electric");
+    if (b.type === "electric") {
+      expect(b.cars[0].values.charging_dc.peak_kw).toBeNull();
+      expect(b.not_electric[0].cost_per_100km_eur).toBe(12.4);
+    }
+  });
+
+  it("keeps old TCO payloads without parts valid and reads the split when present", () => {
+    const item = { kind: "ENERGY", label: "Energy (petrol)", annual_eur: 2300, five_year_eur: 11500,
+                   basis: "ASSUMPTION", inputs: [], sources: [] };
+    const car = { car_id: "a", label: "A", condition: "NEW", age_years: null, annual_total: 1, five_year_total: 5 };
+    const [old] = parseBlocks([{ type: "tco", title: "t", annual_km: 18000, cars: [{ ...car, items: [item] }] }]);
+    expect(old.type).toBe("tco");
+    const parts = [
+      { energy: "electricity", km: 10800, per_100km: 21.4, unit: "kWh", price: 0.2, annual_eur: 462 },
+      { energy: "petrol", km: 7200, per_100km: 6.1, unit: "l", price: 1.78, annual_eur: 782 },
+    ];
+    const [split] = parseBlocks([{ type: "tco", title: "t", annual_km: 18000,
+                                   cars: [{ ...car, items: [{ ...item, parts }] }] }]);
+    if (split.type === "tco") expect(split.cars[0].items[0].parts?.length).toBe(2);
+  });
+});

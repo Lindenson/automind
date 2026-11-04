@@ -10,18 +10,20 @@ from typing import Any
 
 ORDER: dict[str, list[str]] = {
     "BUYER": [
-        "case_summary", "feasibility", "criteria_scores", "tco", "reliability", "reviews", "spec_table", "sources",
+        "case_summary", "feasibility", "criteria_scores", "tco", "electric", "reliability", "reviews", "spec_table",
+        "sources",
     ],
     "PERFORMANCE": [
         "case_summary", "feasibility", "race_chart", "metric_bars", "criteria_scores", "spec_table", "reliability",
-        "tco", "sources",
+        "tco", "electric", "sources",
     ],
     "EXPERT": [
         "case_summary", "feasibility", "engineering", "spec_table", "metric_bars", "criteria_scores", "reliability",
-        "manufacturer", "tco", "race_chart", "sources",
+        "manufacturer", "tco", "electric", "race_chart", "sources",
     ],
     "UNKNOWN": [
-        "case_summary", "feasibility", "criteria_scores", "spec_table", "tco", "reliability", "race_chart", "sources",
+        "case_summary", "feasibility", "criteria_scores", "spec_table", "tco", "electric", "reliability", "race_chart",
+        "sources",
     ],
 }  # fmt: skip
 
