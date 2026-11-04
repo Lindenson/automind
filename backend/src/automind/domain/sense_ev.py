@@ -88,6 +88,11 @@ def plug_in_consumption(attribute: str, raw_value: str, unit: str | None, excerp
     if _has(text, _WEIGHTED) or (value is not None and value < WEIGHTED_MAX):
         return SenseResult(True, raw_value, "sense.phev.weighted", "weighted WLTP figure: shown, never priced",
                            attribute="consumption_weighted")  # fmt: skip
+    if attribute == "consumption_cs" and not _has(text, _WEIGHTED):
+        # the reader filed it as "empty battery" from the page (a table under such a header: the excerpt is only the
+        # row) and it is too high to be the weighted figure (live run 2026-11-04, autohled.cz "CVT | 5.50 l/100 km")
+        return SenseResult(True, raw_value, "sense.phev.cs_by_reader", "charge-sustaining (as read from the page)",
+                           attribute="consumption_cs")  # fmt: skip
     return SenseResult(False, None, "sense.phev.unclear_consumption",
                        "a plug-in figure without 'empty battery' or 'weighted' words is not used")  # fmt: skip
 

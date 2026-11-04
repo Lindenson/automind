@@ -305,6 +305,11 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
     eff = per_100km(estimates)
     notices += energy_notices(estimates, {car["variant"].id: compose.short_name(car["variant"]) for car in cars}, lang)
     await _energy_metrics(c, keyed, estimates)
+    no_energy = {x.key for x, car in keyed
+                 if any(e.car_id == car["variant"].id and energy_missing(e) for e in estimates)}  # fmt: skip
+    # the energy notice names the missing input; "specs: minimum not reached" for the same car only repeats it
+    notices[:] = [n for n in notices if not (n.get("area") == "specs" and n.get("car_key") in no_energy
+                                             and "car_id" not in n)]  # fmt: skip
     year = _year(c)
     young = {x.key for x, car in keyed if _new_gen(car, year)}
     notices[:] = [n for n in notices if not (n.get("area") == "reliability" and n.get("car_key") in young)]
