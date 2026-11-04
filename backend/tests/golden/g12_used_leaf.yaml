@@ -3,7 +3,6 @@ description: >
   A used 2019 Nissan Leaf 40 kWh: the energy line is computed from its consumption, the label is ZERO, and no
   battery health is invented (only a sourced value would be shown; the electric section has no such row).
 scenario: empty
-forget: [Nissan]
 market_facts:
   - key: label.zero.benefits
     value: {label: "Etiqueta CERO: aparcamiento regulado", scope: municipal, url: "https://www.dgt.es/x",

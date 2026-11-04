@@ -11,7 +11,8 @@ from automind.application import research, resolve
 from automind.application.interpret import Interpretation, InterpretError, interpret
 from automind.config import settings
 from automind.domain import identification, intake, research_plan
-from automind.domain.casefile import CaseFile, apply, apply_defaults
+from automind.domain.casefile import CarRef, CaseDelta, CaseFile, Constraints, apply, apply_defaults
+from automind.domain.identity import parse_engine
 from automind.domain.policy import CarState, decide
 from automind.orchestration import phrases
 from automind.orchestration.nodes import feasibility as fz_nodes
@@ -84,6 +85,9 @@ async def apply_delta_node(state: TurnState, runtime: Runtime[TurnContext]) -> d
         # spec 005 FR-022: while an intake step is pending, every reply is an intake answer, never generic chat
         request = "compare"
         changes += _brand_from_text(new, case, state.get("user_text") or "", c.ports.ref.makes)
+    if request in ("general_question", "chitchat") and not new.cars and new.pending is None:
+        new, request, more = _cars_safety_net(new, i, state.get("user_text") or "", c.ports.ref.makes, year, request)
+        changes += more
     changes += _person_from_text(new, case, state.get("user_text") or "", c.ports.ref.regions)
     unclear = _not_understood(case, new, request)
     new, extra = _pending_answered(new, i, request)
@@ -151,6 +155,19 @@ def _person_from_text(new: CaseFile, before: CaseFile, text: str, regions: dict[
                 car.condition = cond  # type: ignore[assignment]
                 log.append(f"{car.key}: {cond.lower()}")
     return log
+
+
+def _cars_safety_net(new: CaseFile, i: Interpretation, text: str, reg: Any, year: int,
+                     request: str) -> tuple[CaseFile, str, list[str]]:  # fmt: skip
+    """Two named cars are a comparison even when the interpreter called the message a general question."""
+    found = intake.cars_in_text(text, reg.match_make) if reg is not None else []
+    if len(found) < 2:
+        return new, request, []
+    cond = intake.condition_of(text) or "UNKNOWN"
+    refs = [CarRef(request_text=words, make=make, condition=cond,
+                   constraints=Constraints(engine_hint=parse_engine(words))) for words, make in found[:3]]  # fmt: skip
+    out, log = apply(new, CaseDelta(add_cars=refs), current_year=year)
+    return out, "compare", ["cars from the user's words (the interpreter found none)", *log]
 
 
 def _brand_from_text(new: CaseFile, before: CaseFile, text: str, reg: Any) -> list[str]:

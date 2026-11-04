@@ -17,7 +17,11 @@ async def propose(ports: Ports, case: CaseFile, limit: int = 3) -> list[dict[str
     """Add 2–3 candidate cars to the case (in place); returns what was proposed, [] when nothing fits."""
     if ports.models_on_sale is None:
         return []
-    picked = intake.pick_candidates(await ports.models_on_sale(), fit_of(case), case.wanted_body, limit=limit)
+    pool = await ports.models_on_sale()
+    reg = ports.ref.makes
+    if reg is not None:  # only makes of the registry: never a renamed or unknown catalog row
+        pool = [(mk, m) for mk, m in pool if reg.canonical(mk) is not None]
+    picked = intake.pick_candidates(pool, fit_of(case), case.wanted_body, limit=limit)
     if len(picked) < 2:
         return []
     condition = "USED" if case.budget.intent == "USED" else "NEW"

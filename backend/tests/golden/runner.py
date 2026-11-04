@@ -218,6 +218,37 @@ def check_electrified(obs: TurnObservation, exp: Expect) -> list[str]:  # noqa: 
 # --- seeding and observation ------------------------------------------------------------------
 
 
+async def hide_makes(d: Dialogue) -> list[tuple[str, str, str]]:
+    """Hide other tests' catalog rows of the `forget` makes for one dialogue (the dialogue's own seeded rows stay);
+    `restore_makes` puts them back, so later tests (candidates, corrections) still find them."""
+    if not d.forget:
+        return []
+    from automind.domain.identity import Aliases, canonical_key
+    from automind.infrastructure.config import aliases
+
+    al = Aliases.from_config(aliases())
+    own = {canonical_key(v.make, v.model, v.generation, v.variant_name, v.powertrain, al) for v in d.seed}
+    async with sessionmaker()() as s:
+        q = select(m.Variant).where(m.Variant.make.in_(d.forget), m.Variant.canonical_key.not_in(own))
+        rows = (await s.execute(q)).scalars().all()
+        saved = [(v.id, v.make, v.canonical_key) for v in rows]
+        for v in rows:
+            v.make, v.canonical_key = f"hidden-{uuid.uuid4().hex[:8]}", f"{v.canonical_key}#hidden#{v.id}"
+        await s.commit()
+    return saved
+
+
+async def restore_makes(saved: list[tuple[str, str, str]]) -> None:
+    if not saved:
+        return
+    async with sessionmaker()() as s:
+        for vid, make, key in saved:
+            v = await s.get(m.Variant, vid)
+            if v is not None:
+                v.make, v.canonical_key = make, key
+        await s.commit()
+
+
 async def seed(d: Dialogue) -> None:
     from datetime import date, datetime
 
@@ -225,11 +256,6 @@ async def seed(d: Dialogue) -> None:
     from automind.infrastructure.config import aliases
 
     al = Aliases.from_config(aliases())
-    if d.forget:
-        from tests.graph.conftest import forget_make
-
-        for make in d.forget:
-            await forget_make(make)
 
     async with sessionmaker()() as s:
         # spec 006: market facts are global; every dialogue starts from its own (fresh as of the fixed clock)
@@ -379,9 +405,17 @@ class RecordingLLM:
 
 async def run_dialogue(path: Path, saver: Any, *, live: bool = False, record: bool = False) -> list[str]:
     """Run one golden dialogue. Returns a list of failure messages (empty = pass)."""
+    d = load(path)
+    hidden = await hide_makes(d)
+    try:
+        return await _run_dialogue(d, saver, live=live, record=record)
+    finally:
+        await restore_makes(hidden)
+
+
+async def _run_dialogue(d: Dialogue, saver: Any, *, live: bool, record: bool) -> list[str]:
     from automind.orchestration.graph import build_graph  # US1 (T035)
 
-    d = load(path)
     await seed(d)
     chat_id = str(uuid.uuid4())
     async with sessionmaker()() as s:  # as the API does: per-chat metrics (intake events) need the chat row
