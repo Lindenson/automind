@@ -1244,6 +1244,11 @@ async def unmet_areas(variant_ids: list[str]) -> dict[str, set[str]]:
         )
         for vid, area in rows.all():
             out[str(vid)].add(str(area))
+        pts = await s.execute(select(db.Variant.id, db.Variant.powertrain).where(db.Variant.id.in_(variant_ids)))
+        electrified = [(str(v), pt) for v, pt in pts.all() if (pt or "").upper() in ("BEV", "PHEV", "EREV")]
+    for vid, pt in electrified:  # spec 006 FR-009: a run met before the energy rule still lacks the energy inputs
+        if research_plan.energy_inputs_missing(pt, await _have(vid)):
+            out[vid].add("specs")
     return out
 
 
