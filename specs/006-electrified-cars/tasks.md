@@ -19,7 +19,7 @@
   - `ev_range_factor` (0.85);
   - `climate` (HOT 1.08, MILD 1.0, COLD 1.15, MOUNTAIN 1.20);
   - `motorway` (share MOTORWAY 0.6 / CITY 0.1 / default 0.3; extra 0.25).
-- [ ] T002 [P] Add a config loader for energy.yaml next to the existing rates loader (`backend/src/automind/application/` config module that loads rates.yaml), and add a test that the file parses in `backend/tests/unit/test_config_files.py`.
+- [X] T002 [P] Add a config loader for energy.yaml next to the existing rates loader (`backend/src/automind/application/` config module that loads rates.yaml), and add a test that the file parses in `backend/tests/unit/test_config_files.py`.
 
 ## Phase 2: Foundational (blocks all stories)
 
@@ -172,10 +172,10 @@
 - [X] T034 [US5] Add verdict fairness in `backend/src/automind/orchestration/nodes/compute.py`:
   - when any car lacks an energy line, add `ownership_cost` and `efficiency` to `not_compared` with a reason;
   - add the `break_even` and `labels` verdict fields from `contracts/blocks-electric-and-tco.md`.
-- [ ] T035 [US5] Add migration `backend/alembic/versions/0011_market_facts.py` and the `MarketFact` model in `backend/src/automind/infrastructure/db/models.py`. Add a repository with get/upsert in `backend/src/automind/infrastructure/db/repositories.py`, and a port in `backend/src/automind/application/ports.py`.
-- [ ] T036 [US5] Add the market-level area `incentives` (freshness 30 days) in `backend/src/automind/domain/research_plan.py`, with its queries in `backend/config/queries.yaml`. Extraction stores only facts with evidence, in `backend/src/automind/application/research.py`. The area is planned once per market when an electrified car is compared.
-- [ ] T037 [US5] Build the incentives view in compose: only ACTIVE facts with an amount reduce the break-even price difference, and EXPIRED facts are shown as expired.
-- [ ] T038 [P] [US5] Write the graph test `backend/tests/graph/test_incentives_area.py`: one incentives job per market, reused by a second chat within 30 days.
+- [X] T035 [US5] Add migration `backend/alembic/versions/0011_market_facts.py` and the `MarketFact` model in `backend/src/automind/infrastructure/db/models.py`. Add a repository with get/upsert in `backend/src/automind/infrastructure/db/repositories.py`, and a port in `backend/src/automind/application/ports.py`.
+- [X] T036 [US5] Add the market-level area `incentives` (freshness 30 days) in `backend/src/automind/domain/research_plan.py`, with its queries in `backend/config/queries.yaml`. Extraction stores only facts with evidence, in `backend/src/automind/application/research.py`. The area is planned once per market when an electrified car is compared.
+- [X] T037 [US5] Build the incentives view in compose: only ACTIVE facts with an amount reduce the break-even price difference, and EXPIRED facts are shown as expired.
+- [X] T038 [P] [US5] Write the graph test `backend/tests/graph/test_incentives_area.py`: one incentives job per market, reused by a second chat within 30 days.
 
 ## Phase 7: US6 — brands: warranty, network, resale (increment E)
 

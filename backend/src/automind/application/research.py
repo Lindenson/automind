@@ -23,6 +23,7 @@ from pydantic import BaseModel
 from sqlalchemy import delete, func, select, text
 
 from automind.application import extraction as ex
+from automind.application import incentives_research
 from automind.application.ports import Page, Ports, WebDoc
 from automind.application.usage import BudgetExceeded, current_job
 from automind.domain import evidence as ev
@@ -230,7 +231,7 @@ async def _record_learned(ports: Ports, area: str, pages: list[Page], accepted_b
 async def run_job(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
     token = current_job.set((job.job_id, job.area))
     try:
-        return await _run(ports, job, emit)
+        return await (_run_market if job.area in research_plan.MARKET_AREAS else _run)(ports, job, emit)
     except BudgetExceeded:
         raise
     except Exception as e:  # one failing job never fails the turn (FR-023)
@@ -314,6 +315,51 @@ async def _run(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
         minimum_met=met,
         hits=hits,
     )
+
+
+async def _run_market(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
+    """A market-level area (spec 006 US5): pages are about the market, not the car, so no relevance gate;
+    every fact needs a verbatim excerpt with its amount and is stored once per market and key."""
+    v = await _variant(job.variant_id)
+    seen = await _used_urls(v.id, job.area)
+    planned, pages, stats = await _search_pages(ports, v, job, [], seen, emit)
+    await emit("reading", f"{job.area}: reading {len(pages)} sources")
+    sem = asyncio.Semaphore(_llm_per_job(ports))
+    totals = {"accepted": 0, "rejected": 0, "docs": 0}
+    domains: dict[str, int] = defaultdict(int)
+
+    async def one(p: Page) -> None:
+        d = p.as_doc()
+        try:
+            async with sem:
+                out = await ex.extract(ports.llm, ports.ref.prompts, job.area, "Spain (ES market)", d)
+        except BudgetExceeded:
+            raise
+        except Exception:  # noqa: BLE001 - one failing source never fails the job
+            return
+        if out is None:
+            return
+        totals["docs"] += 1
+        rows, rj = incentives_research.accept(out, d)
+        a = 0
+        if rows and ports.market_facts is not None:
+            async with db.sessionmaker()() as s:
+                e = await _evidence(s, v, d, p)
+                await s.commit()
+            a = await ports.market_facts.upsert(rows, e.id)
+        totals["accepted"] += a
+        totals["rejected"] += rj
+        if a:
+            domains[ev.domain_of(d.url)] += a
+
+    await asyncio.gather(*(one(p) for p in pages))
+    hits = [{"domain": dm, "source_type": "PUBLICATION", "items": n} for dm, n in domains.items()]
+    met = research_plan.minimum_met(job.area, [research_plan.SourceHit(**h) for h in hits])
+    await _mark_run(v.id, job.area, totals["docs"], totals["accepted"], totals["rejected"], job.round, met)
+    await _job_metrics(job.job_id, planned, stats)
+    await emit("validating", f"{job.area}: {totals['accepted']} accepted, {totals['rejected']} rejected")
+    return JobResult(job.job_id, v.id, job.area, job.round, docs=totals["docs"], accepted=totals["accepted"],
+                     rejected=totals["rejected"], minimum_met=met, hits=hits)  # fmt: skip
 
 
 async def _variant(variant_id: str) -> db.Variant:
@@ -1161,6 +1207,12 @@ async def last_done(variant_ids: list[str]) -> dict[str, dict[str, Any]]:
         for r in rows.scalars():
             out[r.variant_id][r.area] = r.completed_at
     return out
+
+
+async def powertrains(variant_ids: list[str]) -> dict[str, str | None]:
+    async with db.sessionmaker()() as s:
+        rows = await s.execute(select(db.Variant.id, db.Variant.powertrain).where(db.Variant.id.in_(variant_ids)))
+        return {vid: pt for vid, pt in rows.all()}
 
 
 async def unmet_areas(variant_ids: list[str]) -> dict[str, set[str]]:

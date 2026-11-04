@@ -580,6 +580,22 @@ export const ElectricBlockSchema = z.object({
     .array(z.object({ car_id: z.string(), label: z.string(), cost_per_100km_eur: n }))
     .default([]),
   notes: z.array(z.string()).default([]),
+  // spec 006 US5: market incentives with dates; the status comes from the dates on the server
+  incentives: z
+    .array(
+      z.object({
+        key: z.string(),
+        label: z.string(),
+        status: z.enum(["ACTIVE", "EXPIRED", "UNKNOWN"]),
+        amount_eur: n,
+        percent: n,
+        valid_to: z.string().nullable(),
+        source_url: z.string().nullable(),
+        as_of: z.string(),
+        subtractable: z.boolean(),
+      }),
+    )
+    .default([]),
 });
 
 // spec 004 FR-014: one "what we know" panel per report

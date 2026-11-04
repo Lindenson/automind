@@ -41,3 +41,18 @@ def test_break_even():
     assert long.years == 14.5 and long.beyond_ownership
     sub = inc.break_even(38000, 33700, 1900, 2900, subsidy_eur=3000)
     assert sub.years == 1.5 and "after €3,000 active subsidy" in sub.inputs[0]
+
+
+def test_market_incentives_planned_once_on_the_first_electrified_car():
+    from datetime import UTC, datetime
+
+    from automind.domain import research_plan as rp
+
+    now = datetime(2026, 11, 4, tzinfo=UTC)
+    cars = [rp.CarToPlan("a", "ice", "NEW"), rp.CarToPlan("b", "bev", "NEW", electrified=True),
+            rp.CarToPlan("c", "phev", "NEW", electrified=True)]  # fmt: skip
+    p = rp.plan(cars, persona="BUYER", criteria=[], depth="STANDARD", last_done={}, now=now)
+    assert [(j.car_key, j.area) for j in p.jobs if j.area == "incentives"] == [("b", "incentives")]
+    only_ice = rp.plan(cars[:1], persona="BUYER", criteria=[], depth="STANDARD", last_done={}, now=now)
+    assert not [j for j in only_ice.jobs if j.area == "incentives"]
+    assert rp.minimum_met("incentives", [rp.SourceHit("idae.es", "PUBLICATION", 2)])

@@ -10,7 +10,15 @@ from automind.application.usage import Limits, Prices, TurnBudget
 from automind.infrastructure.checkpoint import checkpointer
 from automind.infrastructure.config import reference
 from automind.infrastructure.db import init_db
-from automind.infrastructure.db.repositories import CaseRepo, EventRepo, FeasibilityRepo, JobRepo, MessageRepo, TurnRepo
+from automind.infrastructure.db.repositories import (
+    CaseRepo,
+    EventRepo,
+    FeasibilityRepo,
+    JobRepo,
+    MarketFactRepo,
+    MessageRepo,
+    TurnRepo,
+)
 from automind.infrastructure.events import EventBus
 from automind.infrastructure.models_on_sale import models_on_sale
 from automind.orchestration.prompts import load_all
@@ -54,6 +62,7 @@ def make_ports(llm=None, search=None, events=None) -> Ports:
         messages=MessageRepo(),
         estimator=FixedEstimator(),
         feasibility=FeasibilityRepo(),
+        market_facts=MarketFactRepo(),
         models_on_sale=models_on_sale,
     )
 

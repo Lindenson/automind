@@ -62,6 +62,13 @@ manufacturer:
     - '{make} concesionarios talleres red oficial España'
     - '{make} garantía años kilómetros garantía batería España'
     - '{make} número de concesionarios y puntos de servicio en España'
+incentives:  # spec 006 US5: market-level, once per market; no car names in the queries
+  favourite: 'ayudas compra coche eléctrico plazo importe {sites}'
+  open:
+    - 'ayudas compra coche eléctrico enchufable 2026 importe plazo MOVES'
+    - 'deducción IRPF coche eléctrico 2026 15 % límite plazo'
+    - 'plan ayudas vehículo eléctrico comunidad autónoma 2026 convocatoria'
+    - 'etiqueta CERO ventajas aparcamiento impuesto circulación bonificación'
 depreciation:
   favourite: '{make} {model} valor residual {sites}'
   favourite_by_market: {ES: '{make} {model} valor residual {sites}', EN: '{make} {model} depreciation residual value {sites}', DE: '{make} {model} Wertverlust Restwert {sites}'}

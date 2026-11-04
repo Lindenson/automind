@@ -67,7 +67,8 @@ def _car_values(car: dict[str, Any], t: tco.TcoCar, est: en.EnergyEstimate | Non
 
 
 def build(cars: list[dict[str, Any]], tcars: list[tco.TcoCar], estimates: list[tco.TcoEstimate],
-          rates: tco.TcoRates, labels: dict[str, Any], lang: str | None) -> dict[str, Any] | None:  # fmt: skip
+          rates: tco.TcoRates, labels: dict[str, Any], lang: str | None,
+          incentives: dict[str, list[dict[str, Any]]] | None = None) -> dict[str, Any] | None:  # fmt: skip
     """None when no electric or plug-in car is compared."""
     by_id = {e.car_id: e for e in estimates}
     rows, others = [], []
@@ -84,5 +85,10 @@ def build(cars: list[dict[str, Any]], tcars: list[tco.TcoCar], estimates: list[t
         return None
     cfg = rates.energy
     notes = [p.line() for p in (cfg.home, cfg.public_ac, cfg.public_dc)]
+    seen: dict[str, dict[str, Any]] = {}
+    for items in (incentives or {}).values():  # one list for the section: the facts are about the market
+        for i in items:
+            seen.setdefault(i["key"], i)
     return {"type": "electric", "title": TITLE.get((lang or "en")[:2], TITLE["en"]), "rows": ROWS, "cars": rows,
-            "not_electric": others, "notes": notes}  # fmt: skip
+            "not_electric": others, "notes": notes,
+            **({"incentives": list(seen.values())} if seen else {})}  # fmt: skip

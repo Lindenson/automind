@@ -270,13 +270,21 @@ async def _plan(
     c: TurnContext, case: CaseFile, *, research_more: bool = False, focus: list[str] | None = None,
     areas: list[str] | None = None,
 ) -> research_plan.ResearchPlan:  # fmt: skip
+    ok = [x for x in case.cars if x.variant_id and x.resolution in ("CONFIRMED", "AUTO_OK", "PROPOSED")]
+    pts = await research.powertrains([x.variant_id for x in ok if x.variant_id])
     cars = [
-        research_plan.CarToPlan(key=x.key, variant_id=x.variant_id, condition=x.condition, age_years=x.age_years)
-        for x in case.cars
-        if x.variant_id and x.resolution in ("CONFIRMED", "AUTO_OK", "PROPOSED")
-    ]
+        research_plan.CarToPlan(key=x.key, variant_id=x.variant_id, condition=x.condition, age_years=x.age_years,
+                                electrified=(pts.get(x.variant_id) or "").upper() in ("BEV", "PHEV", "EREV"))
+        for x in ok
+        if x.variant_id
+    ]  # fmt: skip
     criteria = [p.criterion for p in case.priorities] + [k for k, w in case.weights.items() if w > 0]
     last = await research.last_done([x.variant_id for x in cars])
+    market = await c.ports.market_facts.done() if getattr(c.ports, "market_facts", None) is not None else None
+    for x in cars:  # market-level areas: one date for every car (spec 006 US5)
+        last.setdefault(x.variant_id, {}).pop("incentives", None)
+        if market is not None:
+            last[x.variant_id]["incentives"] = market
     budget_used = bool(case.budget.max_eur) and (
         case.budget.intent in ("USED", "ANY") or any(x.condition == "USED" for x in case.cars)
     )

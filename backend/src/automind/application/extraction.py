@@ -37,6 +37,7 @@ PROMPT_FOR_AREA = {
     "reliability": "extract_reliability",
     "used_issues": "extract_reliability",
     "manufacturer": "extract_manufacturer",
+    "incentives": "extract_incentives",
 }
 
 
@@ -158,6 +159,28 @@ class DepreciationItems(BaseModel):
     points: list[RetentionPoint] = Field(default_factory=list)
 
 
+IncentiveKey = Literal["subsidy.purchase", "irpf.ev_deduction", "subsidy.region", "road_tax.reduction",
+                       "label.zero.benefits", "charger.subsidy"]  # fmt: skip
+
+
+class IncentiveEntry(_Excerpted):
+    """spec 006 FR-016: a Spanish incentive for electrified cars, with its dates."""
+
+    key: IncentiveKey
+    label: str = Field(description="Programme name as written, e.g. 'Plan MOVES III', 'Plan Auto+'")
+    amount_eur: float | None = Field(default=None, description="Maximum amount for a private buyer of a car, EUR")
+    percent: float | None = Field(default=None, description="A percentage (e.g. 15 for the IRPF deduction)")
+    valid_from: str | None = Field(default=None, description="Start date YYYY-MM-DD if stated")
+    valid_to: str | None = Field(default=None, description="End date YYYY-MM-DD if stated (deadline, expiry)")
+    scope: Literal["national", "regional", "municipal"] = "national"
+    region_code: str | None = Field(default=None, description="Region code for a regional plan, e.g. 'AN', 'MD'")
+    powertrains: list[Literal["BEV", "PHEV", "EREV"]] = Field(default_factory=list)
+
+
+class IncentiveFacts(BaseModel):
+    facts: list[IncentiveEntry] = Field(default_factory=list)
+
+
 def schema_for(area: str) -> type[BaseModel]:
     if area in SPEC_AREAS:
         return spec_claims_schema(area)
@@ -169,6 +192,7 @@ def schema_for(area: str) -> type[BaseModel]:
         "manufacturer": ManufacturerFacts,
         "used_price": UsedPriceItems,
         "depreciation": DepreciationItems,
+        "incentives": IncentiveFacts,
     }[area]
 
 

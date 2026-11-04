@@ -13,12 +13,13 @@ from typing import Literal
 
 Area = Literal[
     "specs", "engineering", "measured", "price", "maintenance", "reviews", "reliability", "manufacturer", "used_issues",
-    "used_price", "depreciation",
+    "used_price", "depreciation", "incentives",
 ]  # fmt: skip
 AREAS: tuple[Area, ...] = (
     "specs", "engineering", "measured", "price", "maintenance", "reviews", "reliability", "manufacturer", "used_issues",
-    "used_price", "depreciation",
+    "used_price", "depreciation", "incentives",
 )  # fmt: skip
+MARKET_AREAS = ("incentives",)  # one job per market, not per car (spec 006 US5)
 
 FRESHNESS_DAYS: dict[str, int] = {
     "specs": 365,
@@ -32,6 +33,7 @@ FRESHNESS_DAYS: dict[str, int] = {
     "manufacturer": 30,
     "used_price": 30,
     "depreciation": 90,  # spec 004 FR-005: residual values after 3 and 5 years
+    "incentives": 30,  # spec 006 FR-016: subsidies and deductions for the market, with dates
 }
 ROUNDS: dict[str, int] = {"QUICK": 0, "STANDARD": 1, "DEEP": 2}
 RETRY_UNMET_HOURS = 12  # an area that missed its evidence minimum is tried again after this, not after months
@@ -75,6 +77,7 @@ class CarToPlan:
     condition: str
     age_years: int | None = None
     sold_in_es: bool | None = None  # None = unknown
+    electrified: bool = False  # BEV, PHEV or EREV: the market's incentives matter (spec 006 US5)
 
 
 @dataclass(frozen=True)
@@ -160,7 +163,20 @@ def plan(
             warnings.append(Warning("OLD_CAR", car.key))
         if car.sold_in_es is False:
             warnings.append(Warning("NOT_SOLD_IN_ES", car.key))
+    jobs += _market_jobs(cars, jobs, last_done, now)
     return ResearchPlan(jobs=jobs, rounds=ROUNDS[depth], warnings=warnings)
+
+
+def _market_jobs(cars: list[CarToPlan], jobs: list[Job], last_done: Mapping[str, Mapping[str, datetime]],
+                 now: datetime) -> list[Job]:  # fmt: skip
+    """The incentives of the market, once, on the first electrified car, when stale (last_done carries the
+    market's date for every car)."""
+    if any(j.area in MARKET_AREAS for j in jobs):
+        return []
+    car = next((c for c in cars if c.electrified), None)
+    if car is None or is_fresh("incentives", last_done.get(car.variant_id, {}).get("incentives"), now):
+        return []
+    return [Job(car.key, car.variant_id, "incentives")]
 
 
 def plan_key(p: ResearchPlan) -> str:
@@ -197,6 +213,8 @@ def minimum_met(area: str, hits: list[SourceHit]) -> bool:
         return _has_manufacturer(hits) or len(domains) >= MIN_PRICE_DOMAINS
     if area == "measured":
         return any(h.source_type == "INSTRUMENTED_TEST" and h.items > 0 for h in hits)
+    if area == "incentives":  # one official or press source with a dated programme
+        return len(domains) >= 1
     raise ValueError(f"unknown area {area!r}")
 
 

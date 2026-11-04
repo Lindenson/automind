@@ -8,9 +8,10 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
+from datetime import date
 from typing import Any
 
-from automind.application import compose, electric_block, research
+from automind.application import compose, electric_block, incentives_research, research
 from automind.application import feasibility as fz_app
 from automind.domain import incentives, research_plan, sense, suggestions, tco
 from automind.domain import insights as ins
@@ -97,7 +98,8 @@ def _reg_year(x: Any, car: dict[str, Any], year: int | None) -> int | None:
 
 
 def verdict_extras(keyed: list[Any], tcars: list[tco.TcoCar], estimates: list[tco.TcoEstimate], case: CaseFile,
-                   year: int | None) -> dict[str, Any]:  # fmt: skip
+                   year: int | None, market: list[dict[str, Any]] | None = None,
+                   today: date | None = None) -> dict[str, Any]:  # fmt: skip
     """The DGT label of every car and the break-even of an electrified car against a combustion one (spec 006
     FR-015, FR-016): computed by code, with the rule and the inputs."""
     labels = {}
@@ -108,15 +110,31 @@ def verdict_extras(keyed: list[Any], tcars: list[tco.TcoCar], estimates: list[tc
     run = {e.car_id: e.annual_total for e in estimates if not energy_missing(e)}
     elec = [t for t in tcars if t.powertrain in incentives.ELECTRIFIED]
     comb = [t for t in tcars if t.powertrain not in incentives.ELECTRIFIED]
+    region = getattr(case.profile, "region_code", None)
+    views = {t.car_id: incentives_research.view(market or [], today or date.today(), region, t.powertrain)
+             for t in elec}  # fmt: skip
+    if any(views.values()):
+        out["incentives"] = views
     if len(elec) == 1 and len(comb) == 1:
         e, c0 = elec[0], comb[0]
         b = incentives.break_even(e.price_eur, c0.price_eur, run.get(e.car_id), run.get(c0.car_id),
+                                  subsidy_eur=incentives_research.subsidy(views.get(e.car_id, [])),
                                   ownership_years=case.ownership_years)  # fmt: skip
         out["break_even"] = {"electrified_car_id": e.car_id, "against_car_id": c0.car_id, "verdict": b.verdict,
                              "electrified_label": e.label, "against_label": c0.label,
                              "years": b.years, "beyond_ownership": b.beyond_ownership, "inputs": b.inputs,
                              "ownership_years": case.ownership_years}  # fmt: skip
     return out
+
+
+async def _market_facts(c: TurnContext) -> list[dict[str, Any]]:
+    store = getattr(c.ports, "market_facts", None)
+    if store is None:
+        return []
+    try:
+        return list(await store.load())
+    except Exception:  # noqa: BLE001 - incentives are context; the report is built without them
+        return []
 
 
 def energy_missing(e: tco.TcoEstimate) -> list[str]:
@@ -311,10 +329,18 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
     other = persona_counterfactual(case, outcome) if crit is not None and len(keyed) > 1 else None
     iset, verdict, vblock, check = await _insights(c, case, keyed, tcars, costs, crit, sims, rates, lang,
                                                    limits_from(case, fz), other)  # fmt: skip
-    extras = verdict_extras(keyed, tcars, estimates, case, year)
+    extras = verdict_extras(
+        keyed,
+        tcars,
+        estimates,
+        case,
+        year,
+        await _market_facts(c),
+        c.ports.clock.now().date() if getattr(c.ports, "clock", None) is not None else None,
+    )
     vblock.update(extras)
     blocks = await _blocks(c, case, keyed, race, crit, estimates, iset, fz)
-    eb = electric_block.build(cars, tcars, estimates, rates, extras["labels"], lang)
+    eb = electric_block.build(cars, tcars, estimates, rates, extras["labels"], lang, extras.get("incentives"))
     if eb is not None:
         blocks.append(eb)
     said = bool(verdict.trade_off and verdict.trade_off.break_even_years)
