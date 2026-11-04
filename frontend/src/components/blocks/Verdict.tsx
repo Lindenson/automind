@@ -1,6 +1,6 @@
 import { useT } from "../../i18n";
 import type { BlockOf } from "../../lib/protocol";
-import { cx } from "../../lib/util";
+import { cx, fmtNum } from "../../lib/util";
 import { useChat } from "../../store/chat";
 import { useCarColor } from "../carColors";
 
@@ -68,6 +68,7 @@ export function Verdict({ b }: { b: BlockOf<"verdict"> }) {
           ))}
         </ul>
       )}
+      {(b.break_even || b.labels) && <Electrified b={b} />}
       <p className="text-xs text-muted">{b.confidence_reason}</p>
       {b.would_change && <p className="text-sm text-fg/80">{b.would_change}</p>}
       {b.gaps.length > 0 && b.find && <FindIt />}
@@ -89,5 +90,31 @@ function FindIt() {
     >
       {t("verdict.find")}
     </button>
+  );
+}
+
+/** Spec 006 FR-015/016: the break-even of an electrified car and the DGT labels, both computed by code. */
+function Electrified({ b }: { b: BlockOf<"verdict"> }) {
+  const t = useT();
+  const be = b.break_even;
+  const e = be?.electrified_label ?? "";
+  const c = be?.against_label ?? "";
+  let text: string | null = null;
+  if (be?.verdict === "YEARS" && be.years !== null)
+    text = t("verdict.be_years", { e, c, n: fmtNum(be.years, 1) }) + (be.beyond_ownership ? t("verdict.be_beyond") : "");
+  else if (be?.verdict === "NEVER") text = t("verdict.be_never", { e, c });
+  else if (be?.verdict === "ALREADY_CHEAPER") text = t("verdict.be_cheaper", { e, c });
+  else if (be?.verdict === "CHEAPER_TO_BUY") text = t("verdict.be_buy", { e, c });
+  const labels = Object.values(b.labels ?? {}).filter((l) => l.label !== "UNKNOWN");
+  return (
+    <div className="space-y-1 text-sm">
+      {text && <p title={be?.inputs.join("\n")}>{text}</p>}
+      {labels.length > 0 && (
+        <p className="text-xs text-muted">
+          {t("verdict.labels")}
+          {labels.map((l) => l.rule).join("; ")}
+        </p>
+      )}
+    </div>
   );
 }

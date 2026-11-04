@@ -167,7 +167,7 @@
   - break-even YEARS, NEVER and ALREADY_CHEAPER;
   - incentive status from dates.
 - [X] T031 [P] [US5] Write the tests for efficiency in €/100 km and its unknowable-for-all rule, in `backend/tests/unit/domain/test_criteria.py`.
-- [ ] T032 [US5] Create `backend/src/automind/domain/incentives.py` with `env_label`, `status` and `break_even`. Create `backend/config/incentives.yaml` with the DGT label rules (with source URL) and the incentive keys to research.
+- [X] T032 [US5] Create `backend/src/automind/domain/incentives.py` with `env_label`, `status` and `break_even`. Create `backend/config/incentives.yaml` with the DGT label rules (with source URL) and the incentive keys to research.
 - [X] T033 [US5] Switch `efficiency` in `backend/src/automind/domain/criteria.py` and `backend/config/criteria.yaml` to `eur_per_100km` (scale [14, 2]). Pass the estimates through `facts()` in `backend/src/automind/application/compose.py`.
 - [X] T034 [US5] Add verdict fairness in `backend/src/automind/orchestration/nodes/compute.py`:
   - when any car lacks an energy line, add `ownership_cost` and `efficiency` to `not_compared` with a reason;
@@ -195,12 +195,12 @@
 
 **Independent test**: quickstart F, plus the MG4 vs ID.3 golden.
 
-- [ ] T044 [P] [US7] Write the vitest tests for the `electric` block and the TCO `parts`, including an old payload without parts, in `frontend/src/lib/protocol.test.ts`.
-- [ ] T045 [US7] Build the `electric` block in `backend/src/automind/application/compose.py`, following `contracts/blocks-electric-and-tco.md`. Add it to the layouts in `backend/config/report_layouts.yaml`.
-- [ ] T046 [US7] Add `ElectricBlockSchema` and the TCO `parts`/`missing` to `frontend/src/lib/protocol.ts`.
-- [ ] T047 [US7] Create `frontend/src/components/blocks/Electric.tsx`, register it in `BlockView.tsx`, and show the split in the TCO component.
-- [ ] T048 [P] [US7] Add the i18n keys in `frontend/src/i18n/ru.ts`, `es.ts` and `en.ts`.
-- [ ] T049 [P] [US7] Add 5 explainers in ru/es/en to `backend/config/tech_explainers.yaml`: weighted WLTP, charge-sustaining, usable vs gross, DC peak vs average, charging losses.
+- [X] T044 [P] [US7] Write the vitest tests for the `electric` block and the TCO `parts`, including an old payload without parts, in `frontend/src/lib/protocol.test.ts`.
+- [X] T045 [US7] Build the `electric` block in `backend/src/automind/application/compose.py`, following `contracts/blocks-electric-and-tco.md`. Add it to the layouts in `backend/config/report_layouts.yaml`.
+- [X] T046 [US7] Add `ElectricBlockSchema` and the TCO `parts`/`missing` to `frontend/src/lib/protocol.ts`.
+- [X] T047 [US7] Create `frontend/src/components/blocks/Electric.tsx`, register it in `BlockView.tsx`, and show the split in the TCO component.
+- [X] T048 [P] [US7] Add the i18n keys in `frontend/src/i18n/ru.ts`, `es.ts` and `en.ts`.
+- [X] T049 [P] [US7] Add 5 explainers in ru/es/en to `backend/config/tech_explainers.yaml`: weighted WLTP, charge-sustaining, usable vs gross, DC peak vs average, charging losses.
 - [ ] T050 [US7] Extend the report text in `backend/src/automind/orchestration/report_text.py`:
   - the electric share sentence;
   - the cost per 100 km at home and in public;

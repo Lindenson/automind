@@ -261,6 +261,15 @@ export const CriteriaScoresBlockSchema = z.object({
   tie: z.boolean().nullish(),
 });
 
+export const EnergyPartSchema = z.object({
+  energy: z.string(),
+  km: z.number(),
+  per_100km: z.number(),
+  unit: z.string(),
+  price: z.number(),
+  annual_eur: z.number(),
+});
+
 export const TcoBlockSchema = z.object({
   type: z.literal("tco"),
   title: z.string(),
@@ -291,6 +300,9 @@ export const TcoBlockSchema = z.object({
           basis: BasisSchema,
           inputs: z.array(z.string()),
           sources: z.array(SourceRefSchema),
+          // spec 006: the energy split (electricity / fuel) and the inputs that stop the computation
+          parts: z.array(EnergyPartSchema).nullish(),
+          missing: z.array(z.string()).nullish(),
         }),
       ),
     }),
@@ -521,6 +533,51 @@ export const VerdictBlockSchema = z.object({
   profile_notes: z.array(z.string()).default([]),
   find: z.boolean().default(true), // spec 007 F: false when a deeper search already found nothing more
   best_if_budget: z.string().nullable().default(null),
+  // spec 006: DGT environmental label per car and the break-even of an electrified car
+  labels: z
+    .record(z.string(), z.object({ label: z.string(), rule: z.string(), source_url: z.string().nullish() }))
+    .nullish(),
+  break_even: z
+    .object({
+      electrified_car_id: z.string(),
+      against_car_id: z.string(),
+      electrified_label: z.string().nullish(),
+      against_label: z.string().nullish(),
+      verdict: z.enum(["YEARS", "NEVER", "ALREADY_CHEAPER", "CHEAPER_TO_BUY", "UNKNOWN"]),
+      years: z.number().nullable(),
+      beyond_ownership: z.boolean().default(false),
+      inputs: z.array(z.string()).default([]),
+    })
+    .nullish(),
+});
+
+// spec 006 US7: the compact electric section (contracts/blocks-electric-and-tco.md); null = not found
+const n = z.number().nullish();
+export const ElectricBlockSchema = z.object({
+  type: z.literal("electric"),
+  title: z.string(),
+  rows: z.array(z.string()),
+  cars: z.array(
+    z.object({
+      car_id: z.string(),
+      label: z.string(),
+      powertrain: z.string(),
+      values: z.object({
+        battery: z.object({ usable_kwh: n, gross_kwh: n, chemistry: z.string().nullish() }),
+        range: z.object({ wltp_km: n, real_km: n, real_basis: z.string().nullish(), how: z.string().nullish() }),
+        consumption: z.object({ kwh_per_100km: n, real_kwh_per_100km: n }),
+        charging_home: z.object({ ac_kw: n, full_h: n }),
+        charging_dc: z.object({ peak_kw: n, min_10_80: n }),
+        electric_share: z.object({ share: n, inputs: z.array(z.string()).default([]) }),
+        cost_per_100km: z.object({ used_eur: n, home_eur: n, public_eur: n, missing: z.array(z.string()).default([]) }),
+        label: z.object({ label: z.string(), rule: z.string() }).nullish(),
+      }),
+    }),
+  ),
+  not_electric: z
+    .array(z.object({ car_id: z.string(), label: z.string(), cost_per_100km_eur: n }))
+    .default([]),
+  notes: z.array(z.string()).default([]),
 });
 
 // spec 004 FR-014: one "what we know" panel per report
@@ -583,6 +640,7 @@ export const BlockSchema = z.discriminatedUnion("type", [
   ReviewsBlockSchema,
   EngineeringBlockSchema,
   ManufacturerBlockSchema,
+  ElectricBlockSchema,
 ]);
 /** Layout of a block for the user's profile (spec 004 FR-002): its collapsible section and depth. */
 export type BlockMeta = { section?: string; open?: boolean; depth?: string };

@@ -7,7 +7,7 @@ sections:
   comparison:      {blocks: [comparison, criteria_scores, metric_bars]}
   engineering:     {blocks: [engineering]}
   performance:     {blocks: [race_chart]}
-  cost_over_time:  {blocks: [tco, feasibility]}
+  cost_over_time:  {blocks: [tco, electric, feasibility]}
   value_retention: {blocks: [value_retention]}
   reliability:     {blocks: [reliability]}
   reviews:         {blocks: [reviews]}

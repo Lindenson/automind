@@ -46,6 +46,27 @@ const OPACITY: Record<Item["kind"], number> = {
 };
 const eur = (v: number | null) => (v === null ? "—" : `€${fmtNum(v, 0)}`);
 
+/** Spec 006 FR-020: the energy line split into electricity and fuel. */
+function Split({ parts }: { parts: NonNullable<Item["parts"]> }) {
+  const t = useT();
+  return (
+    <span className="block text-[10px] text-fg/80">
+      {parts.map((p) => (
+        <span key={p.energy} className="mr-2 inline-block">
+          {t("tco.split", {
+            energy: t(`energy.${p.energy}` as "energy.petrol"),
+            km: fmtNum(p.km, 0),
+            per: fmtNum(p.per_100km, 1),
+            unit: p.unit,
+            price: fmtNum(p.price, 3),
+          })}{" "}
+          = €{fmtNum(p.annual_eur, 0)}
+        </span>
+      ))}
+    </span>
+  );
+}
+
 function Row({ it }: { it: Item }) {
   return (
     <li
@@ -59,6 +80,7 @@ function Row({ it }: { it: Item }) {
         <span className="block truncate text-[10px] text-muted">
           {it.inputs.join(" · ")}
         </span>
+        {it.parts && it.parts.length > 1 && <Split parts={it.parts} />}
       </span>
       <span className="flex shrink-0 items-center gap-1.5 tabular">
         {eur(it.annual_eur)}/yr
