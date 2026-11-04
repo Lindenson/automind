@@ -44,3 +44,23 @@ def test_one_named_make_stays_a_general_question():
     i = Interpretation.model_validate({"request": "general_question", "language": "en", "delta": {}})
     case, request, log = _cars_safety_net(CaseFile(), i, "Is BYD reliable?", REG, 2026, "general_question")
     assert request == "general_question" and not case.cars and not log
+
+
+def test_compare_without_cars_gets_them_from_the_words():
+    i = Interpretation.model_validate({"request": "compare", "language": "ru", "delta": {}})
+    case, request, _ = _cars_safety_net(CaseFile(), i, TEXT, REG, 2026, "compare")
+    assert request == "compare" and len(case.cars) == 2
+
+
+def test_context_for_a_car_added_in_the_same_message_is_folded_in():
+    from automind.application.interpret import _check, _fold_new_car_context
+
+    i = Interpretation.model_validate({"request": "compare", "language": "ru", "delta": {
+        "add_cars": [{"request_text": "BYD Seal U DM-i", "make": "BYD", "model": "Seal U"},
+                     {"request_text": "SEAT Ateca 1.5 TSI", "make": "SEAT", "model": "Ateca", "condition": "NEW"}],
+        "set_car_context": [{"target_key": "car#1", "condition": "NEW"},
+                            {"target_key": "car#2", "condition": "USED"}]}})  # fmt: skip
+    out = _fold_new_car_context(CaseFile(), i)
+    _check(CaseFile(), out.delta)  # no unknown reference any more
+    assert out.delta.set_car_context == []
+    assert [c.condition for c in out.delta.add_cars] == ["NEW", "NEW"]  # the add's own condition wins

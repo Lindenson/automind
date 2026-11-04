@@ -85,7 +85,7 @@ async def apply_delta_node(state: TurnState, runtime: Runtime[TurnContext]) -> d
         # spec 005 FR-022: while an intake step is pending, every reply is an intake answer, never generic chat
         request = "compare"
         changes += _brand_from_text(new, case, state.get("user_text") or "", c.ports.ref.makes)
-    if request in ("general_question", "chitchat") and not new.cars and new.pending is None:
+    if not new.cars and new.pending is None and request not in ("confirm_yes", "confirm_no", "rescore"):
         new, request, more = _cars_safety_net(new, i, state.get("user_text") or "", c.ports.ref.makes, year, request)
         changes += more
     changes += _person_from_text(new, case, state.get("user_text") or "", c.ports.ref.regions)
@@ -159,7 +159,8 @@ def _person_from_text(new: CaseFile, before: CaseFile, text: str, regions: dict[
 
 def _cars_safety_net(new: CaseFile, i: Interpretation, text: str, reg: Any, year: int,
                      request: str) -> tuple[CaseFile, str, list[str]]:  # fmt: skip
-    """Two named cars are a comparison even when the interpreter called the message a general question."""
+    """Two named cars are a comparison even when the interpreter called the message a general question or
+    returned a comparison without cars (live run 2026-11-04, twice)."""
     found = intake.cars_in_text(text, reg.match_make) if reg is not None else []
     if len(found) < 2:
         return new, request, []

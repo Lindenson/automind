@@ -98,6 +98,27 @@ def build_user_prompt(case: CaseFile, history: list[dict[str, str]], user_text: 
     )
 
 
+def _fold_new_car_context(case: CaseFile, i: Interpretation) -> Interpretation:
+    """Context for a car added in the same message ("car#1" while the case has none yet; live run 2026-11-04,
+    Gemini) belongs to that new car: its condition, year or hints are folded into the add, not an error."""
+    d = i.delta
+    keys = {c.key for c in case.cars}
+    new = {f"car#{case.next_car_no + n}": ref for n, ref in enumerate(d.add_cars)}
+    keep = []
+    for ctx in d.set_car_context:
+        ref = new.get(ctx.target_key) if ctx.target_key not in keys else None
+        if ref is None:
+            keep.append(ctx)
+            continue
+        for f in ("condition", "year", "age_years", "mileage_km"):
+            v = getattr(ctx, f, None)
+            if v is not None and (getattr(ref, f) in (None, "UNKNOWN")):
+                setattr(ref, f, v)
+    if len(keep) == len(d.set_car_context):
+        return i
+    return i.model_copy(update={"delta": d.model_copy(update={"set_car_context": keep})})
+
+
 def _check(case: CaseFile, delta: CaseDelta) -> None:
     keys = {c.key for c in case.cars}
     refs = [
@@ -121,6 +142,7 @@ async def interpret(
         )
     except (ValidationError, ValueError) as e:
         raise InterpretError(str(e)) from e
+    out = _fold_new_car_context(case, out)
     _check(case, out.delta)
     said = [user_text, *(m["text"] for m in history if m.get("role") == "user")]
     out = _profile_from_users_words(_persona_from_users_words(out, said), said)
