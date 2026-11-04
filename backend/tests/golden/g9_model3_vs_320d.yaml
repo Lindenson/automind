@@ -3,7 +3,6 @@ description: >
   Tesla Model 3 (BEV) vs BMW 320d (diesel): both energy lines on one scale (€/100 km), labels ZERO vs C,
   the electric section has only the Tesla, the BMW appears with its cost per 100 km.
 scenario: empty
-forget: [Tesla, BMW]
 market_facts:
   - key: label.zero.benefits
     value: {label: "Etiqueta CERO: aparcamiento regulado", scope: municipal, url: "https://www.dgt.es/x",

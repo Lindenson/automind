@@ -1,0 +1,46 @@
+"""Live run 2026-11-04: "Сравни BYD Seal U DM-i и SEAT Ateca 1.5 TSI DSG" came back from the interpreter as a
+general question with no cars. Two named cars are a comparison whatever the model says."""
+
+from pathlib import Path
+
+import pytest
+import yaml
+
+from automind.application.interpret import Interpretation
+from automind.application.makes import MakeRegistry
+from automind.domain.casefile import CaseFile
+from automind.domain.intake import cars_in_text
+from automind.orchestration.nodes.understand import _cars_safety_net
+
+REG = MakeRegistry.from_config(yaml.safe_load((Path(__file__).parents[2] / "config" / "makes.yaml").read_text()))
+TEXT = "Сравни BYD Seal U DM-i и SEAT Ateca 1.5 TSI DSG. Семья, юг Испании (Малага), 12–24 тысячи км в год, новые."
+
+
+@pytest.mark.parametrize(
+    ("text", "want"),
+    [
+        (TEXT, [("BYD Seal U DM-i", "BYD"), ("SEAT Ateca 1.5 TSI DSG", "SEAT")]),
+        ("Tesla Model 3 or BMW 320d?", [("Tesla Model 3", "Tesla"), ("BMW 320d", "BMW")]),
+        ("¿Kia Sportage o Hyundai Tucson?", [("Kia Sportage", "Kia"), ("Hyundai Tucson", "Hyundai")]),
+        ("Land Rover Defender vs Toyota Land Cruiser", [("Land Rover Defender", "Land Rover"),
+                                                        ("Toyota Land Cruiser", "Toyota")]),
+        ("Is BYD reliable?", [("BYD reliable", "BYD")]),
+    ],
+)  # fmt: skip
+def test_cars_in_text(text, want):
+    assert cars_in_text(text, REG.match_make) == want
+
+
+def test_general_question_with_two_cars_becomes_a_comparison():
+    i = Interpretation.model_validate({"request": "general_question", "language": "ru", "delta": {}})
+    case, request, log = _cars_safety_net(CaseFile(), i, TEXT, REG, 2026, "general_question")
+    assert request == "compare" and [c.make for c in case.cars] == ["BYD", "SEAT"]
+    assert all(c.condition == "NEW" for c in case.cars) and log[0].startswith("cars from the user's words")
+    ateca = case.cars[1].constraints.engine_hint
+    assert ateca is not None and ateca.displacement_l == 1.5
+
+
+def test_one_named_make_stays_a_general_question():
+    i = Interpretation.model_validate({"request": "general_question", "language": "en", "delta": {}})
+    case, request, log = _cars_safety_net(CaseFile(), i, "Is BYD reliable?", REG, 2026, "general_question")
+    assert request == "general_question" and not case.cars and not log

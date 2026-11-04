@@ -3,7 +3,6 @@ description: >
   MG4 vs VW ID.3, both electric: the electric section has the same rows for both; the MG's resale value is
   "insufficient data for this brand" (no class curve), the VW keeps its labelled curve.
 scenario: empty
-forget: [MG, Volkswagen]
 market_facts:
   - key: label.zero.benefits
     value: {label: "Etiqueta CERO: aparcamiento regulado", scope: municipal, url: "https://www.dgt.es/x",
