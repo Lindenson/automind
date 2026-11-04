@@ -467,6 +467,7 @@ export function CaseSheet() {
 const PROFILE_OPTIONS = {
   family: ["SINGLE", "COUPLE", "FAMILY"],
   driving_style: ["CALM", "MIXED", "SPORTY"],
+  home_charging: ["YES", "WORK", "NO"],
 } as const;
 const YEARS = [2, 3, 4, 5, 6, 8, 10, 12, 15];
 const BASIS_CLS: Record<string, string> = {

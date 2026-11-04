@@ -20,8 +20,23 @@ FIELDS: dict[str, tuple[str, str]] = {
     "KM_PER_YEAR": ("annual_km", "annual_km"),
     "OWNERSHIP_YEARS": ("ownership_years", "ownership_years"),
     "PERSONA": ("persona", "persona"),
+    "HOME_CHARGING": ("profile.home_charging", "home_charging"),  # spec 006 R5
 }
-PROBE_KEYS = {"KM_PER_YEAR": "annual_km", "OWNERSHIP_YEARS": "ownership_years", "PERSONA": "persona"}
+PROBE_KEYS = {"KM_PER_YEAR": "annual_km", "OWNERSHIP_YEARS": "ownership_years", "PERSONA": "persona",
+              "HOME_CHARGING": "home_charging"}  # fmt: skip
+
+
+def _get(case: CaseFile, field: str) -> Any:
+    obj: Any = case
+    for part in field.split("."):
+        obj = getattr(obj, part)
+    return obj
+
+
+def _with(case: CaseFile, field: str, value: Any) -> CaseFile:
+    if field.startswith("profile."):
+        return case.model_copy(update={"profile": case.profile.model_copy(update={field[8:]: value})})
+    return case.model_copy(update={field: value})
 
 
 def _probe_values(kind: str, probes: Mapping[str, Sequence[Any]]) -> list[Any]:
@@ -35,9 +50,9 @@ def changes(case: CaseFile, kind: str, outcome: Callable[[CaseFile], Outcome],
     base = outcome(case)
     n = 0
     for v in _probe_values(kind, probes):
-        if getattr(case, field) == v:
+        if _get(case, field) == v:
             continue
-        if outcome(case.model_copy(update={field: v})) != base:
+        if outcome(_with(case, field, v)) != base:
             n += 1
     return n
 
@@ -48,7 +63,8 @@ def _from_users_words(case: CaseFile, key: str) -> bool:
 
 
 def questions(case: CaseFile, outcome: Callable[[CaseFile], Outcome], probes: Mapping[str, Sequence[Any]],
-              kinds: Sequence[str] = ("PERSONA", "KM_PER_YEAR", "OWNERSHIP_YEARS")) -> list[QuestionKind]:  # fmt: skip
+              kinds: Sequence[str] = ("PERSONA", "HOME_CHARGING", "KM_PER_YEAR", "OWNERSHIP_YEARS"),
+              ) -> list[QuestionKind]:  # fmt: skip
     """At most one question: the unsaid field whose plausible values change the outcome most often."""
     best: tuple[int, int, str] | None = None
     for order, kind in enumerate(kinds):

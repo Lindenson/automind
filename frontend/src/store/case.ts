@@ -27,6 +27,7 @@ export type CasePatch = Partial<{
     family: "SINGLE" | "COUPLE" | "FAMILY" | null;
     driving_style: "CALM" | "MIXED" | "SPORTY" | null;
     age_band: "UNDER_25" | "25_40" | "40_60" | "OVER_60" | null;
+    home_charging: "YES" | "WORK" | "NO" | null;
   }>;
   ownership_years: number;
   remove_priority: string;

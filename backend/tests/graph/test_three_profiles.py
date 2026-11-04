@@ -12,10 +12,11 @@ PROFILES = {
     "racer": CasePatch(persona="PERFORMANCE", ownership_years=3, profile=ProfilePatch(driving_style="SPORTY")),
     "family": CasePatch(persona="BUYER", ownership_years=8, annual_km=20000,
                         profile=ProfilePatch(family="FAMILY", driving_style="CALM")),
-    # €165 a month: one of the two fits (fixture at 12,000 km: about €157 and €178 a month to run)
+    # €180 a month: one of the two fits (fixture at 12,000 km: about €172 and €194 a month to run at the
+    # October 2026 fuel price in config/energy.yaml)
     "used_buyer": CasePatch(persona="BUYER", ownership_years=5, annual_km=12000,
                             profile=ProfilePatch(family="SINGLE", driving_style="MIXED"),
-                            running_cost_limit=RunningLimit(amount_eur=165, period="MONTH")),
+                            running_cost_limit=RunningLimit(amount_eur=180, period="MONTH")),
 }  # fmt: skip
 
 
@@ -47,7 +48,7 @@ async def test_three_profiles_same_data(saver, chat_id):
     # each verdict card names the profile reason, with the user's numbers
     assert any("you plan 3" in n for n in racer[0]["profile_notes"])
     assert any("you plan 8" in n or "Over your 8 years" in n for n in family[0]["profile_notes"])
-    assert any("over your limit of €165" in n for n in used[0]["profile_notes"])
+    assert any("over your limit of €180" in n for n in used[0]["profile_notes"])
     # the writer receives the profile facts to lead with
     focus = used[2].facts["profile_focus"] if hasattr(used[2], "facts") else None
     if focus is not None:

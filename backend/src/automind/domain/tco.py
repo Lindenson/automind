@@ -48,9 +48,19 @@ class TcoRates:
     def from_config(cls, d: Mapping[str, Any], overrides: Mapping[str, float | None] | None = None) -> TcoRates:
         o = {k: v for k, v in (overrides or {}).items() if v is not None}
         table = d["base_reserve_eur_per_year"]
+        energy = en.EnergyConfig.from_config(
+            d.get("energy"),
+            home_override=o.get("home_electricity_eur_per_kwh", o.get("electricity_eur_per_kwh")),
+            ac_override=o.get("public_ac_eur_per_kwh"),
+            dc_override=o.get("public_dc_eur_per_kwh"),
+            night=bool(o.get("night_tariff")),
+            today=d.get("today"),
+        )
+        petrol = energy.petrol.value if energy.petrol else d["fuel_eur_per_l"]
+        diesel = energy.diesel.value if energy.diesel else d["diesel_eur_per_l"]
         return cls(
-            fuel_eur_per_l=float(o.get("fuel_eur_per_l", d["fuel_eur_per_l"])),
-            diesel_eur_per_l=float(o.get("diesel_eur_per_l", d["diesel_eur_per_l"])),
+            fuel_eur_per_l=float(o.get("fuel_eur_per_l", petrol)),
+            diesel_eur_per_l=float(o.get("diesel_eur_per_l", diesel)),
             electricity_eur_per_kwh=float(o.get("electricity_eur_per_kwh", d["electricity_eur_per_kwh"])),
             labour_eur_per_h=float(o.get("labour_eur_per_h", d["labour_eur_per_h"])),
             annual_km=int(d["annual_km"]),
@@ -65,12 +75,7 @@ class TcoRates:
             base_reserve={k: [float(x) for x in v] for k, v in table.items() if k in CLASSES},
             max_maintenance_eur={k: float(v) for k, v in (d.get("max_maintenance_eur_per_year") or {}).items()},
             real_world_factor={k: float(v) for k, v in (d.get("real_world_factor") or {}).items()},
-            energy=en.EnergyConfig.from_config(
-                d.get("energy"),
-                home_override=o.get("home_electricity_eur_per_kwh", o.get("electricity_eur_per_kwh")),
-                ac_override=o.get("public_ac_eur_per_kwh"),
-                dc_override=o.get("public_dc_eur_per_kwh"),
-            ),
+            energy=energy,
         )
 
 
@@ -255,10 +260,17 @@ def _energy_car(car: TcoCar) -> en.EnergyCar:
     )  # fmt: skip
 
 
+def _fuel(r: TcoRates, sourced: en.Price | None, value: float, label: str) -> en.Price:
+    if sourced is not None and sourced.value == value:
+        return en.Price(value, "l", label, sourced.basis, sourced.as_of, sourced.stale)
+    basis = "USER" if sourced is not None else "ASSUMPTION"  # a value other than the configured one is the user's
+    return en.Price(value, "l", label, basis)
+
+
 def energy_rates(r: TcoRates) -> en.Rates:
     return en.Rates(
-        petrol=en.Price(r.fuel_eur_per_l, "l", "petrol"),
-        diesel=en.Price(r.diesel_eur_per_l, "l", "diesel"),
+        petrol=_fuel(r, r.energy.petrol, r.fuel_eur_per_l, "petrol"),
+        diesel=_fuel(r, r.energy.diesel, r.diesel_eur_per_l, "diesel"),
         real_world_factor=r.real_world_factor,
         cfg=r.energy,
     )

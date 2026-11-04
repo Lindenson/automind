@@ -101,7 +101,7 @@ async def _report_check(
 
 
 _PERSONA_CHIPS = ("PERFORMANCE", "BUYER", "EXPERT")
-_ONCE = ("KM_PER_YEAR", "FAMILY_SIZE", "OWNERSHIP_YEARS", "PERSONA", "CONFIRM_PROFILE")
+_ONCE = ("KM_PER_YEAR", "FAMILY_SIZE", "OWNERSHIP_YEARS", "PERSONA", "CONFIRM_PROFILE", "HOME_CHARGING")
 _FAMILY_CHIP = {"SINGLE": "single", "COUPLE": "couple", "FAMILY": "kids"}
 
 
@@ -172,6 +172,8 @@ def _profile_question(case: CaseFile, comp: Any, lang: str | None, probes: Any =
         items = [{"label": t(f"years_{n}", lang), "text": t(f"years_{n}", lang)} for n in (3, 5, 8, 12)]
     elif kind == "PERSONA":
         items = [{"label": t(f"persona_{p}", lang), "text": t(f"persona_{p}", lang)} for p in _PERSONA_CHIPS]
+    elif kind == "HOME_CHARGING":
+        items = [{"label": t(f"charge_{x}", lang), "text": t(f"charge_{x}", lang)} for x in ("YES", "WORK", "NO")]
     else:
         items = [
             {"label": t(f"family_{x}", lang), "text": t(f"family_{x}", lang)} for x in ("single", "couple", "kids")
