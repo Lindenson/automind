@@ -28,6 +28,7 @@ class MakeRegistry:
     names: dict[str, str] = field(default_factory=dict)  # lower alias / translit -> canonical make
     sites: dict[str, str] = field(default_factory=dict)  # canonical -> "byd.com/es"
     groups: dict[str, str] = field(default_factory=dict)  # canonical -> parent group
+    recent: set[str] = field(default_factory=set)  # canonical makes new in the Spanish market (spec 006)
 
     @classmethod
     def from_config(cls, d: Mapping[str, Any]) -> MakeRegistry:
@@ -40,11 +41,16 @@ class MakeRegistry:
                 reg.sites[canon] = str(info["es_site"])
             if info.get("group"):
                 reg.groups[canon] = str(info["group"])
+            if info.get("new_in_market"):
+                reg.recent.add(canon)
         return reg
 
     @property
     def makes(self) -> list[str]:
         return sorted(set(self.names.values()))
+
+    def new_in_market(self, make: str | None) -> bool:
+        return (self.canonical(make) or make or "") in self.recent
 
     def site(self, make: str) -> str | None:
         return self.sites.get(self.canonical(make) or make)

@@ -60,6 +60,8 @@ manufacturer:
     - '{make} reliability ranking brand survey'
     - '{make} matriculaciones España cuota de mercado red de concesionarios'
     - '{make} concesionarios talleres red oficial España'
+    - '{make} garantía años kilómetros garantía batería España'
+    - '{make} número de concesionarios y puntos de servicio en España'
 depreciation:
   favourite: '{make} {model} valor residual {sites}'
   favourite_by_market: {ES: '{make} {model} valor residual {sites}', EN: '{make} {model} depreciation residual value {sites}', DE: '{make} {model} Wertverlust Restwert {sites}'}

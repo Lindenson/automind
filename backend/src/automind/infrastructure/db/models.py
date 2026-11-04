@@ -463,6 +463,7 @@ class ManufacturerFact(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
     make: Mapped[str] = mapped_column(String(80), index=True)
     # HISTORY | KEY_MODEL | MARKET_POSITION | MARKET_SHARE | FINANCIAL | RELIABILITY_REPUTATION | NETWORK_ES
+    # | WARRANTY | BATTERY_WARRANTY (spec 006)
     fact_type: Mapped[str] = mapped_column(String(32))
     value_num: Mapped[float | None] = mapped_column(Float)
     year: Mapped[int | None] = mapped_column(Integer)

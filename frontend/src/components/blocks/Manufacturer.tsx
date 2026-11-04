@@ -12,6 +12,8 @@ const KIND: Record<string, string> = {
   FINANCIAL: "Finances",
   RELIABILITY_REPUTATION: "Reliability reputation",
   NETWORK_ES: "Network in Spain",
+  WARRANTY: "Warranty",
+  BATTERY_WARRANTY: "Battery warranty",
 };
 
 export function Manufacturer({ b }: { b: BlockOf<"manufacturer"> }) {
