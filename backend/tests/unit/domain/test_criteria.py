@@ -64,6 +64,7 @@ def gti(**kw) -> CarFacts:
         displacement_cc=1984,
         drivetrain="FWD",
         consumption=7.0,
+        energy_eur_per_100km=9.5,  # spec 006: efficiency is scored on the energy cost per 100 km
         boot_l=374,
         seats=5,
         price_eur=47500,
@@ -80,7 +81,7 @@ def test_scales_are_deterministic_and_clamped():
     perf = a.cars[0].parts["performance"]
     assert 0 <= perf.score <= 100 and perf.inputs  # inputs are named
     eff = a.cars[0].parts["efficiency"].score
-    assert eff == pytest.approx(50.0)  # 7.0 l/100 km on the 10 → 4 scale
+    assert eff == pytest.approx(50.0)  # €9.50 per 100 km on the €16 → €3 scale
 
 
 def test_status_uses_three_indicators_and_age():
@@ -124,10 +125,25 @@ def test_missing_data_is_insufficient_and_low_coverage_is_not_ranked():
     assert r.common == [] and r.winner_car_id is None and by["gti"].total is None
 
 
+def test_efficiency_compares_powertrains_on_one_scale():
+    """Spec 006 FR-023: a BEV, a plug-in and a petrol car on € per 100 km; no figure → not compared for anyone."""
+    cars = [gti(car_id="ice", energy_eur_per_100km=12.8), gti(car_id="bev", powertrain="BEV", energy_eur_per_100km=4.1),
+            gti(car_id="phev", powertrain="PHEV", energy_eur_per_100km=7.3)]  # fmt: skip
+    r = score(cars, {"efficiency": 100}, MODEL)
+    eff = {c.car_id: c.parts["efficiency"].score for c in r.cars}
+    assert eff["bev"] > eff["phev"] > eff["ice"]
+    r2 = score(
+        [*cars[:2], gti(car_id="none", energy_eur_per_100km=None)], {"efficiency": 50, "practicality": 50}, MODEL
+    )
+    assert "efficiency" not in r2.common
+
+
 def test_a_missing_criterion_does_not_help_a_car():
     """User report: the car with no performance data won because its weight moved to its strong points."""
     full = gti(car_id="full")
-    gap = CarFacts(car_id="gap", label="Gap", powertrain="ICE", boot_l=600, seats=5, consumption=5.0)
+    gap = CarFacts(
+        car_id="gap", label="Gap", powertrain="ICE", boot_l=600, seats=5, consumption=5.0, energy_eur_per_100km=7.0
+    )
     r = score([full, gap], {"performance": 15, "practicality": 45, "efficiency": 40}, MODEL)
     assert "performance" not in r.common and set(r.common) == {"practicality", "efficiency"}
     by = {c.car_id: c for c in r.cars}

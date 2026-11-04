@@ -62,6 +62,7 @@ class CarFacts:
     age_years: int | None = None
     # computed elsewhere
     annual_cost_eur: float | None = None  # ownership cost per year (TCO)
+    energy_eur_per_100km: float | None = None  # energy cost per 100 km at the user's prices (spec 006 FR-023)
     reliability: ReliabilitySummary | None = None
     reviews: ReviewSummary | None = None
     engineering_completeness: float | None = None  # share of Tier 2 attributes documented (0..1)

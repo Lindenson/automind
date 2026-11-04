@@ -67,10 +67,10 @@ criteria:
     min_data: two of the inputs
   efficiency:
     label: Efficiency
-    definition: Official combined consumption (WLTP), per powertrain.
-    inputs: [consumption (l/100 km or kWh/100 km)]
-    scale: {ice: [10, 4], bev: [25, 12]}
-    min_data: sourced consumption
+    definition: Energy cost per 100 km at your prices and charging (electricity and fuel on one scale, spec 006).
+    inputs: [energy cost per 100 km (consumption × price, plug-in electric share)]
+    scale: {eur_per_100km: [16, 3]}
+    min_data: an energy cost for every car
   safety:
     label: Safety
     definition: Euro NCAP star rating if sourced.

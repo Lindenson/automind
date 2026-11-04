@@ -247,6 +247,7 @@ def facts(
     age_years: int | None = None,
     annual_cost_eur: float | None = None,
     year: int | None = None,
+    energy_eur_per_100km: float | None = None,
 ) -> scoring.CarFacts:
     v = car["variant"]
     return scoring.CarFacts(
@@ -277,6 +278,7 @@ def facts(
         condition=condition,
         age_years=age_years,
         annual_cost_eur=annual_cost_eur,
+        energy_eur_per_100km=energy_eur_per_100km,
         reliability=reliability_summary(car),
         reviews=review_summary(car),
         engineering_completeness=engineering_completeness(car),
