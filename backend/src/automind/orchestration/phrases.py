@@ -287,6 +287,11 @@ PHRASES: dict[str, dict[str, str]] = {
         "es": "{car}: generación nueva, a la venta desde {year}. Aún no tiene historial de fiabilidad, así que la "
         "comparación la deja fuera en lugar de suponer.",
     },
+    "energy_missing": {
+        "en": "{car}: energy cost cannot be computed — missing: {missing}. Running cost is not compared.",
+        "ru": "{car}: стоимость энергии не посчитать — нет данных: {missing}. Расходы на владение не сравниваются.",
+        "es": "{car}: no se puede calcular el coste de energía — falta: {missing}. No se comparan los costes de uso.",
+    },
     "short_data": {
         "en": "{car}: insufficient data for {area} (minimum evidence not reached)",
         "ru": "{car}: мало данных — {area} (не набран минимум источников)",
@@ -308,6 +313,22 @@ PHRASES: dict[str, dict[str, str]] = {
         "es": "De acuerdo: dime qué versiones exactas quieres (generación, año o motor).",
     },
 }
+
+
+ENERGY_INPUTS: dict[str, dict[str, str]] = {  # the inputs domain/energy.py names when a cost cannot be computed
+    "fuel consumption with an empty battery": {"en": "fuel consumption with an empty battery",
+                                               "ru": "расход топлива с разряженной батареей",
+                                               "es": "consumo con la batería descargada"},
+    "electric consumption (kWh/100 km)": {"en": "electric consumption (kWh/100 km)",
+                                          "ru": "расход электричества (кВт·ч/100 км)",
+                                          "es": "consumo eléctrico (kWh/100 km)"},
+    "electric range": {"en": "electric range", "ru": "запас хода на электричестве", "es": "autonomía eléctrica"},
+    "fuel consumption": {"en": "fuel consumption", "ru": "расход топлива", "es": "consumo de combustible"},
+}  # fmt: skip
+
+
+def energy_input(name: str, language: str | None) -> str:
+    return ENERGY_INPUTS.get(name, {}).get((language or "en")[:2].lower(), name)
 
 
 def t(key: str, language: str | None, **kw: object) -> str:

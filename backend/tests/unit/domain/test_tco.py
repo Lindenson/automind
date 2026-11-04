@@ -36,9 +36,10 @@ def test_energy_from_consumption_and_price():
     d = items(compute(car(consumption=6.0, fuel="diesel"), RATES))["ENERGY"]
     assert d.annual_eur == pytest.approx(6.0 * 1.15 * 150 * 1.50)
     ev = items(compute(car(powertrain="BEV", fuel=None, consumption=16.0), RATES))["ENERGY"]
-    assert ev.annual_eur == pytest.approx(16.0 * 1.2 * 150 * 0.25) and any("kWh" in i for i in ev.inputs)
+    mix = 0.85 * 0.25 + 0.05 * 0.45 + 0.10 * 0.60  # home / public AC / public DC (spec 006 R7)
+    assert ev.annual_eur == pytest.approx(16.0 * 1.2 * 150 * mix, abs=0.1) and any("kWh" in i for i in ev.inputs)
     none = items(compute(car(consumption=None), RATES))["ENERGY"]
-    assert none.annual_eur is None and "not included" in none.label
+    assert none.annual_eur is None and "cannot be computed" in none.label
 
 
 def test_maintenance_sourced_cost_vs_labour_assumption():

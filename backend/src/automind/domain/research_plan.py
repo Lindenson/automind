@@ -200,6 +200,21 @@ def minimum_met(area: str, hits: list[SourceHit]) -> bool:
     raise ValueError(f"unknown area {area!r}")
 
 
+# Inputs the energy model needs (spec 006 FR-009): without them a plug-in or electric car's energy cost cannot be
+# computed, so the specs area is not met and a deeper round looks for them before "cannot be computed".
+ENERGY_INPUTS: dict[str, tuple[tuple[str, ...], ...]] = {  # every group needs at least one attribute
+    "PHEV": (("consumption_cs",), ("consumption_ev", "battery_kwh"), ("range_wltp", "range_real")),
+    "EREV": (("consumption_cs",), ("consumption_ev", "battery_kwh"), ("range_wltp", "range_real")),
+    "BEV": (("consumption", "consumption_ev", "consumption_ev_real", "consumption_ev_plug"),),
+}
+
+
+def energy_inputs_missing(powertrain: str | None, have: set[str]) -> list[str]:
+    """The first attribute of each group the energy model needs and the car does not have yet."""
+    groups = ENERGY_INPUTS.get((powertrain or "").upper(), ())
+    return [g[0] for g in groups if not any(a in have for a in g)]
+
+
 def gaps(p: ResearchPlan, met: Mapping[tuple[str, str], bool], round_done: int) -> list[Job]:
     """Follow-up jobs for areas below their minimum, if the depth allows another round (FR-020)."""
     if round_done >= p.rounds:

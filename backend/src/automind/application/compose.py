@@ -12,7 +12,7 @@ from typing import Any
 
 from sqlalchemy import select
 
-from automind.domain import dragrace, identity, reliability, reviews, specs, tco, units
+from automind.domain import dragrace, energy, identity, reliability, reviews, specs, tco, units
 from automind.domain import evidence as evidence_rules
 from automind.domain import insights as ins
 from automind.domain import metrics as scoring  # noqa: F401 (CarFacts, metrics, ownership)
@@ -34,12 +34,41 @@ TABLE_ROWS = [
     "consumption",
     "consumption_real",
     "consumption_nedc",
+    # spec 006: electric facts (rows appear only when some car has a value)
+    "battery_gross_kwh",
+    "range_wltp",
+    "range_real",
+    "consumption_ev",
+    "consumption_ev_real",
+    "consumption_cs",
+    "consumption_weighted",
+    "charge_ac_kw",
+    "charge_dc_peak_kw",
+    "charge_dc_10_80_min",
     "boot_volume",
     "seats",
     "official_price_es",
     "service_interval_km",
     "service_interval_months",
 ]
+
+
+ELECTRIC_ONLY = frozenset({"battery_kwh", "battery_gross_kwh", "battery_chemistry", "range_wltp", "range_real",
+                           "consumption_ev", "consumption_ev_real", "consumption_ev_plug", "charge_ac_kw",
+                           "charge_dc_peak_kw", "charge_dc_10_80_min", "heat_pump"})  # fmt: skip
+PLUG_IN_ONLY = frozenset({"consumption_cs", "consumption_weighted"})
+
+
+def relevant(key: str, powertrain: str | None) -> bool:
+    """Whether an attribute applies to a powertrain (an ICE car has no battery; a BEV no displacement)."""
+    pt = (powertrain or "ICE").upper()
+    if key in PLUG_IN_ONLY:
+        return pt in ("PHEV", "EREV")
+    if key in ELECTRIC_ONLY - {"battery_kwh"}:
+        return pt in ("BEV", "PHEV", "EREV")
+    if key == "battery_kwh":
+        return pt != "ICE"
+    return not (key == "displacement" and pt == "BEV")
 
 
 async def load_car(variant_id: str) -> dict:
@@ -148,13 +177,9 @@ def _txt(car: dict, key: str) -> str | None:
 
 def completeness(car: dict) -> float:
     vals = car["values"]
-    relevant = [
-        k
-        for k in specs.ATTRS
-        if not (k == "displacement" and car["variant"].powertrain == "BEV")
-        and not (k == "battery_kwh" and car["variant"].powertrain in ("ICE", "MHEV", "HEV"))
-    ]
-    return sum(1 for k in relevant if vals.get(k) is not None and vals[k].available) / len(relevant)
+    pt = car["variant"].powertrain
+    keys = [k for k in specs.ATTRS if relevant(k, pt) and not (k == "battery_kwh" and pt in ("MHEV", "HEV"))]
+    return sum(1 for k in keys if vals.get(k) is not None and vals[k].available) / len(keys)
 
 
 @lru_cache
@@ -480,7 +505,7 @@ def summary_for_llm(cars: list[dict], race: dragrace.RaceResult, criteria: Crite
                 "powertrain": c["variant"].powertrain,
                 "specs": vals,
                 "metrics": scoring.metrics(facts(c)),
-                "missing": [k for k in TABLE_ROWS if k not in vals],
+                "missing": [k for k in TABLE_ROWS if k not in vals and relevant(k, c["variant"].powertrain)],
             }
         )
 
@@ -728,7 +753,7 @@ def _criteria_facts(sc: CriteriaScore | None) -> dict | None:
 
 async def tco_car(
     car: dict, condition: str, age_years: int | None, mileage_km: int | None,
-    retention_curve: dict | None = None,
+    retention_curve: dict | None = None, use: energy.UsageContext | None = None,
 ) -> tco.TcoCar:  # fmt: skip
     """Assemble TCO inputs from validated data: specs, sourced maintenance items, used-car issues."""
     v = car["variant"]
@@ -766,6 +791,16 @@ async def tco_car(
         consumption=_num(car, "consumption"),
         consumption_real=_num(car, "consumption_real"),
         consumption_nedc=_num(car, "consumption_nedc"),
+        consumption_ev=_num(car, "consumption_ev"),
+        consumption_ev_real=_num(car, "consumption_ev_plug")
+        or _num(car, "consumption_ev_real")
+        or (_num(car, "consumption_real") if v.powertrain == "BEV" else None),
+        ev_real_meter="plug" if _num(car, "consumption_ev_plug") else None,
+        consumption_cs=_num(car, "consumption_cs"),
+        battery_kwh=_num(car, "battery_kwh"),
+        range_wltp=_num(car, "range_wltp"),
+        range_real=_num(car, "range_real"),
+        use=use,
         vehicle_class=v.vehicle_class,
         condition=condition,
         age_years=age_years,
@@ -819,6 +854,8 @@ def tco_block(estimates: list[tco.TcoEstimate], evidence: dict[str, dict] | None
                         "basis": i.basis,
                         "inputs": i.inputs,
                         "sources": [ev[x] for x in i.evidence_ids if x in ev],
+                        **({"parts": [asdict(x) for x in i.parts]} if i.parts else {}),
+                        **({"missing": i.missing} if i.missing else {}),
                     }
                     for i in e.items
                 ],
@@ -865,7 +902,7 @@ async def persist_computations(
                     mileage_km=mileage.get(e.car_id),
                     annual_km=e.annual_km,
                     rates=rates,
-                    items=[asdict(i) for i in e.items],
+                    items=[{k: v for k, v in asdict(i).items() if k != "estimate"} for i in e.items],
                     annual_total=e.annual_total,
                     five_year_total=e.five_year_total,
                     rules_version=e.rules_version,
