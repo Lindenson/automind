@@ -28,7 +28,7 @@ State on 2026-11-04:
 1. `git checkout main && git pull`.
 2. Done 2026-11-04 (PR #43, ADR-029): owner cookie per browser, same-site only, operator metrics behind
    ADMIN_TOKEN, DAILY_CAP_EUR. Still before a public deployment: accounts, per-owner rate limits, TLS.
-   Candidates: scheduled re-checks of stored data;
+   Catalog clean-up done (PR #44). Candidates: scheduled re-checks of stored data;
    Gemini for extraction measured on the goldens.
 3. After each change:
    - run `scripts/check.sh`;
@@ -37,7 +37,7 @@ State on 2026-11-04:
 
 ## Open after 007
 
-- **Catalog cleanup (waits for the owner's yes).** Four Mazda CX-5 rows were invented during chat 0d7fd924: "3rd gen 2.0 165 CV" ×3, and model "Mazda CX-5" 2.5 140 CV. They have no data and no chat uses them. Also fix the 3rd gen 2.5 gearbox to automatic and the KF end year to 2025. The SQL is in the 007-F notes of the session; the code no longer creates such rows.
+- **Catalog cleanup: done 2026-11-04 (PR #44).** `scripts/repair-data.sh --duplicates` (dry run; `--apply` after a backup) folds rows that are one car (same engine, gearbox, wheels, body, version) into the row with the most claims and repoints case files, events and saved state. Applied (backups/pre-catalog-merge-20261104-1822.dump): BMW G20 320d ×3, Golf R Variant ×2, Range Rover Sport HSE ×2, Cupra Terramar 1.5 eTSI ×2; Škoda → Skoda; an estate's boot from another body's page or < 400 L is rejected (Golf R Variant 611 L). The Mazda CX-5 rows of chat 0d7fd924 were already gone. Left as is (different versions or not enough data): Hyundai i30 N 275 vs 280 PS, RAV4 XA50 2.5 Hybrid without power.
 - The rescore queue is in memory: an edit waiting during a restart is lost.
 - Candidates (US7) come only from cached line-ups and the catalog. A line-up refresh for the leading makes is paid and needs a cost estimate first.
 - The live re-run of chats 757cff3d and 0d7fd924 is paid: estimate first, then the owner's approval.
