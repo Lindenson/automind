@@ -263,6 +263,18 @@ class Shown(BaseModel):
     persona: str | None = None  # persona the report was written for
 
 
+class StatedEnergy(BaseModel):
+    """A consumption figure the user gave for one of the cars ("в гибридном режиме 5,5 л"): it replaces the sourced
+    or estimated value in the energy cost and is labelled as the user's (spec 006 follow-up). FUEL: l/100 km in real
+    use (combustion and non-plug hybrids); CS: a plug-in with an empty battery; KWH: kWh/100 km as the car shows it;
+    RANGE: real electric km on a full charge. No car_key: the one car the figure can apply to (decided at compute)."""
+
+    kind: Literal["FUEL", "CS", "KWH", "RANGE"]
+    value: float = Field(gt=0, le=1000)
+    words: str = Field(default="", max_length=120)
+    car_key: str | None = None
+
+
 class CaseFile(BaseModel):
     persona: Persona = "UNKNOWN"
     persona_source: PersonaSource = "INFERRED"
@@ -309,6 +321,7 @@ class CaseFile(BaseModel):
     # spec 007: how each profile field is known, and how long the user keeps a car
     basis: dict[str, ProfileBasis] = Field(default_factory=dict)
     ownership_years: int | None = Field(default=None, ge=1, le=20)
+    stated_energy: list[StatedEnergy] = Field(default_factory=list)  # the user's own consumption figures
 
     @model_validator(mode="after")
     def _legacy_basis(self) -> CaseFile:

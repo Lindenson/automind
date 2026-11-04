@@ -129,6 +129,7 @@ class TcoCar:
     range_real: float | None = None
     use: en.UsageContext | None = None
     new_in_market: bool = False  # a make recently arrived in Spain: no class depreciation curve (spec 006 FR-018)
+    stated: Mapping[str, tuple[float, str]] = field(default_factory=dict)  # the user's own consumption figures
 
 
 @dataclass(frozen=True)
@@ -258,7 +259,7 @@ def _energy_car(car: TcoCar) -> en.EnergyCar:
         consumption_real=car.consumption_real, consumption_nedc=car.consumption_nedc,
         consumption_ev=car.consumption_ev, consumption_ev_real=car.consumption_ev_real,
         ev_real_meter=car.ev_real_meter, consumption_cs=car.consumption_cs, battery_kwh=car.battery_kwh,
-        range_wltp=car.range_wltp, range_real=car.range_real,
+        range_wltp=car.range_wltp, range_real=car.range_real, stated=car.stated,
     )  # fmt: skip
 
 

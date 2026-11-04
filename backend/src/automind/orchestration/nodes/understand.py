@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from langgraph.runtime import Runtime
@@ -11,7 +12,15 @@ from automind.application import research, resolve
 from automind.application.interpret import Interpretation, InterpretError, interpret
 from automind.config import settings
 from automind.domain import identification, intake, research_plan
-from automind.domain.casefile import CarRef, CaseDelta, CaseFile, Constraints, apply, apply_defaults
+from automind.domain.casefile import (
+    CarRef,
+    CaseDelta,
+    CaseFile,
+    Constraints,
+    StatedEnergy,
+    apply,
+    apply_defaults,
+)
 from automind.domain.identity import parse_engine
 from automind.domain.policy import CarState, decide
 from automind.orchestration import phrases
@@ -89,6 +98,7 @@ async def apply_delta_node(state: TurnState, runtime: Runtime[TurnContext]) -> d
         new, request, more = _cars_safety_net(new, i, state.get("user_text") or "", c.ports.ref.makes, year, request)
         changes += more
     changes += _person_from_text(new, case, state.get("user_text") or "", c.ports.ref.regions)
+    changes += _energy_from_text(new, state.get("user_text") or "", c.ports.ref.makes)
     unclear = _not_understood(case, new, request)
     new, extra = _pending_answered(new, i, request)
     changes += extra
@@ -127,6 +137,41 @@ def _charging_from_text(new: CaseFile, text: str) -> list[str]:
         if pr[0] != r.home_electricity_eur_per_kwh or (pr[1] and not r.night_tariff):
             r.home_electricity_eur_per_kwh, r.night_tariff = pr[0], (pr[1] or r.night_tariff)
             log.append(f"electricity: €{pr[0]:.3f}/kWh (your price){' at night' if pr[1] else ''}")
+    return log
+
+
+_SENTENCE = re.compile(r"[.!?\n]")
+
+
+def _car_named(case: CaseFile, segment: str, reg: Any) -> str | None:
+    """The key of the case car the words name (make or model, any script), the last one named; None if none."""
+    found: str | None = None
+    models = [c.model for c in case.cars if c.model]
+    for w in re.findall(r"[\w&-]{2,}", segment):
+        make = reg.match_make(w) if reg is not None else None
+        model = reg.match_model(w, models) if reg is not None and models and len(w) >= 3 else None
+        for car in case.cars:
+            if (model and car.model == model) or (make and car.make == make and not model):
+                found = car.key
+                if model:
+                    break
+    return found
+
+
+def _energy_from_text(new: CaseFile, text: str, reg: Any) -> list[str]:
+    """The user's own consumption figures ("в гибридном режиме 5,5 л"), each tied to the car named before it in
+    the same sentence (or left to the one car it can apply to). The newest figure per car and kind wins."""
+    log: list[str] = []
+    prev = 0
+    for f in intake.energy_figures_of(text):
+        sentence = max((m.end() for m in _SENTENCE.finditer(text, 0, f.start)), default=0)
+        key = _car_named(new, text[max(prev, sentence) : f.start], reg)
+        prev = f.start
+        item = StatedEnergy(kind=f.kind, value=f.value, words=f.words, car_key=key)
+        new.stated_energy = [x for x in new.stated_energy if (x.kind, x.car_key) != (f.kind, key)] + [item]
+        unit = {"FUEL": "l/100 km", "CS": "l/100 km with an empty battery", "KWH": "kWh/100 km",
+                "RANGE": "km on electricity"}[f.kind]  # fmt: skip
+        log.append(f'your figure{" for " + key if key else ""}: {f.value:g} {unit} ("{f.words}")')
     return log
 
 
