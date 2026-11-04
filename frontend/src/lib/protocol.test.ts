@@ -296,10 +296,10 @@ describe("spec 006 electric section and energy split", () => {
         cars: [{ car_id: "b", label: "BYD Seal U DM-i", powertrain: "PHEV", values: ev }],
         not_electric: [{ car_id: "a", label: "SEAT Ateca", cost_per_100km_eur: 12.4 }] },
     ]);
-    expect(b.type).toBe("electric");
-    if (b.type === "electric") {
-      expect(b.cars[0].values.charging_dc.peak_kw).toBeNull();
-      expect(b.not_electric[0].cost_per_100km_eur).toBe(12.4);
+    expect(b?.type).toBe("electric");
+    if (b?.type === "electric") {
+      expect(b.cars[0]?.values.charging_dc.peak_kw).toBeNull();
+      expect(b.not_electric[0]?.cost_per_100km_eur).toBe(12.4);
     }
   });
 
@@ -308,13 +308,13 @@ describe("spec 006 electric section and energy split", () => {
                    basis: "ASSUMPTION", inputs: [], sources: [] };
     const car = { car_id: "a", label: "A", condition: "NEW", age_years: null, annual_total: 1, five_year_total: 5 };
     const [old] = parseBlocks([{ type: "tco", title: "t", annual_km: 18000, cars: [{ ...car, items: [item] }] }]);
-    expect(old.type).toBe("tco");
+    expect(old?.type).toBe("tco");
     const parts = [
       { energy: "electricity", km: 10800, per_100km: 21.4, unit: "kWh", price: 0.2, annual_eur: 462 },
       { energy: "petrol", km: 7200, per_100km: 6.1, unit: "l", price: 1.78, annual_eur: 782 },
     ];
     const [split] = parseBlocks([{ type: "tco", title: "t", annual_km: 18000,
                                    cars: [{ ...car, items: [{ ...item, parts }] }] }]);
-    if (split.type === "tco") expect(split.cars[0].items[0].parts?.length).toBe(2);
+    if (split?.type === "tco") expect(split.cars[0]?.items[0]?.parts?.length).toBe(2);
   });
 });
