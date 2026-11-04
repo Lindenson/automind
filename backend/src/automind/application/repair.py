@@ -25,6 +25,7 @@ RECHECK = ("ACCEPTED", "REJECTED_UNSUPPORTED", "REJECTED_UNIT")
 async def repair_claims(ref: Any) -> dict[str, int]:
     stats: Counter[str] = Counter()
     changed: set[str] = set()
+    known: dict[str, dict[str, float]] = {}
     async with db.sessionmaker()() as s:
         rows = (
             await s.execute(
@@ -44,7 +45,9 @@ async def repair_claims(ref: Any) -> dict[str, int]:
                 v,
                 e.source_type,  # noqa: SLF001
             )
-            ctx = rs._plausibility_ctx(v, {})  # noqa: SLF001
+            if v.id not in known:  # pair checks (battery vs range, usable vs gross) need the car's other values
+                known[v.id] = await rs._known_values(v.id)  # noqa: SLF001
+            ctx = rs._plausibility_ctx(v, known[v.id])  # noqa: SLF001
             status, num, txt, rule = bad or rs._check(claim, doc, ctx, ref.plausibility)  # noqa: SLF001
             wrong_market = not sense.market_fits(e.url, "price").ok
             if status == "ACCEPTED" and claim.attribute == "official_price_es" and wrong_market:
@@ -80,6 +83,8 @@ async def _minimums(variant_id: str) -> None:
     if v is None:
         return
     for r in runs:
+        if r.area in research_plan.MARKET_AREAS:
+            continue  # a market-level area (incentives) has no per-car evidence to count
         try:
             hits = await rs.area_hits(v, r.area)
             met = research_plan.minimum_met(r.area, [research_plan.SourceHit(**h) for h in hits])

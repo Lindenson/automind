@@ -22,6 +22,8 @@ PHEV = [
     ("consumption_ev_real", "21", "kWh/100 km", "21 kWh/100 km medidos en el enchufe", "consumption_ev_plug"),
     ("consumption_ev_real", "17", "kWh/100 km", "el ordenador marcó 17 kWh/100 km", "consumption_ev_real"),
     ("consumption_cs", "5,9", "l/100 km", "Leerer Akku: 5,9 l/100 km", "consumption_cs"),
+    ("consumption_cs", "5.50", "l/100 km", "| CVT | 5.50 l/100 km |", "consumption_cs"),  # read under its header
+    ("consumption_cs", "0.9", "l/100 km", "| CVT | 0.9 l/100 km |", "consumption_weighted"),  # too low for CS
 ]
 
 
