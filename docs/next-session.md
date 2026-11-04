@@ -26,8 +26,9 @@ State on 2026-11-04:
 ## Steps
 
 1. `git checkout main && git pull`.
-2. Candidates for the next spec: security before any external demo
-   (chat isolation, metrics, WebSocket Origin, daily budget cap); scheduled re-checks of stored data;
+2. Done 2026-11-04 (PR #43, ADR-029): owner cookie per browser, same-site only, operator metrics behind
+   ADMIN_TOKEN, DAILY_CAP_EUR. Still before a public deployment: accounts, per-owner rate limits, TLS.
+   Candidates: scheduled re-checks of stored data;
    Gemini for extraction measured on the goldens.
 3. After each change:
    - run `scripts/check.sh`;
