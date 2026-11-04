@@ -51,13 +51,14 @@ RequestKind = Literal[
     "report_saved",  # spec 007 FR-029: after a turn timeout, the report from the data already saved (code only)
 ]
 QUESTION_ORDER: tuple[QuestionKind, ...] = (
-    "TOO_MANY_CARS", "CAR_IDENTITY", "MAKE_LINEUP", "UNKNOWN_MODEL", "ENGINE", "CONDITION", "USED_AGE", "TRIM",
-    "GEARBOX", "BUDGET_INTENT", "PERSONA",
+    "TOO_MANY_CARS", "CAR_IDENTITY", "MAKE_LINEUP", "UNKNOWN_MODEL", "FUEL", "ENGINE", "POWER", "CONDITION",
+    "USED_AGE", "TRIM", "GEARBOX", "DRIVE", "BUDGET_INTENT", "PERSONA",
 )  # fmt: skip
 # spec 005: intake item -> question kind (the outcome of the identify step decides between two kinds for MODEL)
 _ITEM_KIND: dict[str, QuestionKind] = {"MAKE": "CAR_IDENTITY", "ENGINE": "ENGINE", "YEAR": "USED_AGE",
                                        "MILEAGE": "USED_AGE", "CONDITION": "CONDITION", "CHOICE": "TRIM",
-                                       "TRIM": "TRIM", "GEARBOX": "GEARBOX"}  # fmt: skip
+                                       "TRIM": "TRIM", "GEARBOX": "GEARBOX", "FUEL": "FUEL", "POWER": "POWER",
+                                       "DRIVE": "DRIVE"}  # fmt: skip
 MAX_QUESTIONS = 3
 MAX_HOPS = 8  # spec 007 FR-027: policy passes in one turn before the turn ends with what it has
 DEFAULT_CONFIRM_THRESHOLD_EUR = 0.30

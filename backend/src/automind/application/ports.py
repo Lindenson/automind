@@ -15,6 +15,7 @@ from typing import Any, Protocol, TypeVar
 from pydantic import BaseModel
 
 from automind.domain.identity import Aliases
+from automind.domain.ladder import Generation
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -228,6 +229,15 @@ class Clock(Protocol):
     def now(self) -> datetime: ...
 
 
+class VersionsStore(Protocol):
+    """The shared cache of the versions of model generations (spec 008 US6, table `model_versions`)."""
+
+    async def get(self, make: str, model: str, generation: str | None, year: int | None, new: bool,
+                  ttl_days: int) -> Generation | None: ...  # fmt: skip
+
+    async def put(self, g: Generation) -> None: ...
+
+
 Emit = Callable[[str, dict[str, Any]], Awaitable[None]]
 """Progress/event callback: (type, payload)."""
 
@@ -253,6 +263,7 @@ class Ports:
     market_facts: Any = None
     # spec 007 US7: async () -> [(make, domain.intake.LineupModel)] sold in ES, known without a search; None: none
     models_on_sale: Any = None
+    versions: VersionsStore | None = None  # spec 008: versions of model generations; None: no ladder (fallback)
 
     @property
     def page_store(self) -> PageStore:

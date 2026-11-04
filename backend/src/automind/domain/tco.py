@@ -117,6 +117,7 @@ class TcoCar:
     maintenance: list[MaintenanceSched] = field(default_factory=list)
     big_tickets: list[BigTicket] = field(default_factory=list)
     price_eur: float | None = None  # official new price (ES)
+    used_price_eur: float | None = None  # spec 008: sourced used price for its year (a used car's value now)
     retention: Mapping[int, float] = field(default_factory=dict)  # sourced value share after N years (3, 5)
     retention_curve: Mapping[float, float] = field(default_factory=dict)  # class curve (assumption), age -> share
     # spec 006: electric facts and the user's use (daily km, climate, home charging) for the energy model
@@ -408,14 +409,35 @@ def value_share(
     return share, "ASSUMPTION", "class depreciation curve (assumption)"
 
 
+def _used_depreciation(car: TcoCar, years: int) -> TcoItem | None:
+    """A used car loses value from what it is worth now (spec 008 FR-024): the sourced used price, carried forward
+    by the share it keeps between its age now and its age at the end."""
+    age = max(1, car.age_years or 0)
+    if car.condition != "USED" or not car.used_price_eur:
+        return None
+    start, b0, _ = value_share(age, car.retention, car.retention_curve)
+    end, b1, how = value_share(age + years, car.retention, car.retention_curve)
+    if not start or end is None:
+        return None
+    value_now = car.used_price_eur
+    value_then = value_now * end / start
+    loss = max(0.0, value_now - value_then)
+    inputs = [f"value now €{value_now:,.0f} (sourced used price, {age} years)",
+              f"value after {years} more years ≈ €{value_then:,.0f}: {how}"]  # fmt: skip
+    return TcoItem("DEPRECIATION", f"Depreciation over {years} years", round(loss / years, 2), round(loss, 2),
+                   "SOURCED" if b0 == b1 == "SOURCED" else "ASSUMPTION", inputs)  # fmt: skip
+
+
 def _depreciation(car: TcoCar, years: int) -> TcoItem:
+    if (used := _used_depreciation(car, years)) is not None:
+        return used
     if not car.price_eur:
         return _item("DEPRECIATION", "Depreciation: not included (price not found)", None, "ASSUMPTION",
                      ["official price not found"], years)  # fmt: skip
     if car.new_in_market and not car.retention:
         return _item("DEPRECIATION", "Depreciation: insufficient data for this brand", None, "ASSUMPTION",
                      ["recent make in Spain: no sourced resale values, no class curve used"], years)  # fmt: skip
-    age = (car.age_years or 0) if car.condition == "USED" else 0
+    age = max(1, car.age_years or 0) if car.condition == "USED" else 0  # a used car is never valued as new (FR-022)
     start, b0, _ = value_share(age, car.retention, car.retention_curve) if age else (1.0, "SOURCED", "")
     end, b1, how = value_share(age + years, car.retention, car.retention_curve)
     if start is None or end is None:
@@ -426,7 +448,8 @@ def _depreciation(car: TcoCar, years: int) -> TcoItem:
     basis: Basis = "SOURCED" if b0 == b1 == "SOURCED" else "ASSUMPTION"
     inputs = [f"new price €{car.price_eur:,.0f}"]
     if age:
-        inputs.append(f"value now ≈ €{value_now:,.0f} at {age} years (estimate)")
+        inputs.append(f"value now ≈ €{value_now:,.0f} at {age} years (estimate from the new price: no sourced "
+                      "used price)")  # fmt: skip
     inputs += [f"value after {years} years ≈ €{value_then:,.0f} ({end * 100:.0f}% of new): {how}"]
     return TcoItem("DEPRECIATION", f"Depreciation over {years} years", round(loss / years, 2), round(loss, 2),
                    basis, inputs)  # fmt: skip
@@ -438,7 +461,7 @@ def _band(age: int) -> int:
 
 def _reserve(car: TcoCar, r: TcoRates, years: int) -> TcoItem:
     cls, notes = _cls(car)
-    age = car.age_years or 0
+    age = max(1, car.age_years or 0)
     annual = r.base_reserve[cls][_band(age)]
     bands = ("0–4", "5–9", "10–14", "15+")
     return _item(

@@ -5,7 +5,8 @@ import re
 from automind.application.ask import template
 from automind.infrastructure.config import load_yaml
 
-Q = {k: v for k, v in load_yaml("questions.yaml").items() if k != "version"}
+Q = {k: v for k, v in load_yaml("questions.yaml").items() if k not in ("version", "LADDER_WORDS")}
+LADDER = ("FUEL", "POWER", "DRIVE")  # spec 008: always asked with the options that exist
 ENGLISH = re.compile(r"\b(the|which|make and model|did you mean|year or generation|or tell me)\b", re.I)
 
 
@@ -18,7 +19,11 @@ def test_every_kind_has_three_languages() -> None:
                 for lang in ("en", "ru", "es"):
                     assert t[variant].get(lang), (kind, variant, lang)
         if "{options}" in str(t.get("rephrase", {}).get("en", "")):
-            ok = "rephrase_bare" in t or "{options}" not in t["en"] or kind in ("TOO_MANY_CARS", "TRIM", "GEARBOX")
+            ok = (
+                "rephrase_bare" in t
+                or "{options}" not in t["en"]
+                or kind in ("TOO_MANY_CARS", "TRIM", "GEARBOX", *LADDER)
+            )
             assert ok, kind
 
 
@@ -45,3 +50,10 @@ def test_options_are_inserted() -> None:
 
 def test_unknown_language_falls_back_to_english() -> None:
     assert template(Q, "CONDITION", "de") == Q["CONDITION"]["en"]
+
+
+def test_ladder_words_in_three_languages() -> None:
+    words = load_yaml("questions.yaml")["LADDER_WORDS"]
+    for key, w in words.items():
+        for lang in ("en", "ru", "es"):
+            assert w.get(lang), (key, lang)

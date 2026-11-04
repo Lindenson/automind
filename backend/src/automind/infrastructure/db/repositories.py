@@ -688,3 +688,57 @@ class RatingRepo:
             stmt = insert(ReportRating).values(**values)
             await s.execute(stmt.on_conflict_do_update(index_elements=["message_id"], set_=values))
             await s.commit()
+
+
+class ModelVersionsRepo:
+    """The versions of model generations (spec 008 US6): the identification ladder's shared cache."""
+
+    @staticmethod
+    def _fits(row: Any, generation: str | None, year: int | None, new: bool) -> bool:
+        from automind.domain.identity import generation_matches  # noqa: PLC0415
+
+        if generation:
+            return str(row.generation).lower() == generation.lower()
+        if year is not None:
+            return row.years_from is None or generation_matches(year, row.years_from, row.years_to, 1)
+        return new and row.years_to is None
+
+    async def get(self, make: str, model: str, generation: str | None, year: int | None, new: bool,
+                  ttl_days: int) -> Any:  # fmt: skip
+        from automind.domain.ladder import Generation, version_of_json  # noqa: PLC0415
+
+        from .models import ModelVersions  # noqa: PLC0415
+
+        async with sessionmaker()() as s:
+            q = (
+                select(ModelVersions)
+                .where(func.lower(ModelVersions.make) == make.lower(), func.lower(ModelVersions.model) == model.lower(),
+                       ModelVersions.market == "ES")
+                .order_by(ModelVersions.years_from.desc().nulls_last())
+            )  # fmt: skip
+            rows = (await s.execute(q)).scalars().all()
+        fresh = datetime.now(ZoneInfo("UTC")) - timedelta(days=ttl_days)
+        for r in rows:
+            if r.fetched_at >= fresh and self._fits(r, generation, year, new):
+                return Generation(r.make, r.model, r.generation, r.years_from, r.years_to, r.body_class,
+                                  [version_of_json(v) for v in r.versions], list(r.sources))  # fmt: skip
+        return None
+
+    async def put(self, g: Any) -> None:
+        from automind.domain.ladder import version_to_json  # noqa: PLC0415
+
+        from .models import ModelVersions  # noqa: PLC0415
+
+        async with sessionmaker()() as s:
+            q = select(ModelVersions).where(
+                ModelVersions.make == g.make, ModelVersions.model == g.model,
+                ModelVersions.generation == g.generation, ModelVersions.market == "ES",
+            )  # fmt: skip
+            row = (await s.execute(q)).scalar_one_or_none()
+            if row is None:
+                row = ModelVersions(make=g.make, model=g.model, generation=g.generation, market="ES")
+                s.add(row)
+            row.years_from, row.years_to, row.body_class = g.years_from, g.years_to, g.body_class
+            row.versions, row.sources = [version_to_json(v) for v in g.versions], g.sources
+            row.fetched_at = datetime.now(ZoneInfo("UTC"))
+            await s.commit()

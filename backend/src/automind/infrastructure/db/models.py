@@ -545,6 +545,25 @@ class BrandLineup(Base):
     fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 
+class ModelVersions(Base):
+    """Versions sold in one generation of a model (engine, power, gearboxes, drives, years), with sources: the
+    version ladder of the intake (chat 9b5c0b0c). Shared, refreshed after a TTL."""
+
+    __tablename__ = "model_versions"
+    __table_args__ = (UniqueConstraint("make", "model", "generation", "market", name="uq_model_versions"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    make: Mapped[str] = mapped_column(String(80))
+    model: Mapped[str] = mapped_column(String(120))
+    generation: Mapped[str] = mapped_column(String(80))
+    market: Mapped[str] = mapped_column(String(2), default="ES")
+    years_from: Mapped[int | None] = mapped_column(Integer)
+    years_to: Mapped[int | None] = mapped_column(Integer)
+    body_class: Mapped[str | None] = mapped_column(String(20))
+    versions: Mapped[list] = mapped_column(JSONB, default=list)  # [{engine, fuel, engine_cc, power_kw, gearboxes, …}]
+    sources: Mapped[list] = mapped_column(JSONB, default=list)  # [{url, name}]
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
 class IntakeEvent(Base):
     """One intake step of a chat (spec 005 R13): asked, answered, corrected, proposed, confirmed …"""
 

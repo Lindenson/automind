@@ -53,7 +53,7 @@ def identity_key(car: CaseCar) -> tuple[object, ...]:
     engine = (e.displacement_l, e.power_kw, e.fuel, (e.family or "").lower()) if e and not e.empty() else None
     return ((car.make or "").lower(), (car.model or "").lower(), (k.generation_hint or "").lower(), engine,
             k.gearbox_hint, k.drive_hint, car.year, car.age_years, car.condition, (k.trim_hint or "").lower(),
-            k.fuel_hint, k.url)  # fmt: skip
+            k.fuel_hint, k.url, (k.version_hint or "").lower())  # fmt: skip
 
 
 def progress(before: CaseCar | None, after: CaseCar | None, outcome_before: str | None,
@@ -88,7 +88,12 @@ def next_step(case: CaseFile, limits: Limits = Limits()) -> Step:  # noqa: B008 
         item = _need(car)
         if item is None:
             continue
+        laddered = car.identify is not None and car.identify.level is not None
         total = sum(case.intake.attempts.get(car.key, {}).values())
+        if laddered:  # spec 008: a ladder level asked twice is settled by the identify step, never "remove or choose"
+            n = case.intake.attempt(car.key, item)
+            items.append(StepItem(item, car.key, rephrase=n >= 1, choices=tuple(car.identify.choices)))  # type: ignore[union-attr]
+            continue
         if (
             total >= limits.max_attempts_per_car
             or case.intake.attempt(car.key, "CHOICE") >= limits.max_attempts_per_item
@@ -294,6 +299,8 @@ def _apply_choice(car: CaseCar, ch: Choice) -> str:
     from .identity import parse_engine  # local import: identity imports casefile lazily
 
     k = car.constraints
+    if ch.level is not None:
+        return _apply_level(car, ch)
     k.generation_hint = k.engine_hint = k.trim_hint = None
     car.make = ch.make or car.make
     car.model = ch.model or car.model
@@ -305,6 +312,41 @@ def _apply_choice(car: CaseCar, ch: Choice) -> str:
     rest = _without(ch.label, car.make, car.model)
     if ch.variant_id is None and rest and (e := parse_engine(rest)) is not None and not e.empty():
         k.engine_hint = e
+    return f"{car.key}: {ch.label} (picked)"
+
+
+def _apply_level(car: CaseCar, ch: Choice) -> str:
+    """An option of one ladder level (spec 008): its facts become the user's statement of that level; the levels
+    above are kept, nothing is parsed from the label."""
+    from .casefile import EngineHint  # noqa: PLC0415
+
+    k = car.constraints
+    e = k.engine_hint.model_copy() if k.engine_hint else EngineHint()
+    disp = round(ch.engine_cc / 1000, 1) if ch.engine_cc else None
+    if ch.level == "FUEL":
+        e = EngineHint(fuel=ch.fuel)  # type: ignore[arg-type]
+        k.version_hint = None
+    elif ch.level == "FAMILY":
+        e = EngineHint(fuel=ch.fuel or e.fuel, displacement_l=disp, family=(ch.family or "")[:16] or None)  # type: ignore[arg-type]
+        k.version_hint = None
+    elif ch.level in ("ENGINE", "POWER"):
+        e = EngineHint(fuel=ch.fuel or e.fuel, displacement_l=disp or e.displacement_l,  # type: ignore[arg-type]
+                       family=(ch.family or "")[:16] or e.family, power_kw=ch.power_kw,
+                       power_hp=round(ch.power_kw / 0.7355) if ch.power_kw else None)  # fmt: skip
+        k.version_hint = ch.engine
+    elif ch.level == "GEARBOX":
+        k.gearbox_hint = ch.gearbox  # type: ignore[assignment]
+        k.version_hint = ch.engine or k.version_hint
+    elif ch.level == "DRIVE":
+        k.drive_hint = ch.drive  # type: ignore[assignment]
+        k.gearbox_hint = ch.gearbox or k.gearbox_hint  # type: ignore[assignment]
+        k.version_hint = ch.engine or k.version_hint
+    k.engine_hint = None if e.empty() else e
+    if car.ladder is not None:  # the user's own answer: no longer a level the hub filled
+        engine_levels = ch.level in ("FUEL", "FAMILY", "ENGINE", "POWER")
+        for lvl in ("FUEL", "ENGINE", "POWER") if engine_levels else (str(ch.level),):
+            car.ladder.origin.pop(lvl, None)
+    car.variant_id, car.label, car.resolution, car.identify = None, None, "UNRESOLVED", None
     return f"{car.key}: {ch.label} (picked)"
 
 
@@ -335,28 +377,37 @@ def pick(case: CaseFile, text: str, *, gearbox_words: dict[str, str], yes: bool 
     if not said:
         return None
     new = case.model_copy(deep=True)
+    logs: list[str] = []
     for item in p.items:
         key = str(item.get("car") or "")
         if not key or not any(c.key == key for c in new.cars):
             continue
         car = new.car(key)
         kind = item.get("kind")
-        if kind == "GEARBOX":
+        raw = item.get("choices")
+        if kind == "GEARBOX" and not raw:  # the gearbox question of the older rules (no ladder options)
             gb = gearbox_words.get(said) or ("automatic" if choose else None)
             if gb:
                 car.constraints.gearbox_hint = gb  # type: ignore[assignment]
                 return new, [f"{key}: gearbox {gb}"]
             continue
-        raw = item.get("choices")
         choices = [Choice.model_validate(x) for x in raw] if isinstance(raw, list) else []
         if (log := _answer(new, car, str(kind), choices, said, yes=yes, choose=choose)) is not None:
-            return new, [log]
-    return None
+            logs.append(log)
+            if not car.chosen_for_me or not (choices and choices[0].level):
+                return new, logs
+            # "choose for me" with several ladder questions open settles every one of them (spec 008 US3)
+    return (new, logs) if logs else None
 
 
 def _answer(case: CaseFile, car: CaseCar, kind: str, choices: list[Choice], said: str, *, yes: bool,
             choose: bool) -> str | None:  # fmt: skip
     """The option the reply takes for one question, applied to the car; None when it takes none."""
+    if choices and choices[0].level is not None and (yes or choose) and not _label_hit(choices, said):
+        # spec 008: "choose for me" (yes, go ahead, any) on a ladder question settles this level and the ones below
+        car.chosen_for_me = True
+        car.identify = None
+        return f"{car.key}: choose for me ({kind.lower()} and below)"
     if kind == "PROPOSE" and (yes or choose) and choices:
         return _apply_choice(car, choices[0])
     if kind in ("REMOVE_OR_CHOOSE", "PROPOSE") and (yes or choose):
@@ -365,8 +416,12 @@ def _answer(case: CaseFile, car: CaseCar, kind: str, choices: list[Choice], said
         ch = next((x for x in choices if x.suggested), choices[0])
         car.chosen_for_me = True
         return _apply_choice(car, ch) + " (chosen for the user)"
-    hit = next((ch for ch in choices if _plain_text(ch.label) == said), None)
+    hit = _label_hit(choices, said)
     return _apply_choice(car, hit) if hit is not None else None
+
+
+def _label_hit(choices: list[Choice], said: str) -> Choice | None:
+    return next((ch for ch in choices if _plain_text(ch.label) == said), None)
 
 
 def inherit_condition(before: CaseFile, after: CaseFile) -> list[str]:

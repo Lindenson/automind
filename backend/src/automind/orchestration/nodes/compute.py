@@ -13,7 +13,7 @@ from typing import Any
 
 from automind.application import compose, electric_block, incentives_research, research
 from automind.application import feasibility as fz_app
-from automind.domain import incentives, intake, research_plan, sense, suggestions, tco
+from automind.domain import incentives, intake, research_plan, sense, suggestions, tco, used
 from automind.domain import insights as ins
 from automind.domain import verdict as vd
 from automind.domain.casefile import CaseFile
@@ -53,6 +53,11 @@ def case_facts(case: CaseFile) -> list[str]:
     if case.priorities:
         out.append("priorities: " + ", ".join(p.criterion.replace("_", " ") for p in case.priorities))
     out.append(f"{case.annual_km:,} km per year")
+    for x in case.cars:  # spec 008 FR-027: a used car is labelled as used, an assumed year as assumed
+        if x.condition == "USED":
+            yr = (f"~{x.year} (assumed)" if x.year_assumed else str(x.year)) if x.year else "year unknown"
+            km = f", {x.mileage_km:,} km" if x.mileage_km else ""
+            out.append(f"{x.label or x.request_text}: used, {yr}{km}")
     if len(case.cars) > 1 and any(x.condition != "USED" for x in case.cars):  # spec 004 FR-029
         why = (
             "the level of the version you named"
@@ -287,6 +292,79 @@ def _energy_price(t: tco.TcoCar, r: tco.TcoRates) -> float:
     return r.diesel_eur_per_l if t.fuel == "diesel" else r.fuel_eur_per_l
 
 
+def _age(x: Any, v: Any, c: TurnContext, notices: list[dict[str, Any]], lang: str) -> int | None:
+    """A used car is costed at its age, never as new (spec 008 FR-022): an assumed year is said in a notice; a car
+    with no age at all (a case from before 008) gets one assumed here."""
+    if x.condition != "USED":
+        return x.age_years
+    now = _year(c) or 2026
+    age, how = x.age_years, None
+    if age is None:
+        cfg = dict((c.ports.ref.search or {}).get("intake") or {})
+        age, how = used.assumed_age(x.mileage_km, getattr(v, "generation_years_from", None),
+                                    getattr(v, "generation_years_to", None), now,
+                                    km_per_year=int(cfg.get("km_per_year_used", used.KM_PER_YEAR_USED)),
+                                    default=int(cfg.get("default_used_age", used.DEFAULT_USED_AGE)))  # fmt: skip
+    elif x.year_assumed:
+        how = f"{x.mileage_km:,} km at ~15,000 km a year" if x.mileage_km else "no year given"
+    if how is not None:
+        text = t("used_age_assumed", lang, car=compose.short_name(v), age=age, how=how)
+        if all(n.get("text") != text for n in notices):
+            notices.append(notice(text, "info"))
+    return max(1, age)
+
+
+@dataclass
+class UsedFacts:
+    """What a used car is worth and covered by now (spec 008 FR-023, FR-026)."""
+
+    year: int
+    price: used.UsedPrice | None
+    warranty: used.Warranty
+
+
+def _used_facts(keyed: list[Any], ages: dict[str, int | None], c: TurnContext, notices: list[dict[str, Any]],
+                lang: str) -> dict[str, UsedFacts]:  # fmt: skip
+    now = _year(c) or 2026
+    out: dict[str, UsedFacts] = {}
+    for x, car in keyed:
+        if x.condition != "USED":
+            continue
+        year = x.year or now - (ages.get(x.key) or 1)
+        price = compose.used_price(car, year)
+        w = used.warranty_status(year, compose.warranty_years(car), now, assumed=x.year_assumed or x.year is None)
+        out[x.key] = UsedFacts(year, price, w)
+        name = compose.short_name(car["variant"])
+        if price is None:
+            notices.append(notice(t("used_price_missing", lang, car=name, year=year), "info", car_key=x.key))
+        if w.state != "UNKNOWN":
+            assumed = (
+                {"ru": ", год предположен", "es": ", año supuesto"}.get(lang, ", year assumed") if w.assumed else ""
+            )
+            key = "warranty_remaining" if w.state == "REMAINING" else "warranty_expired"
+            notices.append(notice(t(key, lang, car=name, year=year, assumed=assumed, years=f"{w.years:g}",
+                                    until=w.until), "info", car_key=x.key))  # fmt: skip
+    return out
+
+
+def used_lines(case: CaseFile, facts: dict[str, UsedFacts]) -> list[str]:
+    """The used cars' own figures for the report (FR-027): year (stated or assumed), mileage, price, warranty."""
+    out = []
+    for x in case.cars:
+        u = facts.get(x.key)
+        if u is None:
+            continue
+        bits = [f"{x.label or x.request_text}: USED, year {u.year}" + (" (assumed)" if x.year_assumed else "")]
+        if x.mileage_km:
+            bits.append(f"{x.mileage_km:,} km")
+        bits.append(f"price used €{u.price.eur:,.0f} (sourced)" if u.price else "price used: no sourced data")
+        if u.warranty.state != "UNKNOWN":
+            bits.append(f"maker's warranty {'until' if u.warranty.state == 'REMAINING' else 'expired in'} "
+                        f"{u.warranty.until}" + (" (assumed year)" if u.warranty.assumed else ""))  # fmt: skip
+        out.append("; ".join(bits))
+    return out
+
+
 async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]], lang: str = "en") -> Computed:
     keyed = [(x, await compose.load_car(x.variant_id)) for x in case.cars if x.variant_id]
     cars = [car for _, car in keyed]
@@ -298,11 +376,18 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
     use = usage_context(case)
     recent = recent_make(c)
     stated = intake.stated_for_cars(case.stated_energy, [(x.key, car["variant"].powertrain) for x, car in keyed])
-    tcars = [await compose.tco_car(car, _cond(x.condition), x.age_years, x.mileage_km, curve, use,
-                                   recent(getattr(car["variant"], "make", None)), stated.get(x.key))
+    ages = {x.key: _age(x, car["variant"], c, notices, lang) for x, car in keyed}
+    usedf = _used_facts(keyed, ages, c, notices, lang)
+
+    def up(x: Any) -> float | None:
+        u = usedf.get(x.key)
+        return u.price.eur if u is not None and u.price is not None else None
+
+    tcars = [await compose.tco_car(car, _cond(x.condition), ages[x.key], x.mileage_km, curve, use,
+                                   recent(getattr(car["variant"], "make", None)), stated.get(x.key), up(x))
              for x, car in keyed]  # fmt: skip
     estimates = tco.like_for_like([tco.compute(t, rates, case.annual_km, case.ownership_years) for t in tcars])
-    costs = _checked_costs(estimates, {car["variant"].id: x.age_years for x, car in keyed}, notices)
+    costs = _checked_costs(estimates, {car["variant"].id: ages[x.key] for x, car in keyed}, notices)
     eff = per_100km(estimates)
     notices += energy_notices(estimates, {car["variant"].id: compose.short_name(car["variant"]) for car in cars}, lang)
     await _energy_metrics(c, keyed, estimates)
@@ -320,10 +405,12 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
             car,
             sims.get(car["variant"].id),
             condition=_cond(x.condition),
-            age_years=x.age_years,
+            age_years=ages[x.key],
             annual_cost_eur=costs.get(car["variant"].id),
             year=year,
             energy_eur_per_100km=eff.get(car["variant"].id),
+            mileage_km=x.mileage_km,
+            used_price_eur=up(x),
         )
         for x, car in keyed
     ]
@@ -336,11 +423,12 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
         puse = usage_context(probe)
         est = tco.like_for_like([tco.compute(replace(t, use=puse), rates, probe.annual_km, probe.ownership_years)
                                  for t in tcars])  # fmt: skip
-        cost = _checked_costs(est, {car["variant"].id: x.age_years for x, car in keyed}, [])
+        cost = _checked_costs(est, {car["variant"].id: ages[x.key] for x, car in keyed}, [])
         eff_p = per_100km(est)
-        fs = [compose.facts(car, sims.get(car["variant"].id), condition=_cond(x.condition), age_years=x.age_years,
+        fs = [compose.facts(car, sims.get(car["variant"].id), condition=_cond(x.condition), age_years=ages[x.key],
                             annual_cost_eur=cost.get(car["variant"].id), year=year,
-                            energy_eur_per_100km=eff_p.get(car["variant"].id)) for x, car in keyed]  # fmt: skip
+                            energy_eur_per_100km=eff_p.get(car["variant"].id), mileage_km=x.mileage_km,
+                            used_price_eur=up(x)) for x, car in keyed]  # fmt: skip
         w = weights_for(probe, model)
         r = score(fs, w, model) if fs and w else None
         return (r.winner_car_id, r.tie) if r else (None, False)
@@ -404,6 +492,8 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
         summary["electrified"] = lines  # spec 006 T050: the code-built sentences, numbers from code
     summary["profile_focus"] = profile_focus(case, crit, verdict, names, lang)
     summary["section_depth"] = depths(case.persona, c.ports.ref.layouts or {})  # spec 004 FR-019
+    if ul := used_lines(case, usedf):  # spec 008 FR-027: say these figures are for a used car
+        summary["used_cars"] = ul
     return Computed(blocks=ordered, facts=summary, criteria=crit, cars=cars, tco=estimates, race=race,
                     insights=iset, verdict=verdict, check=check, outcome=outcome)  # fmt: skip
 

@@ -58,6 +58,7 @@ def test_snapshot_shape():
         "input_tokens": 1000,
         "output_tokens": 100,
         "search_calls": 1,
+        "identify_search_calls": 0,
         "cost_eur": round(0.002 + 0.001 + 0.02, 4),
     }
 

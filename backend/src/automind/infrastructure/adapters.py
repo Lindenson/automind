@@ -20,6 +20,7 @@ from automind.infrastructure.db.repositories import (
     LearnedSourceRepo,
     MarketFactRepo,
     MessageRepo,
+    ModelVersionsRepo,
     TurnRepo,
     UsageRepo,
 )
@@ -84,6 +85,7 @@ def live_ports(events: EventBus, prompts: dict[str, str]) -> Ports:
         lineup=get_lineup,
         models_on_sale=models_on_sale,
         learned=LearnedSourceRepo(),
+        versions=ModelVersionsRepo(),
     )
 
 
