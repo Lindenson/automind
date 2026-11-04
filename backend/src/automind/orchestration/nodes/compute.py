@@ -11,8 +11,8 @@ from typing import Any
 
 from automind.application import compose, research
 from automind.application import feasibility as fz_app
+from automind.domain import incentives, research_plan, sense, suggestions, tco
 from automind.domain import insights as ins
-from automind.domain import research_plan, sense, suggestions, tco
 from automind.domain import verdict as vd
 from automind.domain.casefile import CaseFile
 from automind.domain.criteria import CriteriaScore, score, weight_breakdown, weights_for
@@ -75,6 +75,44 @@ def _checked_costs(
             out[e.car_id] = e.annual_total
         else:
             notices.append(notice(f"{e.label}: ownership cost {r.message} looks wrong; shown, not scored", "warning"))
+    return out
+
+
+def per_100km(estimates: list[tco.TcoEstimate]) -> dict[str, float]:
+    """Energy cost per 100 km per car (spec 006 FR-023), only where the energy line could be computed."""
+    out = {}
+    for e in estimates:
+        item = next((i for i in e.items if i.kind == "ENERGY"), None)
+        if item is not None and item.estimate is not None and item.estimate.eur_per_100km is not None:
+            out[e.car_id] = item.estimate.eur_per_100km
+    return out
+
+
+def _reg_year(x: Any, car: dict[str, Any], year: int | None) -> int | None:
+    if x.condition == "USED" and x.age_years is not None and year is not None:
+        return year - x.age_years
+    v = car["variant"]
+    return getattr(v, "model_year_from", None) or getattr(v, "generation_years_from", None) or year
+
+
+def verdict_extras(keyed: list[Any], tcars: list[tco.TcoCar], estimates: list[tco.TcoEstimate], case: CaseFile,
+                   year: int | None) -> dict[str, Any]:  # fmt: skip
+    """The DGT label of every car and the break-even of an electrified car against a combustion one (spec 006
+    FR-015, FR-016): computed by code, with the rule and the inputs."""
+    labels = {}
+    for (x, car), tc in zip(keyed, tcars, strict=True):
+        lb = incentives.env_label(tc.powertrain, tc.range_wltp, tc.fuel, _reg_year(x, car, year))
+        labels[tc.car_id] = {"label": lb.label, "rule": lb.rule, "source_url": lb.source_url}
+    out: dict[str, Any] = {"labels": labels}
+    run = {e.car_id: e.annual_total for e in estimates if not energy_missing(e)}
+    elec = [t for t in tcars if t.powertrain in incentives.ELECTRIFIED]
+    comb = [t for t in tcars if t.powertrain not in incentives.ELECTRIFIED]
+    if len(elec) == 1 and len(comb) == 1:
+        e, c0 = elec[0], comb[0]
+        b = incentives.break_even(e.price_eur, c0.price_eur, run.get(e.car_id), run.get(c0.car_id),
+                                  ownership_years=case.ownership_years)  # fmt: skip
+        out["break_even"] = {"electrified_car_id": e.car_id, "against_car_id": c0.car_id, "verdict": b.verdict,
+                             "years": b.years, "beyond_ownership": b.beyond_ownership, "inputs": b.inputs}  # fmt: skip
     return out
 
 
@@ -221,6 +259,7 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
              for x, car in keyed]  # fmt: skip
     estimates = [tco.compute(t, rates, case.annual_km, case.ownership_years) for t in tcars]
     costs = _checked_costs(estimates, {car["variant"].id: x.age_years for x, car in keyed}, notices)
+    eff = per_100km(estimates)
     notices += energy_notices(estimates, {car["variant"].id: compose.short_name(car["variant"]) for car in cars}, lang)
     year = _year(c)
     young = {x.key for x, car in keyed if _new_gen(car, year)}
@@ -234,6 +273,7 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
             age_years=x.age_years,
             annual_cost_eur=costs.get(car["variant"].id),
             year=year,
+            energy_eur_per_100km=eff.get(car["variant"].id),
         )
         for x, car in keyed
     ]
@@ -246,8 +286,10 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
         puse = usage_context(probe)
         est = [tco.compute(replace(t, use=puse), rates, probe.annual_km, probe.ownership_years) for t in tcars]
         cost = _checked_costs(est, {car["variant"].id: x.age_years for x, car in keyed}, [])
+        eff_p = per_100km(est)
         fs = [compose.facts(car, sims.get(car["variant"].id), condition=_cond(x.condition), age_years=x.age_years,
-                            annual_cost_eur=cost.get(car["variant"].id), year=year) for x, car in keyed]  # fmt: skip
+                            annual_cost_eur=cost.get(car["variant"].id), year=year,
+                            energy_eur_per_100km=eff_p.get(car["variant"].id)) for x, car in keyed]  # fmt: skip
         w = weights_for(probe, model)
         r = score(fs, w, model) if fs and w else None
         return (r.winner_car_id, r.tie) if r else (None, False)
@@ -256,6 +298,7 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
     other = persona_counterfactual(case, outcome) if crit is not None and len(keyed) > 1 else None
     iset, verdict, vblock, check = await _insights(c, case, keyed, tcars, costs, crit, sims, rates, lang,
                                                    limits_from(case, fz), other)  # fmt: skip
+    vblock.update(verdict_extras(keyed, tcars, estimates, case, year))
     blocks = await _blocks(c, case, keyed, race, crit, estimates, iset, fz)
     out_notices = list(notices)
     if case.unmapped_wishes:

@@ -258,11 +258,17 @@ def _offroad(c: CarFacts, sc: Mapping[str, Any]) -> Result:
 
 
 def _efficiency(c: CarFacts, sc: Mapping[str, Any]) -> Result:
-    if not c.consumption:
+    """One scale for every powertrain (spec 006 FR-023): the energy cost per 100 km at the user's prices and
+    charging. Without it the criterion has no data for this car (and so is not compared for any)."""
+    if "eur_per_100km" not in sc:  # an older config: litres and kWh on their own scales
+        if not c.consumption:
+            return None, []
+        bev = c.powertrain == "BEV"
+        unit = "kWh/100 km" if bev else "l/100 km"
+        return lin(c.consumption, *_pair(sc, "bev" if bev else "ice")), [f"consumption {c.consumption} {unit}"]
+    if c.energy_eur_per_100km is None:
         return None, []
-    bev = c.powertrain == "BEV"
-    unit = "kWh/100 km" if bev else "l/100 km"
-    return lin(c.consumption, *_pair(sc, "bev" if bev else "ice")), [f"consumption {c.consumption} {unit}"]
+    return lin(c.energy_eur_per_100km, *_pair(sc, "eur_per_100km")), [f"energy €{c.energy_eur_per_100km:.2f}/100 km"]
 
 
 def _safety(c: CarFacts, sc: Mapping[str, Any]) -> Result:

@@ -162,14 +162,14 @@
 
 **Independent test**: quickstart D.
 
-- [ ] T030 [P] [US5] Write the tests in `backend/tests/unit/domain/test_incentives.py`:
+- [X] T030 [P] [US5] Write the tests in `backend/tests/unit/domain/test_incentives.py`:
   - env_label for BYD PHEV, Ateca, RAV4 HEV, a 2005 diesel and an EREV;
   - break-even YEARS, NEVER and ALREADY_CHEAPER;
   - incentive status from dates.
-- [ ] T031 [P] [US5] Write the tests for efficiency in €/100 km and its unknowable-for-all rule, in `backend/tests/unit/domain/test_criteria.py`.
+- [X] T031 [P] [US5] Write the tests for efficiency in €/100 km and its unknowable-for-all rule, in `backend/tests/unit/domain/test_criteria.py`.
 - [ ] T032 [US5] Create `backend/src/automind/domain/incentives.py` with `env_label`, `status` and `break_even`. Create `backend/config/incentives.yaml` with the DGT label rules (with source URL) and the incentive keys to research.
-- [ ] T033 [US5] Switch `efficiency` in `backend/src/automind/domain/criteria.py` and `backend/config/criteria.yaml` to `eur_per_100km` (scale [14, 2]). Pass the estimates through `facts()` in `backend/src/automind/application/compose.py`.
-- [ ] T034 [US5] Add verdict fairness in `backend/src/automind/orchestration/nodes/compute.py`:
+- [X] T033 [US5] Switch `efficiency` in `backend/src/automind/domain/criteria.py` and `backend/config/criteria.yaml` to `eur_per_100km` (scale [14, 2]). Pass the estimates through `facts()` in `backend/src/automind/application/compose.py`.
+- [X] T034 [US5] Add verdict fairness in `backend/src/automind/orchestration/nodes/compute.py`:
   - when any car lacks an energy line, add `ownership_cost` and `efficiency` to `not_compared` with a reason;
   - add the `break_even` and `labels` verdict fields from `contracts/blocks-electric-and-tco.md`.
 - [ ] T035 [US5] Add migration `backend/alembic/versions/0011_market_facts.py` and the `MarketFact` model in `backend/src/automind/infrastructure/db/models.py`. Add a repository with get/upsert in `backend/src/automind/infrastructure/db/repositories.py`, and a port in `backend/src/automind/application/ports.py`.

@@ -52,8 +52,14 @@ def test_a_new_generation_without_reliability_history_still_gets_a_verdict():
     rel = ReliabilitySummary(recurring=0, isolated=7, high=0, minimum_met=True)
     w = {"practicality": 24.4, "reliability": 24.4, "ownership_cost": 20.3, "comfort": 16.3, "efficiency": 8.1,
          "safety": 6.5}  # fmt: skip
-    base = {"powertrain": "ICE", "boot_l": 583, "seats": 5, "consumption": 7.0}
-    honda = CarFacts("h", "Honda", **{**base, "boot_l": 579, "consumption": 6.7}, annual_cost_eur=2260, reliability=rel)
+    base = {"powertrain": "ICE", "boot_l": 583, "seats": 5, "consumption": 7.0, "energy_eur_per_100km": 14.3}
+    honda = CarFacts(
+        "h",
+        "Honda",
+        **{**base, "boot_l": 579, "consumption": 6.7, "energy_eur_per_100km": 13.7},
+        annual_cost_eur=2260,
+        reliability=rel,
+    )
     old = CarFacts("m", "Mazda", **base, annual_cost_eur=2366)
     assert not any(c.ranked for c in score([old, honda], w, model).cars)  # an unknown reliability: a real gap
     new = CarFacts("m", "Mazda", **base, annual_cost_eur=2366, new_generation_since=2026)
