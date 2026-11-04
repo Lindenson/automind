@@ -6,6 +6,8 @@ free, instant and testable. Unknown languages fall back to English.
 
 from __future__ import annotations
 
+import re
+
 PHRASES: dict[str, dict[str, str]] = {
     # runner (reviewer 2026-11-03: these were English in every chat)
     "run_limit": {
@@ -380,6 +382,17 @@ def choose_for_me(text: str | None) -> bool:
     """ "Any" / "choose for me": the hub takes the base version (spec 004 FR-029, US8 scenario 6)."""
     t = " ".join((text or "").lower().replace("!", " ").replace(".", " ").replace(",", " ").split())
     return bool(t) and len(t) <= 40 and any(t == c or t.startswith(c + " ") or t.endswith(" " + c) for c in _CHOOSE)
+
+
+_GO = ("вперед", "вперёд", "давай", "продолжай", "дальше", "к сравнению", "сравнивай", "go ahead", "go on",
+       "continue", "proceed", "adelante", "sigue", "continúa", "continua", "compara")  # fmt: skip
+
+
+def go_ahead(text: str | None) -> bool:
+    """ "Go ahead" / "вперёд к сравнению": a short reply that asks to move on (taken as "choose for me" by a
+    pending identity question, chat 9b5c0b0c)."""
+    t = " ".join((text or "").lower().replace("!", " ").replace(".", " ").replace(",", " ").split())
+    return bool(t) and len(t) <= 40 and any(re.search(rf"(?<!\w){re.escape(g)}(?!\w)", t) for g in _GO)
 
 
 def yes_or_no(text: str | None) -> str | None:

@@ -21,7 +21,7 @@ from urllib.parse import urlparse
 
 from automind.application import resolve
 from automind.application.ports import Ports
-from automind.domain import evidence, intake
+from automind.domain import evidence, identity, intake
 from automind.domain.casefile import CaseCar, CaseFile, Choice, IdentifyOutcome
 
 LineupLookup = Callable[[Ports, str], Awaitable[Any]]  # (ports, make) -> application.lineup.Lineup | None
@@ -118,7 +118,7 @@ async def identify_car(
         ]
         if not resolve.auto_resolve(car, a):  # several fit, or used: the best is proposed, the others are options
             best = a.candidates[0]
-            car.variant_id, car.label, car.resolution = best["id"], best["label"], "PROPOSED"
+            car.variant_id, car.label, car.resolution = best["id"], best["label"], _proposed(car)
         return _done(car, IdentifyOutcome(outcome="IDENTIFIED", choices=choices))
     return await _resolve_open(ports, case, car, current_year, lineup)
 
@@ -168,6 +168,11 @@ async def _resolve_open(ports: Ports, case: CaseFile, car: CaseCar, year: int, l
             return _done(car, IdentifyOutcome(outcome="NOT_FOUND", need="MODEL", note=f"resolver returned {v.model}",
                                               choices=_close_lineup(lineup, car)))  # fmt: skip
     except resolve.GenerationMismatch as e:
+        # the year is known and the version named is of another generation: the versions of that year are
+        # offered (asking the year again loops, chat 9b5c0b0c)
+        choices = await _engines_on_sale(ports, car, year, []) if car.year is not None else []
+        if choices:
+            return _done(car, IdentifyOutcome(outcome="CHOICES", need="ENGINE", choices=choices, note=str(e)))
         return _done(car, IdentifyOutcome(outcome="NEED", need="YEAR", note=str(e)))
     except resolve.NotOnSale as e:
         choices = await _engines_on_sale(ports, car, year, [])
@@ -183,8 +188,41 @@ async def _resolve_open(ports: Ports, case: CaseFile, car: CaseCar, year: int, l
         # no version with the named engine (FR-015): offer the engines that exist
         choices = await _engines_on_sale(ports, car, year, ident.alternatives)
         return _done(car, IdentifyOutcome(outcome="CHOICES" if choices else "NEED", need="ENGINE", choices=choices))
-    car.variant_id, car.label, car.resolution = v.id, v.label, "PROPOSED"
+    car.variant_id, car.label, car.resolution = v.id, v.label, _proposed(car)
     return _done(car, IdentifyOutcome(outcome="IDENTIFIED", note=ident.note))
+
+
+def _proposed(car: CaseCar) -> Any:
+    """A version the hub found is proposed; after "choose for me" it is taken (no second question)."""
+    return "CONFIRMED" if car.chosen_for_me else "PROPOSED"
+
+
+_GEN_TOKEN = re.compile(r"(?<![\w.])(?:[A-Z]{1,3}\d{1,3}[a-z]?|Mk\s?\d+(?:\.\d)?)(?![\w.])")
+_ENGINE_TOKEN = re.compile(r"^[VWR]\d{1,2}$")  # V6, W12: cylinders, not a generation
+
+
+def year_conflict(label: str, car: CaseCar, ref: Any) -> bool:
+    """The option names a generation that was not built in the user's year (chat 9b5c0b0c: "Audi A4 B5 2.5 TDI"
+    offered for a 2023 car). A generation config knows is checked by its years; an unknown one is a conflict
+    when config knows the generation of that year (it is another one)."""
+    if car.year is None or not (car.make and car.model) or ref is None:
+        return False
+    gens = list(getattr(ref, "generations", {}).get(f"{car.make}|{car.model}", []))
+    if not gens:
+        return False
+    rest = re.sub(re.escape(car.model), " ", re.sub(re.escape(car.make), " ", label, flags=re.I), flags=re.I)
+    years = {str(g).lower(): (lo, hi) for g, lo, hi in gens}
+    of_year = any(lo is not None and identity.generation_matches(car.year, lo, hi, 1) for lo, hi in years.values())
+    for tok in _GEN_TOKEN.findall(rest):
+        if _ENGINE_TOKEN.match(tok):
+            continue
+        span = years.get(tok.lower())
+        if span is not None:
+            if span[0] is not None and not identity.generation_matches(car.year, span[0], span[1], 1):
+                return True
+        elif of_year:
+            return True
+    return False
 
 
 async def _engines_on_sale(ports: Ports, car: CaseCar, year: int, alternatives: list[str]) -> list[Choice]:
@@ -194,11 +232,12 @@ async def _engines_on_sale(ports: Ports, car: CaseCar, year: int, alternatives: 
     probe.constraints.engine_hint = probe.constraints.trim_hint = probe.constraints.generation_hint = None
     same = await resolve.catalog_for(car.make or "", car.model or "")
     fits = sorted((v for v in same if resolve.fits(v, probe, year, ports.ref)), key=lambda v: v.label)
-    out = [Choice(label=v.label, make=v.make, model=v.model, variant_id=v.id) for v in fits]
+    out = [Choice(label=v.label, make=v.make, model=v.model, variant_id=v.id) for v in fits
+           if not year_conflict(v.label, car, ports.ref)]  # fmt: skip
     seen = {c.label.lower() for c in out}
     for a in alternatives:
         label = a if a.lower().startswith((car.make or "").lower()) else f"{car.make} {car.model} {a}"
-        if label.lower() not in seen:
+        if label.lower() not in seen and not year_conflict(label, car, ports.ref):
             out.append(Choice(label=label, make=car.make, model=car.model))
             seen.add(label.lower())
     return out[:6]
