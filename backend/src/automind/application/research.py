@@ -696,10 +696,28 @@ def _check(
     return ("ACCEPTED", val, None, None) if isinstance(val, float) else ("ACCEPTED", None, str(val), None)
 
 
-def _sense_before(c: Any, v: db.Variant, source_type: str | None) -> tuple[Any, tuple[str, None, None, str] | None]:
+def _litres(raw: str) -> float | None:
+    """ "611", "1.642" (Spanish thousands) or "611 l" as litres; None when there is no number."""
+    m = re.search(r"\d[\d.,\u202f ]*", raw or "")
+    if not m:
+        return None
+    digits = (
+        re.sub(r"[.,\u202f ]", "", m.group(0)) if re.fullmatch(r"\d{1,2}[.,]\d{3}", m.group(0).strip()) else m.group(0)
+    )
+    try:
+        return float(digits.strip().replace(",", "."))
+    except ValueError:
+        return None
+
+
+def _sense_before(
+    c: Any, v: db.Variant, source_type: str | None, url: str = ""
+) -> tuple[Any, tuple[str, None, None, str] | None]:
     """Re-file a claim under the attribute its value really is (WLTP / NEDC / real-world consumption); a boot
-    volume with the seats folded is not the boot volume."""
+    volume with the seats folded, or of another body style, is not the boot volume."""
     if c.attribute == "boot_volume" and not (b := sense.boot_seats_up(c.raw_value, c.excerpt)).ok:
+        return c, ("REJECTED_IMPLAUSIBLE", None, None, b.rule_id or "sense.boot")
+    if c.attribute == "boot_volume" and not (b := sense.boot_fits_body(_litres(c.raw_value), v.body_class, url)).ok:
         return c, ("REJECTED_IMPLAUSIBLE", None, None, b.rule_id or "sense.boot")
     if (v.powertrain or "").upper() in sense_ev.PLUG_IN or c.attribute in _EV_CLAIMS:
         return _sense_ev_before(c, v)
@@ -772,7 +790,7 @@ async def _spec_claims(
     ctx = _plausibility_ctx(v, known)
     checked = []
     for c0 in out.claims:
-        c, bad = _sense_before(c0, v, ev.classify_source(d.url))
+        c, bad = _sense_before(c0, v, ev.classify_source(d.url), d.url)
         checked.append((c, *(bad or _check(c, d, ctx, ports.ref.plausibility))))
     conflicting = {
         i for i, (c, st, num, _, _) in enumerate(checked)
@@ -845,7 +863,10 @@ async def _persist_reading(
             if row.attribute not in specs.ATTRS:
                 continue
             c, bad = _sense_before(
-                _ReaderClaim(row.attribute, row.raw_value, row.raw_unit, row.excerpt), v, ev.classify_source(d.url)
+                _ReaderClaim(row.attribute, row.raw_value, row.raw_unit, row.excerpt),
+                v,
+                ev.classify_source(d.url),
+                d.url,
             )
             status, num, txt, rule = bad or _check(c, d, ctx, ports.ref.plausibility, excerpt_checked=True)
             if status == "ACCEPTED":

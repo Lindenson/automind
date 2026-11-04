@@ -300,6 +300,26 @@ def boot_seats_up(raw_value: str, excerpt: str, window: int = 70) -> SenseResult
     return SenseResult(True, raw_value)
 
 
+_WAGON_WORDS = re.compile(r"variant|sports?\s*tourer|touring|combi|kombi|estate|\bsw\b|break|station|avant|"
+                          r"shooting|allspace|универсал|familiar", re.I)  # fmt: skip
+_OTHER_BODY = re.compile(r"[35][-\s]?puertas|[35][-\s]?doors?|[35][-\s]?t[üu]rer|hatchback|\b[35]p\b|sedan|berlina|"
+                         r"хэтчбек|седан", re.I)  # fmt: skip
+WAGON_MIN_BOOT_L = 400  # the smallest estates sold in Spain (plug-in hybrids included) have ~430 L seats up
+
+
+def boot_fits_body(value: float | None, body_class: str | None, url: str = "") -> SenseResult:
+    """An estate's boot is not the hatchback's (live chat 757cff3d: km77's Golf R 5-door page gave the Golf R
+    Variant 341 L): a page about another body, or a figure below any estate, is rejected."""
+    if (body_class or "").upper() != "WAGON":
+        return SenseResult(True, value)
+    path = re.sub(r"^https?://[^/]+", "", url or "")
+    if path and _OTHER_BODY.search(path) and not _WAGON_WORDS.search(path):
+        return SenseResult(False, None, "sense.boot.other_body", "the page is about another body style")
+    if value is not None and value < WAGON_MIN_BOOT_L:
+        return SenseResult(False, None, "sense.boot.wagon_minimum", f"{value:g} L is below any estate")
+    return SenseResult(True, value)
+
+
 def price_outliers(values: list[float], factor: float = 1.6) -> set[int]:
     """Indexes of prices far from the others (> factor × or < 1/factor × the median of all); needs ≥ 3 values."""
     if len(values) < 3:
