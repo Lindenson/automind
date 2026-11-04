@@ -19,13 +19,14 @@ State on 2026-11-04:
   - an electrified car missing energy inputs now retries its specs area even when an old run met the minimum;
   - the repair checks pairs with the car's known values.
 - **Open data gap**: the BYD Seal U DM-i charge-sustaining consumption is not published in the sources found
-  (one Czech table row could not be verified), so its energy line honestly reads "cannot be computed". Idea: let
-  the user state it ("в гибридном режиме 5,5 л") like an electricity price.
+  (one Czech table row could not be verified), so without the user's figure its energy line reads "cannot be
+  computed". PR #42: the user can state it ("в гибридном режиме 5,5 л", also fuel l/100 km, kWh/100 km, electric
+  km): `CaseFile.stated_energy`, tied to the named car or the only car it fits, labelled "your figure".
 
 ## Steps
 
 1. `git checkout main && git pull`.
-2. Candidates for the next spec: the user's own consumption figures; security before any external demo
+2. Candidates for the next spec: security before any external demo
    (chat isolation, metrics, WebSocket Origin, daily budget cap); scheduled re-checks of stored data;
    Gemini for extraction measured on the goldens.
 3. After each change:
