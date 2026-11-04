@@ -212,7 +212,7 @@
 - [X] T051 [P] Record the goldens g8–g12 with their cassettes in `backend/tests/golden/` (quickstart G1).
 - [X] T052 Check the FR-022 metrics after the goldens, with an assertion in `backend/tests/golden/test_golden.py`.
 - [X] T053 Update `docs/next-session.md` and the ADR for the energy model (`docs/adr/ADR-028.md`).
-- [ ] T054 Run the live check of the BYD/Ateca incident pair (paid; announce about €0.15–0.30 first, then fix what it shows).
+- [X] T054 Run the live check of the BYD/Ateca incident pair (paid; announce about €0.15–0.30 first, then fix what it shows).
 
 ## Dependencies
 

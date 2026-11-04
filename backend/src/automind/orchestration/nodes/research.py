@@ -233,6 +233,10 @@ async def next_round(state: TurnState) -> dict[str, Any]:
 
 async def after_research(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
     c = ctx(runtime)
+    # research is over: the answer always gets its reserve, even when the jobs used the calls up to the limit
+    # (otherwise the report itself hit the limit and the user got "I stopped" instead of the report; flaky
+    # test_limit_pause found it)
+    c.budget.allow_answer()
     _, case = await load_case(c)
     labels = {x.key: x.label or x.request_text for x in case.cars}
     lang = state.get("language")

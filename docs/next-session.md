@@ -11,20 +11,23 @@ State on 2026-11-04:
   - E: new brands (`makes.yaml: new_in_market`), warranty and network facts, like-for-like period totals;
   - F/T050: electric block, TCO split, explainers, report sentences (share, €/100 km, break-even);
   - G: goldens G8–G12 and the FR-022 metric (`ENERGY_REPORT` intake event).
-- **006 still open**: only the paid live check of BYD Seal U DM-i vs Ateca (T054, about €0.15–0.30). It waits for the owner's yes.
-- **Waits for the owner's yes**: a data repair of 65 stored claims. A dry run with the new rules (scratch script, no writes) found:
-  - 5 BYD 0.9 l/100 km → weighted;
-  - 4 BYD 18.3 kWh → gross;
-  - 4 maximum boot volumes rejected;
-  - 47 older unit rejections now accepted (displacement, ground clearance in cm, small hybrid batteries);
-  - 1 DSG "40,000 miles" rejected.
-
-  Until it runs, the stored BYD has no priced consumption, so its energy line reads "cannot be computed".
+- **Spec 006 is closed** (T054 done 2026-11-04). The data repair ran with the owner's yes (backups
+  `backups/pre-repair-006-20261104-0905.dump` and `pre-repair-006b-20261104-0929.dump`). The live run of the
+  incident pair (≈ €0.16) found and fixed (PRs #37–#40):
+  - Gemini returned no cars, or context for cars added in the same message: a code safety net takes two named cars
+    from the user's words, and such context is folded into the added cars;
+  - an electrified car missing energy inputs now retries its specs area even when an old run met the minimum;
+  - the repair checks pairs with the car's known values.
+- **Open data gap**: the BYD Seal U DM-i charge-sustaining consumption is not published in the sources found
+  (one Czech table row could not be verified), so its energy line honestly reads "cannot be computed". Idea: let
+  the user state it ("в гибридном режиме 5,5 л") like an electricity price.
 
 ## Steps
 
 1. `git checkout main && git pull`.
-2. With the owner's yes: back up the DB, run the repair dry run again, apply it, then run the paid live check (T054) and fix what it shows.
+2. Candidates for the next spec: the user's own consumption figures; security before any external demo
+   (chat isolation, metrics, WebSocket Origin, daily budget cap); scheduled re-checks of stored data;
+   Gemini for extraction measured on the goldens.
 3. After each change:
    - run `scripts/check.sh`;
    - restart dev with `pkill -x automind-api; scripts/dev.sh`;
@@ -36,7 +39,7 @@ State on 2026-11-04:
 - The rescore queue is in memory: an edit waiting during a restart is lost.
 - Candidates (US7) come only from cached line-ups and the catalog. A line-up refresh for the leading makes is paid and needs a cost estimate first.
 - The live re-run of chats 757cff3d and 0d7fd924 is paid: estimate first, then the owner's approval.
-- The flaky `test_limit_pause`; no front component tests.
+- No front component tests. (`test_limit_pause` was a real bug: the report hit the call limit; fixed.)
 - The rest of the security list in the review (chat isolation, metrics, WebSocket Origin, daily budget cap) is required before any external demo.
 
 ## Evidence to reuse

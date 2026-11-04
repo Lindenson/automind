@@ -17,7 +17,10 @@ uv run ruff check src tests
 uv run ruff format --check src tests
 uv run mypy src/automind/domain
 uv run lint-imports
-uv run pytest -q "$@"
+# the frontend is checked even when a backend test fails, so one failure never hides another
+rc=0
+uv run pytest -q "$@" || rc=$?
 if [ -d ../frontend/node_modules ]; then
-  (cd ../frontend && npm run -s typecheck && npm test --silent)
+  (cd ../frontend && npm run -s typecheck && npm test --silent) || rc=$?
 fi
+exit "$rc"
