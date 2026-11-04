@@ -50,6 +50,17 @@ class Expect(BaseModel):
     language: str | None = None
     block_order_starts_with: list[str] = Field(default_factory=list)
     researched: list[str] | None = None  # exactly these car keys had research jobs this turn
+    # spec 006: electrified cars (car keys as in `variants`)
+    energy_for: list[str] = Field(default_factory=list)  # the TCO energy line has an amount for these cars
+    energy_missing_for: list[str] = Field(default_factory=list)  # "cannot be computed" for these cars
+    no_weighted_priced: bool = False  # no energy part uses a weighted plug-in figure
+    labels: dict[str, str] = Field(default_factory=dict)  # car -> DGT label in the verdict
+    break_even: str | None = None  # YEARS | NEVER | ALREADY_CHEAPER | CHEAPER_TO_BUY | UNKNOWN
+    electric_cars: list[str] | None = None  # exactly these cars are rows of the electric section
+    electric_share_for: list[str] = Field(default_factory=list)  # a plug-in with a computed electric share
+    retention_insufficient: list[str] = Field(default_factory=list)  # "insufficient data for this brand"
+    notes_contain: list[str] = Field(default_factory=list)  # substrings of the verdict's profile notes
+    energy_metrics: dict[str, Any] = Field(default_factory=dict)  # FR-022: fields of this turn's ENERGY_REPORT
 
 
 class Turn(BaseModel):
@@ -83,5 +94,8 @@ class Dialogue(BaseModel):
     scenario: str | None = None
     description: str = ""
     seed: list[SeedVariant] = Field(default_factory=list)
+    # spec 006: the market facts (incentives) this dialogue starts with; the table is reset for every dialogue
+    market_facts: list[dict[str, Any]] = Field(default_factory=list)
+    forget: list[str] = Field(default_factory=list)  # makes whose catalog rows from other tests are hidden first
     settings: dict[str, Any] = Field(default_factory=dict)  # overrides of automind.config settings for this dialogue
     turns: list[Turn]

@@ -1,0 +1,23 @@
+{
+  "interpreter": [
+    {
+      "request": "compare",
+      "language": "en",
+      "delta": {
+        "set_annual_km": 10000,
+        "add_cars": [
+          {
+            "request_text": "used 2019 Nissan Leaf 40 kWh",
+            "make": "Nissan",
+            "model": "Leaf",
+            "condition": "USED",
+            "year": 2019,
+            "constraints": {
+              "trim_hint": "40 kWh"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}

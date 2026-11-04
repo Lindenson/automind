@@ -104,8 +104,8 @@
 
   An unmet minimum plans a deeper round (FR-009). Extend `backend/tests/unit/domain/test_research_plan.py`.
 - [X] T016 [US1] Add the fallback for FR-001 to `backend/src/automind/orchestration/nodes/compute.py`: when a car's energy item has `missing`, a notice names it, using the new phrase `energy_missing` in en/ru/es in `backend/src/automind/orchestration/phrases.py`.
-- [ ] T017 [P] [US1] Write `backend/tests/graph/test_ev_research.py`: a PHEV with only a weighted figure in the cassette gets a deeper specs job with the CS query, then a TCO "cannot be computed" and a notice.
-- [ ] T018 [US2] Add metrics to `backend/src/automind/orchestration/nodes/common.py`: a helper that records `ev_rejected` and `weighted_blocked` in intake_events from the sense hook, and `energy_missing` from compute.
+- [X] T017 [P] [US1] Write `backend/tests/graph/test_ev_research.py`: a PHEV with only a weighted figure in the cassette gets a deeper specs job with the CS query, then a TCO "cannot be computed" and a notice.
+- [X] T018 [US2] Add metrics to `backend/src/automind/orchestration/nodes/common.py`: a helper that records `ev_rejected` and `weighted_blocked` in intake_events from the sense hook, and `energy_missing` from compute.
 
 **Checkpoint**: increment A is done. Run `scripts/check.sh`, restart dev, deploy, and open the PR.
 
@@ -209,9 +209,9 @@
 
 ## Phase 9: Polish and goldens (increment G)
 
-- [ ] T051 [P] Record the goldens g8–g12 with their cassettes in `backend/tests/golden/` (quickstart G1).
-- [ ] T052 Check the FR-022 metrics after the goldens, with an assertion in `backend/tests/golden/test_golden.py`.
-- [ ] T053 Update `docs/next-session.md` and the ADR for the energy model (`docs/adr/ADR-028-energy-model.md`).
+- [X] T051 [P] Record the goldens g8–g12 with their cassettes in `backend/tests/golden/` (quickstart G1).
+- [X] T052 Check the FR-022 metrics after the goldens, with an assertion in `backend/tests/golden/test_golden.py`.
+- [X] T053 Update `docs/next-session.md` and the ADR for the energy model (`docs/adr/ADR-028.md`).
 - [ ] T054 Run the live check of the BYD/Ateca incident pair (paid; announce about €0.15–0.30 first, then fix what it shows).
 
 ## Dependencies

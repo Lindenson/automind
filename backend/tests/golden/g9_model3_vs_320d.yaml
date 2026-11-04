@@ -1,0 +1,30 @@
+id: g9_model3_vs_320d
+description: >
+  Tesla Model 3 (BEV) vs BMW 320d (diesel): both energy lines on one scale (€/100 km), labels ZERO vs C,
+  the electric section has only the Tesla, the BMW appears with its cost per 100 km.
+scenario: empty
+forget: [Tesla, BMW]
+market_facts:
+  - key: label.zero.benefits
+    value: {label: "Etiqueta CERO: aparcamiento regulado", scope: municipal, url: "https://www.dgt.es/x",
+            text: "los vehículos CERO aparcan gratis en zonas reguladas"}
+    valid_from: "2020-01-01"
+seed:
+  - {make: Tesla, model: Model 3, generation: Highland, variant_name: RWD, powertrain: BEV, body_class: SEDAN,
+     years: [2024, null], vehicle_class: premium_compact, segment: D, cached: true,
+     specs: {max_power: 208, curb_mass: 1765, max_torque: 420, drivetrain: RWD, official_price_es: 39990,
+             battery_kwh: 57.5, range_wltp: 513, consumption: 13.2, charge_ac_kw: 11, charge_dc_peak_kw: 170}}
+  - {make: BMW, model: 3 Series, generation: G20 LCI, variant_name: 320d, powertrain: MHEV, body_class: SEDAN,
+     years: [2022, null], vehicle_class: premium_compact, segment: D, cached: true,
+     specs: {max_power: 140, curb_mass: 1590, max_torque: 400, drivetrain: RWD, official_price_es: 49900,
+             consumption: 4.9, engine: 2.0 diesel}}
+turns:
+  - user: "Tesla Model 3 RWD or BMW 320d? 20,000 km a year, I can charge at home."
+    expect:
+      action: REPORT
+      no_search: true
+      variants: [{car: "car#1", make: Tesla}, {car: "car#2", make: BMW}]
+      energy_for: ["car#1", "car#2"]
+      labels: {"car#1": ZERO}
+      electric_cars: ["car#1"]
+      notes_contain: ["per 100 km charging at home"]

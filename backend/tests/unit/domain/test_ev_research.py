@@ -27,3 +27,17 @@ def test_energy_inputs_missing():
     assert research_plan.energy_inputs_missing("PHEV", {"consumption_cs", "consumption_ev", "range_real"}) == []
     assert research_plan.energy_inputs_missing("BEV", set()) == ["consumption"]
     assert research_plan.energy_inputs_missing("ICE", set()) == []
+
+
+def test_fr022_energy_metrics_are_summed_per_report():
+    from automind.domain.metrics import intake_summary
+
+    events = [
+        ("c1", "ENERGY_REPORT", {"energy_missing": {"a": ["consumption_cs"]}, "weighted_blocked": 5,
+                                 "ev_rejected": {"sense.ev.power_for_energy": 2}}),
+        ("c2", "ENERGY_REPORT", {"energy_missing": {}, "weighted_blocked": 1,
+                                 "ev_rejected": {"sense.ev.power_for_energy": 1, "sense.ev.dc_window": 1}}),
+    ]  # fmt: skip
+    e = intake_summary(events)["energy"]
+    assert e == {"reports": 2, "cars_without_energy": 1, "weighted_blocked": 6,
+                 "ev_rejected": {"sense.ev.power_for_energy": 3, "sense.ev.dc_window": 1}}  # fmt: skip

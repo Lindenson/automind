@@ -1,0 +1,33 @@
+id: g11_rav4_vs_sportage_phev
+description: >
+  Toyota RAV4 hybrid (HEV) vs Kia Sportage plug-in: the HEV has no electric share and is not a row of the
+  electric section; the plug-in's cost splits into electricity and petrol; labels ECO vs ZERO.
+scenario: empty
+forget: [Toyota, Kia]
+market_facts:
+  - key: label.zero.benefits
+    value: {label: "Etiqueta CERO: aparcamiento regulado", scope: municipal, url: "https://www.dgt.es/x",
+            text: "los vehículos CERO aparcan gratis en zonas reguladas"}
+    valid_from: "2020-01-01"
+seed:
+  - {make: Toyota, model: RAV4, generation: XA60, variant_name: 2.5 Hybrid 2WD, powertrain: HEV, body_class: SUV,
+     years: [2026, null], vehicle_class: compact, segment: C-SUV, cached: true,
+     specs: {max_power: 160, curb_mass: 1660, max_torque: 221, drivetrain: FWD, official_price_es: 36900,
+             consumption: 5.6, engine: 2.5 petrol hybrid}}
+  - {make: Kia, model: Sportage, generation: NQ5, variant_name: 1.6 T-GDi PHEV 4x4, powertrain: PHEV, body_class: SUV,
+     years: [2022, null], vehicle_class: compact, segment: C-SUV, cached: true,
+     specs: {max_power: 195, curb_mass: 1910, max_torque: 350, drivetrain: AWD, official_price_es: 42500,
+             battery_kwh: 13.8, range_wltp: 70, consumption_weighted: 1.1, consumption_cs: 6.5,
+             consumption_ev: 17.5, charge_ac_kw: 7.2}}
+turns:
+  - user: "Toyota RAV4 hybrid or Kia Sportage plug-in hybrid? 15,000 km a year, 40 km a day, I have a garage."
+    expect:
+      action: REPORT
+      no_search: true
+      variants: [{car: "car#1", make: Toyota}, {car: "car#2", make: Kia}]
+      energy_for: ["car#1", "car#2"]
+      no_weighted_priced: true
+      labels: {"car#1": ECO, "car#2": ZERO}
+      electric_cars: ["car#2"]
+      electric_share_for: ["car#2"]
+      energy_metrics: {weighted_blocked: {gte: 1}}  # FR-022

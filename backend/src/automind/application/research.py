@@ -1209,6 +1209,24 @@ async def last_done(variant_ids: list[str]) -> dict[str, dict[str, Any]]:
     return out
 
 
+async def ev_counts(variant_ids: list[str]) -> dict[str, Any]:
+    """FR-022 (spec 006): EV values rejected per rule, and weighted plug-in figures kept out of the energy cost."""
+    async with db.sessionmaker()() as s:
+        rules = await s.execute(
+            select(db.Claim.reject_rule, func.count())
+            .where(db.Claim.variant_id.in_(variant_ids),
+                   db.Claim.reject_rule.like("sense.ev.%") | db.Claim.reject_rule.like("sense.phev.unclear%"))
+            .group_by(db.Claim.reject_rule)
+        )  # fmt: skip
+        wq = select(func.count()).where(db.Claim.variant_id.in_(variant_ids),
+                                        db.Claim.attribute == "consumption_weighted")  # fmt: skip
+        vq = select(func.count()).where(db.SpecValue.variant_id.in_(variant_ids), db.SpecValue.available.is_(True),
+                                        db.SpecValue.attribute == "consumption_weighted")  # fmt: skip
+        # a selected weighted value counts once per car even when its claims are gone (seeded or repaired data)
+        weighted = max((await s.execute(wq)).scalar() or 0, (await s.execute(vq)).scalar() or 0)
+    return {"ev_rejected": {str(r): int(n) for r, n in rules.all()}, "weighted_blocked": int(weighted or 0)}
+
+
 async def powertrains(variant_ids: list[str]) -> dict[str, str | None]:
     async with db.sessionmaker()() as s:
         rows = await s.execute(select(db.Variant.id, db.Variant.powertrain).where(db.Variant.id.in_(variant_ids)))

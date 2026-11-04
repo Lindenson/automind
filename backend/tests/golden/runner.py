@@ -102,6 +102,7 @@ class TurnObservation:
     search_calls: int
     researched: list[str] = field(default_factory=list)
     events: list[dict[str, Any]] = field(default_factory=list)
+    energy_report: dict[str, Any] | None = None  # spec 006 FR-022: the intake event of this turn
 
 
 def check_turn(obs: TurnObservation, exp: Expect) -> list[str]:
@@ -148,6 +149,13 @@ def check_turn(obs: TurnObservation, exp: Expect) -> list[str]:
         errs.append(f"language {r.state.get('language')!r} != {exp.language!r}")
     if exp.researched is not None and sorted(obs.researched) != sorted(exp.researched):
         errs.append(f"researched {sorted(obs.researched)} != {sorted(exp.researched)}")
+    errs += check_electrified(obs, exp)
+    for path, val in exp.energy_metrics.items():
+        if obs.energy_report is None:
+            errs.append("no ENERGY_REPORT metric recorded")
+            break
+        if (e := check_value(get_path(obs.energy_report, path), val)) is not None:
+            errs.append(f"energy metric {path}: {e}")
     if exp.block_order_starts_with:
         types = [b.get("type") for b in r.blocks if b.get("type") != "notice"]
         if types[: len(exp.block_order_starts_with)] != exp.block_order_starts_with:
@@ -155,16 +163,90 @@ def check_turn(obs: TurnObservation, exp: Expect) -> list[str]:
     return errs
 
 
+def _block(r: TurnResult, kind: str) -> dict[str, Any]:
+    return next((b for b in r.blocks if b.get("type") == kind), {})
+
+
+def check_electrified(obs: TurnObservation, exp: Expect) -> list[str]:  # noqa: C901 - one check per field
+    """Spec 006 expectations on the report blocks."""
+    errs: list[str] = []
+    ids = {k: v.get("id") for k, v in obs.variants.items()}
+    tco = {c["car_id"]: c for c in _block(obs.result, "tco").get("cars", [])}
+
+    def energy(car: str) -> dict[str, Any]:
+        items = (tco.get(ids.get(car) or "") or {}).get("items", [])
+        return next((i for i in items if i.get("kind") == "ENERGY"), {})
+
+    for car in exp.energy_for:
+        if energy(car).get("annual_eur") is None:
+            errs.append(f"{car}: no energy amount ({energy(car).get('label')!r})")
+    for car in exp.energy_missing_for:
+        if energy(car).get("annual_eur") is not None or not energy(car).get("missing"):
+            errs.append(f"{car}: energy computed although inputs are missing")
+    if exp.no_weighted_priced:
+        for c in tco.values():
+            for i in c.get("items", []):
+                if i.get("kind") == "ENERGY" and any("weighted" in str(p) for p in i.get("parts", [])):
+                    errs.append(f"{c['label']}: a weighted figure is priced")
+    verdict = _block(obs.result, "verdict")
+    for car, label in exp.labels.items():
+        got = (verdict.get("labels") or {}).get(ids.get(car) or "", {}).get("label")
+        if got != label:
+            errs.append(f"{car}: label {got!r} != {label!r}")
+    if exp.break_even is not None:
+        got = (verdict.get("break_even") or {}).get("verdict")
+        if got != exp.break_even:
+            errs.append(f"break-even {got!r} != {exp.break_even!r}")
+    for text in exp.notes_contain:
+        if not any(text in n for n in verdict.get("profile_notes", [])):
+            errs.append(f"no profile note with {text!r}: {verdict.get('profile_notes')}")
+    el = _block(obs.result, "electric")
+    rows = {c["car_id"]: c for c in el.get("cars", [])}
+    if exp.electric_cars is not None and sorted(rows) != sorted(ids.get(c) or c for c in exp.electric_cars):
+        errs.append(f"electric section cars {sorted(c['label'] for c in rows.values())} != {exp.electric_cars}")
+    for car in exp.electric_share_for:
+        share = ((rows.get(ids.get(car) or "") or {}).get("values") or {}).get("electric_share", {}).get("share")
+        if share is None:
+            errs.append(f"{car}: no electric share")
+    ret = {c["car_id"]: c for c in _block(obs.result, "value_retention").get("cars", [])}
+    for car in exp.retention_insufficient:
+        if not (ret.get(ids.get(car) or "") or {}).get("insufficient"):
+            errs.append(f"{car}: resale value not marked insufficient")
+    return errs
+
+
 # --- seeding and observation ------------------------------------------------------------------
 
 
 async def seed(d: Dialogue) -> None:
+    from datetime import date, datetime
+
     from automind.domain.identity import Aliases, canonical_key
     from automind.infrastructure.config import aliases
 
     al = Aliases.from_config(aliases())
+    if d.forget:
+        from tests.graph.conftest import forget_make
+
+        for make in d.forget:
+            await forget_make(make)
 
     async with sessionmaker()() as s:
+        # spec 006: market facts are global; every dialogue starts from its own (fresh as of the fixed clock)
+        await s.execute(delete(m.MarketFact))
+        await s.execute(delete(m.ResearchRun).where(m.ResearchRun.area == "incentives"))
+        for f in d.market_facts:
+            s.add(
+                m.MarketFact(
+                    market="ES",
+                    key=f["key"],
+                    value=f["value"],
+                    evidence_ids=["golden"],
+                    valid_from=date.fromisoformat(f["valid_from"]) if f.get("valid_from") else None,
+                    valid_to=date.fromisoformat(f["valid_to"]) if f.get("valid_to") else None,
+                    fetched_at=datetime.fromisoformat(f.get("fetched_at", "2026-10-25T00:00:00+00:00")),
+                )
+            )
         for v in d.seed:
             key = canonical_key(v.make, v.model, v.generation, v.variant_name, v.powertrain, al)
             existing = (await s.execute(select(m.Variant).where(m.Variant.canonical_key == key))).scalar_one_or_none()
@@ -221,6 +303,7 @@ async def variants_of(case: dict[str, Any]) -> dict[str, dict[str, Any]]:
                 v = await s.get(m.Variant, vid)
                 if v is not None:
                     out[car["key"]] = {
+                        "id": v.id,
                         "make": v.make,
                         "model": v.model,
                         "generation": v.generation,
@@ -229,6 +312,13 @@ async def variants_of(case: dict[str, Any]) -> dict[str, dict[str, Any]]:
                         "label": v.label,
                     }
     return out
+
+
+async def energy_report(turn_id: str) -> dict[str, Any] | None:
+    async with sessionmaker()() as s:
+        q = select(m.IntakeEvent.details).where(m.IntakeEvent.turn_id == turn_id, m.IntakeEvent.kind == "ENERGY_REPORT")
+        row = (await s.execute(q)).first()
+    return dict(row[0]) if row else None
 
 
 async def researched_cars(turn_id: str, case: dict[str, Any]) -> list[str]:
@@ -294,6 +384,9 @@ async def run_dialogue(path: Path, saver: Any, *, live: bool = False, record: bo
     d = load(path)
     await seed(d)
     chat_id = str(uuid.uuid4())
+    async with sessionmaker()() as s:  # as the API does: per-chat metrics (intake events) need the chat row
+        s.add(m.Chat(id=chat_id, title=d.id[:60]))
+        await s.commit()
     if live:
         from automind.infrastructure.adapters import LiveLLM, live_pages, live_search
         from automind.infrastructure.llm_gateway import new_budget
@@ -361,6 +454,7 @@ async def _run_turns(d, runner, chat_id, live, record, failures, llm, ports):  #
             await variants_of(case or {}),
             searches,
             await researched_cars(result.turn_id, case or {}),
+            energy_report=await energy_report(result.turn_id),
         )
         if os.environ.get("GOLDEN_VERBOSE"):
             async with sessionmaker()() as ss:

@@ -49,3 +49,12 @@ def test_bev_has_no_share_sentence():
     bev = {"cars": [{**BLOCK["cars"][0], "powertrain": "BEV"}]}
     lines = electric_lines(bev, None, NAMES, "en")
     assert len(lines) == 1 and "per 100 km" in lines[0]
+
+
+def test_an_active_subsidy_is_named():
+    b = {**be("ALREADY_CHEAPER"), "subsidy_eur": 4500}
+    assert electric_lines(None, b, NAMES, "en", years_said=True) == [
+        "With the active subsidy (€4,500), the BYD Seal U is cheaper than the SEAT Ateca both to buy and to run"
+    ]
+    ru = electric_lines(None, b, NAMES, "ru")[0]
+    assert ru.startswith("С действующей субсидией (4.500 €) BYD Seal U дешевле SEAT Ateca")

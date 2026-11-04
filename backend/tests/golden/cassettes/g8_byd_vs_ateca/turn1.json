@@ -1,0 +1,52 @@
+{
+  "interpreter": [
+    {
+      "request": "compare",
+      "language": "en",
+      "delta": {
+        "set_persona": {
+          "persona": "BUYER",
+          "source": "INFERRED"
+        },
+        "set_profile": {
+          "family": "FAMILY",
+          "region": "Seville"
+        },
+        "set_annual_km": 18000,
+        "add_priorities": [
+          {
+            "criterion": "ownership_cost",
+            "strength": "HIGH"
+          }
+        ],
+        "add_cars": [
+          {
+            "request_text": "BYD Seal U DM-i",
+            "make": "BYD",
+            "model": "Seal U",
+            "condition": "NEW",
+            "constraints": {
+              "trim_hint": "DM-i"
+            }
+          },
+          {
+            "request_text": "SEAT Ateca 1.5 TSI DSG",
+            "make": "SEAT",
+            "model": "Ateca",
+            "condition": "NEW",
+            "constraints": {
+              "trim_hint": "1.5 TSI DSG"
+            }
+          }
+        ]
+      },
+      "persona_evidence": "We are a family",
+      "evidence": {
+        "region": "Seville"
+      }
+    }
+  ],
+  "reporter": [
+    "**For a family in Seville driving 18,000 km a year, the plug-in BYD costs less to run if you can charge at home.** The Ateca is cheaper to buy."
+  ]
+}

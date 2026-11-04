@@ -131,7 +131,8 @@ async def interpret(
 def engine_hints(i: Interpretation, user_text: str) -> Interpretation:
     """The engine is identity, not a trim (spec 005 R4, FR-012). Deterministic post-step:
     - an engine written in trim_hint ("1.5", "1.5 TSI 150 CV") moves to engine_hint;
-    - the parser fills fields the model left empty; on a conflict the parser's value wins (the user's words);
+    - the parser fills fields the model left empty; on a conflict the parser's value wins (the user's words); with
+      several cars the parser reads each car's own words (its request_text), not the whole message;
     - when exactly one car is touched and the model gave no engine, the engine in the message goes to that car."""
     refs = [*i.delta.add_cars, *(x for x in i.delta.replace_cars), *(x for x in i.delta.set_car_context)]
     words = parse_engine(user_text)
@@ -143,8 +144,11 @@ def engine_hints(i: Interpretation, user_text: str) -> Interpretation:
             k.engine_hint = _merge_engine(k.engine_hint, e)
             if not _ENGINE_WORDS.sub(" ", k.trim_hint).strip(" ,.-"):
                 k.trim_hint = None  # nothing but the engine: it was never a trim
-        if k.engine_hint is not None and words is not None:
-            k.engine_hint = _merge_engine(k.engine_hint, words)
+        # several cars in one message: each car's own words, never the whole message ("BYD Seal U DM-i or SEAT
+        # Ateca 1.5 TSI" gave the Ateca a "DM-i" engine and sent it to the resolver; golden g8)
+        own = words if len(refs) == 1 else parse_engine(getattr(r, "request_text", None) or "")
+        if k.engine_hint is not None and own is not None:
+            k.engine_hint = _merge_engine(k.engine_hint, own)
     touched = [r for r in refs if r.constraints is None or r.constraints.engine_hint is None]
     if words is not None and len(refs) == 1 and touched:
         r = touched[0]

@@ -52,6 +52,8 @@ class CarFacts:
     mass_kg: Fact | None = None
     battery_kwh: Fact | None = None
     consumption: Fact | None = None  # kWh/100 km for BEV
+    powertrain: str | None = None  # spec 006: only a BEV's range limits the daily distance
+    range_wltp: Fact | None = None  # km, BEV
     used_ranges: Sequence[UsedRange] = ()
 
 
@@ -279,18 +281,27 @@ def _power(n: Needs, car: CarFacts, rules: Mapping[str, Any]) -> CheckResult | N
                            f"{x.label} {x.value:g} {x.unit}" for x in out[::2]), out)  # fmt: skip
 
 
+REAL_RANGE_FACTOR = 1.2  # WLTP → real-world (spec 006 research R6; assumption)
+
+
 def _range(n: Needs, car: CarFacts, rules: Mapping[str, Any]) -> CheckResult | None:
-    if not n.daily_km or car.battery_kwh is None:
+    """A BEV's range against the daily distance. A plug-in or hybrid continues on fuel: no range limit."""
+    if not n.daily_km or (car.powertrain is not None and car.powertrain.upper() != "BEV"):
         return None
-    if car.consumption is None:
+    if car.consumption is not None and car.battery_kwh is not None:
+        rng, how = car.battery_kwh.value / car.consumption.value * 100, "battery ÷ consumption"
+    elif car.range_wltp is not None:
+        rng, how = car.range_wltp.value / REAL_RANGE_FACTOR, f"WLTP range ÷ {REAL_RANGE_FACTOR:g}"
+    elif car.battery_kwh is None:
+        return None
+    else:
         return CheckResult("USAGE_RANGE", "UNKNOWN", "Consumption is not known.", missing=["consumption"])
-    rng = car.battery_kwh.value / car.consumption.value * 100
     margin = float((rules.get("usage") or {}).get("bev_range_margin", 1.6))
     need = n.daily_km * margin
     fits = rng >= need
     return CheckResult("USAGE_RANGE", "FITS" if fits else "DOES_NOT_FIT",
                        f"Range about {rng:.0f} km; {n.daily_km} km a day needs about {need:.0f} km with a margin.",
-                       [Num("estimated range", round(rng), "km", "ASSUMPTION", (), ("battery ÷ consumption",)),
+                       [Num("estimated range", round(rng), "km", "ASSUMPTION", (), (how,)),
                         Num("needed with a margin", round(need), "km", "ASSUMPTION")])  # fmt: skip
 
 

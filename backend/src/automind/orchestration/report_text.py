@@ -431,6 +431,11 @@ _E: dict[str, dict[str, str]] = {
         "ru": "{e} окупает разницу в цене с {c} примерно за {years} лет за счёт расходов",
         "es": "El {e} amortiza su mayor precio frente al {c} en unos {years} años de uso",
     },
+    "with_subsidy": {
+        "en": "With the active subsidy (€{eur}), ",
+        "ru": "С действующей субсидией ({eur} €) ",
+        "es": "Con la ayuda vigente ({eur} €), ",
+    },
     "beyond": {
         "en": " — longer than the {own} years you plan to keep it",
         "ru": " — дольше, чем вы планируете владеть ({own} лет)",
@@ -483,11 +488,16 @@ def electric_lines(block: Mapping[str, Any] | None, break_even: Mapping[str, Any
             out.append(_e("cost_one", lang, car=name, eur=_money(cost["used_eur"], lang)))
     b = break_even or {}
     verdict = b.get("verdict")
-    if verdict in ("YEARS", "NEVER", "ALREADY_CHEAPER", "CHEAPER_TO_BUY") and not (verdict == "YEARS" and years_said):
+    if verdict in ("YEARS", "NEVER", "ALREADY_CHEAPER", "CHEAPER_TO_BUY") and not (
+        verdict == "YEARS" and years_said and not b.get("subsidy_eur")
+    ):
         e = names.get(b["electrified_car_id"], b.get("electrified_label", ""))
         c = names.get(b["against_car_id"], b.get("against_label", ""))
         line = _e(verdict, lang, e=e, c=c, years=_num(b.get("years") or 0, lang))
         if verdict == "YEARS" and b.get("beyond_ownership") and b.get("ownership_years"):
             line += _e("beyond", lang, own=b["ownership_years"])
+        if b.get("subsidy_eur"):  # the price trade-off above is without subsidies: say what this one counts
+            first = line if (lang or "en")[:2] == "ru" else line[0].lower() + line[1:]
+            line = _e("with_subsidy", lang, eur=_thousands(b["subsidy_eur"], lang)) + first
         out.append(line)
     return out

@@ -1,0 +1,35 @@
+{
+  "interpreter": [
+    {
+      "request": "compare",
+      "language": "en",
+      "delta": {
+        "set_annual_km": 20000,
+        "add_cars": [
+          {
+            "request_text": "Tesla Model 3 RWD",
+            "make": "Tesla",
+            "model": "Model 3",
+            "condition": "NEW",
+            "constraints": {
+              "trim_hint": "RWD"
+            }
+          },
+          {
+            "request_text": "BMW 320d",
+            "make": "BMW",
+            "model": "3 Series",
+            "condition": "NEW",
+            "constraints": {
+              "trim_hint": "320d",
+              "fuel_hint": "diesel"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "reporter": [
+    "**The Model 3 is cheaper to run if you charge at home; the 320d costs more to buy.**"
+  ]
+}
