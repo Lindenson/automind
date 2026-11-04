@@ -21,8 +21,13 @@ async def test_octavia_diesel_power_asked_then_choose_for_me_settles(saver):
     llm = FakeLLM()
     llm.responders["asker"] = lambda s, u: "Понял: новая Skoda Octavia."
     llm.responders["reporter"] = lambda s, u: "Отчёт."
-    car = {"request_text": "новая Skoda Octavia 2.0 дизель", "make": "Skoda", "model": "Octavia", "condition": "NEW",
-           "constraints": {"engine_hint": {"displacement_l": 2.0, "fuel": "diesel", "evidence": "2.0 дизель"}}}
+    car = {
+        "request_text": "новая Skoda Octavia 2.0 дизель",
+        "make": "Skoda",
+        "model": "Octavia",
+        "condition": "NEW",
+        "constraints": {"engine_hint": {"displacement_l": 2.0, "fuel": "diesel", "evidence": "2.0 дизель"}},
+    }
     llm.queue("interpreter", _ru({"add_cars": [car]}), _ru({}))
     ports = make_ports(llm=llm, search=FixtureSearch("empty"))
     ports.versions = Store()  # type: ignore[assignment]

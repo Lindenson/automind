@@ -8,13 +8,17 @@ Rules:
 - generation: the generation code the documents use for the years asked (e.g. "B9", "Mk4", "NX"), with its first
   and last production years (null if still made). If the user's year is given, the generation is the one built in
   that year.
+- Combine ALL documents: list every version of this generation found in any of them (a document about one
+  version adds that version; a range page adds all of its versions).
 - One entry per engine and power ("2.0 TDI 116 CV" and "2.0 TDI 150 CV" are two entries). engine: the engine as the
   document writes it, with the power in CV ("2.0 TDI 150 CV"), without gearbox or equipment names.
 - fuel: petrol | diesel | hybrid (full hybrid) | mhev (mild hybrid) | phev | bev | lpg. displacement_l, power_cv,
   power_kw: as written (one of the two powers is enough).
 - gearboxes: every gearbox the documents give for this engine: manual | automatic | dct (DSG, S tronic, EDC, DCT)
   | cvt | e-cvt | single (electric). drives: FWD | RWD | AWD (4Motion, quattro, xDrive, 4x4) as written.
-- years_from / years_to: the years this engine was sold, when the documents say.
+- years_from / years_to: the years this engine was sold, when the documents say. A document that covers only a
+  part of the generation (e.g. "Período de producción: de 2015 a 2018", a pre-facelift page) gives its versions
+  those years; never leave years_to empty for a version that the document shows ended.
 - Order: the most common / base version first.
 - excerpt: the exact words of the document (≤ 200 characters) that give the engine and its power.
 - source_url: the url of the document the entry comes from.

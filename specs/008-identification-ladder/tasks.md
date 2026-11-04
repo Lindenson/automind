@@ -154,8 +154,8 @@ Paths are relative to `backend/` unless they start with `specs/` or `scripts/`.
 - [X] T031b Make the graph and golden tests pass. Fake ports leave `versions=None` (fallback), so the goldens keep their dialogues. Fix the regressions from the new items and kinds.
 - [X] T032 Run `scripts/check.sh` (ruff, mypy, lint-imports, all tests, frontend) until it is green.
 - [X] T033 Update `docs/next-session.md` and memory; add ADR-030 "Identification ladder over sourced version lists" in `docs/adr/`.
-- [ ] T034 Merge to main; restart dev (`pkill -x automind-api; scripts/dev.sh`); `scripts/deploy.sh up`; migration 0013 applied.
-- [ ] T035 Live check (announced, about €0.05): quickstart steps 2–3.
+- [X] T034 Merge to main; restart dev (`pkill -x automind-api; scripts/dev.sh`); `scripts/deploy.sh up`; migration 0013 applied.
+- [X] T035 Live check (announced, about €0.05): quickstart steps 2–3.
 
 ## Dependencies
 
