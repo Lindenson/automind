@@ -129,23 +129,41 @@ def _year_first(ports: Ports, case: CaseFile, car: CaseCar, now: int) -> Identif
     return None
 
 
+def _catalog_version(c: dict[str, Any]) -> ladder.Version:
+    """A catalog row as a ladder version (unsourced: the fallback, FR-020)."""
+    return ladder.Version(engine=str(c.get("variant_name") or c.get("label") or ""), fuel=c.get("fuel"),
+                          engine_cc=c.get("engine_cc"), power_kw=c.get("power_kw"),
+                          gearboxes=(c["transmission"],) if c.get("transmission") else (),
+                          drives=(c["drive"],) if c.get("drive") else (),
+                          years_from=c.get("generation_years_from"), years_to=c.get("generation_years_to"))  # fmt: skip
+
+
 async def _fallback(ports: Ports, case: CaseFile, car: CaseCar, current_year: int, lineup: Any) -> IdentifyOutcome:
-    """No sourced list of versions: the catalog, then the resolver; the identity is marked less certain (FR-020)."""
+    """No sourced list of versions (FR-020): the catalog rows of the model follow the same levels — where they
+    differ at a level the user did not state, it is asked; a row is never taken by being first. The identity is
+    marked less certain. Without catalog rows the resolver identifies."""
     memo = car.ladder or LadderMemo()
-    memo.certainty = "LESS_CERTAIN"  # no sourced list of versions: the fallback (FR-020)
+    memo.certainty, memo.source_url, memo.others = "LESS_CERTAIN", None, []
     car.ladder = memo
+    events = _reconcile(ports, car)
     a = await resolve.assess_car(car, ports.ref, current_year, case.compare_level)
     if a.candidates:
-        choices = [
-            Choice(label=c["label"], make=c["make"], model=c["model"], variant_id=c["id"]) for c in a.candidates[:4]
-        ]
-        # without a sourced list the catalog row is taken as before, with its uncertainty said (FR-020); the live
-        # path is the ladder, which never settles a level from one catalog row (FR-002)
-        if not resolve.auto_resolve(car, a):
-            best = a.candidates[0]
-            car.variant_id, car.label, car.resolution = best["id"], best["label"], _proposed(car)
-        return _done(car, IdentifyOutcome(outcome="IDENTIFIED", choices=choices,
-                                          events=[{"kind": "identity_less_certain"}]))  # fmt: skip
+        # the user's words already pick one row (the ranker): that row; rows the words do not tell apart
+        # ("2.0 diesel" with 115 and 150 CV rows) are asked level by level, never taken by being first
+        rows = a.candidates if a.state.ambiguous else a.candidates[:1]
+        pool = [_catalog_version(c) for c in rows]
+        d = _decide(ports, case, car, pool, memo, events)
+        events.append({"kind": "identity_less_certain"})
+        if not d.done or d.step.version is None:
+            return _asked(car, d, events)
+        row = rows[pool.index(d.step.version)]
+        fresh = car.resolution not in ("CONFIRMED", "AUTO_OK", "PROPOSED")
+        car.variant_id, car.label = row["id"], row["label"]
+        car.resolution = "AUTO_OK" if fresh and car.condition != "USED" and len(pool) == 1 else _proposed(car)
+        memo.others = [c["label"] for c in a.candidates if c["id"] != row["id"]][:4]
+        choices = [Choice(label=c["label"], make=c["make"], model=c["model"], variant_id=c["id"])
+                   for c in a.candidates[:4]]  # fmt: skip
+        return _done(car, IdentifyOutcome(outcome="IDENTIFIED", choices=choices, missing=d.missing, events=events))
     o = await _resolve_open(ports, case, car, current_year, lineup)
     if o.outcome == "IDENTIFIED":
         o.events.append({"kind": "identity_less_certain"})
@@ -407,6 +425,31 @@ def _choice(car: CaseCar, o: ladder.Option) -> Choice:
                   drive=o.drive)  # fmt: skip
 
 
+def _decide(ports: Ports, case: CaseFile, car: CaseCar, pool: list[ladder.Version], memo: LadderMemo,
+            events: list[dict[str, str]]) -> ladder.Decision:  # fmt: skip
+    """One ladder step over `pool`; the levels the hub settled are written with their origin."""
+    cfg = _intake_cfg(ports)
+    asks = {i: case.intake.attempt(car.key, i) for i in ladder.ITEMS}
+    before = _wanted(car)
+    d = ladder.decide(pool, before, asks, limit=int(cfg.get("max_attempts_per_item", 2)), chosen=car.chosen_for_me)
+    if d.auto:
+        old = _levels(car, before)
+        _write(car, d.wanted)
+        for lvl, val in _levels(car, d.wanted).items():
+            if old.get(lvl) != val:
+                memo.origin[lvl] = d.auto[0].origin
+        events += [{"kind": "settled_by_rule", "label": a.label} for a in d.auto if a.origin == "LIMIT"]
+    memo.levels = _levels(car, _wanted(car))
+    return d
+
+
+def _asked(car: CaseCar, d: ladder.Decision, events: list[dict[str, str]]) -> IdentifyOutcome:
+    step = d.step
+    choices = [_choice(car, o) for o in step.options]
+    return _done(car, IdentifyOutcome(outcome="CHOICES", need=ladder.ITEM[step.kind], level=step.kind,  # type: ignore[arg-type]
+                                      choices=choices, missing=d.missing, events=events))  # fmt: skip
+
+
 async def _ladder(ports: Ports, case: CaseFile, car: CaseCar, year: int) -> IdentifyOutcome | None:
     """The car narrowed over the sourced versions of its generation; None when no source lists them (the
     fallback identifies then, FR-020)."""
@@ -425,19 +468,7 @@ async def _ladder(ports: Ports, case: CaseFile, car: CaseCar, year: int) -> Iden
     memo.certainty, memo.generation = "SOURCED", g.generation
     memo.generation_from, memo.generation_to = g.years_from, g.years_to
     car.ladder = memo
-    cfg = _intake_cfg(ports)
-    asks = {i: case.intake.attempt(car.key, i) for i in ladder.ITEMS}
-    before = _wanted(car)
-    d = ladder.decide(g.versions, before, asks, limit=int(cfg.get("max_attempts_per_item", 2)),
-                      chosen=car.chosen_for_me)  # fmt: skip
-    if d.auto:
-        old = _levels(car, before)
-        _write(car, d.wanted)
-        for lvl, val in _levels(car, d.wanted).items():
-            if old.get(lvl) != val:
-                memo.origin[lvl] = d.auto[0].origin
-        events += [{"kind": "settled_by_rule", "label": a.label} for a in d.auto if a.origin == "LIMIT"]
-    memo.levels = _levels(car, _wanted(car))
+    d = _decide(ports, case, car, g.versions, memo, events)
     if d.done and d.step.version is not None:
         v = await _store_version(ports, car, g, d.step)
         car.variant_id, car.label, car.resolution = v.id, v.label, _proposed(car)
@@ -446,10 +477,7 @@ async def _ladder(ports: Ports, case: CaseFile, car: CaseCar, year: int) -> Iden
         if d.missing and not d.auto:  # the user named something this generation has not: said, the one there is
             events.append({"kind": "ladder_missing", "missing": ", ".join(d.missing), "label": v.label})
         return _done(car, IdentifyOutcome(outcome="IDENTIFIED", missing=d.missing, events=events))
-    step = d.step
-    choices = [_choice(car, o) for o in step.options]
-    return _done(car, IdentifyOutcome(outcome="CHOICES", need=ladder.ITEM[step.kind], level=step.kind,  # type: ignore[arg-type]
-                                      choices=choices, missing=d.missing, events=events))  # fmt: skip
+    return _asked(car, d, events)
 
 
 def _others(g: ladder.Generation, year: int | None, chosen: ladder.Version) -> list[str]:

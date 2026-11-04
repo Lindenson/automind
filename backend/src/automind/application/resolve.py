@@ -253,7 +253,7 @@ async def assess_car(car: CaseCar, ref: Reference, current_year: int, level: str
             data_fresh=fresh,
             gearbox_mixed=mixed,
         ),
-        candidates=[variant_dict(v) for v in ranked[:4]],
+        candidates=[variant_dict(v) for v in ranked[:8]],
         generations=plausible,
     )
 

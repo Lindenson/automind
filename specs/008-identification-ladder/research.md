@@ -70,12 +70,12 @@
 
 ## R7. Fallback without a sourced list
 
-- **Decision.**
-  - When the lookup finds no supported version (or the store is absent), the existing path runs (catalog → resolver).
-  - A catalog candidate taken without the user's words naming its power is PROPOSED (shown on the card), never AUTO_OK.
-  - `ladder.certainty = "LESS_CERTAIN"` is set, and a notice says the identity is less certain.
-  - The ENGINE question without a list asks in free form, with no invented options.
-- **Rationale.** This is FR-020. The fallback keeps models with poor web coverage usable.
+- **Decision** (revised 2026-11-04 after the live run of chat 8c6a2a58).
+  - When the lookup finds no supported version (or the store is absent), the catalog rows of the model that fit are the ladder's pool (unsourced versions).
+  - The user's words pick one row (the catalog ranker is not ambiguous): it is taken. Otherwise the level where the rows differ is asked with their values, with "choose for me" and the ask limit; a row is never taken by being first.
+  - No catalog row: the resolver identifies.
+  - `ladder.certainty = "LESS_CERTAIN"` is set and a notice says the identity is less certain. On the card, an engine whose power the user did not give is ASSUMED with "from the catalog — check the power".
+- **Rationale.** This is FR-020: the fallback follows the levels too and says what is uncertain. Asking a free-form power question for every model outside the sourced lists would cost a turn where the catalog already has one matching row; the card makes that row's power visible and editable.
 
 ## R8. Used car age
 

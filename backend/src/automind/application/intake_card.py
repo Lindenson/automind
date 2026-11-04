@@ -41,6 +41,11 @@ WORDS = {
     },
 }
 ENGINE_LEVELS = ("FUEL", "ENGINE", "POWER")
+UNSURE = {
+    "en": "from the catalog: no source lists this model's versions — check the power",
+    "ru": "из каталога: список версий этой модели в источниках не найден — проверьте мощность",
+    "es": "del catálogo: ninguna fuente lista las versiones de este modelo — comprueba la potencia",
+}
 USAGE = {
     "CITY": {"en": "city", "ru": "город", "es": "ciudad"},
     "MOTORWAY": {"en": "motorway", "ru": "трасса", "es": "autovía"},
@@ -110,6 +115,14 @@ def _engine_item(car: CaseCar, v: Any, lang: str, options: list[str], src: dict[
         return _item("engine", _engine_text(v), "ASSUMED", evidence=_w(WORDS, by_me.lower(), lang), source=src,
                      options=others)  # fmt: skip
     said = bool(e and not e.empty())
+    unsure = car.ladder is not None and car.ladder.certainty == "LESS_CERTAIN"
+    power_said = said and e is not None and bool(e.power_kw or e.power_hp)
+    if unsure and not power_said:  # FR-020: no source lists the versions, the power is the catalog's
+        note = UNSURE.get(lang) or UNSURE["en"]
+        if not said:
+            return _item("engine", _engine_text(v), "ASSUMED", evidence=note, source=src, options=others)
+        return _item("engine", _engine_text(v), "STATED", evidence=f"{e.evidence} — {note}" if e else note,
+                     options=others)  # fmt: skip
     return _item("engine", _engine_text(v), "STATED" if said else "LOOKED_UP", evidence=e.evidence if e else None,
                  source=None if said else src, options=others)  # fmt: skip
 

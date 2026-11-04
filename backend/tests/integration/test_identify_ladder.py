@@ -155,3 +155,38 @@ async def test_correcting_the_fuel_reopens_the_levels_below() -> None:
     assert o is not None and o.outcome == "IDENTIFIED" and "1.5 TSI" in (car.label or "")  # one petrol version
     assert car.constraints.gearbox_hint is None  # the manual "choose for me" took for the diesel is open again
     assert car.ladder is not None and "ENGINE" not in car.ladder.origin
+
+
+async def _catalog_rows(make: str) -> None:
+    from automind.application import resolve
+    from automind.infrastructure import db
+
+    await db.init_db()
+    for name, kw in (("2.0 TDI 115 CV Selection", 85), ("2.0 TDI 150 CV DSG Style", 110)):
+        ident = resolve.VariantIdentity(make=make, model="Octavia", generation="Mk4", variant_name=name,
+                                        powertrain="ICE", body_class="WAGON", generation_years_from=2020,
+                                        generation_years_to=None, engine_cc=1968, power_kw=kw, fuel="diesel",
+                                        certainty="exact")  # fmt: skip
+        await resolve.upsert_variant(ident, reference({}))
+
+
+async def test_fallback_without_a_sourced_list_asks_the_power_never_takes_the_first_row() -> None:
+    """FR-020 (decided 2026-11-04): with no sourced list the catalog rows follow the same levels; "2.0 diesel"
+    with a 115 and a 150 CV row is asked, never silently the 115 CV row (chat 9b5c0b0c)."""
+    make = "Fallbackskoda"
+    await _catalog_rows(make)
+    ports = SimpleNamespace(ref=reference(load_all()), versions=None)
+    car = _octavia()
+    car.make, car.request_text = make, f"{make} Octavia 2.0 diesel"
+    case = CaseFile(cars=[car])
+    o = await identify._fallback(ports, case, car, 2026, None)
+    assert o.outcome == "CHOICES" and o.need == "POWER", o
+    assert {c.power_kw for c in o.choices} == {85, 110}
+    assert car.variant_id is None
+    assert car.ladder is not None and car.ladder.certainty == "LESS_CERTAIN"
+    case, _ = _pick(_ask(case, car), "выбери сам")
+    car = case.car("car#2")
+    o = await identify._fallback(ports, case, car, 2026, None)
+    assert o.outcome == "IDENTIFIED" and "115" in (car.label or "")
+    assert car.ladder is not None and car.ladder.origin.get("POWER") == "CHOSEN"
+    assert {"kind": "identity_less_certain"} in o.events
