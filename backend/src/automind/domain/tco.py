@@ -203,7 +203,8 @@ def _maintenance(car: TcoCar, r: TcoRates, km: int, years: int) -> TcoItem:
         default = _default_maintenance(r, km, years, assumed, pt)
         return replace(default, inputs=[
             f"published schedule gave €{sourced.annual_eur:,.0f}/year — implausible for this class "
-            f"(cap €{cap:,.0f}); estimate used instead", *default.inputs])  # fmt: skip
+            f"(cap €{cap:,.0f}); estimate used instead: 1 service / {r.default_interval_km.get(pt, 15000):.0f} km",
+            *default.inputs[1:]])  # fmt: skip
     return sourced if sourced is not None else _default_maintenance(r, km, years, assumed, pt)
 
 
@@ -224,28 +225,36 @@ def _default_maintenance(r: TcoRates, km: int, years: int, assumed: float, pt: s
 
 
 def _sourced_maintenance(car: TcoCar, r: TcoRates, km: int, years: int, assumed: float, pt: str) -> TcoItem:
-    total, basis, inputs, ev = 0.0, "SOURCED", [], []
+    """Jobs with a sourced cost add that cost. Jobs with only a sourced interval are done at the scheduled
+    visits, so they cost visits, not one full service each: the most frequent of them sets how many visits a
+    year are paid (one assumed service each). The same job listed twice (e.g. in two languages) counts once."""
+    priced, basis, inputs, ev = 0.0, "SOURCED", [], []
+    visits, unpriced = 0.0, []
     seen: set[tuple[int, int]] = set()
     for m in car.maintenance:
         sig = (round((m.interval_km or 0) / 1000), int(m.interval_months or 0))
-        if sig != (0, 0) and sig in seen:  # the same job listed twice (e.g. in two languages)
-            continue
-        seen.add(sig)
         n = _services_per_year(m.interval_km, m.interval_months, km)
         if n == 0:
             continue
-        cost = m.cost_eur if m.cost_eur is not None else assumed
-        if m.cost_eur is None:
-            basis = "ASSUMPTION"
-            inputs.append(
-                f"{m.item}: interval sourced, cost = labour {r.service_hours[pt]} h × €{r.labour_eur_per_h:.0f}/h"
-                f" + parts €{r.service_parts_eur[pt]:.0f}"
-            )
-        else:
-            inputs.append(f"{m.item}: €{m.cost_eur:.0f} sourced")
-        total += n * cost
         ev += m.evidence_ids
+        if m.cost_eur is not None:
+            if sig != (0, 0) and sig in seen:
+                continue
+            seen.add(sig)
+            priced += n * m.cost_eur
+            inputs.append(f"{m.item}: €{m.cost_eur:.0f} sourced")
+        else:
+            visits = max(visits, n)
+            unpriced.append(m.item)
+    if unpriced:
+        basis = "ASSUMPTION"
+        inputs.append(
+            f"{', '.join(unpriced)}: intervals sourced, done at {visits:.2g} service visit(s)/year; "
+            f"visit = labour {r.service_hours[pt]} h × €{r.labour_eur_per_h:.0f}/h"
+            f" + parts €{r.service_parts_eur[pt]:.0f}"
+        )
     inputs.append(f"{km:,} km/year")
+    total = priced + visits * assumed
     return _item("MAINTENANCE", "Scheduled maintenance", total, basis, inputs, years, ev)  # type: ignore[arg-type]
 
 

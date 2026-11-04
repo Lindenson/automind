@@ -75,6 +75,22 @@ USED_AGE:
     en: "Just the year of the {car} is enough, for example «2019»."
     ru: "Достаточно только года {car}, например «2019»."
     es: "Basta con el año del {car}, por ejemplo «2019»."
+USED_YEAR:  # USED_AGE when the mileage is already known: only the year is asked (live chat 8c6a2a58)
+  en: "What year is the {car} ({options})?"
+  ru: "Какого года {car} ({options})?"
+  es: "¿De qué año es el {car} ({options})?"
+  bare:
+    en: "What year is the {car}?"
+    ru: "Какого года {car}?"
+    es: "¿De qué año es el {car}?"
+  rephrase:
+    en: "The year of the {car} is enough, for example «2019»."
+    ru: "Достаточно года {car}, например «2019»."
+    es: "Basta con el año del {car}, por ejemplo «2019»."
+  rephrase_bare:
+    en: "Just the year of the {car} is enough, for example «2019»."
+    ru: "Достаточно только года {car}, например «2019»."
+    es: "Basta con el año del {car}, por ejemplo «2019»."
 ENGINE:
   en: "Which engine of the {car}: {options}?"
   ru: "Какой двигатель у {car}: {options}?"

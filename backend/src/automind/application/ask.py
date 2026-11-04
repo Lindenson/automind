@@ -204,6 +204,8 @@ def _car_text(questions: dict[str, Any], kind: str, lang: str, car: Any, name: s
               rephrase: bool, ladder_q: bool) -> str:  # fmt: skip
     """A car question's text; a ladder question starts with where the car stands and says what does not exist."""
     missing = ", ".join(car.identify.missing) if ladder_q and car.identify is not None else ""
+    if kind == "USED_AGE" and car.mileage_km and "USED_YEAR" in questions:
+        kind = "USED_YEAR"  # the mileage was given: only the year is asked
     text = template(questions, kind, lang, rephrase=rephrase, car=name, make=car.make or name,
                     options=", ".join(labels), missing=missing)  # fmt: skip
     return f"{status_line(car, ladder_words(questions, lang))}\n{text}" if ladder_q else text
@@ -213,6 +215,7 @@ def status_line(car: Any, words: dict[str, str]) -> str:
     """Where the identification of this car stands (spec 008 FR-013)."""
     k = car.constraints
     w = ladder.wanted_of(k.engine_hint, engine=k.version_hint, gearbox=k.gearbox_hint, drive=k.drive_hint)
+    w = ladder.without(w, car.identify.missing if car.identify is not None else [])
     gen = (car.ladder.generation if car.ladder else None) or k.generation_hint
     level = car.identify.level if car.identify is not None else None
     return ladder.status_line(f"{car.make} {car.model}", gen, car.year, car.year_assumed, w,
@@ -275,6 +278,18 @@ def intake_questions(
     return items[:3]
 
 
+def _distinct_generations(names: list[str]) -> list[str]:
+    """ "B9" and "B9 (8W)" are one generation: offered once (live chat 8c6a2a58)."""
+    out: list[str] = []
+    seen: set[str] = set()
+    for n in names:
+        key = re.sub(r"\s*\(.*?\)", "", n).strip().lower()
+        if key and key not in seen:
+            seen.add(key)
+            out.append(n)
+    return out
+
+
 def _options(kind: str, car: Any, generations: list[str], gearboxes: dict[str, str]) -> tuple[list[Any], list[str]]:
     """The offered choices of a car question and the option names in its text. A gearbox question offers
     gearboxes, never the car's versions (incident 2026-11-03)."""
@@ -283,49 +298,77 @@ def _options(kind: str, car: Any, generations: list[str], gearboxes: dict[str, s
     choices = list(car.identify.choices) if car.identify else []
     labels = [ch.label for ch in choices[:6]]
     if kind == "USED_AGE" or (kind == "TRIM" and not labels):
-        labels = list(generations)
+        labels = _distinct_generations(generations)
     return choices, labels
 
 
-MAX_CHIPS = 8
+MAX_CHIPS = 12
+
+
+def _chip(label: str, ch: dict[str, Any] | None = None) -> dict[str, Any]:
+    chip: dict[str, Any] = {"label": label, "text": label}
+    if ch and ch.get("suggested"):
+        chip |= {"suggested": True, "reason": ch.get("reason")}
+    return chip
+
+
+def _question_chips(q: dict[str, Any], car: Any, labels: dict[str, str]) -> tuple[list[dict[str, Any]], bool]:
+    """A question's own answers, and whether it takes "choose for me"."""
+    kind = q["kind"]
+    if kind == "PROPOSE":
+        return [_chip(labels["yes"]), _chip(labels["no"])], False
+    own = [_chip(labels[x]) for x in ("automatic", "manual") if labels.get(x)] if (
+        kind == "GEARBOX" and not q.get("choices")) else []  # fmt: skip
+    own += [_chip(ch["label"], ch) for ch in q.get("choices") or []]
+    chooses = kind in ("MAKE_LINEUP", "TRIM", "GEARBOX", "REMOVE_OR_CHOOSE", "FUEL", "POWER", "DRIVE") or (
+        kind == "ENGINE" and bool(q.get("choices"))
+    )
+    return own, chooses
+
+
+def _fair(groups: list[list[dict[str, Any]]], room: int) -> list[dict[str, Any]]:
+    """Round-robin over the questions, so one car's long list never hides another car's options."""
+    taken: list[list[dict[str, Any]]] = [[] for _ in groups]
+    i = 0
+    while room > 0 and any(len(t) < len(g) for t, g in zip(taken, groups, strict=True)):
+        g, t = groups[i % len(groups)], taken[i % len(groups)]
+        if len(t) < len(g):
+            t.append(g[len(t)])
+            room -= 1
+        i += 1
+    return [x for t in taken for x in t]
 
 
 def intake_quick_replies(items: list[dict[str, Any]], case: CaseFile, labels: dict[str, str]) -> list[dict[str, Any]]:
     """One-tap answers: the concrete options of each question (suggested ones marked), new/used, yes/no for a
-    proposal, remove or choose. Never an empty list item (contracts/intake-protocol.md)."""
-    out: list[dict[str, Any]] = []
+    proposal, "choose for me" and "remove …". The options are shared fairly between the questions; "choose for
+    me", new/used and "remove …" are never cut (live chats 16c5fbc7, 8c6a2a58; contracts/intake-protocol.md)."""
     cars = {c.key: c for c in case.cars}
+    groups: list[list[dict[str, Any]]] = []
+    fixed: list[dict[str, Any]] = []
+    removes: list[dict[str, Any]] = []
     for q in items:
-        kind = q["kind"]
-        if kind == "CONDITION":
-            out += [{"label": labels["new"], "text": labels["new"]}, {"label": labels["used"], "text": labels["used"]}]
+        if q["kind"] == "CONDITION":
+            fixed += [_chip(labels["new"]), _chip(labels["used"])]
             continue
         car = cars.get(str(q.get("car") or ""))
         if car is None:
             continue
-        if kind == "PROPOSE":
-            out += [{"label": labels["yes"], "text": labels["yes"]}, {"label": labels["no"], "text": labels["no"]}]
-            continue
-        if kind == "GEARBOX" and not q.get("choices"):
-            out += [{"label": labels[x], "text": labels[x]} for x in ("automatic", "manual") if labels.get(x)]
-        for ch in q.get("choices") or []:
-            chip: dict[str, Any] = {"label": ch["label"], "text": ch["label"]}
-            if ch.get("suggested"):
-                chip |= {"suggested": True, "reason": ch.get("reason")}
-            out.append(chip)
-        if kind in ("MAKE_LINEUP", "TRIM", "GEARBOX", "REMOVE_OR_CHOOSE", "FUEL", "POWER", "DRIVE") or (
-            kind == "ENGINE" and q.get("choices")
-        ):
-            out.append({"label": labels["choose"], "text": labels["choose"]})
-        if kind in CAR_KINDS:
-            rm = labels["remove"].format(car=car.display_name)
-            out.append({"label": rm, "text": rm})
+        own, chooses = _question_chips(q, car, labels)
+        groups.append(own)
+        if chooses:
+            fixed.append(_chip(labels["choose"]))
+        if q["kind"] in CAR_KINDS:
+            removes.append(_chip(labels["remove"].format(car=car.display_name)))
     seen: set[str] = set()
-    out = [x for x in out if x["label"] and not (x["label"] in seen or seen.add(x["label"]))]  # type: ignore[func-returns-value]
-    # the answers first, "remove …" last: the cut at 8 must never drop "used" (live chat 16c5fbc7)
-    removes = {rm for c in case.cars if (rm := labels["remove"].format(car=c.display_name))}
-    keep = [x for x in out if x["label"] not in removes][:MAX_CHIPS]
-    return keep + [x for x in out if x["label"] in removes][: MAX_CHIPS - len(keep)]
+
+    def fresh(xs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        return [x for x in xs if x["label"] and not (x["label"] in seen or seen.add(x["label"]))]  # type: ignore[func-returns-value]
+
+    fixed, removes = fresh(fixed), fresh(removes)
+    groups = [fresh(g) for g in groups]
+    answers = _fair(groups, max(MAX_CHIPS - len(fixed) - len(removes), 0)) if groups else []
+    return [*answers, *fixed, *removes]
 
 
 async def acknowledge(llm: LLM, system_prompt: str, language: str, understood: str) -> str:

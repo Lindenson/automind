@@ -28,7 +28,19 @@ WORDS = {
         "es": "catálogo AutoMind (identidad con fuentes)",
     },
     "family": {"en": "family", "ru": "семья", "es": "familia"},
+    "versions": {"en": "list of versions", "ru": "список версий", "es": "lista de versiones"},
+    "chosen": {
+        "en": 'chosen by me: the base version (you said "choose for me")',
+        "ru": "выбрано мной: базовая версия (вы сказали «выбери сам»)",
+        "es": "elegido por mí: la versión base (dijiste «elige tú»)",
+    },
+    "limit": {
+        "en": "chosen by me: the base version (the question was not answered twice)",
+        "ru": "выбрано мной: базовая версия (на вопрос дважды не было ответа)",
+        "es": "elegido por mí: la versión base (la pregunta quedó sin respuesta dos veces)",
+    },
 }
+ENGINE_LEVELS = ("FUEL", "ENGINE", "POWER")
 USAGE = {
     "CITY": {"en": "city", "ru": "город", "es": "ciudad"},
     "MOTORWAY": {"en": "motorway", "ru": "трасса", "es": "autovía"},
@@ -83,9 +95,33 @@ def _engine_text(v: Any) -> str:
 _STABLE = {"make", "model", "generation", "engine", "gearbox", "year", "mileage", "trim", "price_eur"}
 
 
+def _settled_by_me(car: CaseCar, levels: tuple[str, ...]) -> str | None:
+    """CHOSEN or LIMIT when the hub settled one of these ladder levels (spec 008 FR-009/FR-010), else None."""
+    origin = car.ladder.origin if car.ladder else {}
+    return next((origin[lv] for lv in levels if origin.get(lv) in ("CHOSEN", "LIMIT")), None)
+
+
+def _engine_item(car: CaseCar, v: Any, lang: str, options: list[str], src: dict[str, Any]) -> dict[str, Any]:
+    """The engine as settled: "you said" only when the user named it; chosen by me when "choose for me" or the
+    ask limit settled it (spec 008, live chat 8c6a2a58)."""
+    e, others = car.constraints.engine_hint, [o for o in options if o != v.label]
+    by_me = _settled_by_me(car, ENGINE_LEVELS)
+    if by_me:
+        return _item("engine", _engine_text(v), "ASSUMED", evidence=_w(WORDS, by_me.lower(), lang), source=src,
+                     options=others)  # fmt: skip
+    said = bool(e and not e.empty())
+    return _item("engine", _engine_text(v), "STATED" if said else "LOOKED_UP", evidence=e.evidence if e else None,
+                 source=None if said else src, options=others)  # fmt: skip
+
+
 def _car_items(car: CaseCar, v: Any, lang: str, options: list[str], before: dict[str, str]) -> list[dict[str, Any]]:
     k = car.constraints
-    src = {"name": _w(WORDS, "catalog", lang), "url": None}
+    memo = car.ladder
+    sourced = memo is not None and memo.certainty == "SOURCED"
+    src = ({"name": _w(WORDS, "versions", lang), "url": memo.source_url} if sourced and memo and memo.source_url
+           else {"name": _w(WORDS, "catalog", lang), "url": None})  # fmt: skip
+    if sourced and memo and memo.others:
+        options = list(memo.others)  # the other versions of this generation, never other generations' rows
     stated = car.request_text.lower()
     items = [
         _item("make", v.make, "STATED" if v.make.lower() in stated else "INFERRED", evidence=car.request_text),
@@ -93,14 +129,14 @@ def _car_items(car: CaseCar, v: Any, lang: str, options: list[str], before: dict
     ]
     if v.generation:
         items.append(_item("generation", v.generation, "LOOKED_UP", source=src))
-    e = k.engine_hint
-    items.append(_item("engine", _engine_text(v), "STATED" if e and not e.empty() else "LOOKED_UP",
-                       evidence=e.evidence if e else None, source=None if e and not e.empty() else src,
-                       options=[o for o in options if o != v.label]))  # fmt: skip
+    items.append(_engine_item(car, v, lang, options, src))
     if v.fuel:
         items.append(_item("fuel", _w(FUEL, v.fuel, lang), "LOOKED_UP", source=src))
     if v.transmission:
-        items.append(_item("gearbox", v.transmission, "STATED" if k.gearbox_hint else "LOOKED_UP", source=src))
+        gb_me = _settled_by_me(car, ("GEARBOX",))
+        items.append(_item("gearbox", v.transmission,
+                           "ASSUMED" if gb_me else ("STATED" if k.gearbox_hint else "LOOKED_UP"),
+                           evidence=_w(WORDS, gb_me.lower(), lang) if gb_me else None, source=src))  # fmt: skip
     items += _condition_items(car, lang)
     if v.trim:
         items.append(_item("trim", v.trim + (f" ({v.trim_level})" if v.trim_level else ""),

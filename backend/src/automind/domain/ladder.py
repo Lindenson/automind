@@ -222,6 +222,22 @@ def narrow(versions: Sequence[Version], w: Wanted) -> Narrowed:
     return Narrowed(pool, missing)
 
 
+def without(w: Wanted, missing: Sequence[str]) -> Wanted:
+    """The statements that exist: what `narrow` reported missing is not shown as a settled level (FR-013)."""
+    gone = set(missing)
+    if not gone:
+        return w
+    return replace(
+        w,
+        fuel=None if w.fuel in gone else w.fuel,
+        displacement_l=None if w.displacement_l and f"{w.displacement_l:.1f}" in gone else w.displacement_l,
+        family=None if w.family in gone else w.family,
+        power_kw=None if w.power_kw and _cv(w.power_kw) in gone else w.power_kw,
+        gearbox=None if w.gearbox and GEARBOX_LABEL.get(w.gearbox, w.gearbox) in gone else w.gearbox,
+        drive=None if w.drive in gone else w.drive,
+    )
+
+
 # --- the next question -------------------------------------------------------------------------------------------
 
 
