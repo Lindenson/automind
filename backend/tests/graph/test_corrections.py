@@ -47,6 +47,19 @@ def test_engine_in_trim_hint_moves_to_engine_hint() -> None:
     )  # a trim stays
 
 
+def test_two_cars_keep_their_own_engines() -> None:
+    """Golden g8: "BYD Seal U DM-i or SEAT Ateca 1.5 TSI DSG" must not give the Ateca a DM-i engine."""
+    i = Interpretation.model_validate({"request": "compare", "language": "en", "delta": {"add_cars": [
+        {"request_text": "BYD Seal U DM-i", "make": "BYD", "model": "Seal U", "constraints": {"trim_hint": "DM-i"}},
+        {"request_text": "SEAT Ateca 1.5 TSI DSG", "make": "SEAT", "model": "Ateca",
+         "constraints": {"trim_hint": "1.5 TSI DSG"}}]}})  # fmt: skip
+    out = engine_hints(i, "BYD Seal U DM-i or SEAT Ateca 1.5 TSI DSG?").delta.add_cars
+    ateca = out[1].constraints.engine_hint
+    assert ateca is not None and ateca.displacement_l == 1.5 and ateca.family == "TSI"
+    byd = out[0].constraints.engine_hint
+    assert byd is None or byd.displacement_l is None  # no "1.5" from the Ateca's words
+
+
 async def test_engine_correction_reidentifies_a_resolved_car(saver):
     await _seed_ateca()
     llm = FakeLLM()

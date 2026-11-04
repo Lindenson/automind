@@ -109,7 +109,16 @@ def intake_summary(events: list[tuple[str, str, dict[str, object]]]) -> dict[str
     replies: dict[str, int] = {}
     confirmed: dict[str, int] = {}
     repeated = corrected = unconfirmed = 0
+    energy = {"reports": 0, "cars_without_energy": 0, "weighted_blocked": 0}
+    ev_rejected: dict[str, int] = {}
     for chat, kind, details in events:
+        if kind == "ENERGY_REPORT":  # spec 006 FR-022
+            energy["reports"] += 1
+            energy["cars_without_energy"] += len(details.get("energy_missing") or {})  # type: ignore[arg-type]
+            energy["weighted_blocked"] += int(details.get("weighted_blocked") or 0)  # type: ignore[call-overload]
+            for rule, n in (details.get("ev_rejected") or {}).items():  # type: ignore[attr-defined]
+                ev_rejected[rule] = ev_rejected.get(rule, 0) + int(n)
+            continue
         if kind == "ANSWERED" and chat not in confirmed:
             replies[chat] = replies.get(chat, 0) + 1
         elif kind == "CONFIRMED" and chat not in confirmed:
@@ -124,4 +133,5 @@ def intake_summary(events: list[tuple[str, str, dict[str, object]]]) -> dict[str
     median = counts[len(counts) // 2] if counts else None
     within = round(sum(1 for n in counts if n <= 3) / len(counts), 3) if counts else None
     return {"chats_confirmed": len(counts), "replies_to_confirmed_median": median, "confirmed_within_3": within,
-            "repeated_questions": repeated, "corrections": corrected, "research_unconfirmed": unconfirmed}  # fmt: skip
+            "repeated_questions": repeated, "corrections": corrected, "research_unconfirmed": unconfirmed,
+            "energy": {**energy, "ev_rejected": ev_rejected}}  # fmt: skip

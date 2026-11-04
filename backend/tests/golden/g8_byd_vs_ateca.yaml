@@ -1,0 +1,42 @@
+id: g8_byd_vs_ateca
+description: >
+  The spec 006 incident (chat 5be54966): a family in the south of Spain, 18,000 km a year, BYD Seal U DM-i
+  (plug-in) vs SEAT Ateca 1.5 TSI DSG. Both cars get an energy line with inputs (SC-001); the weighted WLTP
+  0.9 l/100 km is never priced (SC-002); labels ZERO vs C; a break-even with the active subsidy; the BYD's
+  resale value is "insufficient data" (new brand); the electric section shows the plug-in's electric share.
+scenario: empty
+forget: [BYD, SEAT]
+market_facts:
+  - key: subsidy.purchase
+    value: {label: Plan MOVES III, amount_eur: 4500, scope: national, url: "https://www.idae.es/moves-iii",
+            text: "hasta 4.500 euros para un turismo híbrido enchufable"}
+    valid_to: "2026-12-31"
+  - key: irpf.ev_deduction
+    value: {label: Deducción IRPF 15 %, percent: 15, scope: national, url: "https://sede.agenciatributaria.gob.es/x",
+            text: "deducción del 15 % hasta el 31 de diciembre de 2025"}
+    valid_to: "2025-12-31"
+seed:
+  - {make: BYD, model: Seal U, generation: Mk1, variant_name: DM-i 1.5 Boost, powertrain: PHEV, body_class: SUV,
+     years: [2024, null], vehicle_class: compact, segment: C-SUV, cached: true,
+     specs: {max_power: 160, curb_mass: 1940, max_torque: 300, drivetrain: FWD, official_price_es: 37990,
+             battery_kwh: 18.3, range_wltp: 80, consumption_weighted: 0.9, consumption_cs: 5.9,
+             consumption_ev: 19.8, charge_ac_kw: 3.3, charge_dc_peak_kw: 18}}
+  - {make: SEAT, model: Ateca, generation: Mk1 FL, variant_name: 1.5 TSI 150 DSG, powertrain: ICE, body_class: SUV,
+     years: [2020, null], vehicle_class: compact, segment: C-SUV, cached: true,
+     specs: {max_power: 110, curb_mass: 1430, max_torque: 250, drivetrain: FWD, official_price_es: 33990,
+             consumption: 6.3, engine: 1.5 TSI petrol}}
+turns:
+  - user: "We are a family in Seville, about 18,000 km a year. BYD Seal U DM-i or SEAT Ateca 1.5 TSI DSG?"
+    expect:
+      action: REPORT
+      no_search: true
+      variants: [{car: "car#1", make: BYD}, {car: "car#2", make: SEAT}]
+      energy_for: ["car#1", "car#2"]
+      no_weighted_priced: true
+      labels: {"car#1": ZERO, "car#2": C}
+      electric_cars: ["car#1"]
+      electric_share_for: ["car#1"]
+      retention_insufficient: ["car#1"]
+      break_even: ALREADY_CHEAPER  # after the active €4,500 subsidy; the expired IRPF deduction is not counted
+      energy_metrics: {weighted_blocked: {gte: 1}, energy_missing: {}}  # FR-022
+      notes_contain: ["of your km on electricity", "per 100 km charging at home", "With the active subsidy (€4,500)"]

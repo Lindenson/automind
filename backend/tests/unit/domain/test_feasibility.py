@@ -119,3 +119,12 @@ def test_fingerprint_only_for_problems_and_stable():
     f1 = fingerprint(Needs(budget_eur=25000, intent="NEW"), bad)
     assert f1 and f1 == fingerprint(Needs(budget_eur=25000, intent="NEW"), bad)
     assert f1 != fingerprint(Needs(budget_eur=20000, intent="NEW"), bad)
+
+
+def test_range_limits_only_a_bev():
+    """Golden g11: a plug-in with a battery and no kWh figure was "consumption is not known" for 40 km a day."""
+    phev = car(powertrain="PHEV", battery_kwh=Fact(13.8, "SOURCED"))
+    assert "USAGE_RANGE" not in checks(evaluate(Needs(daily_km=40), [phev], RULES, YEAR))
+    bev = car(powertrain="BEV", range_wltp=Fact(270, "SOURCED"))
+    r = checks(evaluate(Needs(daily_km=100), [bev], RULES, YEAR))["USAGE_RANGE"]
+    assert r.verdict == "FITS" and "WLTP range ÷ 1.2" in r.compared[0].inputs

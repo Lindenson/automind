@@ -1,0 +1,30 @@
+id: g10_mg4_vs_id3
+description: >
+  MG4 vs VW ID.3, both electric: the electric section has the same rows for both; the MG's resale value is
+  "insufficient data for this brand" (no class curve), the VW keeps its labelled curve.
+scenario: empty
+forget: [MG, Volkswagen]
+market_facts:
+  - key: label.zero.benefits
+    value: {label: "Etiqueta CERO: aparcamiento regulado", scope: municipal, url: "https://www.dgt.es/x",
+            text: "los vehículos CERO aparcan gratis en zonas reguladas"}
+    valid_from: "2020-01-01"
+seed:
+  - {make: MG, model: MG4, generation: EH32, variant_name: Standard 51 kWh, powertrain: BEV, body_class: HATCHBACK,
+     years: [2022, null], vehicle_class: compact, segment: C, cached: true,
+     specs: {max_power: 125, curb_mass: 1655, max_torque: 250, drivetrain: RWD, official_price_es: 30990,
+             battery_kwh: 51, range_wltp: 350, consumption: 16.0, charge_ac_kw: 6.6, charge_dc_peak_kw: 117}}
+  - {make: Volkswagen, model: ID.3, generation: Mk1 FL, variant_name: Pro 58 kWh, powertrain: BEV,
+     body_class: HATCHBACK, years: [2023, null], vehicle_class: compact, segment: C, cached: true,
+     specs: {max_power: 150, curb_mass: 1794, max_torque: 310, drivetrain: RWD, official_price_es: 39500,
+             battery_kwh: 59, range_wltp: 427, consumption: 15.6, charge_ac_kw: 11, charge_dc_peak_kw: 120}}
+turns:
+  - user: "MG4 or VW ID.3 Pro? Mostly city, about 12,000 km a year."
+    expect:
+      action: REPORT
+      no_search: true
+      variants: [{car: "car#1", make: MG}, {car: "car#2", make: Volkswagen}]
+      energy_for: ["car#1", "car#2"]
+      labels: {"car#1": ZERO, "car#2": ZERO}
+      electric_cars: ["car#1", "car#2"]
+      retention_insufficient: ["car#1"]

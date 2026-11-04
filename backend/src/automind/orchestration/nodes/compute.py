@@ -26,7 +26,7 @@ from automind.orchestration.guard import CheckInput as GuardInput
 from automind.orchestration.phrases import energy_input, t
 from automind.orchestration.runner import TurnContext
 
-from .common import notice
+from .common import notice, record_intake
 
 
 @dataclass
@@ -117,14 +117,27 @@ def verdict_extras(keyed: list[Any], tcars: list[tco.TcoCar], estimates: list[tc
         out["incentives"] = views
     if len(elec) == 1 and len(comb) == 1:
         e, c0 = elec[0], comb[0]
+        sub = incentives_research.subsidy(views.get(e.car_id, []))
         b = incentives.break_even(e.price_eur, c0.price_eur, run.get(e.car_id), run.get(c0.car_id),
-                                  subsidy_eur=incentives_research.subsidy(views.get(e.car_id, [])),
-                                  ownership_years=case.ownership_years)  # fmt: skip
+                                  subsidy_eur=sub, ownership_years=case.ownership_years)  # fmt: skip
         out["break_even"] = {"electrified_car_id": e.car_id, "against_car_id": c0.car_id, "verdict": b.verdict,
                              "electrified_label": e.label, "against_label": c0.label,
                              "years": b.years, "beyond_ownership": b.beyond_ownership, "inputs": b.inputs,
-                             "ownership_years": case.ownership_years}  # fmt: skip
+                             "ownership_years": case.ownership_years, "subsidy_eur": sub}  # fmt: skip
     return out
+
+
+async def _energy_metrics(c: TurnContext, keyed: list[Any], estimates: list[tco.TcoEstimate]) -> None:
+    """FR-022 (spec 006), one event per report: cars without an energy line, EV values rejected by rule, weighted
+    plug-in figures blocked from the energy cost. Metrics only: never fails the report."""
+    try:
+        key = {car["variant"].id: x.key for x, car in keyed}
+        missing = {key.get(e.car_id, e.car_id): energy_missing(e) for e in estimates if energy_missing(e)}
+        ev = await research.ev_counts(list(key))
+        if missing or ev["ev_rejected"] or ev["weighted_blocked"]:
+            await record_intake(c, "ENERGY_REPORT", energy_missing=missing, **ev)
+    except Exception:  # noqa: BLE001 - metrics only
+        return
 
 
 async def _market_facts(c: TurnContext) -> list[dict[str, Any]]:
@@ -291,6 +304,7 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
     costs = _checked_costs(estimates, {car["variant"].id: x.age_years for x, car in keyed}, notices)
     eff = per_100km(estimates)
     notices += energy_notices(estimates, {car["variant"].id: compose.short_name(car["variant"]) for car in cars}, lang)
+    await _energy_metrics(c, keyed, estimates)
     year = _year(c)
     young = {x.key for x, car in keyed if _new_gen(car, year)}
     notices[:] = [n for n in notices if not (n.get("area") == "reliability" and n.get("car_key") in young)]

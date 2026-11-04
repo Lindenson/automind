@@ -94,6 +94,7 @@ async def car_facts(case: CaseFile, rates_cfg: dict[str, Any], store: Feasibilit
                 seats=_fact(car, "seats"), boot_l=_fact(car, "boot_volume"), power_kw=_fact(car, "max_power"),
                 mass_kg=_fact(car, "curb_mass"), battery_kwh=_fact(car, "battery_kwh"),
                 consumption=_fact(car, "consumption") if v.powertrain == "BEV" else None,
+                powertrain=v.powertrain, range_wltp=_fact(car, "range_wltp") if v.powertrain == "BEV" else None,
                 used_ranges=tuple(await _used_ranges(store, v.id)),
             )
         )  # fmt: skip

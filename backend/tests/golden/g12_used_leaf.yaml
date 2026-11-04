@@ -1,0 +1,29 @@
+id: g12_used_leaf
+description: >
+  A used 2019 Nissan Leaf 40 kWh: the energy line is computed from its consumption, the label is ZERO, and no
+  battery health is invented (only a sourced value would be shown; the electric section has no such row).
+scenario: empty
+forget: [Nissan]
+market_facts:
+  - key: label.zero.benefits
+    value: {label: "Etiqueta CERO: aparcamiento regulado", scope: municipal, url: "https://www.dgt.es/x",
+            text: "los vehículos CERO aparcan gratis en zonas reguladas"}
+    valid_from: "2020-01-01"
+seed:
+  - {make: Nissan, model: Leaf, generation: ZE1, variant_name: 40 kWh, powertrain: BEV, body_class: HATCHBACK,
+     years: [2018, 2024], vehicle_class: compact, segment: C, cached: true,
+     specs: {max_power: 110, curb_mass: 1580, max_torque: 320, drivetrain: FWD, battery_kwh: 39,
+             range_wltp: 270, consumption: 17.1, charge_ac_kw: 6.6, charge_dc_peak_kw: 46}}
+turns:
+  - user: "Is a used 2019 Nissan Leaf 40 kWh a good idea for 10,000 km a year?"
+    expect:
+      status: WAITING_CONFIRMATION
+      confirm_kind: intake
+      variants: [{car: "car#1", generation: ZE1}]
+  - confirm: confirm
+    expect:
+      action: REPORT
+      no_search: true
+      energy_for: ["car#1"]
+      labels: {"car#1": ZERO}
+      electric_cars: ["car#1"]

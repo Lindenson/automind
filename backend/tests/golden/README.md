@@ -1,6 +1,6 @@
 # Golden dialogues (FR-046, SC-001, SC-002)
 
-Seven scripted conversations with expected actions, case-file fields and resolved variants per turn
+Twelve scripted conversations with expected actions, case-file fields and resolved variants per turn
 (not prose). Format: `schema.py`; runner: `runner.py`.
 
 | ID | What it checks |
@@ -12,6 +12,15 @@ Seven scripted conversations with expected actions, case-file fields and resolve
 | G5 `g5_add_third_car` | Adding the Tesla researches only the Tesla; a 4th car → "which 3?" |
 | G6 `g6_no_repeat` | Same request twice → "nothing new", no repeated report |
 | G7 `g7_cost_confirmation` | Deep research of 3 uncached cars asks for cost confirmation first; skip → no research; cap €1.00 |
+| G8 `g8_byd_vs_ateca` | Spec 006 incident: energy line for the plug-in and the petrol car, weighted 0.9 l never priced, ZERO vs C, break-even with the active subsidy named, BYD resale "insufficient data", FR-022 metric |
+| G9 `g9_model3_vs_320d` | BEV vs diesel on one €/100 km scale; only the Tesla in the electric section |
+| G10 `g10_mg4_vs_id3` | Two BEVs, the same electric rows; MG resale "insufficient data for this brand" |
+| G11 `g11_rav4_vs_sportage_phev` | The HEV has no electric share; the plug-in splits electricity and petrol; ECO vs ZERO; no range check for a plug-in |
+| G12 `g12_used_leaf` | Used BEV: energy line, ZERO, no invented battery health |
+
+G8 also found two real bugs: in a two-car message the engine words of one car went to the other ("BYD Seal U
+DM-i or SEAT Ateca 1.5 TSI" gave the Ateca a DM-i engine), and G11 found the feasibility range check applied to
+a plug-in hybrid. Both are fixed.
 
 ## Running
 

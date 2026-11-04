@@ -1,0 +1,34 @@
+{
+  "interpreter": [
+    {
+      "request": "compare",
+      "language": "en",
+      "delta": {
+        "set_annual_km": 12000,
+        "set_usage": [
+          "CITY"
+        ],
+        "add_cars": [
+          {
+            "request_text": "MG4",
+            "make": "MG",
+            "model": "MG4",
+            "condition": "NEW"
+          },
+          {
+            "request_text": "VW ID.3 Pro",
+            "make": "Volkswagen",
+            "model": "ID.3",
+            "condition": "NEW",
+            "constraints": {
+              "trim_hint": "Pro"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "reporter": [
+    "**Both are good city EVs; the MG4 is cheaper, the ID.3 has a better-known resale value.**"
+  ]
+}

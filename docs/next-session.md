@@ -3,18 +3,15 @@
 State on 2026-11-04:
 
 - **main** contains specs 002–005 and spec 007 (the profile drives the assessment), increments A–J (PRs #14–#24; ADR-027). The review findings and their status are in `docs/review-2026-11-03.md`.
-- **Spec 006 — electrified cars**: plan, research, data model, contracts and tasks are in `specs/006-electrified-cars/`. Merged (PRs #28–#32):
+- **Spec 006 — electrified cars** is implemented (PRs #28–#36; ADR-028; `specs/006-electrified-cars/tasks.md`):
   - A: energy model per powertrain (`domain/energy.py`), EV attributes, meaning rules (`domain/sense_ev.py`), EV queries;
   - B: Spanish prices with dates (`config/energy.yaml`), home charging and the user's prices, the home-charging question;
   - C: climate and motorway factors;
-  - D (part): efficiency in €/100 km, DGT label, break-even;
-  - F: electric block, TCO split, explainers.
-- **006 still open** (see tasks.md):
-  - the incentives research (`market_facts`, T035–T038);
-  - brands (E, T039–T043);
-  - the report text (T050);
-  - goldens g8–g12 and metrics (T051–T052);
-  - the paid live check of BYD Seal U DM-i vs Ateca (T054).
+  - D: efficiency in €/100 km, DGT label, break-even, market incentives (`market_facts`, area `incentives`);
+  - E: new brands (`makes.yaml: new_in_market`), warranty and network facts, like-for-like period totals;
+  - F/T050: electric block, TCO split, explainers, report sentences (share, €/100 km, break-even);
+  - G: goldens G8–G12 and the FR-022 metric (`ENERGY_REPORT` intake event).
+- **006 still open**: only the paid live check of BYD Seal U DM-i vs Ateca (T054, about €0.15–0.30). It waits for the owner's yes.
 - **Waits for the owner's yes**: a data repair of 65 stored claims. A dry run with the new rules (scratch script, no writes) found:
   - 5 BYD 0.9 l/100 km → weighted;
   - 4 BYD 18.3 kWh → gross;
@@ -22,16 +19,13 @@ State on 2026-11-04:
   - 47 older unit rejections now accepted (displacement, ground clearance in cm, small hybrid batteries);
   - 1 DSG "40,000 miles" rejected.
 
+  Until it runs, the stored BYD has no priced consumption, so its energy line reads "cannot be computed".
+
 ## Steps
 
-1. `git checkout main && git pull`, then create a feature branch for 006 and point `.specify/feature.json` to `specs/006-electrified-cars`.
-2. `/speckit-plan` for 006. Plan first:
-   - the energy model per powertrain (PHEV: charge-depleting kWh/100 km + charge-sustaining l/100 km + electric share from daily km and home charging; never the weighted WLTP figure);
-   - the new EV attributes with sense rules;
-   - the Spanish energy prices as user-visible assumptions;
-   - efficiency on one scale (energy cost per 100 km, review item 5.6).
-3. `/speckit-tasks`, `/speckit-analyze`, `/speckit-implement`, one PR per increment.
-4. After each change:
+1. `git checkout main && git pull`.
+2. With the owner's yes: back up the DB, run the repair dry run again, apply it, then run the paid live check (T054) and fix what it shows.
+3. After each change:
    - run `scripts/check.sh`;
    - restart dev with `pkill -x automind-api; scripts/dev.sh`;
    - run `scripts/deploy.sh up`.
