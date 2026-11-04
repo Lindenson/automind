@@ -481,7 +481,8 @@ async def _run_turns(d, runner, chat_id, live, record, failures, llm, ports):  #
         else:
             result = await runner.resume(chat_id, {"choice": turn.confirm, "text": None})
         _, case, _ = await ports.cases.latest(chat_id)
-        searches = int(result.usage.get("search_calls", 0))
+        # research searches: a version look-up of the intake identifies the car, it is not research
+        searches = int(result.usage.get("search_calls", 0)) - int(result.usage.get("identify_search_calls", 0))
         obs = TurnObservation(
             result,
             case or {},

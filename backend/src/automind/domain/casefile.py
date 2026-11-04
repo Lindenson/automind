@@ -57,10 +57,11 @@ Strength = Literal["LOW", "MEDIUM", "HIGH"]
 QuestionKind = Literal[
     "TOO_MANY_CARS", "CAR_IDENTITY", "USED_AGE", "TRIM", "PERSONA", "BUDGET_INTENT", "UNKNOWN_MODEL", "GEARBOX",
     "KM_PER_YEAR", "FAMILY_SIZE", "CONDITION", "ENGINE", "MAKE_LINEUP", "PROPOSE", "REMOVE_OR_CHOOSE",
-    "OWNERSHIP_YEARS", "CONFIRM_PROFILE", "HOME_CHARGING",
+    "OWNERSHIP_YEARS", "CONFIRM_PROFILE", "HOME_CHARGING", "FUEL", "POWER", "DRIVE",
 ]  # fmt: skip
 # spec 005: what an intake step is about (R6)
-IntakeItem = Literal["MAKE", "MODEL", "ENGINE", "GEARBOX", "YEAR", "CONDITION", "MILEAGE", "TRIM", "CHOICE"]
+IntakeItem = Literal["MAKE", "MODEL", "ENGINE", "GEARBOX", "YEAR", "CONDITION", "MILEAGE", "TRIM", "CHOICE", "FUEL",
+                     "POWER", "DRIVE"]  # fmt: skip
 Fuel = Literal["petrol", "diesel", "hybrid", "mhev", "phev", "bev", "lpg"]
 Climate = Literal["HOT", "MILD", "COLD", "MOUNTAIN"]
 BudgetIntent = Literal["NEW", "USED", "ANY", "UNKNOWN"]
@@ -170,6 +171,7 @@ class Constraints(BaseModel):
     trim_hint: str | None = None
     gearbox_hint: Literal["manual", "automatic", "dct", "cvt", "e-cvt", "single"] | None = None  # spec 004 FR-028
     drive_hint: Literal["FWD", "RWD", "AWD"] | None = None
+    version_hint: str | None = Field(default=None, max_length=80)  # spec 008: the exact engine of a tapped option
     url: str | None = None
     engine_hint: EngineHint | None = None  # spec 005 FR-012
 
@@ -188,6 +190,14 @@ class Choice(BaseModel):
     source_url: str | None = None
     suggested: bool = False  # the user did not name it (FR-024)
     reason: str | None = None
+    # spec 008: an option of one ladder level, with its facts (a tap sets them; the label is never parsed)
+    level: Literal["FUEL", "ENGINE", "FAMILY", "POWER", "GEARBOX", "DRIVE"] | None = None
+    fuel: str | None = None
+    engine_cc: int | None = None
+    family: str | None = None
+    power_kw: int | None = None
+    gearbox: str | None = None
+    drive: str | None = None
 
 
 IdentifyKind = Literal["IDENTIFIED", "CHOICES", "NEED", "NOT_FOUND"]
@@ -202,6 +212,21 @@ class IdentifyOutcome(BaseModel):
     checked: list[str] = Field(default_factory=list)  # sources looked at before NOT_FOUND
     note: str | None = None  # e.g. "from the page I took: …"
     key: str | None = None  # hash of the identity facts the outcome was computed for
+    level: str | None = None  # spec 008: the ladder level asked (FUEL, ENGINE, FAMILY, POWER, GEARBOX, DRIVE)
+    missing: list[str] = Field(default_factory=list)  # spec 008 FR-004: what the user named that does not exist
+    events: list[dict[str, str]] = Field(default_factory=list)  # spec 008: notices to show ({"kind": …, …})
+
+
+class LadderMemo(BaseModel):
+    """Where the identification ladder stood at the last identify (spec 008): the value of each level, who settled
+    it (the user, "choose for me" or the ask limit) and whether the version comes from a sourced list."""
+
+    levels: dict[str, str] = Field(default_factory=dict)
+    origin: dict[str, Literal["STATED", "CHOSEN", "LIMIT"]] = Field(default_factory=dict)
+    certainty: Literal["SOURCED", "LESS_CERTAIN"] | None = None
+    generation: str | None = None
+    generation_from: int | None = None
+    generation_to: int | None = None
 
 
 class CaseCar(BaseModel):
@@ -221,6 +246,8 @@ class CaseCar(BaseModel):
     previous_label: str | None = None  # spec 005: the label before the last correction ("before → after")
     identify: IdentifyOutcome | None = None  # spec 005 R1
     chosen_for_me: bool = False  # the user said "choose for me": the version found is taken without asking again
+    year_assumed: bool = False  # spec 008 FR-022: a used car's year assumed from mileage or generation
+    ladder: LadderMemo | None = None  # spec 008
 
     @property
     def display_name(self) -> str:
@@ -705,6 +732,7 @@ def _forget_variant(c: CaseFile, car: CaseCar) -> None:
         car.previous_label = car.label
     car.variant_id, car.label, car.resolution, car.alternatives = None, None, "UNRESOLVED", []
     car.identify = None
+    car.chosen_for_me = False  # spec 008: a correction opens the levels again; "choose for me" was for the old ones
     c.intake.card_confirmed = False
 
 
@@ -719,6 +747,7 @@ def _context_changes(car: CaseCar, ctx: CarContext, current_year: int) -> list[s
         if year != car.year:
             changes.append(f"year {year}")
         car.year, car.age_years = year, age
+        car.year_assumed = False  # spec 008: a year the user gives replaces an assumed one
     if ctx.mileage_km is not None and ctx.mileage_km != car.mileage_km:
         car.mileage_km = ctx.mileage_km
         changes.append(f"mileage {ctx.mileage_km:,} km")

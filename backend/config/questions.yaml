@@ -83,6 +83,10 @@ ENGINE:
     en: "Which engine of the {car} (displacement, power or fuel)?"
     ru: "Какой двигатель у {car} (объём, мощность или топливо)?"
     es: "¿Qué motor del {car} (cilindrada, potencia o combustible)?"
+  missing:
+    en: "The {car} has no «{missing}» version. There is: {options}. Which one?"
+    ru: "У {car} нет версии «{missing}». Есть: {options}. Какую берём?"
+    es: "El {car} no tiene la versión «{missing}». Hay: {options}. ¿Cuál?"
   rephrase:
     en: "There is no such engine for the {car}. On sale: {options}. Which one?"
     ru: "Такого двигателя у {car} нет. В продаже: {options}. Какой из них?"
@@ -95,6 +99,10 @@ TRIM:
   en: "Which version of the {car} ({options})?"
   ru: "Какая версия {car} ({options})?"
   es: "¿Qué versión del {car} ({options})?"
+  missing:
+    en: "The {car} has no «{missing}» version. There is: {options}. Which one?"
+    ru: "У {car} нет версии «{missing}». Есть: {options}. Какую берём?"
+    es: "El {car} no tiene la versión «{missing}». Hay: {options}. ¿Cuál?"
   rephrase:
     en: "Pick the version of the {car}, or say «choose for me»: {options}."
     ru: "Выберите версию {car} или скажите «выбери сам»: {options}."
@@ -107,6 +115,46 @@ GEARBOX:
     en: "Automatic or manual for the {car} ({options})? Or say «choose for me»."
     ru: "Автомат или механика для {car} ({options})? Или скажите «выбери сам»."
     es: "¿Automático o manual para el {car} ({options})? O di «elige tú»."
+  missing:
+    en: "The {car} has no «{missing}». There is: {options}. Which one?"
+    ru: "У {car} нет «{missing}». Есть: {options}. Какую берём?"
+    es: "El {car} no tiene «{missing}». Hay: {options}. ¿Cuál?"
+FUEL:
+  en: "Which fuel for the {car}: {options}?"
+  ru: "Какое топливо у {car}: {options}?"
+  es: "¿Qué combustible para el {car}: {options}?"
+  rephrase:
+    en: "The {car} comes as {options}. Which one — or «choose for me»?"
+    ru: "{car} бывает: {options}. Какой — или «выбери сам»?"
+    es: "El {car} existe en {options}. ¿Cuál, o «elige tú»?"
+  missing:
+    en: "The {car} has no «{missing}» version. There is: {options}. Which one?"
+    ru: "У {car} нет версии «{missing}». Есть: {options}. Какую берём?"
+    es: "El {car} no tiene versión «{missing}». Hay: {options}. ¿Cuál?"
+POWER:
+  en: "Which power of the {car}: {options}?"
+  ru: "Какая мощность у {car}: {options}?"
+  es: "¿Qué potencia del {car}: {options}?"
+  rephrase:
+    en: "The {car} is sold with {options}. Which power — or «choose for me»?"
+    ru: "{car} продаётся в версиях {options}. Какая мощность — или «выбери сам»?"
+    es: "El {car} se vende con {options}. ¿Qué potencia, o «elige tú»?"
+  missing:
+    en: "The {car} has no «{missing}». There is: {options}. Which one?"
+    ru: "У {car} нет «{missing}». Есть: {options}. Какую берём?"
+    es: "El {car} no tiene «{missing}». Hay: {options}. ¿Cuál?"
+DRIVE:
+  en: "Front or all-wheel drive for the {car}: {options}?"
+  ru: "Какой привод у {car}: {options}?"
+  es: "¿Qué tracción para el {car}: {options}?"
+  rephrase:
+    en: "Drive of the {car}: {options} — or «choose for me»?"
+    ru: "Привод {car}: {options} — или «выбери сам»?"
+    es: "Tracción del {car}: {options}, ¿o «elige tú»?"
+  missing:
+    en: "The {car} has no «{missing}». There is: {options}. Which one?"
+    ru: "У {car} нет «{missing}». Есть: {options}. Какой берём?"
+    es: "El {car} no tiene «{missing}». Hay: {options}. ¿Cuál?"
 PROPOSE:
   en: "I'll take {car} — OK?"
   ru: "Беру {car} — подходит?"
@@ -139,3 +187,23 @@ FAMILY_SIZE:
   en: "Who usually travels in the car (just you, two of you, a family with children)? The cars differ in size."
   ru: "Кто обычно ездит в машине (вы один, вдвоём, семья с детьми)? Машины отличаются размером."
   es: "¿Quién suele ir en el coche (tú solo, dos personas, una familia con niños)? Los coches son de distinto tamaño."
+# spec 008: words of the identification ladder (status line, option labels) — not a question
+LADDER_WORDS:
+  petrol: {en: petrol, ru: бензин, es: gasolina}
+  diesel: {en: diesel, ru: дизель, es: diésel}
+  hybrid: {en: full hybrid, ru: гибрид, es: híbrido}
+  mhev: {en: mild hybrid, ru: мягкий гибрид, es: microhíbrido}
+  phev: {en: plug-in hybrid, ru: плагин-гибрид, es: híbrido enchufable}
+  bev: {en: electric, ru: электро, es: eléctrico}
+  lpg: {en: LPG, ru: газ (LPG), es: GLP}
+  manual: {en: manual, ru: механика, es: manual}
+  automatic: {en: automatic, ru: автомат, es: automático}
+  FWD: {en: front-wheel drive, ru: передний привод, es: tracción delantera}
+  RWD: {en: rear-wheel drive, ru: задний привод, es: tracción trasera}
+  AWD: {en: all-wheel drive, ru: полный привод, es: tracción total}
+  fuel: {en: fuel, ru: топливо, es: combustible}
+  engine: {en: engine, ru: двигатель, es: motor}
+  family: {en: engine, ru: двигатель, es: motor}
+  power: {en: power, ru: мощность, es: potencia}
+  gearbox: {en: gearbox, ru: коробка, es: caja}
+  drive: {en: drive, ru: привод, es: tracción}

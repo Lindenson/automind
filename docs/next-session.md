@@ -23,6 +23,13 @@ State on 2026-11-04:
   computed". PR #42: the user can state it ("в гибридном режиме 5,5 л", also fuel l/100 km, kWh/100 km, electric
   km): `CaseFile.stated_energy`, tied to the named car or the only car it fits, labelled "your figure".
 
+- **Spec 008 — identification ladder and used cars as used** (ADR-030; `specs/008-identification-ladder`):
+  - the versions of each model generation are a sourced cache (`model_versions`, 60 days; `application/versions.py`, role `versions`);
+  - a pure ladder narrows a car (`domain/ladder.py`): generation → engine (fuel → family → power) → gearbox → drive;
+  - what does not exist is said; "choose for me" or two asks settle a level by the base version; no PROPOSE or REMOVE_OR_CHOOSE on the ladder;
+  - a property test covers 1,500 scenarios;
+  - used cars (`domain/used.py`): a year not given is asked once, then assumed from mileage or generation (never age 0); the used price is the purchase price (else no data); depreciation runs from the used price; mileage counts in reliability; the warranty is shown as remaining or expired.
+
 ## Steps
 
 1. `git checkout main && git pull`.

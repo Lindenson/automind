@@ -25,6 +25,11 @@ async def _notices(c: TurnContext, car: Any, o: Any, url: str | None, lang: str 
         out.append(notice(t("page_refused", lang, site=o.note.split(":", 1)[1]), "warning"))
     elif url and car.label and url == car.constraints.url:
         out.append(notice(t("page_taken", lang, what=car.label)))
+    name = f"{car.make} {car.model}" if car.make and car.model else car.display_name
+    for ev in o.events:  # spec 008: what the ladder did on its own, said (FR-004, FR-005, FR-010, FR-020)
+        vals = {k: v for k, v in ev.items() if k != "kind"}
+        out.append(notice(t(ev["kind"], lang, car=name, **vals), "info" if ev["kind"] != "ladder_missing"
+                          else "warning"))  # fmt: skip
     if car.previous_label and car.label and car.previous_label != car.label:  # a correction, shown back (FR-014)
         out.append(notice(t("changed_car", lang, before=car.previous_label, after=car.label)))
         await record_intake(c, "CORRECTED", car.key, before=car.previous_label, after=car.label)

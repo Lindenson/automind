@@ -155,6 +155,49 @@ PHRASES: dict[str, dict[str, str]] = {
         "es": "¿Quizás quisiste decir: {options}?",
     },
     "choose_for_me": {"en": "Choose for me", "ru": "Выбери сам", "es": "Elige tú"},
+    "used_age_assumed": {
+        "en": "The year of the {car} was not given: its costs assume about {age} years ({how}). Tell me the year to "
+        "make them exact.",
+        "ru": "Год {car} не указан: расходы посчитаны для возраста около {age} лет ({how}). Назовите год — "
+        "посчитаю точно.",
+        "es": "No se indicó el año del {car}: los costes suponen unos {age} años ({how}). Dime el año para afinarlos.",
+    },
+    "level_replaced": {
+        "en": "{car}: you said {old} earlier and now {new} ({span}) — I keep {new}; {old} is dropped.",
+        "ru": "{car}: раньше было {old}, теперь {new} ({span}) — беру {new}, {old} убираю.",
+        "es": "{car}: antes dijiste {old} y ahora {new} ({span}); me quedo con {new} y quito {old}.",
+    },
+    "settled_by_rule": {
+        "en": "{car}: no answer twice — I took {label} (the base version). Say another one to change it.",
+        "ru": "{car}: дважды без ответа — взял {label} (базовая версия). Назовите другую, если нужно.",
+        "es": "{car}: sin respuesta dos veces; tomé {label} (la versión base). Dime otra para cambiarla.",
+    },
+    "identity_less_certain": {
+        "en": "{car}: no source lists its versions, so the exact version is less certain — check it on the card.",
+        "ru": "{car}: список версий не найден в источниках — точная версия менее надёжна, проверьте её в карточке.",
+        "es": "{car}: ninguna fuente lista sus versiones; la versión exacta es menos segura, revísala en la ficha.",
+    },
+    "ladder_missing": {
+        "en": "{car} has no «{missing}» — the version there is: {label}.",
+        "ru": "У {car} нет «{missing}» — есть версия: {label}.",
+        "es": "El {car} no tiene «{missing}»; la versión que hay: {label}.",
+    },
+    "warranty_remaining": {
+        "en": "{car} ({year}{assumed}): maker's warranty ({years} years) until {until}.",
+        "ru": "{car} ({year}{assumed}): заводская гарантия ({years} г.) действует до {until}.",
+        "es": "{car} ({year}{assumed}): garantía de fábrica ({years} años) hasta {until}.",
+    },
+    "warranty_expired": {
+        "en": "{car} ({year}{assumed}): maker's warranty ({years} years) expired in {until}.",
+        "ru": "{car} ({year}{assumed}): заводская гарантия ({years} г.) закончилась в {until}.",
+        "es": "{car} ({year}{assumed}): la garantía de fábrica ({years} años) caducó en {until}.",
+    },
+    "used_price_missing": {
+        "en": "{car}: no sourced used price for {year} — the purchase price is not scored (the new price is not used).",
+        "ru": "{car}: нет цены б/у за {year} год из источников — цена покупки не оценивается (цену нового не беру).",
+        "es": "{car}: sin precio de ocasión con fuente para {year}; el precio de compra no puntúa "
+        "(no uso el de nuevo).",
+    },
     "gb_automatic": {"en": "Automatic", "ru": "Автомат", "es": "Automático"},
     "gb_manual": {"en": "Manual", "ru": "Механика", "es": "Manual"},
     "remove_car": {"en": "Remove {car}", "ru": "Убрать {car}", "es": "Quitar {car}"},

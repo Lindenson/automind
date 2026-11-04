@@ -19,10 +19,10 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 from urllib.parse import urlparse
 
-from automind.application import resolve
+from automind.application import resolve, versions
 from automind.application.ports import Ports
-from automind.domain import evidence, identity, intake
-from automind.domain.casefile import CaseCar, CaseFile, Choice, IdentifyOutcome
+from automind.domain import evidence, identity, intake, ladder, used
+from automind.domain.casefile import CaseCar, CaseFile, Choice, EngineHint, IdentifyOutcome, LadderMemo
 
 LineupLookup = Callable[[Ports, str], Awaitable[Any]]  # (ports, make) -> application.lineup.Lineup | None
 
@@ -109,18 +109,47 @@ async def identify_car(
         return _done(car, IdentifyOutcome(outcome=kind, need="MODEL", choices=choices, note=note))  # type: ignore[arg-type]
     if car.variant_id and car.resolution in ("CONFIRMED", "AUTO_OK", "PROPOSED"):
         return _done(car, IdentifyOutcome(outcome="IDENTIFIED"))
-    if car.condition == "USED" and car.year is None and car.age_years is None and not car.constraints.generation_hint:
-        return _done(car, IdentifyOutcome(outcome="IDENTIFIED"))  # the age is asked first (USED_AGE), then resolved
+    if (year_asked := _year_first(ports, case, car, current_year)) is not None:
+        return year_asked
+    if (laddered := await _ladder(ports, case, car, current_year)) is not None:
+        return laddered
+    return await _fallback(ports, case, car, current_year, lineup)
+
+
+def _year_first(ports: Ports, case: CaseFile, car: CaseCar, now: int) -> IdentifyOutcome | None:
+    """A used car's year is asked once, with the identity questions (FR-021); not given after that ask, it is
+    assumed and shown as assumed (FR-022)."""
+    if car.condition != "USED" or car.year is not None or car.age_years is not None:
+        return None
+    if car.constraints.generation_hint:
+        return None
+    if case.intake.attempt(car.key, "YEAR") < 1:
+        return _done(car, IdentifyOutcome(outcome="NEED", need="YEAR"))
+    _assume_year(ports, car, now)
+    return None
+
+
+async def _fallback(ports: Ports, case: CaseFile, car: CaseCar, current_year: int, lineup: Any) -> IdentifyOutcome:
+    """No sourced list of versions: the catalog, then the resolver; the identity is marked less certain (FR-020)."""
+    memo = car.ladder or LadderMemo()
+    memo.certainty = "LESS_CERTAIN"  # no sourced list of versions: the fallback (FR-020)
+    car.ladder = memo
     a = await resolve.assess_car(car, ports.ref, current_year, case.compare_level)
     if a.candidates:
         choices = [
             Choice(label=c["label"], make=c["make"], model=c["model"], variant_id=c["id"]) for c in a.candidates[:4]
         ]
-        if not resolve.auto_resolve(car, a):  # several fit, or used: the best is proposed, the others are options
+        # without a sourced list the catalog row is taken as before, with its uncertainty said (FR-020); the live
+        # path is the ladder, which never settles a level from one catalog row (FR-002)
+        if not resolve.auto_resolve(car, a):
             best = a.candidates[0]
             car.variant_id, car.label, car.resolution = best["id"], best["label"], _proposed(car)
-        return _done(car, IdentifyOutcome(outcome="IDENTIFIED", choices=choices))
-    return await _resolve_open(ports, case, car, current_year, lineup)
+        return _done(car, IdentifyOutcome(outcome="IDENTIFIED", choices=choices,
+                                          events=[{"kind": "identity_less_certain"}]))  # fmt: skip
+    o = await _resolve_open(ports, case, car, current_year, lineup)
+    if o.outcome == "IDENTIFIED":
+        o.events.append({"kind": "identity_less_certain"})
+    return o
 
 
 def _classify_url(car: CaseCar, reg: Any) -> str | None:
@@ -186,7 +215,7 @@ async def _resolve_open(ports: Ports, case: CaseFile, car: CaseCar, year: int, l
     hint = car.constraints.engine_hint
     if hint is not None and not hint.empty() and not resolve.engine_of_fits(v, hint):
         # no version with the named engine (FR-015): offer the engines that exist
-        choices = await _engines_on_sale(ports, car, year, ident.alternatives)
+        choices = await _engines_on_sale(ports, car, year, [])  # no unsourced alternatives (FR-020)
         return _done(car, IdentifyOutcome(outcome="CHOICES" if choices else "NEED", need="ENGINE", choices=choices))
     car.variant_id, car.label, car.resolution = v.id, v.label, _proposed(car)
     return _done(car, IdentifyOutcome(outcome="IDENTIFIED", note=ident.note))
@@ -268,3 +297,170 @@ def _done(car: CaseCar, o: IdentifyOutcome) -> IdentifyOutcome:
     o.key = key_of(car)
     car.identify = o
     return o
+
+
+# --- the identification ladder (spec 008): generation → engine → gearbox → driven wheels over sourced versions ---
+
+
+def _spans(ports: Ports, car: CaseCar) -> dict[str, tuple[int | None, int | None]]:
+    gens = (getattr(ports.ref, "generations", None) or {}).get(f"{car.make}|{car.model}", [])
+    out = {str(g).lower(): (lo, hi) for g, lo, hi in gens}
+    m = car.ladder
+    if m is not None and m.generation:
+        out.setdefault(m.generation.lower(), (m.generation_from, m.generation_to))
+    return out
+
+
+def _intake_cfg(ports: Ports) -> dict[str, Any]:
+    return dict((getattr(ports.ref, "search", None) or {}).get("intake") or {})
+
+
+def _assume_year(ports: Ports, car: CaseCar, now: int) -> None:
+    """A used car with no year after one ask: an age from the mileage, else the middle of the generation the hint
+    names, else the default; the year is marked as assumed everywhere it is used (FR-022)."""
+    cfg = _intake_cfg(ports)
+    span = _spans(ports, car).get((car.constraints.generation_hint or "").lower(), (None, None))
+    age, _ = used.assumed_age(car.mileage_km, span[0], span[1], now,
+                              km_per_year=int(cfg.get("km_per_year_used", used.KM_PER_YEAR_USED)),
+                              default=int(cfg.get("default_used_age", used.DEFAULT_USED_AGE)))  # fmt: skip
+    car.year, car.age_years, car.year_assumed = now - age, age, True
+
+
+def _generation(ports: Ports, car: CaseCar, year: int) -> str | None:
+    """The generation the facts name: the user's, the one on sale (new), or the only one built in the year."""
+    if car.constraints.generation_hint:
+        return car.constraints.generation_hint
+    if car.condition != "USED":
+        cur = resolve.current_generation(ports.ref, car, year)
+        return cur[0] if cur else None
+    gens = (getattr(ports.ref, "generations", None) or {}).get(f"{car.make}|{car.model}", [])
+    built = [str(g) for g, lo, hi in gens
+             if lo is not None and car.year and identity.generation_matches(car.year, lo, hi)]  # fmt: skip
+    return built[0] if len(built) == 1 else None
+
+
+def _wanted(car: CaseCar) -> ladder.Wanted:
+    k = car.constraints
+    words = " ".join(x for x in (car.model or "", car.request_text or "", k.trim_hint or "") if x)
+    return ladder.wanted_of(k.engine_hint, engine=k.version_hint, gearbox=k.gearbox_hint, drive=k.drive_hint,
+                            year=car.year if car.condition == "USED" else None, words=words)  # fmt: skip
+
+
+def _levels(car: CaseCar, w: ladder.Wanted) -> dict[str, str]:
+    return ladder.levels_of(car.year, car.year_assumed, car.constraints.generation_hint, w)
+
+
+def _reconcile(ports: Ports, car: CaseCar) -> list[dict[str, str]]:
+    """A newer answer wins over an older one; levels the hub filled below a changed level are opened again."""
+    memo = car.ladder
+    if memo is None:
+        return []
+    r = ladder.reconcile(memo.levels, _levels(car, _wanted(car)), memo.origin, _spans(ports, car))
+    k = car.constraints
+    for lvl in r.clear:
+        memo.origin.pop(lvl, None)
+        _clear(car, lvl)
+    for lvl in r.changed:  # the user's own value now, whoever had filled it before
+        memo.origin.pop(lvl, None)
+    if k.engine_hint is not None and k.engine_hint.empty():
+        k.engine_hint = None
+    if r.drop == "YEAR":
+        car.year, car.age_years, car.year_assumed = None, None, False
+    elif r.drop == "GENERATION":
+        k.generation_hint = None
+    return [{"kind": "level_replaced", **{a: str(b) for a, b in r.note.items()}}] if r.note else []
+
+
+def _clear(car: CaseCar, lvl: str) -> None:
+    """Open one level again (a value the hub filled, below a level the user changed)."""
+    k, e = car.constraints, car.constraints.engine_hint
+    if lvl in ("ENGINE", "POWER"):
+        k.version_hint = None
+    if lvl == "GEARBOX":
+        k.gearbox_hint = None
+    elif lvl == "DRIVE":
+        k.drive_hint = None
+    elif e is not None and lvl == "FUEL":
+        e.fuel = None
+    elif e is not None and lvl == "ENGINE":
+        e.displacement_l, e.family = None, None
+    elif e is not None and lvl == "POWER":
+        e.power_kw, e.power_hp = None, None
+
+
+def _write(car: CaseCar, w: ladder.Wanted) -> None:
+    """The levels the hub settled are written as the car's facts (with their origin in the memo)."""
+    k = car.constraints
+    if any((w.fuel, w.displacement_l, w.family, w.power_kw)):
+        k.engine_hint = EngineHint(fuel=w.fuel, displacement_l=w.displacement_l,  # type: ignore[arg-type]
+                                   family=(w.family or "")[:16] or None, power_kw=w.power_kw,
+                                   power_hp=round(w.power_kw / 0.7355) if w.power_kw else None,
+                                   evidence=(k.engine_hint.evidence if k.engine_hint else ""))  # fmt: skip
+    k.version_hint = w.engine or k.version_hint
+    k.gearbox_hint = w.gearbox or k.gearbox_hint  # type: ignore[assignment]
+    k.drive_hint = w.drive or k.drive_hint  # type: ignore[assignment]
+
+
+def _choice(car: CaseCar, o: ladder.Option) -> Choice:
+    return Choice(label=o.label, make=car.make, model=car.model, engine=o.engine, level=o.level, fuel=o.fuel,
+                  engine_cc=o.engine_cc, family=o.family, power_kw=o.power_kw, gearbox=o.gearbox,
+                  drive=o.drive)  # fmt: skip
+
+
+async def _ladder(ports: Ports, case: CaseFile, car: CaseCar, year: int) -> IdentifyOutcome | None:
+    """The car narrowed over the sourced versions of its generation; None when no source lists them (the
+    fallback identifies then, FR-020)."""
+    if not (car.make and car.model) or ports.versions is None:
+        return None
+    events = _reconcile(ports, car)
+    new = car.condition != "USED"
+    gen = _generation(ports, car, year)
+    try:
+        g = await versions.lookup(ports, car.make, car.model, generation=gen, year=None if new else car.year, new=new)
+    except Exception:  # noqa: BLE001 - a failed look-up never blocks the intake: the fallback identifies
+        g = None
+    if g is None or not g.versions:
+        return None
+    memo = car.ladder or LadderMemo()
+    memo.certainty, memo.generation = "SOURCED", g.generation
+    memo.generation_from, memo.generation_to = g.years_from, g.years_to
+    car.ladder = memo
+    cfg = _intake_cfg(ports)
+    asks = {i: case.intake.attempt(car.key, i) for i in ladder.ITEMS}
+    before = _wanted(car)
+    d = ladder.decide(g.versions, before, asks, limit=int(cfg.get("max_attempts_per_item", 2)),
+                      chosen=car.chosen_for_me)  # fmt: skip
+    if d.auto:
+        old = _levels(car, before)
+        _write(car, d.wanted)
+        for lvl, val in _levels(car, d.wanted).items():
+            if old.get(lvl) != val:
+                memo.origin[lvl] = d.auto[0].origin
+        events += [{"kind": "settled_by_rule", "label": a.label} for a in d.auto if a.origin == "LIMIT"]
+    memo.levels = _levels(car, _wanted(car))
+    if d.done and d.step.version is not None:
+        v = await _store_version(ports, car, g, d.step)
+        car.variant_id, car.label, car.resolution = v.id, v.label, _proposed(car)
+        if d.missing and not d.auto:  # the user named something this generation has not: said, the one there is
+            events.append({"kind": "ladder_missing", "missing": ", ".join(d.missing), "label": v.label})
+        return _done(car, IdentifyOutcome(outcome="IDENTIFIED", missing=d.missing, events=events))
+    step = d.step
+    choices = [_choice(car, o) for o in step.options]
+    return _done(car, IdentifyOutcome(outcome="CHOICES", need=ladder.ITEM[step.kind], level=step.kind,  # type: ignore[arg-type]
+                                      choices=choices, missing=d.missing, events=events))  # fmt: skip
+
+
+async def _store_version(ports: Ports, car: CaseCar, g: ladder.Generation, step: ladder.Step) -> Any:
+    """The catalog row of the settled version (one row per real version: an existing one is reused, FR-019)."""
+    v = step.version
+    assert v is not None
+    name = v.engine + (f" {ladder.GEARBOX_LABEL.get(step.gearbox, step.gearbox)}" if step.gearbox else "")
+    name += " AWD" if step.drive == "AWD" and not re.search(r"awd|4motion|quattro|xdrive|4x4|4wd", name, re.I) else ""
+    ident = resolve.VariantIdentity(
+        make=car.make or g.make, model=car.model or g.model, generation=g.generation,
+        generation_years_from=g.years_from, generation_years_to=g.years_to, variant_name=name,
+        powertrain=ladder.POWERTRAIN.get(v.fuel or "", "ICE"), body_class=g.body_class,  # type: ignore[arg-type]
+        transmission=step.gearbox, drive=step.drive, engine_cc=v.engine_cc, power_kw=v.power_kw,  # type: ignore[arg-type]
+        fuel=v.fuel, certainty="exact",  # type: ignore[arg-type]
+    )  # fmt: skip
+    return await resolve.upsert_variant(ident, ports.ref)

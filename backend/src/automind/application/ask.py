@@ -11,6 +11,7 @@ from collections.abc import Callable
 from typing import Any
 
 from automind.application.ports import LLM
+from automind.domain import ladder
 from automind.domain.casefile import CaseFile, Pending, QuestionKind
 
 
@@ -90,6 +91,8 @@ def _concerns(kind: str, car: Any) -> bool:
         return not car.make if car.identify is not None else not (car.make and car.model)
     if kind == "ENGINE" and car.identify is not None:  # never "which engine?" for a car already identified
         return car.identify.need == "ENGINE"
+    if kind in ("FUEL", "POWER", "DRIVE") or (kind == "GEARBOX" and _laddered(car)):
+        return car.identify is not None and car.identify.need == kind
     return True
 
 
@@ -139,7 +142,9 @@ def template(questions: dict[str, Any], kind: str, lang: str | None, *, rephrase
     lang = lang if lang in ("en", "ru", "es") else "en"
     opts = str(values.get("options") or "").strip()
     variant: dict[str, Any] = t
-    if rephrase and isinstance(t.get("rephrase"), dict) and (opts or "{options}" not in str(t["rephrase"].get(lang))):
+    if values.get("missing") and opts and isinstance(t.get("missing"), dict):
+        variant = t["missing"]  # what the user named does not exist: said, then what does (spec 008 FR-004)
+    elif rephrase and isinstance(t.get("rephrase"), dict) and (opts or "{options}" not in str(t["rephrase"].get(lang))):
         variant = t["rephrase"]
     elif rephrase and not opts and isinstance(t.get("rephrase_bare"), dict):
         variant = t["rephrase_bare"]
@@ -156,9 +161,62 @@ def template(questions: dict[str, Any], kind: str, lang: str | None, *, rephrase
 # spec 005: question kind -> the intake item it asks about (attempt counters, repeat detection)
 KIND_ITEM = {"CAR_IDENTITY": "MAKE", "MAKE_LINEUP": "MODEL", "UNKNOWN_MODEL": "MODEL", "ENGINE": "ENGINE",
              "CONDITION": "CONDITION", "USED_AGE": "YEAR", "TRIM": "CHOICE", "GEARBOX": "GEARBOX",
-             "PROPOSE": "CHOICE", "REMOVE_OR_CHOOSE": "CHOICE"}  # fmt: skip
+             "PROPOSE": "CHOICE", "REMOVE_OR_CHOOSE": "CHOICE", "FUEL": "FUEL", "POWER": "POWER",
+             "DRIVE": "DRIVE"}  # fmt: skip
 CAR_KINDS = ("CAR_IDENTITY", "MAKE_LINEUP", "UNKNOWN_MODEL", "ENGINE", "USED_AGE", "TRIM", "GEARBOX", "PROPOSE",
-             "REMOVE_OR_CHOOSE")  # fmt: skip
+             "REMOVE_OR_CHOOSE", "FUEL", "POWER", "DRIVE")  # fmt: skip
+LADDER_KINDS = ("FUEL", "ENGINE", "POWER", "GEARBOX", "DRIVE")  # spec 008: one level of the identification ladder
+
+
+def _laddered(car: Any) -> bool:
+    return bool(car.identify is not None and car.identify.level)
+
+
+def ladder_words(questions: dict[str, Any], lang: str) -> dict[str, str]:
+    """The ladder's words (fuels, gearboxes, drives, level names) in the conversation language."""
+    raw = questions.get("LADDER_WORDS") or {}
+    return {k: str(v.get(lang) or v.get("en") or k) for k, v in raw.items() if isinstance(v, dict)}
+
+
+def _localized(choices: list[Any], words: dict[str, str]) -> list[Any]:
+    """Option labels of the fuel, gearbox and drive levels in the user's language (a tap matches the label)."""
+    out = []
+    for ch in choices:
+        label = ch.label
+        if ch.level == "FUEL" and ch.fuel:
+            label = words.get(ch.fuel, label)
+        elif ch.level == "GEARBOX" and ch.gearbox in ("manual", "automatic", "single"):
+            label = words.get("automatic" if ch.gearbox == "single" else ch.gearbox, label)
+        elif ch.level == "DRIVE" and ch.drive:
+            label = words.get(ch.drive, label)
+        out.append(ch.model_copy(update={"label": label}))
+    return out
+
+
+def _ladder_options(car: Any, choices: list[Any], questions: dict[str, Any],
+                    lang: str) -> tuple[list[Any], list[str], str]:  # fmt: skip
+    choices = _localized(choices, ladder_words(questions, lang))
+    name = f"{car.make} {car.model}" + (f" {car.year}" if car.condition == "USED" and car.year else "")
+    return choices, [ch.label for ch in choices[:6]], name
+
+
+def _car_text(questions: dict[str, Any], kind: str, lang: str, car: Any, name: str, labels: list[str], *,
+              rephrase: bool, ladder_q: bool) -> str:  # fmt: skip
+    """A car question's text; a ladder question starts with where the car stands and says what does not exist."""
+    missing = ", ".join(car.identify.missing) if ladder_q and car.identify is not None else ""
+    text = template(questions, kind, lang, rephrase=rephrase, car=name, make=car.make or name,
+                    options=", ".join(labels), missing=missing)  # fmt: skip
+    return f"{status_line(car, ladder_words(questions, lang))}\n{text}" if ladder_q else text
+
+
+def status_line(car: Any, words: dict[str, str]) -> str:
+    """Where the identification of this car stands (spec 008 FR-013)."""
+    k = car.constraints
+    w = ladder.wanted_of(k.engine_hint, engine=k.version_hint, gearbox=k.gearbox_hint, drive=k.drive_hint)
+    gen = (car.ladder.generation if car.ladder else None) or k.generation_hint
+    level = car.identify.level if car.identify is not None else None
+    return ladder.status_line(f"{car.make} {car.model}", gen, car.year, car.year_assumed, w,
+                              level.lower() if level else None, words)  # fmt: skip
 
 
 def intake_questions(
@@ -201,6 +259,9 @@ def intake_questions(
             item = KIND_ITEM.get(kind, "MODEL")
             choices, labels = _options(kind, car, generations.get(key, []), gearboxes)
             name = car.display_name
+            ladder_q = kind in LADDER_KINDS and _laddered(car)
+            if ladder_q:  # spec 008: options in the user's language, the car named by make, model and year
+                choices, labels, name = _ladder_options(car, choices, questions_i18n, lang)
             if kind == "PROPOSE":
                 proposal = choices[0].label if choices else (car.label or "")
                 if not proposal:
@@ -208,8 +269,7 @@ def intake_questions(
                 else:
                     name = proposal
             rephrase = case.intake.attempt(key, item) >= 1
-            text = template(questions_i18n, kind, lang, rephrase=rephrase, car=name, make=car.make or name,
-                            options=", ".join(labels))  # fmt: skip
+            text = _car_text(questions_i18n, kind, lang, car, name, labels, rephrase=rephrase, ladder_q=ladder_q)
             items.append({"kind": kind, "car": key, "item": item, "text": text,
                           "choices": [ch.model_dump(mode="json") for ch in choices[:6]]})  # fmt: skip
     return items[:3]
@@ -218,7 +278,7 @@ def intake_questions(
 def _options(kind: str, car: Any, generations: list[str], gearboxes: dict[str, str]) -> tuple[list[Any], list[str]]:
     """The offered choices of a car question and the option names in its text. A gearbox question offers
     gearboxes, never the car's versions (incident 2026-11-03)."""
-    if kind == "GEARBOX":
+    if kind == "GEARBOX" and not _laddered(car):
         return [], [gearboxes.get("automatic", "automatic"), gearboxes.get("manual", "manual")]
     choices = list(car.identify.choices) if car.identify else []
     labels = [ch.label for ch in choices[:6]]
@@ -246,14 +306,16 @@ def intake_quick_replies(items: list[dict[str, Any]], case: CaseFile, labels: di
         if kind == "PROPOSE":
             out += [{"label": labels["yes"], "text": labels["yes"]}, {"label": labels["no"], "text": labels["no"]}]
             continue
-        if kind == "GEARBOX":
+        if kind == "GEARBOX" and not q.get("choices"):
             out += [{"label": labels[x], "text": labels[x]} for x in ("automatic", "manual") if labels.get(x)]
         for ch in q.get("choices") or []:
             chip: dict[str, Any] = {"label": ch["label"], "text": ch["label"]}
             if ch.get("suggested"):
                 chip |= {"suggested": True, "reason": ch.get("reason")}
             out.append(chip)
-        if kind in ("MAKE_LINEUP", "TRIM", "GEARBOX", "REMOVE_OR_CHOOSE"):
+        if kind in ("MAKE_LINEUP", "TRIM", "GEARBOX", "REMOVE_OR_CHOOSE", "FUEL", "POWER", "DRIVE") or (
+            kind == "ENGINE" and q.get("choices")
+        ):
             out.append({"label": labels["choose"], "text": labels["choose"]})
         if kind in CAR_KINDS:
             rm = labels["remove"].format(car=car.display_name)

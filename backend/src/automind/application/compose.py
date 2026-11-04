@@ -13,7 +13,7 @@ from typing import Any
 
 from sqlalchemy import select
 
-from automind.domain import dragrace, energy, identity, reliability, reviews, specs, tco, units
+from automind.domain import dragrace, energy, identity, reliability, reviews, specs, tco, units, used
 from automind.domain import evidence as evidence_rules
 from automind.domain import insights as ins
 from automind.domain import metrics as scoring  # noqa: F401 (CarFacts, metrics, ownership)
@@ -116,6 +116,13 @@ async def load_car(variant_id: str) -> dict:
                 .where(db.ValueRetention.variant_id == variant_id)
             )
         ).all()
+        used_rows = (
+            await s.execute(
+                select(db.UsedPriceRange, db.Evidence.url)
+                .join(db.Evidence, db.UsedPriceRange.evidence_id == db.Evidence.id)
+                .where(db.UsedPriceRange.variant_id == variant_id, db.UsedPriceRange.status == "ACCEPTED")
+            )
+        ).all()
         rejected_rows = (
             await s.execute(
                 select(db.PageRelevance, db.Document)
@@ -163,6 +170,11 @@ async def load_car(variant_id: str) -> dict:
         "manufacturer_facts": facts_rows,
         "stats": stats,
         "retention": [(r, e) for r, e in retention],
+        # spec 008: sourced used-price ranges (the purchase price and value now of a used car)
+        "used_prices": [
+            used.UsedRange(float(r.min_eur), float(r.max_eur), r.model_year_from, r.model_year_to, url)
+            for r, url in used_rows
+        ],
     }
 
 
@@ -249,6 +261,8 @@ def facts(
     annual_cost_eur: float | None = None,
     year: int | None = None,
     energy_eur_per_100km: float | None = None,
+    mileage_km: int | None = None,
+    used_price_eur: float | None = None,
 ) -> scoring.CarFacts:
     v = car["variant"]
     return scoring.CarFacts(
@@ -278,6 +292,8 @@ def facts(
         brand_positioning=v.brand_positioning,
         condition=condition,
         age_years=age_years,
+        mileage_km=mileage_km,
+        used_price_eur=used_price_eur if condition == "USED" else None,
         annual_cost_eur=annual_cost_eur,
         energy_eur_per_100km=energy_eur_per_100km,
         reliability=reliability_summary(car),
@@ -757,7 +773,7 @@ def _criteria_facts(sc: CriteriaScore | None) -> dict | None:
 async def tco_car(
     car: dict, condition: str, age_years: int | None, mileage_km: int | None,
     retention_curve: dict | None = None, use: energy.UsageContext | None = None, new_in_market: bool = False,
-    stated: dict[str, tuple[float, str]] | None = None,
+    stated: dict[str, tuple[float, str]] | None = None, used_price_eur: float | None = None,
 ) -> tco.TcoCar:  # fmt: skip
     """Assemble TCO inputs from validated data: specs, sourced maintenance items, used-car issues."""
     v = car["variant"]
@@ -813,6 +829,7 @@ async def tco_car(
         maintenance=sched,
         big_tickets=tickets,
         price_eur=_num(car, "official_price_es"),
+        used_price_eur=used_price_eur if condition == "USED" else None,
         retention=sourced_retention(car),
         retention_curve=class_curve(v.vehicle_class, retention_curve or {}),
         new_in_market=new_in_market,
@@ -1132,3 +1149,16 @@ def value_retention_block(cars: list[dict], curve: dict[str, dict[float, float]]
     if not any(r["points"] or r.get("insufficient") for r in rows):
         return None
     return {"type": "value_retention", "title": "Value after 3 and 5 years", "cars": rows}
+
+
+def used_price(car: dict, year: int | None) -> used.UsedPrice | None:
+    """The sourced used price of this car for its year (spec 008 FR-023), or None."""
+    return used.used_price_for(car.get("used_prices") or [], year)
+
+
+def warranty_years(car: dict) -> float | None:
+    """The maker's car warranty in years, from its sourced WARRANTY fact (spec 006 US6), or None."""
+    for f in _manufacturer_facts(car.get("manufacturer_facts", [])):
+        if f.fact_type == "WARRANTY" and getattr(f, "value_num", None):
+            return float(f.value_num)
+    return None

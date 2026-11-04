@@ -160,6 +160,10 @@ def _reliability(c: CarFacts, sc: Mapping[str, Any]) -> Result:
     if c.condition == "USED" and c.age_years is not None and c.age_years > sc["age_free_years"]:
         s += max(sc["age_max"], sc["per_year_over"] * (c.age_years - sc["age_free_years"]))
         inputs.append(f"age {c.age_years} years")
+    free = float(sc.get("mileage_free_km", 0) or 0)
+    if c.condition == "USED" and c.mileage_km and free and c.mileage_km > free:  # spec 008 FR-025
+        s += max(float(sc.get("mileage_max", -15)), float(sc.get("per_10k_over", -1)) * (c.mileage_km - free) / 10000)
+        inputs.append(f"mileage {c.mileage_km:,} km")
     return round(max(0.0, min(100.0, s)), 1), inputs
 
 
@@ -170,6 +174,10 @@ def _ownership(c: CarFacts, sc: Mapping[str, Any]) -> Result:
 
 
 def _price(c: CarFacts, sc: Mapping[str, Any]) -> Result:
+    if c.condition == "USED":  # the price paid for a used car is its used price, never the new one (spec 008 FR-023)
+        if c.used_price_eur is None:
+            return None, ["no sourced used price for its year (the new price is not used)"]
+        return lin(c.used_price_eur, sc["lo"], sc["hi"]), [f"used price {c.used_price_eur:.0f} EUR (sourced)"]
     if c.price_eur is None:
         return None, []
     return lin(c.price_eur, sc["lo"], sc["hi"]), [f"official price {c.price_eur:.0f} EUR"]

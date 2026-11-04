@@ -79,6 +79,7 @@ class TurnBudget:
     input_tokens: int = 0
     output_tokens: int = 0
     search_calls: int = 0
+    identify_search_calls: int = 0  # of search_calls: version look-ups of the intake (not research)
     cost_eur: float = 0.0
     by_role: dict[str, int] = field(default_factory=dict)
     limits_reached: list[str] = field(default_factory=list)
@@ -169,6 +170,7 @@ class TurnBudget:
         self.input_tokens = int(u.get("input_tokens") or 0)
         self.output_tokens = int(u.get("output_tokens") or 0)
         self.search_calls = int(u.get("search_calls") or 0)
+        self.identify_search_calls = int(u.get("identify_search_calls") or 0)
         self.cost_eur = float(u.get("cost_eur") or 0.0)
 
     def snapshot(self) -> dict[str, Any]:
@@ -178,6 +180,7 @@ class TurnBudget:
             "input_tokens": self.input_tokens,
             "output_tokens": self.output_tokens,
             "search_calls": self.search_calls,
+            "identify_search_calls": self.identify_search_calls,
             "cost_eur": round(self.cost_eur, 4),
         }
 
