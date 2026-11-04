@@ -182,6 +182,9 @@ async def prepare_limit(state: TurnState, runtime: Runtime[TurnContext]) -> dict
     minutes = (time.monotonic() - b.started) / 60
     text = t("limit_reached", lang, reasons=reasons, eur=f"{b.cost_eur:.2f}", calls=b.calls,
              minutes=f"{minutes:.0f}", left=len(hit.get("jobs", [])), more=f"{b.limits.hard_cap_eur:.2f}")  # fmt: skip
+    if "daily" in hit.get("reasons", []):
+        text += t("limit_daily_note", lang, spent=f"{b.day_spent_eur + b.cost_eur:.2f}",
+                  cap=f"{b.limits.daily_cap_eur:.2f}")  # fmt: skip
     payload = {
         "kind": "limit",
         "action": "CONFIRM_LIMIT",

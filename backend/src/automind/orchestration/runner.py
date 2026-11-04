@@ -199,13 +199,20 @@ class ChatRunner:
                 return TurnResult(turn_id, "CANCELLED")
             raise
 
-    async def _execute(self, chat_id: str, turn_id: str, inputs: Any) -> TurnResult:
+    async def _budget(self, chat_id: str, turn_id: str, inputs: Any) -> Any:
         budget = self.new_budget(chat_id, turn_id)
         if not isinstance(inputs, dict):  # resume (Command) or restart (None): keep usage counted so far
             stored = await self.ports.turns.get(turn_id)
             budget.restore(stored.usage if stored is not None else None)
             snap = await self.graph.aget_state(self._config(chat_id, turn_id))
             budget.extend(int((snap.values or {}).get("limit_extensions") or 0))  # earlier "continue" answers
+        spent_today = getattr(self.ports.turns, "spent_today", None)
+        if spent_today is not None and budget.limits.daily_cap_eur:  # all chats today, without this turn
+            budget.day_spent_eur = await spent_today(exclude_turn=turn_id)
+        return budget
+
+    async def _execute(self, chat_id: str, turn_id: str, inputs: Any) -> TurnResult:
+        budget = await self._budget(chat_id, turn_id, inputs)
         ctx = TurnContext(self.ports, chat_id, turn_id, budget)
         token = current_budget.set(budget)
         started = time.monotonic()

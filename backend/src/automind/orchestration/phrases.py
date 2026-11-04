@@ -203,6 +203,12 @@ PHRASES: dict[str, dict[str, str]] = {
     "limit_cost_cap": {"en": "cost", "ru": "стоимость", "es": "coste"},
     "limit_llm_calls": {"en": "AI calls", "ru": "вызовы ИИ", "es": "llamadas de IA"},
     "limit_time": {"en": "time", "ru": "время", "es": "tiempo"},
+    "limit_daily": {"en": "daily spend", "ru": "дневные расходы", "es": "gasto diario"},
+    "limit_daily_note": {
+        "en": " Today all chats have spent €{spent} of the €{cap} daily cap.",
+        "ru": " Сегодня все чаты вместе потратили €{spent} из дневного лимита €{cap}.",
+        "es": " Hoy todos los chats han gastado {spent} € del límite diario de {cap} €.",
+    },
     # spec 005: intake chips and notices
     "cond_new": {"en": "New", "ru": "Новые", "es": "Nuevos"},
     "cond_used": {"en": "Used", "ru": "Подержанные", "es": "De segunda mano"},

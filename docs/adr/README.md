@@ -28,3 +28,4 @@
 - [ADR-026](ADR-026.md) — One API process; MANUFACTURER only for official domains; reporter without tools (Accepted)
 - [ADR-027](ADR-027.md) — The profile drives the assessment: basis, weight breakdown, RESCORE, learned sources, intake by code (Accepted)
 - [ADR-028](ADR-028.md) — Energy model per powertrain, market facts with dates, like-for-like ownership cost (Accepted)
+- [ADR-029](ADR-029.md) — Access before any external demo: owner per browser, same-site only, daily cap (Accepted)

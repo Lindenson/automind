@@ -44,9 +44,19 @@ class Settings(BaseSettings):
     fresh_maintenance_days: int = 365
 
     # API bind address: 127.0.0.1 = this machine only; 0.0.0.0 = reachable from the local network
-    # (there is no login yet: anyone on the network can use the hub and spend the API budget).
+    # (there is no login yet: anyone on the network can use the hub; chats stay per browser and the daily cap
+    # bounds the spend, see api/access.py and ADR-029).
     api_host: str = "127.0.0.1"
     api_port: int = 8000
+
+    # Access (before any external demo): each browser gets an anonymous owner cookie and sees only its own chats;
+    # browser requests from other sites are refused (WebSocket and changes); internal endpoints (research metrics)
+    # need ADMIN_TOKEN, or come from this machine when it is not set.
+    owner_isolation: bool = True
+    allowed_origins: list[str] = ["http://127.0.0.1:5173", "http://localhost:5173"]
+    admin_token: str | None = None
+    # Spend across all chats per day (Europe/Madrid): research pauses and asks "continue?" at it; 0 = no cap
+    daily_cap_eur: float = 5.00
 
     frontend_dist: Path = ROOT / "frontend" / "dist"
     config_dir: Path = ROOT / "backend" / "config"

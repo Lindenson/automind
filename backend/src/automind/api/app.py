@@ -14,13 +14,14 @@ from collections.abc import AsyncIterator
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, WebSocket
+from fastapi import FastAPI, Request, Response, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_mcp_adapters.tools import load_mcp_tools
 
-from automind.api import rest
+from automind.api import access, rest
 from automind.api.ws import chat_socket
 from automind.config import settings
 from automind.infrastructure import db
@@ -86,19 +87,50 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="AutoMind", version="0.2.0", lifespan=lifespan)
+
+
+@app.middleware("http")
+async def owner_and_origin(request: Request, call_next: Any) -> Response:
+    """The browser's anonymous owner (cookie set on the first response) and same-site changes only (api/access)."""
+    s = settings()
+    if request.method in access.CHANGES and not access.origin_ok(
+        request.headers.get("origin"), request.headers.get("host"), s.allowed_origins
+    ):
+        return JSONResponse(status_code=403, content={"code": "origin_refused", "message": "Cross-site request."})
+    token = request.cookies.get(access.COOKIE)
+    fresh = access.owner_of(token) is None
+    if fresh:
+        token = access.new_token()
+    request.state.owner = access.owner_of(token) if s.owner_isolation else None
+    response: Response = await call_next(request)
+    if fresh and s.owner_isolation:
+        response.headers.append("set-cookie", access.cookie_header(token or "", request.url.scheme == "https"))
+    return response
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://127.0.0.1:5173", "http://localhost:5173"],
+    allow_origins=settings().allowed_origins,
     allow_methods=["*"],
     allow_headers=["*"],
+    allow_credentials=True,
 )
 app.include_router(rest.router)
 
 
 @app.websocket("/ws/chat/{chat_id}")
 async def chat(ws: WebSocket, chat_id: str) -> None:
-    st = ws.app.state
-    await chat_socket(ws, chat_id, st.runner, st.bus, st.chats)
+    st, s = ws.app.state, settings()
+    if not access.origin_ok(ws.headers.get("origin"), ws.headers.get("host"), s.allowed_origins):
+        await ws.close(code=4403)  # a page on another site tried to open this chat (cross-site WebSocket)
+        return
+    token = ws.cookies.get(access.COOKIE)
+    headers: list[tuple[bytes, bytes]] = []
+    if access.owner_of(token) is None:
+        token = access.new_token()
+        headers = [(b"set-cookie", access.cookie_header(token, ws.url.scheme == "wss").encode())]
+    owner = access.owner_of(token) if s.owner_isolation else None
+    await chat_socket(ws, chat_id, st.runner, st.bus, st.chats, owner=owner, headers=headers)
 
 
 if settings().frontend_dist.exists():

@@ -90,8 +90,8 @@ export function createWsTransport(chatId: string, h: TransportHandlers, initialS
       if (ws !== sock) return;
       ws = null;
       if (closed) return;
-      if (ev.code === 4410) {
-        closed = true; // the chat was deleted: do not reconnect
+      if (ev.code === 4410 || ev.code === 4404 || ev.code === 4403) {
+        closed = true; // deleted, another browser's chat, or refused: do not reconnect
         h.onState("closed");
         return;
       }
