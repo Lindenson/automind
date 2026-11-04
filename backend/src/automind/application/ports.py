@@ -249,6 +249,8 @@ class Ports:
     feasibility: Any = None  # application.feasibility.FeasibilityStore (spec 003 US3)
     lineup: Any = None  # async (ports, make) -> application.lineup.Lineup | None (spec 005); None: no lookup
     learned: LearnedSources | None = None  # spec 007 FR-022; None: no learned sources (test fakes)
+    # spec 006 US5: market facts (incentives): upsert(rows, evidence_id), done() -> datetime | None, load(); None: none
+    market_facts: Any = None
     # spec 007 US7: async () -> [(make, domain.intake.LineupModel)] sold in ES, known without a search; None: none
     models_on_sale: Any = None
 

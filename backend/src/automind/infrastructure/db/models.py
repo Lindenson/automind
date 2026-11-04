@@ -340,6 +340,22 @@ class LearnedSource(Base):
     last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 
+class MarketFact(Base):
+    """A market-level fact with dates and evidence (spec 006 FR-016): subsidies, tax deductions, label benefits.
+    `value`: {amount_eur?, percent?, text, label, scope: national|regional|municipal, region_code?, url}."""
+
+    __tablename__ = "market_facts"
+    __table_args__ = (UniqueConstraint("market", "key", name="uq_market_fact"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    market: Mapped[str] = mapped_column(String(4))
+    key: Mapped[str] = mapped_column(String(60))
+    value: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    valid_from: Mapped[date | None] = mapped_column(Date)
+    valid_to: Mapped[date | None] = mapped_column(Date)
+    evidence_ids: Mapped[list[str]] = mapped_column(JSONB)
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
 class PageRelevance(Base):
     __tablename__ = "page_relevance"
     __table_args__ = (PrimaryKeyConstraint("document_id", "variant_id"),)

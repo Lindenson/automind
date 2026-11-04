@@ -51,6 +51,10 @@ favourites:
   - {domain: km77.com, source_type: SPEC_DATABASE, areas: [specs, engineering, measured, price, maintenance, reviews, reliability, used_issues, used_price], markets: [ES], priority: 1, reader: km77, tos_checked: 2026-11-02}
   - {domain: motor.es, source_type: PUBLICATION, areas: [specs, reviews, price, depreciation, manufacturer], markets: [ES], priority: 2, reader: null, tos_checked: null}
   - {domain: autopista.es, source_type: INSTRUMENTED_TEST, areas: [measured, reviews, reliability, used_issues, used_price, price, depreciation], markets: [ES], priority: 1, reader: null, tos_checked: null}
+  # spec 006 US5: official pages for incentives (programme rules, dates, amounts)
+  - {domain: idae.es, source_type: PUBLICATION, areas: [incentives], markets: [ES], priority: 1, reader: null, tos_checked: null}
+  - {domain: boe.es, source_type: PUBLICATION, areas: [incentives], markets: [ES], priority: 1, reader: null, tos_checked: null}
+  - {domain: agenciatributaria.gob.es, source_type: PUBLICATION, areas: [incentives], markets: [ES], priority: 2, reader: null, tos_checked: null}
   - {domain: fichasmotor.com, source_type: SPEC_DATABASE, areas: [specs], markets: [ES], priority: 3, reader: null, tos_checked: null}
   # --- English ---
   # Euro NCAP: the safety rating itself; stars of different protocol years are not comparable (store the year).

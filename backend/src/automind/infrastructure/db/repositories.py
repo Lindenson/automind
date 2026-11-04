@@ -595,6 +595,47 @@ class LearnedSourceRepo:
                      "last_seen": r.last_seen.isoformat() if r.last_seen else None} for r in got]  # fmt: skip
 
 
+class MarketFactRepo:
+    """market_facts table (spec 006 US5): one row per market and key, the newest reading wins."""
+
+    async def upsert(self, rows: list[dict[str, Any]], evidence_id: str, market: str = "ES") -> int:
+        from .models import MarketFact  # noqa: PLC0415
+
+        if not rows:
+            return 0
+        async with sessionmaker()() as s:
+            for r in rows:
+                q = select(MarketFact).where(MarketFact.market == market, MarketFact.key == r["key"])
+                row = (await s.execute(q)).scalar_one_or_none()
+                if row is None:
+                    row = MarketFact(market=market, key=r["key"])
+                    s.add(row)
+                row.value, row.evidence_ids, row.fetched_at = r["value"], [evidence_id], now()
+                row.valid_from, row.valid_to = r["valid_from"], r["valid_to"]
+            await s.commit()
+        return len(rows)
+
+    async def done(self, market: str = "ES") -> Any:
+        """When the market was last researched: the newest fact or the newest run of the area."""
+        from .models import MarketFact  # noqa: PLC0415
+
+        async with sessionmaker()() as s:
+            fact = (await s.execute(select(func.max(MarketFact.fetched_at))
+                                    .where(MarketFact.market == market))).scalar()  # fmt: skip
+            run = (await s.execute(select(func.max(ResearchRun.completed_at))
+                                   .where(ResearchRun.area == "incentives"))).scalar()  # fmt: skip
+        dates = [x for x in (fact, run) if x is not None]
+        return max(dates) if dates else None
+
+    async def load(self, market: str = "ES") -> list[dict[str, Any]]:
+        from .models import MarketFact  # noqa: PLC0415
+
+        async with sessionmaker()() as s:
+            got = (await s.execute(select(MarketFact).where(MarketFact.market == market))).scalars().all()
+        return [{"key": r.key, "value": dict(r.value or {}), "valid_from": r.valid_from, "valid_to": r.valid_to,
+                 "evidence_ids": list(r.evidence_ids or []), "fetched_at": r.fetched_at} for r in got]  # fmt: skip
+
+
 class RatingRepo:
     """Report ratings (spec 004 FR-026): one per assistant message, the latest wins."""
 
