@@ -19,4 +19,7 @@ Rules (all reporters, spec 004):
   facts (over budget or monthly limit, payback within the period, what another profile would choose, used data
   still missing): mention the ones that matter in your own words, keep their numbers, add nothing to them.
   Never say another profile would choose differently unless a note says so.
+- `electrified` (spec 006), when present: code sentences on the share of km on electricity, the cost per 100
+  km at home and in public, and the payback against the combustion car. Use them where cost matters, keep their
+  numbers; never quote a weighted WLTP plug-in consumption (e.g. 0.9 l/100 km) as what the car uses.
 Case: {case_summary}. Language: {language}. Persona: {persona}.

@@ -402,3 +402,92 @@ def insights_for_llm(
         ],  # fmt: skip
         "about_the_same": [label(i, lang) for i in (s.get(t) for t in s.ties) if i is not None],
     }
+
+
+# --- electrified cars (spec 006 T050): share, cost per 100 km, break-even ------------------------------------
+_E: dict[str, dict[str, str]] = {
+    "share": {
+        "en": "{car}: about {pct}% of your km on electricity (real electric range ≈{km} km)",
+        "ru": "{car}: около {pct}% вашего пробега на электричестве (реальный запас хода ≈{km} км)",
+        "es": "{car}: cerca del {pct}% de tus km en eléctrico (autonomía eléctrica real ≈{km} km)",
+    },
+    "share_no_range": {
+        "en": "{car}: about {pct}% of your km on electricity",
+        "ru": "{car}: около {pct}% вашего пробега на электричестве",
+        "es": "{car}: cerca del {pct}% de tus km en eléctrico",
+    },
+    "cost": {
+        "en": "{car}: €{home} per 100 km charging at home, €{public} at public chargers",
+        "ru": "{car}: {home} € на 100 км при зарядке дома, {public} € — на общественных станциях",
+        "es": "{car}: {home} € cada 100 km cargando en casa, {public} € en cargadores públicos",
+    },
+    "cost_one": {
+        "en": "{car}: €{eur} per 100 km",
+        "ru": "{car}: {eur} € на 100 км",
+        "es": "{car}: {eur} € cada 100 km",
+    },
+    "YEARS": {
+        "en": "The {e} pays back its higher price against the {c} in about {years} years of running costs",
+        "ru": "{e} окупает разницу в цене с {c} примерно за {years} лет за счёт расходов",
+        "es": "El {e} amortiza su mayor precio frente al {c} en unos {years} años de uso",
+    },
+    "beyond": {
+        "en": " — longer than the {own} years you plan to keep it",
+        "ru": " — дольше, чем вы планируете владеть ({own} лет)",
+        "es": " — más que los {own} años que piensas tenerlo",
+    },
+    "NEVER": {
+        "en": "The {e} costs more to buy and is not cheaper to run than the {c}: it never pays back",
+        "ru": "{e} дороже {c} при покупке и не дешевле в эксплуатации: разница не окупится",
+        "es": "El {e} cuesta más que el {c} y no es más barato de usar: no se amortiza",
+    },
+    "ALREADY_CHEAPER": {
+        "en": "The {e} is cheaper than the {c} both to buy and to run",
+        "ru": "{e} дешевле {c} и при покупке, и в эксплуатации",
+        "es": "El {e} es más barato que el {c} de comprar y de usar",
+    },
+    "CHEAPER_TO_BUY": {
+        "en": "The {e} is cheaper to buy than the {c} but dearer to run",
+        "ru": "{e} дешевле {c} при покупке, но дороже в эксплуатации",
+        "es": "El {e} es más barato de comprar que el {c}, pero más caro de usar",
+    },
+}
+
+
+def _e(key: str, lang: str | None, **kw: Any) -> str:
+    return _E[key].get((lang or "en")[:2], _E[key]["en"]).format(**kw)
+
+
+def _money(x: float, lang: str | None) -> str:
+    return _num(round(x, 2), lang)
+
+
+def electric_lines(block: Mapping[str, Any] | None, break_even: Mapping[str, Any] | None,
+                   names: Mapping[str, str], lang: str | None, *, years_said: bool = False) -> list[str]:  # fmt: skip
+    """Sentences for the electrified cars, from the electric block and the break-even (numbers from code)."""
+    out: list[str] = []
+    for car in (block or {}).get("cars", []):
+        name = names.get(car["car_id"], car["label"])
+        v = car["values"]
+        share = (v.get("electric_share") or {}).get("share")
+        if share is not None and car.get("powertrain") != "BEV":
+            km = (v.get("range") or {}).get("real_km")
+            pct = f"{share * 100:.0f}"
+            out.append(_e("share", lang, car=name, pct=pct, km=km) if km else
+                       _e("share_no_range", lang, car=name, pct=pct))  # fmt: skip
+        cost = v.get("cost_per_100km") or {}
+        home, public = cost.get("home_eur"), cost.get("public_eur")
+        if home is not None and public is not None:
+            out.append(_e("cost", lang, car=name, home=_money(home, lang), public=_money(public, lang)))
+        elif cost.get("used_eur") is not None:
+            out.append(_e("cost_one", lang, car=name, eur=_money(cost["used_eur"], lang)))
+    b = break_even or {}
+    verdict = b.get("verdict")
+    if verdict in ("YEARS", "NEVER", "ALREADY_CHEAPER", "CHEAPER_TO_BUY") and not (verdict == "YEARS" and years_said):
+        e = names.get(b["electrified_car_id"], b.get("electrified_label", ""))
+        c = names.get(b["against_car_id"], b.get("against_label", ""))
+        line = _e(verdict, lang, e=e, c=c, years=_num(b.get("years") or 0, lang))
+        if verdict == "YEARS" and b.get("beyond_ownership") and b.get("ownership_years"):
+            line += _e("beyond", lang, own=b["ownership_years"])
+        out.append(line)
+    return out

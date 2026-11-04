@@ -158,3 +158,56 @@ def split_warranty(text: str) -> dict[str, float]:
     if m := re.search(r"(\d{2})\s*%", t):
         out["soh_pct"] = float(m.group(1))
     return out
+
+
+# --- brand presence (spec 006 US6, FR-017; research R12) ----------------------------------------------------
+NETWORK_WORDS = ("concesionari", "puntos de venta", "punto de venta", "puntos de servicio", "taller", "dealer",
+                 "service point", "service centre", "service center", "workshop", "distribuidor", "red oficial",
+                 "дилер", "сервис", "автосалон", "händler", "werkstatt", "concession")  # fmt: skip
+NETWORK_RANGE = (1, 2000)
+COUNT_WINDOW = 40  # characters between the number and a network word
+WARRANTY_YEARS = {"WARRANTY": (2, 10), "BATTERY_WARRANTY": (3, 12)}
+WARRANTY_KM = (50_000, 1_000_000)
+SOH_RANGE = (60, 80)
+
+
+def _spans(text: str, number: float) -> list[tuple[int, int]]:
+    n = f"{number:g}"
+    variants = {n, f"{int(number):,}".replace(",", "."), f"{int(number):,}"} if number == int(number) else {n}
+    out = []
+    for v in variants:
+        out += [(m.start(), m.end()) for m in re.finditer(rf"(?<![\d.,]){re.escape(v)}(?![\d])", text)]
+    return out
+
+
+def count_context(number: float | None, excerpt: str) -> SenseResult:
+    """A dealer or workshop count only next to a network word ("BYD cuenta con 120 concesionarios"), never a
+    number that belongs to something else ("120 km de autonomía")."""
+    rule = "sense.brand.count_context"
+    if number is None:
+        return SenseResult(True, None, rule)
+    if not NETWORK_RANGE[0] <= number <= NETWORK_RANGE[1] or number != int(number):
+        return SenseResult(False, None, rule, f"{number:g} is not a plausible network size")
+    t = _norm(excerpt)
+    for a, b in _spans(t, number):
+        around = t[max(0, a - COUNT_WINDOW) : b + COUNT_WINDOW]
+        tail = t[b : b + 12]
+        if re.match(r"\s*(km|kw|kwh|cv|hp|€|eur|%|años|anos|years|mm|kg|l\b)", tail):
+            continue
+        if _has(around, NETWORK_WORDS):
+            return SenseResult(True, int(number), rule)
+    return SenseResult(False, None, rule, f"{number:g} is not next to a dealer or workshop word")
+
+
+def warranty_check(kind: str, excerpt: str) -> SenseResult:
+    """A car or battery warranty: years (and km, % capacity when stated) within the published ranges."""
+    rule = "sense.brand.warranty"
+    parts = split_warranty(excerpt)
+    lo, hi = WARRANTY_YEARS.get(kind, (2, 12))
+    if "years" not in parts or not lo <= parts["years"] <= hi:
+        return SenseResult(False, None, rule, "no plausible warranty years")
+    if "km" in parts and not WARRANTY_KM[0] <= parts["km"] <= WARRANTY_KM[1]:
+        parts.pop("km")
+    if "soh_pct" in parts and (kind != "BATTERY_WARRANTY" or not SOH_RANGE[0] <= parts["soh_pct"] <= SOH_RANGE[1]):
+        parts.pop("soh_pct")
+    return SenseResult(True, parts, rule)

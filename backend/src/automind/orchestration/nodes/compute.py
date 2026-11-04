@@ -6,6 +6,7 @@ persona (FR-030). Weight changes recompute from cached data without research (FR
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from typing import Any
 
@@ -113,7 +114,8 @@ def verdict_extras(keyed: list[Any], tcars: list[tco.TcoCar], estimates: list[tc
                                   ownership_years=case.ownership_years)  # fmt: skip
         out["break_even"] = {"electrified_car_id": e.car_id, "against_car_id": c0.car_id, "verdict": b.verdict,
                              "electrified_label": e.label, "against_label": c0.label,
-                             "years": b.years, "beyond_ownership": b.beyond_ownership, "inputs": b.inputs}  # fmt: skip
+                             "years": b.years, "beyond_ownership": b.beyond_ownership, "inputs": b.inputs,
+                             "ownership_years": case.ownership_years}  # fmt: skip
     return out
 
 
@@ -185,7 +187,8 @@ async def _insights(
             reliability_score=(rel.get(car["variant"].id).score if rel.get(car["variant"].id) else None),
             energy_eur_per_unit=energy.get(car["variant"].id),
             accel_0_100=getattr(sims.get(car["variant"].id), "t_0_100", None),
-            retention_curve=(c.ports.ref.feasibility or {}).get("depreciation"),
+            retention_curve=None if recent_make(c)(getattr(car["variant"], "make", None))
+            else (c.ports.ref.feasibility or {}).get("depreciation"),
         )
         for _, car in keyed
     ]  # fmt: skip
@@ -241,6 +244,12 @@ def usage_context(case: CaseFile) -> UsageContext:
                         home_charging=getattr(case.profile, "home_charging", None) or "UNKNOWN")  # fmt: skip
 
 
+def recent_make(c: TurnContext) -> Callable[[str | None], bool]:
+    """A make new in the Spanish market (makes.yaml): no class depreciation curve for it (spec 006 FR-018)."""
+    reg = getattr(c.ports.ref, "makes", None)
+    return reg.new_in_market if reg is not None else (lambda _make: False)
+
+
 def _energy_price(t: tco.TcoCar, r: tco.TcoRates) -> float:
     if t.powertrain == "BEV":
         return r.energy.home.value
@@ -256,9 +265,11 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
     rates = tco.TcoRates.from_config({**(c.ports.ref.rates or {}), "today": today}, case.rates_override.model_dump())
     curve = (c.ports.ref.feasibility or {}).get("depreciation") or {}
     use = usage_context(case)
-    tcars = [await compose.tco_car(car, _cond(x.condition), x.age_years, x.mileage_km, curve, use)
+    recent = recent_make(c)
+    tcars = [await compose.tco_car(car, _cond(x.condition), x.age_years, x.mileage_km, curve, use,
+                                   recent(getattr(car["variant"], "make", None)))
              for x, car in keyed]  # fmt: skip
-    estimates = [tco.compute(t, rates, case.annual_km, case.ownership_years) for t in tcars]
+    estimates = tco.like_for_like([tco.compute(t, rates, case.annual_km, case.ownership_years) for t in tcars])
     costs = _checked_costs(estimates, {car["variant"].id: x.age_years for x, car in keyed}, notices)
     eff = per_100km(estimates)
     notices += energy_notices(estimates, {car["variant"].id: compose.short_name(car["variant"]) for car in cars}, lang)
@@ -285,7 +296,8 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
     def outcome(probe: CaseFile) -> tuple[str | None, bool]:
         """The same data scored for another profile (pure: no search, no model)."""
         puse = usage_context(probe)
-        est = [tco.compute(replace(t, use=puse), rates, probe.annual_km, probe.ownership_years) for t in tcars]
+        est = tco.like_for_like([tco.compute(replace(t, use=puse), rates, probe.annual_km, probe.ownership_years)
+                                 for t in tcars])  # fmt: skip
         cost = _checked_costs(est, {car["variant"].id: x.age_years for x, car in keyed}, [])
         eff_p = per_100km(est)
         fs = [compose.facts(car, sims.get(car["variant"].id), condition=_cond(x.condition), age_years=x.age_years,
@@ -302,8 +314,13 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
     extras = verdict_extras(keyed, tcars, estimates, case, year)
     vblock.update(extras)
     blocks = await _blocks(c, case, keyed, race, crit, estimates, iset, fz)
-    if (eb := electric_block.build(cars, tcars, estimates, rates, extras["labels"], lang)) is not None:
+    eb = electric_block.build(cars, tcars, estimates, rates, extras["labels"], lang)
+    if eb is not None:
         blocks.append(eb)
+    said = bool(verdict.trade_off and verdict.trade_off.break_even_years)
+    names_e = {t.car_id: compose.short_name(car["variant"]) for t, car in zip(tcars, cars, strict=True)}
+    if lines := report_text.electric_lines(eb, extras.get("break_even"), names_e, lang, years_said=said):
+        vblock["profile_notes"] = [*vblock.get("profile_notes", []), *lines]
     out_notices = list(notices)
     if case.unmapped_wishes:
         out_notices.append(notice("Not assessable with data: " + ", ".join(case.unmapped_wishes)))
@@ -337,6 +354,8 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
         for e in estimates
     ]
     summary["insights"] = report_text.insights_for_llm(iset, verdict, names, lang, case.ownership_years)
+    if lines:
+        summary["electrified"] = lines  # spec 006 T050: the code-built sentences, numbers from code
     summary["profile_focus"] = profile_focus(case, crit, verdict, names, lang)
     summary["section_depth"] = depths(case.persona, c.ports.ref.layouts or {})  # spec 004 FR-019
     return Computed(blocks=ordered, facts=summary, criteria=crit, cars=cars, tco=estimates, race=race,
@@ -400,7 +419,7 @@ async def _blocks(
         compose.manufacturer_block(cars),
         compose.reliability_block(cars, ages),
         compose.reviews_block(cars),
-        compose.value_retention_block(cars, (c.ports.ref.feasibility or {}).get("depreciation") or {}),
+        compose.value_retention_block(cars, (c.ports.ref.feasibility or {}).get("depreciation") or {}, recent_make(c)),
         _data_panel(c, case, keyed),  # spec 004 FR-014: one panel instead of a warning per section
     ):
         if extra is not None:

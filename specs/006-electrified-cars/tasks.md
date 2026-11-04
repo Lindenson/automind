@@ -183,10 +183,10 @@
 
 **Independent test**: quickstart E.
 
-- [ ] T039 [P] [US6] Write the tests for the count context rule, the warranty split, and DEPRECIATION "insufficient data" for new_in_market makes, in `backend/tests/unit/domain/test_brand_presence.py`.
-- [ ] T040 [US6] Add the brand count context rule (`sense.brand.count_context`) in `backend/src/automind/domain/sense_ev.py`, and hook it in `backend/src/automind/application/research.py`.
-- [ ] T041 [US6] Add manufacturer queries for warranty and battery warranty, and for dealers and service points in Spain, in `backend/config/queries.yaml`.
-- [ ] T042 [US6] Add `new_in_market: true` for BYD, MG, Omoda, Jaecoo, Leapmotor, Xpeng, Zeekr, Lynk & Co, Ebro and DFSK in `backend/config/makes.yaml`. When set, the DEPRECIATION item reads "insufficient data" instead of the class curve (`backend/src/automind/domain/tco.py`, `backend/src/automind/application/compose.py`).
+- [X] T039 [P] [US6] Write the tests for the count context rule, the warranty split, and DEPRECIATION "insufficient data" for new_in_market makes, in `backend/tests/unit/domain/test_brand_presence.py`.
+- [X] T040 [US6] Add the brand count context rule (`sense.brand.count_context`) in `backend/src/automind/domain/sense_ev.py`, and hook it in `backend/src/automind/application/research.py`.
+- [X] T041 [US6] Add manufacturer queries for warranty and battery warranty, and for dealers and service points in Spain, in `backend/config/queries.yaml`.
+- [X] T042 [US6] Add `new_in_market: true` for BYD, MG, Omoda, Jaecoo, Leapmotor, Xpeng, Zeekr, Lynk & Co, Ebro and DFSK in `backend/config/makes.yaml`. When set, the DEPRECIATION item reads "insufficient data" instead of the class curve (`backend/src/automind/domain/tco.py`, `backend/src/automind/application/compose.py`).
 - [ ] T043 [US6] Show the warranty and network rows with dates in the data panel and the report, in `backend/src/automind/orchestration/report_text.py`.
 
 ## Phase 8: US7 — electric section and explainers (increment F)
@@ -201,7 +201,7 @@
 - [X] T047 [US7] Create `frontend/src/components/blocks/Electric.tsx`, register it in `BlockView.tsx`, and show the split in the TCO component.
 - [X] T048 [P] [US7] Add the i18n keys in `frontend/src/i18n/ru.ts`, `es.ts` and `en.ts`.
 - [X] T049 [P] [US7] Add 5 explainers in ru/es/en to `backend/config/tech_explainers.yaml`: weighted WLTP, charge-sustaining, usable vs gross, DC peak vs average, charging losses.
-- [ ] T050 [US7] Extend the report text in `backend/src/automind/orchestration/report_text.py`:
+- [X] T050 [US7] Extend the report text in `backend/src/automind/orchestration/report_text.py`:
   - the electric share sentence;
   - the cost per 100 km at home and in public;
   - the break-even sentence;

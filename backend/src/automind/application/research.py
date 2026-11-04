@@ -908,9 +908,24 @@ def _issues(s: Any, v: db.Variant, area: str, e: db.Evidence, out: Any, k: _Coun
             )
 
 
+def _brand_fact_ok(f: Any) -> tuple[bool, float | None]:
+    """Spec 006 US6: a network count only next to a network word, a warranty only with plausible years."""
+    number = getattr(f, "value_num", None)
+    if f.fact_type == "NETWORK_ES":
+        r = sense_ev.count_context(number, f.excerpt)
+        return r.ok, r.value
+    if f.fact_type in ("WARRANTY", "BATTERY_WARRANTY"):
+        r = sense_ev.warranty_check(f.fact_type, f.excerpt)
+        return r.ok, (r.value or {}).get("years")
+    return True, number
+
+
 def _manufacturer(s: Any, v: db.Variant, d: WebDoc, out: Any, k: _Counter) -> None:
     for f in out.facts:
-        number = getattr(f, "value_num", None)
+        fits, number = _brand_fact_ok(f)
+        if not fits:
+            k.rejected += 1
+            continue
         if k.ok(f.excerpt, must=f"{number:g}" if number is not None else None):
             s.add(
                 db.ManufacturerFact(

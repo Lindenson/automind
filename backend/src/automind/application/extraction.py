@@ -113,7 +113,8 @@ class IssueItems(BaseModel):
 
 class ManufacturerEntry(_Excerpted):
     fact_type: Literal[
-        "HISTORY", "KEY_MODEL", "MARKET_POSITION", "MARKET_SHARE", "FINANCIAL", "RELIABILITY_REPUTATION", "NETWORK_ES"
+        "HISTORY", "KEY_MODEL", "MARKET_POSITION", "MARKET_SHARE", "FINANCIAL", "RELIABILITY_REPUTATION", "NETWORK_ES",
+        "WARRANTY", "BATTERY_WARRANTY",
     ]  # fmt: skip
     text: str
     positioning: Literal["PREMIUM", "MAINSTREAM", "BUDGET"] | None = None

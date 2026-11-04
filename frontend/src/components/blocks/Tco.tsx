@@ -147,6 +147,9 @@ function CarCost({
           <span className="block text-xs text-muted sm:inline">
             <span className="hidden sm:inline"> · </span>
             {eur(car.five_year_total)} {over}
+            {car.depreciation_left_out && (
+              <span className="block text-[11px] text-warn">{t("tco.depreciation_left_out")}</span>
+            )}
           </span>
         </span>
       </div>

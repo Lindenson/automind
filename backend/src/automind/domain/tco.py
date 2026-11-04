@@ -128,6 +128,7 @@ class TcoCar:
     range_wltp: float | None = None
     range_real: float | None = None
     use: en.UsageContext | None = None
+    new_in_market: bool = False  # a make recently arrived in Spain: no class depreciation curve (spec 006 FR-018)
 
 
 @dataclass(frozen=True)
@@ -156,6 +157,7 @@ class TcoEstimate:
     five_year_total: float  # total over `years` (running + depreciation); the name is kept for stored rows
     rules_version: str = RULES_VERSION
     years: int = 5  # the period the totals cover
+    depreciation_left_out: bool = False  # another compared car has no value data: totals are running cost only
 
     @property
     def period_total(self) -> float:
@@ -409,6 +411,9 @@ def _depreciation(car: TcoCar, years: int) -> TcoItem:
     if not car.price_eur:
         return _item("DEPRECIATION", "Depreciation: not included (price not found)", None, "ASSUMPTION",
                      ["official price not found"], years)  # fmt: skip
+    if car.new_in_market and not car.retention:
+        return _item("DEPRECIATION", "Depreciation: insufficient data for this brand", None, "ASSUMPTION",
+                     ["recent make in Spain: no sourced resale values, no class curve used"], years)  # fmt: skip
     age = (car.age_years or 0) if car.condition == "USED" else 0
     start, b0, _ = value_share(age, car.retention, car.retention_curve) if age else (1.0, "SOURCED", "")
     end, b1, how = value_share(age + years, car.retention, car.retention_curve)
@@ -462,3 +467,20 @@ def compute(car: TcoCar, rates: TcoRates, annual_km: int | None = None, years: i
     annual = round(sum(i.annual_eur for i in running if i.annual_eur is not None), 2)
     period = round(sum(i.five_year_eur for i in items if i.five_year_eur is not None), 2)
     return TcoEstimate(car.car_id, car.label, car.condition, car.age_years, km, items, annual, period, years=years)
+
+
+def like_for_like(estimates: list[TcoEstimate]) -> list[TcoEstimate]:
+    """When depreciation is known for some cars and not for others, the period totals leave it out for all, so
+    one car is never cheaper only because its value loss is unknown (spec 006 FR-014)."""
+
+    def known(e: TcoEstimate) -> bool:
+        return any(i.kind == "DEPRECIATION" and i.annual_eur is not None for i in e.items)
+
+    if len({known(e) for e in estimates}) < 2:
+        return estimates
+    out = []
+    for e in estimates:
+        running = round(sum(i.five_year_eur for i in e.items if i.kind != "DEPRECIATION"
+                            and i.five_year_eur is not None), 2)  # fmt: skip
+        out.append(replace(e, five_year_total=running, depreciation_left_out=True))
+    return out

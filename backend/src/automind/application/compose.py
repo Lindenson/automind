@@ -5,6 +5,7 @@ Used both by deterministic graph nodes and by the MCP server tools (same functio
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import asdict
 from datetime import datetime
 from functools import lru_cache
@@ -707,8 +708,8 @@ def manufacturer_block(cars: list[dict]) -> dict | None:
     }
 
 
-_FACT_ORDER = ("MARKET_SHARE", "FINANCIAL", "RELIABILITY_REPUTATION", "NETWORK_ES", "MARKET_POSITION", "KEY_MODEL",
-               "HISTORY")  # fmt: skip
+_FACT_ORDER = ("WARRANTY", "BATTERY_WARRANTY", "NETWORK_ES", "MARKET_SHARE", "FINANCIAL", "RELIABILITY_REPUTATION",
+               "MARKET_POSITION", "KEY_MODEL", "HISTORY")  # fmt: skip
 
 
 def _manufacturer_facts(rows: list) -> list:
@@ -755,7 +756,7 @@ def _criteria_facts(sc: CriteriaScore | None) -> dict | None:
 
 async def tco_car(
     car: dict, condition: str, age_years: int | None, mileage_km: int | None,
-    retention_curve: dict | None = None, use: energy.UsageContext | None = None,
+    retention_curve: dict | None = None, use: energy.UsageContext | None = None, new_in_market: bool = False,
 ) -> tco.TcoCar:  # fmt: skip
     """Assemble TCO inputs from validated data: specs, sourced maintenance items, used-car issues."""
     v = car["variant"]
@@ -813,6 +814,7 @@ async def tco_car(
         price_eur=_num(car, "official_price_es"),
         retention=sourced_retention(car),
         retention_curve=class_curve(v.vehicle_class, retention_curve or {}),
+        new_in_market=new_in_market,
     )
 
 
@@ -847,6 +849,7 @@ def tco_block(estimates: list[tco.TcoEstimate], evidence: dict[str, dict] | None
                 "age_years": e.age_years,
                 "annual_total": e.annual_total,
                 "five_year_total": e.five_year_total,
+                **({"depreciation_left_out": True} if e.depreciation_left_out else {}),
                 "items": [
                     {
                         "kind": i.kind,
@@ -1077,9 +1080,9 @@ def insight_values(
 RETENTION_YEARS = (3, 5)
 
 
-def retention_points(car: dict, curve: dict[str, dict[float, float]]) -> list[dict]:
+def retention_points(car: dict, curve: dict[str, dict[float, float]], new_in_market: bool = False) -> list[dict]:
     """Value left after 3 and 5 years: sourced points (median per year when several), else the labelled
-    depreciation curve of the car's class (feasibility.yaml)."""
+    depreciation curve of the car's class (feasibility.yaml). A recent make gets no curve (spec 006 FR-018)."""
     v = car["variant"]
     out = []
     for years in RETENTION_YEARS:
@@ -1092,6 +1095,8 @@ def retention_points(car: dict, curve: dict[str, dict[float, float]]) -> list[di
             out.append({"years": years, "share": round(mid, 3), "eur": None, "basis": "SOURCED",
                         "market": rows[0][0].market, "sources": srcs,
                         "low": shares[0], "high": shares[-1]})  # fmt: skip
+            continue
+        if new_in_market:
             continue
         table = curve.get(v.vehicle_class or "compact") or curve.get("compact") or {}
         share = _interp(table, years)
@@ -1113,9 +1118,15 @@ def _interp(table: dict, years: float) -> float | None:
     return None
 
 
-def value_retention_block(cars: list[dict], curve: dict[str, dict[float, float]]) -> dict | None:
-    rows = [{"car_id": c["variant"].id, "label": c["variant"].label, "points": retention_points(c, curve)}
+def value_retention_block(cars: list[dict], curve: dict[str, dict[float, float]],
+                          recent: Callable[[str | None], bool] | None = None) -> dict | None:  # fmt: skip
+    def is_new(c: dict) -> bool:
+        return bool(recent and recent(getattr(c["variant"], "make", None)))
+
+    rows = [{"car_id": c["variant"].id, "label": c["variant"].label,
+             "points": retention_points(c, curve, is_new(c)),
+             **({"insufficient": True} if is_new(c) and not c.get("retention") else {})}
             for c in cars]  # fmt: skip
-    if not any(r["points"] for r in rows):
+    if not any(r["points"] or r.get("insufficient") for r in rows):
         return None
     return {"type": "value_retention", "title": "Value after 3 and 5 years", "cars": rows}

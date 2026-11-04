@@ -19,6 +19,9 @@ export function ValueRetention({ b }: { b: BlockOf<"value_retention"> }) {
             <div className="mb-2 font-semibold" style={{ color: color(car.car_id) }}>
               {car.label}
             </div>
+            {car.insufficient && car.points.length === 0 && (
+              <p className="text-[11px] text-warn">{t("retention.insufficient_brand")}</p>
+            )}
             <ul className="space-y-1.5">
               {car.points.map((p) => (
                 <li key={p.years} className="flex flex-wrap items-baseline justify-between gap-2">

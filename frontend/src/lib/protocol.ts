@@ -283,6 +283,7 @@ export const TcoBlockSchema = z.object({
       age_years: z.number().nullable(),
       annual_total: z.number(),
       five_year_total: z.number(),
+      depreciation_left_out: z.boolean().optional(), // spec 006: another car's value loss is unknown
       items: z.array(
         z.object({
           kind: z.enum([
@@ -437,6 +438,7 @@ export const ValueRetentionBlockSchema = z.object({
           high: z.number().nullish(),
         }),
       ),
+      insufficient: z.boolean().optional(), // spec 006 FR-018: a recent make, no resale data and no curve
     }),
   ),
 });
