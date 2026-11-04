@@ -6,10 +6,11 @@ session, so callers never hold a transaction across LLM or web calls.
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
-from sqlalchemy import delete, func, select, text, update
+from sqlalchemy import delete, func, or_, select, text, update
 from sqlalchemy.exc import IntegrityError
 
 from automind.application.ports import TurnBusy, VersionConflict
@@ -69,11 +70,26 @@ class ChatRepo:
             await s.commit()
         return counts if existed else {}
 
-    async def ensure(self, chat_id: str, title: str | None = None) -> Chat:
+    async def owns(self, chat_id: str, owner: str | None) -> bool:
+        """May this owner open the chat? A chat not created yet: yes (it is created with this owner). A chat from
+        before owners existed: claimed by the first owner that opens it. No owner (isolation off): yes."""
+        if owner is None:
+            return True
         async with sessionmaker()() as s:
             chat = await s.get(Chat, chat_id)
             if chat is None:
-                chat = Chat(id=chat_id, title=(title or "New chat")[:60])
+                return True
+            if chat.owner is None:
+                await s.execute(update(Chat).where(Chat.id == chat_id, Chat.owner.is_(None)).values(owner=owner))
+                await s.commit()
+                await s.refresh(chat)
+            return chat.owner == owner
+
+    async def ensure(self, chat_id: str, title: str | None = None, owner: str | None = None) -> Chat:
+        async with sessionmaker()() as s:
+            chat = await s.get(Chat, chat_id)
+            if chat is None:
+                chat = Chat(id=chat_id, title=(title or "New chat")[:60], owner=owner)
                 s.add(chat)
                 try:
                     await s.commit()
@@ -104,10 +120,20 @@ class ChatRepo:
             await s.execute(update(Chat).where(Chat.id == chat_id).values(updated_at=now()))
             await s.commit()
 
-    async def list(self, limit: int = 100) -> list[Chat]:
+    async def claim_unowned(self, owner: str) -> int:
+        """Chats from before owners existed go to the first browser that lists chats after the upgrade."""
         async with sessionmaker()() as s:
-            rows = await s.execute(select(Chat).order_by(Chat.updated_at.desc()).limit(limit))
-            return list(rows.scalars())
+            res = await s.execute(update(Chat).where(Chat.owner.is_(None)).values(owner=owner))
+            await s.commit()
+            return res.rowcount or 0
+
+    async def list(self, limit: int = 100, owner: str | None = None) -> list[Chat]:
+        """Newest first; with an owner, only that owner's chats."""
+        q = select(Chat).order_by(Chat.updated_at.desc()).limit(limit)
+        if owner is not None:
+            q = q.where(Chat.owner == owner)
+        async with sessionmaker()() as s:
+            return list((await s.execute(q)).scalars())
 
 
 class CaseRepo:
@@ -194,6 +220,18 @@ class TurnRepo:
     async def get(self, turn_id: str) -> Turn | None:
         async with sessionmaker()() as s:
             return await s.get(Turn, turn_id)
+
+    async def spent_today(self, exclude_turn: str | None = None, tz: str = "Europe/Madrid") -> float:
+        """€ spent since local midnight across all chats (model and search calls), without the given turn."""
+        start = datetime.now(ZoneInfo(tz)).replace(hour=0, minute=0, second=0, microsecond=0)
+        total = 0.0
+        async with sessionmaker()() as s:
+            for model in (LLMCall, SearchCall):
+                q = select(func.coalesce(func.sum(model.cost_eur), 0)).where(model.created_at >= start)
+                if exclude_turn:
+                    q = q.where(or_(model.turn_id.is_(None), model.turn_id != exclude_turn))
+                total += float((await s.execute(q)).scalar() or 0)
+        return round(total, 4)
 
     async def update(self, turn_id: str, **values: Any) -> None:
         if values.get("status") in ("DONE", "CANCELLED", "FAILED") and "finished_at" not in values:

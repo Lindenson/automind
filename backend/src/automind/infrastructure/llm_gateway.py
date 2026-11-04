@@ -56,6 +56,7 @@ def limits() -> Limits:
         max_concurrency=s.max_concurrency,
         job_timeout_s=s.job_timeout_s,
         turn_timeout_s=s.turn_timeout_s,
+        daily_cap_eur=s.daily_cap_eur,
     )
 
 

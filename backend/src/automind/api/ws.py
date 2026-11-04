@@ -21,21 +21,31 @@ from automind.orchestration.runner import Busy, ChatRunner
 
 
 class ChatSocket:
-    def __init__(self, ws: WebSocket, chat_id: str, runner: ChatRunner, bus: Any, chats: Any) -> None:
+    def __init__(self, ws: WebSocket, chat_id: str, runner: ChatRunner, bus: Any, chats: Any,
+                 owner: str | None = None, headers: list[tuple[bytes, bytes]] | None = None) -> None:  # fmt: skip
         self.ws, self.chat_id, self.runner, self.bus, self.chats = ws, chat_id, runner, bus, chats
+        self.owner, self.headers = owner, headers or []
         self.sent_seq = 0
         self.ready = asyncio.Event()  # live events wait until the client's hello/replay is done
         self.tasks: set[asyncio.Task[Any]] = set()
         self.queue: asyncio.Queue[dict[str, Any]] | None = None
 
     async def serve(self) -> None:
-        await self.ws.accept()
+        await self.ws.accept(headers=self.headers or None)
+        owns = getattr(self.chats, "owns", None)
+        if owns is not None and not await owns(self.chat_id, self.owner):  # another browser's chat: "not found"
+            await self.ws.send_json({"type": "error", "code": "chat_not_found", "text": "No such chat."})
+            await self.ws.close(code=4404)
+            return
         is_deleted = getattr(self.chats, "is_deleted", None)
         if is_deleted is not None and await is_deleted(self.chat_id):  # FR-030: never recreate a deleted chat
             await self.ws.send_json({"type": "error", "code": "chat_deleted", "text": "This chat was deleted."})
             await self.ws.close(code=4410)
             return
-        await self.chats.ensure(self.chat_id)
+        if self.owner is not None:
+            await self.chats.ensure(self.chat_id, owner=self.owner)
+        else:
+            await self.chats.ensure(self.chat_id)
         self.queue = self.bus.subscribe(self.chat_id)  # subscribe before replay: nothing falls in between
         pumper = asyncio.create_task(self._pump())
         try:
@@ -139,8 +149,9 @@ class ChatSocket:
             await self.ws.send_json({"type": "error", "text": text})
 
 
-async def chat_socket(ws: WebSocket, chat_id: str, runner: ChatRunner, bus: Any, chats: Any) -> None:
-    await ChatSocket(ws, chat_id, runner, bus, chats).serve()
+async def chat_socket(ws: WebSocket, chat_id: str, runner: ChatRunner, bus: Any, chats: Any,
+                      owner: str | None = None, headers: list[tuple[bytes, bytes]] | None = None) -> None:  # fmt: skip
+    await ChatSocket(ws, chat_id, runner, bus, chats, owner, headers).serve()
 
 
 def _resume_payload(msg: dict[str, Any]) -> dict[str, Any]:

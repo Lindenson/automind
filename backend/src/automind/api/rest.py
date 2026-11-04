@@ -12,6 +12,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from automind.api import access
 from automind.application.ports import TurnBusy, VersionConflict
 from automind.config import settings
 from automind.domain.casefile import (
@@ -75,6 +76,24 @@ def health_payload(request: Request) -> dict[str, Any]:
     }
 
 
+def owner(request: Request) -> str | None:
+    """The browser's owner id (set by the access middleware); None when isolation is off."""
+    return getattr(request.state, "owner", None)
+
+
+async def _not_yours(request: Request, chat_id: str) -> JSONResponse | None:
+    """Another browser's chat is "not found": its existence is not revealed."""
+    if await request.app.state.chats.owns(chat_id, owner(request)):
+        return None
+    return _error(404, "chat_not_found", "No such chat.")
+
+
+@router.get("/api/v1/session")
+async def session(request: Request) -> dict[str, Any]:
+    """Called once when the page loads: the access middleware sets the owner cookie on this response."""
+    return {"isolated": owner(request) is not None}
+
+
 @router.get("/api/v1/health")
 async def health(request: Request) -> dict[str, Any]:
     return health_payload(request)
@@ -82,6 +101,8 @@ async def health(request: Request) -> dict[str, Any]:
 
 @router.get("/api/v1/chats/{chat_id}/messages", response_model=None)
 async def messages(chat_id: str, request: Request) -> dict[str, Any] | JSONResponse:
+    if (no := await _not_yours(request, chat_id)) is not None:
+        return no
     if await request.app.state.chats.is_deleted(chat_id):
         return _error(410, "chat_deleted", "This chat was deleted.")
     msgs = await request.app.state.messages.history(chat_id)
@@ -100,6 +121,7 @@ async def _delete(request: Request, ids: list[str]) -> dict[str, Any]:
     from automind.application.chats import delete_chats  # noqa: PLC0415
 
     st = request.app.state
+    ids = [i for i in ids if await st.chats.owns(i, owner(request))]  # another browser's chats are left alone
     deleted, counts = await delete_chats(ids, st.runner, st.chats, st.delete_thread)
     return {"deleted": deleted, "counts": counts}
 
@@ -120,8 +142,8 @@ async def health_alias(request: Request) -> dict[str, Any]:
     return health_payload(request)
 
 
-@router.get("/api/chats/{chat_id}/messages")
-async def messages_alias(chat_id: str, request: Request) -> dict[str, Any]:
+@router.get("/api/chats/{chat_id}/messages", response_model=None)
+async def messages_alias(chat_id: str, request: Request) -> dict[str, Any] | JSONResponse:
     return await messages(chat_id, request)
 
 
@@ -168,6 +190,8 @@ def _error(status: int, code: str, message: str) -> JSONResponse:
 
 @router.get("/api/v1/chats/{chat_id}/case", response_model=None)
 async def get_case(chat_id: str, request: Request) -> dict[str, Any] | JSONResponse:
+    if (no := await _not_yours(request, chat_id)) is not None:
+        return no
     if await request.app.state.chats.is_deleted(chat_id):
         return _error(410, "chat_deleted", "This chat was deleted.")
     version, data, changed_by = await request.app.state.cases.latest(chat_id)
@@ -176,9 +200,11 @@ async def get_case(chat_id: str, request: Request) -> dict[str, Any] | JSONRespo
 
 
 @router.get("/api/v1/chats/{chat_id}/weights", response_model=None)
-async def case_weights(chat_id: str, request: Request) -> dict[str, Any]:
+async def case_weights(chat_id: str, request: Request) -> dict[str, Any] | JSONResponse:
     """The current weights with their reasons (spec 007 FR-011): persona base, profile rules, wishes, the user's
     adjustments. Read by the panel after every case change, so the sliders follow a profile edit at once."""
+    if (no := await _not_yours(request, chat_id)) is not None:
+        return no
     version, data, _ = await request.app.state.cases.latest(chat_id)
     case = CaseFile.model_validate(data) if data else CaseFile()
     return {"version": version, **weights_view(case, _criteria_model())}
@@ -202,7 +228,9 @@ async def patch_case(chat_id: str, patch: CasePatch, request: Request) -> dict[s
     never overwrites it and two edits never lose each other. While a turn runs it is queued and applied right
     after that turn (no 409 for a slider move). After a report it starts (or joins) the chat's rescore."""
     st = request.app.state
-    await st.chats.ensure(chat_id)
+    if (no := await _not_yours(request, chat_id)) is not None:
+        return no
+    await st.chats.ensure(chat_id, owner=owner(request))
     version, data, _ = await st.cases.latest(chat_id)
     if patch.if_version is not None and patch.if_version != version:
         case = CaseFile.model_validate(data) if data else CaseFile()
@@ -406,10 +434,13 @@ def _criteria_model() -> CriteriaModel:
     return CriteriaModel.from_config(cfg.load_yaml("criteria.yaml"), cfg.load_yaml("profile_rules.yaml"))
 
 
-@router.get("/api/v1/research/metrics")
-async def research_metrics(days: int = 7) -> dict[str, Any]:
+@router.get("/api/v1/research/metrics", response_model=None)
+async def research_metrics(request: Request, days: int = 7) -> dict[str, Any] | JSONResponse:
     """Research quality for the operator (spec 003 FR-017, FR-031): minimums met, rejections by reason,
-    site reader success, search cost and cache hits."""
+    site reader success, search cost and cache hits. Operator only (ADMIN_TOKEN, or this machine)."""
+    client = request.client.host if request.client else None
+    if not access.admin_ok(request.headers.get("authorization"), client, settings().admin_token):
+        return _error(403, "admin_only", "This endpoint is for the operator.")
     from automind.infrastructure.db.repositories import MetricsRepo  # noqa: PLC0415
 
     return await MetricsRepo().research(max(1, min(days, 365)))
@@ -431,7 +462,10 @@ async def chats(request: Request) -> dict[str, Any]:
     """Past chats, newest first, with the cars and persona of their case file (FR-045)."""
     st = request.app.state
     out = []
-    for ch in await st.chats.list():
+    me = owner(request)
+    if me is not None:
+        await st.chats.claim_unowned(me)
+    for ch in await st.chats.list(owner=me):
         _, data, _ = await st.cases.latest(ch.id)
         case = CaseFile.model_validate(data) if data else CaseFile()
         out.append(

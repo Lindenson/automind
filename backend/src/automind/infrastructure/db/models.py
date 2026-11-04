@@ -201,6 +201,7 @@ class Chat(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True)  # also the LangGraph thread_id
     title: Mapped[str] = mapped_column(String(60), default="New chat")
     language: Mapped[str | None] = mapped_column(String(8))
+    owner: Mapped[str | None] = mapped_column(String(64), index=True)  # SHA-256 of the browser's owner cookie
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 

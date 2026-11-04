@@ -66,6 +66,7 @@ class Limits:
     max_concurrency: int = 4
     job_timeout_s: float = 90.0
     turn_timeout_s: float = 300.0
+    daily_cap_eur: float = 0.0  # spend across all chats per day; 0 = no cap (research pauses and asks at it)
 
 
 @dataclass
@@ -82,6 +83,7 @@ class TurnBudget:
     by_role: dict[str, int] = field(default_factory=dict)
     limits_reached: list[str] = field(default_factory=list)
     extensions: int = 0  # the user chose "continue" this many times (each adds one more allowance)
+    day_spent_eur: float = 0.0  # spent today by other turns (all chats) before this one
     started: float = field(default_factory=time.monotonic)
     _base: Limits | None = None
 
@@ -111,7 +113,17 @@ class TurnBudget:
             return "cost"
         if time.monotonic() - self.started >= lim.turn_timeout_s * self.RESEARCH_SHARE:
             return "time"
+        if self.over_daily_cap():
+            return "daily"
         return None
+
+    def over_daily_cap(self) -> bool:
+        """Today's spend reached the daily cap; each "continue" allows one more turn allowance past it."""
+        cap = (self._base or self.limits).daily_cap_eur
+        if not cap:
+            return False
+        extra = self.extensions * (self._base or self.limits).hard_cap_eur
+        return self.day_spent_eur + self.cost_eur >= cap + extra
 
     def _reached(self, limit: str, message: str) -> BudgetExceeded:
         if limit not in self.limits_reached:
