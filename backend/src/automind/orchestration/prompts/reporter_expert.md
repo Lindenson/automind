@@ -23,4 +23,8 @@ Rules (all reporters, spec 004):
 - `electrified` (spec 006), when present: code sentences on the share of km on electricity, the cost per 100
   km at home and in public, and the payback against the combustion car. Use them where cost matters, keep their
   numbers; never quote a weighted WLTP plug-in consumption (e.g. 0.9 l/100 km) as what the car uses.
+- `used_cars` (spec 008), when present: say plainly which car is used, with its year and mileage as given
+  (an assumed year is called assumed), that its price, depreciation and repair figures are for a used car, and
+  its maker's warranty state when listed. Never present a used car's figures as a new car's, and never call a
+  used car's price its official or new price.
 Case: {case_summary}. Language: {language}. Persona: {persona}.

@@ -25,10 +25,10 @@ criteria:
     min_data: an ownership cost estimate
   purchase_price:
     label: Purchase price
-    definition: Official manufacturer price in Spain (new), or the original new price for a used car's generation.
-    inputs: [official price ES (EUR)]
+    definition: Official manufacturer price in Spain for a new car; for a used car, its sourced used market price for its year (never the new price).
+    inputs: [official price ES (EUR), or used price for the year (EUR)]
     scale: {lo: 100000, hi: 18000}
-    min_data: a sourced official price
+    min_data: a sourced official price (new) or a sourced used price (used)
   practicality:
     label: Practicality
     definition: Boot volume, seats and rear legroom where sourced.

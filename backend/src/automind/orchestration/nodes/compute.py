@@ -213,6 +213,7 @@ async def _insights(
     c: TurnContext, case: CaseFile, keyed: list[tuple[Any, dict[str, Any]]], tcars: list[tco.TcoCar],
     costs: dict[str, float], crit: CriteriaScore | None, sims: dict[str, Any], rates: tco.TcoRates, lang: str,
     limits: list[vd.Limit] | None = None, other: vd.OtherProfile | None = None,
+    used_prices: dict[str, float | None] | None = None,
 ) -> tuple[Any, Any, dict[str, Any], GuardInput]:  # fmt: skip
     """Insights → verdict → the verdict card (spec 004 FR-001, FR-009)."""
     rel = {s.car_id: s.parts.get("reliability") for s in crit.cars} if crit else {}
@@ -225,8 +226,9 @@ async def _insights(
             accel_0_100=getattr(sims.get(car["variant"].id), "t_0_100", None),
             retention_curve=None if recent_make(c)(getattr(car["variant"], "make", None))
             else (c.ports.ref.feasibility or {}).get("depreciation"),
+            used=x.condition == "USED", used_price_eur=(used_prices or {}).get(x.key),
         )
-        for _, car in keyed
+        for x, car in keyed
     ]  # fmt: skip
     model = c.ports.ref.criteria
     weights = weights_for(case, model) if model else {}
@@ -361,6 +363,8 @@ def used_lines(case: CaseFile, facts: dict[str, UsedFacts]) -> list[str]:
         if u.warranty.state != "UNKNOWN":
             bits.append(f"maker's warranty {'until' if u.warranty.state == 'REMAINING' else 'expired in'} "
                         f"{u.warranty.until}" + (" (assumed year)" if u.warranty.assumed else ""))  # fmt: skip
+        else:
+            bits.append("maker's warranty: no sourced terms")
         out.append("; ".join(bits))
     return out
 
@@ -436,7 +440,8 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
     fz = await _feasibility(c, case)
     other = persona_counterfactual(case, outcome) if crit is not None and len(keyed) > 1 else None
     iset, verdict, vblock, check = await _insights(c, case, keyed, tcars, costs, crit, sims, rates, lang,
-                                                   limits_from(case, fz), other)  # fmt: skip
+                                                   limits_from(case, fz), other,
+                                                   {x.key: up(x) for x, _ in keyed})  # fmt: skip
     extras = verdict_extras(
         keyed,
         tcars,

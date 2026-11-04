@@ -101,7 +101,7 @@ def test_an_identified_car_is_not_asked_its_engine_and_used_is_never_cut():
     labels = {"new": "New", "used": "Used", "yes": "Yes", "no": "No", "choose": "Choose", "remove": "Remove {car}",
               "automatic": "Automatic", "manual": "Manual"}  # fmt: skip
     chips = [c["label"] for c in ask.intake_quick_replies(items, case, labels)]
-    assert "Used" in chips and "New" in chips and len(chips) <= 8
+    assert "Used" in chips and "New" in chips and len(chips) <= ask.MAX_CHIPS
 
 
 def test_a_320d_mild_hybrid_burns_diesel():

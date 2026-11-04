@@ -1068,7 +1068,11 @@ def insight_values(
     energy_eur_per_unit: float | None,
     accel_0_100: float | None = None,
     retention_curve: dict | None = None,
+    used: bool = False,
+    used_price_eur: float | None = None,
 ) -> ins.CarValues:
+    """A used car's price is what it costs used (spec 008 FR-023): its sourced used price, else no price at all —
+    the new price never stands for a used car in the verdict or the text."""
 
     v = car["variant"]
     values: dict[str, float] = {}
@@ -1078,6 +1082,11 @@ def insight_values(
         sv = car["values"].get(k)
         if sv is not None and sv.available and sv.value_num is not None:
             values[k], conf[k], srcs[k] = float(sv.value_num), str(sv.confidence or "MEDIUM"), list(sv.claim_ids or [])
+    if used:
+        values.pop("official_price_es", None)
+        srcs.pop("official_price_es", None)
+        if used_price_eur is not None:
+            values["official_price_es"], conf["official_price_es"] = float(used_price_eur), "MEDIUM"
     claimed = car["values"].get("claimed_0_100")
     if claimed is not None and claimed.available and claimed.value_num is not None:
         values["accel_0_100"], conf["accel_0_100"] = float(claimed.value_num), str(claimed.confidence or "MEDIUM")

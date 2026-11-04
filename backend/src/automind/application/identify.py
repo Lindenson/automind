@@ -441,6 +441,8 @@ async def _ladder(ports: Ports, case: CaseFile, car: CaseCar, year: int) -> Iden
     if d.done and d.step.version is not None:
         v = await _store_version(ports, car, g, d.step)
         car.variant_id, car.label, car.resolution = v.id, v.label, _proposed(car)
+        memo.source_url = d.step.version.source_url or None
+        memo.others = _others(g, car.year, d.step.version)
         if d.missing and not d.auto:  # the user named something this generation has not: said, the one there is
             events.append({"kind": "ladder_missing", "missing": ", ".join(d.missing), "label": v.label})
         return _done(car, IdentifyOutcome(outcome="IDENTIFIED", missing=d.missing, events=events))
@@ -448,6 +450,16 @@ async def _ladder(ports: Ports, case: CaseFile, car: CaseCar, year: int) -> Iden
     choices = [_choice(car, o) for o in step.options]
     return _done(car, IdentifyOutcome(outcome="CHOICES", need=ladder.ITEM[step.kind], level=step.kind,  # type: ignore[arg-type]
                                       choices=choices, missing=d.missing, events=events))  # fmt: skip
+
+
+def _others(g: ladder.Generation, year: int | None, chosen: ladder.Version) -> list[str]:
+    """Up to four other versions of the same generation (and year) for the card's engine chips."""
+    pool = ladder.narrow(g.versions, ladder.Wanted(year=year)).versions
+    out: list[str] = []
+    for v in pool:
+        if v.engine_key != chosen.engine_key and v.engine not in out:
+            out.append(v.engine)
+    return out[:4]
 
 
 async def _store_version(ports: Ports, car: CaseCar, g: ladder.Generation, step: ladder.Step) -> Any:

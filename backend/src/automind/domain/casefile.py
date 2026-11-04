@@ -227,6 +227,8 @@ class LadderMemo(BaseModel):
     generation: str | None = None
     generation_from: int | None = None
     generation_to: int | None = None
+    source_url: str | None = None  # the document that lists the settled version
+    others: list[str] = Field(default_factory=list)  # other versions of this generation and year (card chips)
 
 
 class CaseCar(BaseModel):
