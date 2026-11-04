@@ -757,6 +757,7 @@ def _criteria_facts(sc: CriteriaScore | None) -> dict | None:
 async def tco_car(
     car: dict, condition: str, age_years: int | None, mileage_km: int | None,
     retention_curve: dict | None = None, use: energy.UsageContext | None = None, new_in_market: bool = False,
+    stated: dict[str, tuple[float, str]] | None = None,
 ) -> tco.TcoCar:  # fmt: skip
     """Assemble TCO inputs from validated data: specs, sourced maintenance items, used-car issues."""
     v = car["variant"]
@@ -815,6 +816,7 @@ async def tco_car(
         retention=sourced_retention(car),
         retention_curve=class_curve(v.vehicle_class, retention_curve or {}),
         new_in_market=new_in_market,
+        stated=stated or {},
     )
 
 

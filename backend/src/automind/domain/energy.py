@@ -139,6 +139,12 @@ class EnergyCar:
     battery_kwh: float | None = None  # usable
     range_wltp: float | None = None
     range_real: float | None = None
+    # the user's own figures (FUEL, CS, KWH, RANGE -> (value, their words)): used instead of sourced or estimated
+    stated: Mapping[str, tuple[float, str]] = field(default_factory=dict)
+
+
+def _yours(value: float, unit: str, words: str) -> str:
+    return f'your figure {value:g} {unit} (you said: "{words}")'
 
 
 @dataclass(frozen=True)
@@ -189,7 +195,11 @@ class Rates:
 
 
 def fuel_consumption(car: EnergyCar, factor: Mapping[str, float]) -> tuple[float | None, str]:
-    """Fuel l/100 km for a combustion car or hybrid: real-world when sourced, else WLTP × the allowance, else NEDC."""
+    """Fuel l/100 km for a combustion car or hybrid: the user's own figure, real-world when sourced, else WLTP × the
+    allowance, else NEDC."""
+    if "FUEL" in car.stated:
+        v, words = car.stated["FUEL"]
+        return v, _yours(v, "l/100 km", words)
     if car.consumption_real:
         return car.consumption_real, f"real-world {car.consumption_real:g} (sourced test)"
     pt = (car.powertrain or "ICE").upper()
@@ -298,6 +308,9 @@ def _ev_kwh(car: EnergyCar, r: Rates, use: UsageContext, mix: Mapping[str, float
     """kWh/100 km bought from the grid, with how it was obtained and the factors applied."""
     allowance = r.real_world_factor.get("BEV", 1.2)
     loss = _losses(r.cfg, mix)
+    if "KWH" in car.stated:  # what the car's display shows: battery side, the charging losses are added
+        v, words = car.stated["KWH"]
+        return v * (1 + loss), [_yours(v, "kWh/100 km", words)], [f"charging losses +{loss * 100:.0f}% (assumption)"]
     if car.consumption_ev_real:
         meter = car.ev_real_meter or "battery"
         kwh = car.consumption_ev_real * (1 + loss if meter == "battery" else 1)
@@ -335,7 +348,10 @@ def _bev(car: EnergyCar, r: Rates, use: UsageContext, hc: str, assumed: bool) ->
 
 
 def electric_range(car: EnergyCar, r: Rates, use: UsageContext) -> tuple[float | None, str]:
-    """Real electric range: sourced when found, else WLTP ÷ (allowance × climate and motorway factors)."""
+    """Real electric range: the user's figure, sourced when found, else WLTP ÷ (allowance × climate and motorway)."""
+    if "RANGE" in car.stated:
+        v, words = car.stated["RANGE"]
+        return v, f"real electric range {_yours(v, 'km', words)}"
     if car.range_real:
         return car.range_real, f"real-world electric range {car.range_real:g} km (sourced)"
     if not car.range_wltp:
@@ -366,20 +382,24 @@ def _plug_in(car: EnergyCar, r: Rates, use: UsageContext, hc: str, assumed: bool
     mix = _mix(r.cfg, hc, plug_in=True)
     kwh, how, fl = _ev_kwh(car, r, use, mix)
     s, s_lines = share(car, r, use, hc)
+    yours = car.stated.get("CS")
     missing = [m for m, ok in ((EV_MISSING, kwh is not None), ("electric range", s is not None),
-                               (CS_MISSING, bool(car.consumption_cs))) if not ok]  # fmt: skip
-    if missing or kwh is None or s is None or not car.consumption_cs:
+                               (CS_MISSING, bool(car.consumption_cs or yours))) if not ok]  # fmt: skip
+    if missing or kwh is None or s is None or not (car.consumption_cs or yours):
         why = [f"missing: {', '.join(missing)}", "the weighted WLTP figure is not a real consumption and is not used"]
         return EnergyEstimate([], why, missing)
-    f = r.real_world_factor.get("HEV", r.real_world_factor.get("ICE", 1.15))
-    cs = car.consumption_cs * f
     fuel_price, what = _fuel_price(car, r)
+    if yours:
+        cs, cs_line = yours[0], f"{what} with an empty battery: {_yours(yours[0], 'l/100 km', yours[1])}"
+    else:
+        f = r.real_world_factor.get("HEV", r.real_world_factor.get("ICE", 1.15))
+        cs = (car.consumption_cs or 0.0) * f
+        cs_line = (f"{what} {cs:.1f} l/100 km: charge-sustaining {car.consumption_cs:g} × {f:g} real-use allowance "
+                   "(assumption)")  # fmt: skip
     e_price = Price(round(_kwh_price(r.cfg, mix), 4), "kWh", "electricity")
     e_km, f_km = use.annual_km * s, use.annual_km * (1 - s)
     inputs = [*s_lines, f"electricity {kwh:.1f} kWh/100 km: {how[0]}", *fl, _mix_line(hc, assumed, mix),
-              *_price_lines(r.cfg, mix),
-              f"{what} {cs:.1f} l/100 km: charge-sustaining {car.consumption_cs:g} × {f:g} real-use allowance "
-              "(assumption)", fuel_price.line(), f"{use.annual_km:,} km/year"]  # fmt: skip
+              *_price_lines(r.cfg, mix), cs_line, fuel_price.line(), f"{use.annual_km:,} km/year"]  # fmt: skip
     parts = [_part("electricity", e_km, kwh, e_price), _part(what, f_km, cs, fuel_price)]
     return EnergyEstimate(parts, inputs, electric_share=round(s, 3), factors=fl)
 

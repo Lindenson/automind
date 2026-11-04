@@ -12,7 +12,7 @@ from typing import Any, Protocol
 
 from automind.application import compose
 from automind.domain import feasibility as fz
-from automind.domain import tco
+from automind.domain import intake, tco
 from automind.domain.casefile import CaseFile
 
 
@@ -76,12 +76,12 @@ async def _used_ranges(store: FeasibilityStore, variant_id: str) -> list[fz.Used
 async def car_facts(case: CaseFile, rates_cfg: dict[str, Any], store: FeasibilityStore) -> list[fz.CarFacts]:
     rates = tco.TcoRates.from_config(rates_cfg, case.rates_override.model_dump())
     out = []
-    for x in case.cars:
-        if not x.variant_id:
-            continue
-        car = await compose.load_car(x.variant_id)
+    loaded = [(x, await compose.load_car(x.variant_id)) for x in case.cars if x.variant_id]
+    stated = intake.stated_for_cars(case.stated_energy, [(x.key, car["variant"].powertrain) for x, car in loaded])
+    for x, car in loaded:
         cond = x.condition if x.condition in ("NEW", "USED") else "NEW"
-        est = tco.compute(await compose.tco_car(car, cond, x.age_years, x.mileage_km), rates, case.annual_km)
+        t = await compose.tco_car(car, cond, x.age_years, x.mileage_km, stated=stated.get(x.key))
+        est = tco.compute(t, rates, case.annual_km)
         inputs = [f"{case.annual_km:,} km/year"] + [
             f"{i.label}: {', '.join(i.inputs)}" for i in est.items if i.basis == "ASSUMPTION" and i.inputs
         ][:3]

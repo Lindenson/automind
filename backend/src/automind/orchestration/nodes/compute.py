@@ -13,7 +13,7 @@ from typing import Any
 
 from automind.application import compose, electric_block, incentives_research, research
 from automind.application import feasibility as fz_app
-from automind.domain import incentives, research_plan, sense, suggestions, tco
+from automind.domain import incentives, intake, research_plan, sense, suggestions, tco
 from automind.domain import insights as ins
 from automind.domain import verdict as vd
 from automind.domain.casefile import CaseFile
@@ -297,8 +297,9 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
     curve = (c.ports.ref.feasibility or {}).get("depreciation") or {}
     use = usage_context(case)
     recent = recent_make(c)
+    stated = intake.stated_for_cars(case.stated_energy, [(x.key, car["variant"].powertrain) for x, car in keyed])
     tcars = [await compose.tco_car(car, _cond(x.condition), x.age_years, x.mileage_km, curve, use,
-                                   recent(getattr(car["variant"], "make", None)))
+                                   recent(getattr(car["variant"], "make", None)), stated.get(x.key))
              for x, car in keyed]  # fmt: skip
     estimates = tco.like_for_like([tco.compute(t, rates, case.annual_km, case.ownership_years) for t in tcars])
     costs = _checked_costs(estimates, {car["variant"].id: x.age_years for x, car in keyed}, notices)
