@@ -16,7 +16,9 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from typing import Any, Literal
 
-RULES_VERSION = "tco-1.1"
+from automind.domain import energy as en
+
+RULES_VERSION = "tco-1.2"  # 1.2: energy model per powertrain (spec 006)
 Basis = Literal["SOURCED", "ASSUMPTION"]
 Kind = Literal["MAINTENANCE", "ENERGY", "TYRES", "ROAD_TAX", "BIG_TICKET", "BASE_RESERVE", "DEPRECIATION"]
 CLASSES = ("small", "compact", "mid_large", "premium_suv_4x4")
@@ -40,6 +42,7 @@ class TcoRates:
     base_reserve: Mapping[str, list[float]]  # class -> per age band [0-4, 5-9, 10-14, 15+]
     max_maintenance_eur: Mapping[str, float] = field(default_factory=dict)  # sanity cap per class and year
     real_world_factor: Mapping[str, float] = field(default_factory=dict)  # official cycle → real use, per powertrain
+    energy: en.EnergyConfig = field(default_factory=en.EnergyConfig)  # config/energy.yaml (spec 006)
 
     @classmethod
     def from_config(cls, d: Mapping[str, Any], overrides: Mapping[str, float | None] | None = None) -> TcoRates:
@@ -62,6 +65,12 @@ class TcoRates:
             base_reserve={k: [float(x) for x in v] for k, v in table.items() if k in CLASSES},
             max_maintenance_eur={k: float(v) for k, v in (d.get("max_maintenance_eur_per_year") or {}).items()},
             real_world_factor={k: float(v) for k, v in (d.get("real_world_factor") or {}).items()},
+            energy=en.EnergyConfig.from_config(
+                d.get("energy"),
+                home_override=o.get("home_electricity_eur_per_kwh", o.get("electricity_eur_per_kwh")),
+                ac_override=o.get("public_ac_eur_per_kwh"),
+                dc_override=o.get("public_dc_eur_per_kwh"),
+            ),
         )
 
 
@@ -105,6 +114,15 @@ class TcoCar:
     price_eur: float | None = None  # official new price (ES)
     retention: Mapping[int, float] = field(default_factory=dict)  # sourced value share after N years (3, 5)
     retention_curve: Mapping[float, float] = field(default_factory=dict)  # class curve (assumption), age -> share
+    # spec 006: electric facts and the user's use (daily km, climate, home charging) for the energy model
+    consumption_ev: float | None = None
+    consumption_ev_real: float | None = None
+    ev_real_meter: str | None = None
+    consumption_cs: float | None = None
+    battery_kwh: float | None = None
+    range_wltp: float | None = None
+    range_real: float | None = None
+    use: en.UsageContext | None = None
 
 
 @dataclass(frozen=True)
@@ -116,6 +134,9 @@ class TcoItem:
     basis: Basis
     inputs: list[str]
     evidence_ids: list[str] = field(default_factory=list)
+    parts: list[en.EnergyPart] = field(default_factory=list)  # ENERGY only: electricity / fuel split (spec 006)
+    missing: list[str] = field(default_factory=list)  # ENERGY only: inputs that stop the computation
+    estimate: en.EnergyEstimate | None = None  # ENERGY only
 
 
 @dataclass(frozen=True)
@@ -220,52 +241,40 @@ def _sourced_maintenance(car: TcoCar, r: TcoRates, km: int, years: int, assumed:
 
 
 def energy_consumption(car: TcoCar, r: TcoRates) -> tuple[float | None, str]:
-    """Consumption for the fuel bill: real-world when sourced, else the official figure × a real-use allowance
-    per powertrain (labelled). WLTP before NEDC; NEDC only when nothing else exists (spec 004 FR-027)."""
-    if car.consumption_real:
-        return car.consumption_real, f"real-world {car.consumption_real:g} (sourced test)"
-    pt = (car.powertrain or "ICE").upper()
-    if car.consumption:
-        f = r.real_world_factor.get(pt, r.real_world_factor.get("ICE", 1.0))
-        return round(car.consumption * f, 2), f"WLTP {car.consumption:g} × {f:g} real-use allowance (assumption)"
-    if car.consumption_nedc:
-        f = r.real_world_factor.get("NEDC", 1.0)
-        return round(
-            car.consumption_nedc * f, 2
-        ), f"NEDC {car.consumption_nedc:g} × {f:g} real-use allowance (assumption)"
-    return None, ""
+    """Fuel consumption for a combustion car or hybrid (kept for callers; the model is in domain/energy.py)."""
+    return en.fuel_consumption(_energy_car(car), r.real_world_factor)
+
+
+def _energy_car(car: TcoCar) -> en.EnergyCar:
+    return en.EnergyCar(
+        powertrain=(car.powertrain or "ICE").upper(), fuel=car.fuel, consumption=car.consumption,
+        consumption_real=car.consumption_real, consumption_nedc=car.consumption_nedc,
+        consumption_ev=car.consumption_ev, consumption_ev_real=car.consumption_ev_real,
+        ev_real_meter=car.ev_real_meter, consumption_cs=car.consumption_cs, battery_kwh=car.battery_kwh,
+        range_wltp=car.range_wltp, range_real=car.range_real,
+    )  # fmt: skip
+
+
+def energy_rates(r: TcoRates) -> en.Rates:
+    return en.Rates(
+        petrol=en.Price(r.fuel_eur_per_l, "l", "petrol"),
+        diesel=en.Price(r.diesel_eur_per_l, "l", "diesel"),
+        real_world_factor=r.real_world_factor,
+        cfg=r.energy,
+    )
+
+
+def energy_estimate(car: TcoCar, r: TcoRates, km: int) -> en.EnergyEstimate:
+    use = car.use or en.UsageContext(annual_km=km)
+    if use.annual_km != km:
+        use = replace(use, annual_km=km)
+    return en.estimate(_energy_car(car), energy_rates(r), use)
 
 
 def _energy(car: TcoCar, r: TcoRates, km: int, years: int) -> TcoItem:
-    used, how = energy_consumption(car, r)
-    if not used:
-        return _item(
-            "ENERGY",
-            "Energy: not included (consumption not found)",
-            None,
-            "ASSUMPTION",
-            ["consumption not found"],
-            years,
-        )
-    if car.powertrain == "BEV":
-        price, unit, what = r.electricity_eur_per_kwh, "kWh", "electricity"
-    elif car.fuel == "diesel":
-        price, unit, what = r.diesel_eur_per_l, "l", "diesel"
-    else:
-        price, unit, what = r.fuel_eur_per_l, "l", "petrol"
-    annual = used * km / 100 * price
-    return _item(
-        "ENERGY",
-        f"Energy ({what})",
-        annual,
-        "ASSUMPTION",
-        [
-            f"consumption {used:g} {unit}/100 km: {how}",
-            f"{what} €{price:.2f}/{unit} (assumption)",
-            f"{km:,} km/year",
-        ],
-        years,
-    )
+    e = energy_estimate(car, r, km)
+    item = _item("ENERGY", e.label, e.annual_eur, "ASSUMPTION", e.inputs, years)
+    return replace(item, parts=list(e.parts), missing=list(e.missing), estimate=e)
 
 
 def _tyres(car: TcoCar, r: TcoRates, km: int, years: int) -> TcoItem:

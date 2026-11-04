@@ -26,7 +26,7 @@ from automind.application import extraction as ex
 from automind.application.ports import Page, Ports, WebDoc
 from automind.application.usage import BudgetExceeded, current_job
 from automind.domain import evidence as ev
-from automind.domain import identity, plausibility, research_plan, search_plan, sense, specs
+from automind.domain import identity, plausibility, research_plan, search_plan, sense, sense_ev, specs
 from automind.domain import learned as learned_rules
 from automind.domain import relevance as rel
 from automind.infrastructure import db
@@ -182,6 +182,7 @@ def queries_for(
         )  # fmt: skip
 
     out = plan(round_) or (plan(1) if round_ == 0 else [])
+    out += search_plan.ev_queries(out, ident, getattr(v, "powertrain", None), ports.ref.favourite_queries)
     if round_ > 0 and area in ("specs", "engineering") and missing:
         labels = ", ".join(specs.ATTRS[k].label for k in missing if k in specs.ATTRS)
         text = f"{v.make} {v.model} {v.generation or ''} {v.variant_name} {labels}"
@@ -241,7 +242,7 @@ async def run_job(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
 
 async def _run(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
     v = await _variant(job.variant_id)
-    missing = await missing_critical(v.id) if job.area == "specs" else []
+    missing = await missing_critical(v.id, v.powertrain) if job.area == "specs" else []
     seen = await _used_urls(v.id, job.area)
     planned, pages, stats = await _search_pages(ports, v, job, missing, seen, emit)
     target = target_of(v, job.car_year)
@@ -298,7 +299,7 @@ async def _run(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
     if job.area in ex.SPEC_AREAS or job.area == "maintenance":
         await reselect(v.id)
     hits = await area_hits(v, job.area)
-    met = research_plan.minimum_met(job.area, [research_plan.SourceHit(**h) for h in hits])
+    met = await _area_met(v, job.area, hits)
     await _mark_run(v.id, job.area, totals["docs"], accepted, rejected, job.round, met)
     await _job_metrics(job.job_id, planned, stats)
     await emit("validating", f"{job.area}: {accepted} accepted, {rejected} rejected by validation")
@@ -654,14 +655,41 @@ def _sense_before(c: Any, v: db.Variant, source_type: str | None) -> tuple[Any, 
     volume with the seats folded is not the boot volume."""
     if c.attribute == "boot_volume" and not (b := sense.boot_seats_up(c.raw_value, c.excerpt)).ok:
         return c, ("REJECTED_IMPLAUSIBLE", None, None, b.rule_id or "sense.boot")
+    if (v.powertrain or "").upper() in sense_ev.PLUG_IN or c.attribute in _EV_CLAIMS:
+        return _sense_ev_before(c, v)
     if c.attribute != "consumption":
         return c, None
     r = sense.classify_consumption(c.raw_value, c.excerpt, v.generation_years_from, source_type)
     if not r.ok:
         return c, ("REJECTED_IMPLAUSIBLE", None, None, r.rule_id or "sense.consumption")
-    update = {"attribute": r.attribute, "raw_value": r.value}
-    c2 = c.model_copy(update=update) if hasattr(c, "model_copy") else dataclasses.replace(c, **update)
-    return c2, None
+    return _refile(c, r.attribute, r.value), None
+
+
+_EV_CLAIMS = ("battery_kwh", "battery_gross_kwh", "charge_ac_kw", "charge_dc_peak_kw", "charge_dc_10_80_min",
+              *sense_ev.EV_ATTRS, "consumption_cs", "consumption_weighted")  # fmt: skip
+
+
+def _refile(c: Any, attribute: str | None, raw_value: Any) -> Any:
+    update = {"attribute": attribute, "raw_value": raw_value}
+    return c.model_copy(update=update) if hasattr(c, "model_copy") else dataclasses.replace(c, **update)
+
+
+def _sense_ev_before(c: Any, v: db.Variant) -> tuple[Any, tuple[str, None, None, str] | None]:
+    """Electric values (spec 006 R4): a plug-in's consumption by its words; gross vs usable; kWh vs kW."""
+    plug_in = (v.powertrain or "").upper() in sense_ev.PLUG_IN
+    if plug_in and c.attribute in (*sense_ev.FUEL_ATTRS, *sense_ev.EV_ATTRS):
+        r = sense_ev.plug_in_consumption(c.attribute, c.raw_value, c.unit, c.excerpt)
+        if not r.ok:
+            return c, ("REJECTED_IMPLAUSIBLE", None, None, r.rule_id or "sense.phev")
+        c = _refile(c, r.attribute, r.value)
+    elif c.attribute in ("consumption_cs", "consumption_weighted"):  # only plug-ins have these
+        return c, ("REJECTED_IMPLAUSIBLE", None, None, "sense.phev.not_plug_in")
+    if c.attribute in ("battery_kwh", "battery_gross_kwh"):
+        c = _refile(c, sense_ev.battery_kind(c.raw_value, c.excerpt), c.raw_value)
+    r = sense_ev.check_claim(c.attribute, c.raw_value, c.unit, c.excerpt)
+    if not r.ok:
+        return c, ("REJECTED_IMPLAUSIBLE", None, None, r.rule_id or "sense.ev")
+    return c, None
 
 
 def _sense_after(attribute: str, val: Any, ctx: plausibility.Context) -> tuple[str, None, None, str] | None:
@@ -674,6 +702,8 @@ def _sense_after(attribute: str, val: Any, ctx: plausibility.Context) -> tuple[s
         return "REJECTED_OTHER_VARIANT", None, None, "sense.transmission.other_gearbox"
     if attribute == "drivetrain" and sense.drive_conflict(ctx.drive, str(val)):
         return "REJECTED_OTHER_VARIANT", None, None, "sense.drivetrain.other_drive"
+    if isinstance(val, float) and not (p := sense_ev.pair_check(attribute, val, ctx.known)).ok:
+        return "REJECTED_IMPLAUSIBLE", None, None, p.rule_id or "sense.ev"
     return None
 
 
@@ -1084,9 +1114,16 @@ async def _brand_positioning(s: Any, variant_id: str) -> None:
             other.brand_positioning = best
 
 
-async def missing_critical(variant_id: str) -> list[str]:
+async def _area_met(v: db.Variant, area: str, hits: list[dict[str, Any]]) -> bool:
+    met = research_plan.minimum_met(area, [research_plan.SourceHit(**h) for h in hits])
+    if met and area == "specs" and research_plan.energy_inputs_missing(v.powertrain, await _have(v.id)):
+        return False  # spec 006 FR-009: look deeper for the energy inputs before "cannot be computed"
+    return met
+
+
+async def _have(variant_id: str) -> set[str]:
     async with db.sessionmaker()() as session:
-        have = {
+        return {
             sv.attribute
             for sv in (
                 await session.execute(
@@ -1094,7 +1131,11 @@ async def missing_critical(variant_id: str) -> list[str]:
                 )
             ).scalars()
         }
-    return [k for k in CRITICAL if k not in have]
+
+
+async def missing_critical(variant_id: str, powertrain: str | None = None) -> list[str]:
+    have = await _have(variant_id)
+    return [k for k in CRITICAL if k not in have] + research_plan.energy_inputs_missing(powertrain, have)
 
 
 async def last_done(variant_ids: list[str]) -> dict[str, dict[str, Any]]:

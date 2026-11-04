@@ -84,7 +84,8 @@ def prices() -> dict[str, Any]:
 
 
 def rates() -> dict[str, Any]:
-    return load_yaml("rates.yaml")
+    """config/rates.yaml with the energy model (config/energy.yaml, spec 006) under `energy`."""
+    return {**load_yaml("rates.yaml"), "energy": load_yaml("energy.yaml")}
 
 
 def aliases() -> dict[str, Any]:

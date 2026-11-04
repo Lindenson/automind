@@ -45,6 +45,58 @@ def _consumption(v: float, u: str | None) -> float:
     return v
 
 
+def _kwh(v: float, u: str | None) -> float:
+    """Energy (battery capacity): kWh only; a kW figure is power, not capacity (spec 006 FR-007)."""
+    unit = (u or "kwh").strip().lower().replace(" ", "")
+    if unit not in ("kwh", "kw·h", "kw-h"):
+        raise units.UnitError(f"energy needs kWh, got {u!r} (kW is power)")
+    return v
+
+
+def _kw(v: float, u: str | None) -> float:
+    """Charging power: kW only; a kWh figure is energy, not power (spec 006 FR-007)."""
+    unit = (u or "kw").strip().lower().replace(" ", "")
+    if unit != "kw":
+        raise units.UnitError(f"power needs kW, got {u!r} (kWh is energy)")
+    return v
+
+
+def _kwh100(v: float, u: str | None) -> float:
+    unit = (u or "").strip().lower().replace(" ", "")
+    if unit in ("kwh/100km", "kwh/100", "kwh/100kms"):
+        return v
+    if unit in ("wh/km",):
+        return v / 10
+    raise units.UnitError(f"electric consumption needs kWh/100 km, got {u!r}")
+
+
+def _l100(v: float, u: str | None) -> float:
+    unit = (u or "").strip().lower().replace(" ", "")
+    if "mpg" in unit:
+        return units.mpg_to_l100km(v, units.mpg_market(u))
+    if unit not in ("l/100km", "l/100", "l/100kms"):
+        raise units.UnitError(f"fuel consumption needs l/100 km, got {u!r}")
+    return v
+
+
+def _km(v: float, u: str | None) -> float:
+    unit = (u or "km").strip().lower()
+    if unit in ("km", "kms", "kilómetros", "kilometros", "kilometres", "kilometers", "км"):
+        return v
+    if unit in ("mi", "miles", "mile", "millas"):
+        return v * 1.609344
+    raise units.UnitError(f"distance needs km, got {u!r}")
+
+
+def _minutes(v: float, u: str | None) -> float:
+    unit = (u or "min").strip().lower()
+    if unit in ("min", "mins", "minutes", "minutos", "мин", "minuten"):
+        return v
+    if unit in ("h", "hours", "horas", "ч"):
+        return v * 60
+    raise units.UnitError(f"time needs minutes, got {u!r}")
+
+
 def _mm(v: float, u: str | None) -> float:
     unit = (u or "mm").strip().lower()
     if unit in ("mm", "millimetres", "millimeters", "milímetros"):
@@ -91,7 +143,66 @@ ATTRS: dict[str, Attr] = {
             convert=units.volume_to_cc,
             plausible=(600, 8500),
         ),
-        Attr("battery_kwh", "Battery (usable)", "kWh", "number", "specs", 0.03, convert=_same, plausible=(5, 150)),
+        Attr("battery_kwh", "Battery (usable)", "kWh", "number", "specs", 0.03, convert=_kwh, plausible=(0.2, 150)),
+        # spec 006: electric facts (data-model §1). Gross capacity, ranges, kWh/100 km, the plug-in's
+        # charge-sustaining and weighted figures (the weighted one is shown, never priced), charging.
+        Attr(
+            "battery_gross_kwh", "Battery (gross)", "kWh", "number", "specs", 0.03, convert=_kwh, plausible=(0.2, 160)
+        ),
+        Attr("battery_chemistry", "Battery chemistry", None, "text", "specs", 0),
+        Attr("range_wltp", "Electric range (WLTP)", "km", "number", "specs", 0.03, convert=_km, plausible=(15, 1000)),
+        Attr(
+            "consumption_ev",
+            "Electric consumption (WLTP)",
+            "kWh/100 km",
+            "number",
+            "specs",
+            0.05,
+            convert=_kwh100,
+            plausible=(8, 40),
+        ),
+        Attr(
+            "consumption_cs",
+            "Consumption with an empty battery",
+            "l/100 km",
+            "number",
+            "specs",
+            0.05,
+            convert=_l100,
+            plausible=(3, 15),
+        ),
+        Attr(
+            "consumption_weighted",
+            "Consumption (WLTP weighted, plug-in)",
+            "l/100 km",
+            "number",
+            "specs",
+            0.05,
+            convert=_l100,
+            plausible=(0.1, 3.5),
+        ),
+        Attr("charge_ac_kw", "AC charging power", "kW", "number", "specs", 0.03, convert=_kw, plausible=(1.8, 22)),
+        Attr(
+            "charge_dc_peak_kw",
+            "DC fast charging (peak)",
+            "kW",
+            "number",
+            "specs",
+            0.03,
+            convert=_kw,
+            plausible=(10, 500),
+        ),
+        Attr(
+            "charge_dc_10_80_min",
+            "DC 10–80 % time",
+            "min",
+            "number",
+            "specs",
+            0.05,
+            convert=_minutes,
+            plausible=(10, 120),
+        ),
+        Attr("heat_pump", "Heat pump", None, "text", "specs", 0),
         Attr(
             "claimed_0_100",
             "0–100 km/h (claimed)",
@@ -137,6 +248,39 @@ ATTRS: dict[str, Attr] = {
             tier=3,
             convert=_consumption,
             plausible=(1, 45),
+        ),
+        Attr(
+            "range_real",
+            "Electric range (real-world)",
+            "km",
+            "number",
+            "measured",
+            0.10,
+            tier=3,
+            convert=_km,
+            plausible=(10, 1000),
+        ),
+        Attr(
+            "consumption_ev_real",
+            "Electric consumption (real-world)",
+            "kWh/100 km",
+            "number",
+            "measured",
+            0.10,
+            tier=3,
+            convert=_kwh100,
+            plausible=(8, 50),
+        ),
+        Attr(
+            "consumption_ev_plug",
+            "Electric consumption (real-world, at the plug)",
+            "kWh/100 km",
+            "number",
+            "measured",
+            0.10,
+            tier=3,
+            convert=_kwh100,
+            plausible=(8, 50),
         ),
         Attr("boot_volume", "Boot volume", "L", "number", "specs", 0.05, convert=_litres, plausible=(50, 2500)),
         Attr("seats", "Seats", None, "number", "specs", 0, convert=_same, plausible=(2, 9)),

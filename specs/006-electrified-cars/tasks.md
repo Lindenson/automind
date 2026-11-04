@@ -11,7 +11,7 @@
 
 ## Phase 1: Setup
 
-- [ ] T001 Create `backend/config/energy.yaml` with these sections, each with comments:
+- [X] T001 Create `backend/config/energy.yaml` with these sections, each with comments:
   - `prices` (keys home_pvpc, home_fixed, home_night, public_ac, public_dc, petrol, diesel; fields value, unit, as_of, source, freshness_days; placeholder values copied from today's rates.yaml, labelled "assumption");
   - `habits` (driving_days 300, charge_probability YES 0.9 / NO 0.25);
   - `mix` (YES/WORK home 0.85, public_ac 0.05, public_dc 0.10; NO 0 / 0.4 / 0.6);
@@ -23,15 +23,15 @@
 
 ## Phase 2: Foundational (blocks all stories)
 
-- [ ] T003 Add the new attributes from data-model §1 to `ATTRS` in `backend/src/automind/domain/specs.py`:
+- [X] T003 Add the new attributes from data-model §1 to `ATTRS` in `backend/src/automind/domain/specs.py`:
   - battery_gross_kwh, battery_chemistry, range_wltp, range_real, consumption_ev, consumption_ev_real, consumption_cs, consumption_weighted;
   - charge_ac_kw, charge_dc_peak_kw, charge_dc_10_80_min;
   - battery_warranty_years/km/soh_pct, warranty_years/km, dealer_count_es, service_points_es;
   - heat_pump, v2l_kw, euro_standard.
 
   Give each its plausible range and converter: kWh, kW, min, km and count converters reject the wrong unit. Also relabel battery_kwh to "Battery (usable)".
-- [ ] T004 [P] Unit tests for the new converters and plausible ranges (kW given for kWh fails; kWh given for kW fails) in `backend/tests/unit/domain/test_specs_ev.py`.
-- [ ] T005 Carry the EV attributes in `application/compose.py`: extend the facts/attribute lists so they reach the report and the data panel, and hide EV rows for ICE/MHEV/HEV as is done today for battery_kwh (`backend/src/automind/application/compose.py`).
+- [X] T004 [P] Unit tests for the new converters and plausible ranges (kW given for kWh fails; kWh given for kW fails) in `backend/tests/unit/domain/test_specs_ev.py`.
+- [X] T005 Carry the EV attributes in `application/compose.py`: extend the facts/attribute lists so they reach the report and the data panel, and hide EV rows for ICE/MHEV/HEV as is done today for battery_kwh (`backend/src/automind/application/compose.py`).
 
 **Checkpoint**: the attributes exist and are stored, but nothing uses them yet.
 
@@ -43,7 +43,7 @@
 
 ### Tests first
 
-- [ ] T006 [P] [US1] Write `backend/tests/unit/domain/test_energy.py` covering:
+- [X] T006 [P] [US1] Write `backend/tests/unit/domain/test_energy.py` covering:
   - ICE regression, identical to today's `tco.energy_consumption`;
   - HEV and MHEV with no electric share;
   - PHEV share with daily km known and unknown, home YES and NO, range above and below the daily distance;
@@ -54,7 +54,7 @@
   - the invariant that `consumption_weighted` never appears in `parts`.
 
   Use the incident numbers for BYD Seal U DM-i and Ateca.
-- [ ] T007 [P] [US2] Write `backend/tests/unit/domain/test_sense_ev.py`: a regression table of about 40 cases from quickstart A2. It covers:
+- [X] T007 [P] [US2] Write `backend/tests/unit/domain/test_sense_ev.py`: a regression table of about 40 cases from quickstart A2. It covers:
   - unit confusions;
   - gross vs usable, and the usable/gross ratio;
   - range above what the battery allows;
@@ -67,43 +67,43 @@
 
 ### Implementation
 
-- [ ] T008 [US1] Create `backend/src/automind/domain/energy.py` with the data model §2–4 types:
+- [X] T008 [US1] Create `backend/src/automind/domain/energy.py` with the data model §2–4 types:
   - EnergyCar, Num, Price, EnergyPrices, ChargingSituation, UsageContext, EnergyPart, EnergyEstimate;
   - `estimate()` dispatching per powertrain (R1);
   - `_fuel()` (moved from `tco.energy_consumption`), `_phev()` (R2), `_bev()` (R3).
 
   Keep every function at C901 ≤ 10.
-- [ ] T009 [US1] Rewrite `_energy` in `backend/src/automind/domain/tco.py` to build the ENERGY item from an EnergyEstimate:
+- [X] T009 [US1] Rewrite `_energy` in `backend/src/automind/domain/tco.py` to build the ENERGY item from an EnergyEstimate:
   - the label lists the energies ("Energy (electricity + petrol)");
   - `parts` and `missing` are added to TcoItem;
   - "cannot be computed — missing: …" when inputs are missing.
 
   Keep `energy_consumption` as a thin wrapper for its existing callers. Remove `real_world_factor.PHEV` from `backend/config/rates.yaml`.
-- [ ] T010 [US1] Assemble the EnergyCar and context in `backend/src/automind/application/compose.py` `tco_car()`:
+- [X] T010 [US1] Assemble the EnergyCar and context in `backend/src/automind/application/compose.py` `tco_car()`:
   - the EV values with basis and meter;
   - prices built from rates.yaml for now (one home price, until increment B);
   - the situation is UNKNOWN, assumed YES;
   - the usage comes from the case (annual_km, needs.daily_km, climate).
-- [ ] T011 [US2] Create `backend/src/automind/domain/sense_ev.py` with:
+- [X] T011 [US2] Create `backend/src/automind/domain/sense_ev.py` with:
   - `classify_consumption_phev(raw, excerpt)` (R4);
   - `battery_kind(excerpt)` (usable / gross);
   - `meter(excerpt)` (plug / battery);
   - `range_conditions(excerpt)`;
   - `split_warranty(raw, excerpt)`;
   - the pair checks (usable vs gross, range vs battery, DC power vs battery C-rate).
-- [ ] T012 [US2] Add the EV markers to `backend/config/sense.yaml` in es/en/de/ru: weighted, CS, electric, usable/net, gross, plug/display, summer/winter/motorway, DC window.
-- [ ] T013 [US2] Hook `sense_ev` into `_sense_before` and attribute routing in `backend/src/automind/application/research.py`:
+- [X] T012 [US2] (done as module constants in `domain/sense_ev.py`, like `sense.py`) Add the EV markers to `backend/config/sense.yaml` in es/en/de/ru: weighted, CS, electric, usable/net, gross, plug/display, summer/winter/motorway, DC window.
+- [X] T013 [US2] Hook `sense_ev` into `_sense_before` and attribute routing in `backend/src/automind/application/research.py`:
   - PHEV/EREV consumption claims are rerouted to consumption_weighted, consumption_cs or consumption_ev;
   - an unclear figure is rejected (`sense.phev.unclear_consumption`);
   - battery_kwh without a usable marker goes to battery_gross_kwh;
   - after the claims are accepted, the pair checks run per variant.
-- [ ] T014 [US1] Add EV query templates `specs_ev` and `measured_ev` to `backend/config/queries.yaml`, and the PHEV CS query (R10). Use them in `backend/src/automind/domain/search_plan.py` for PHEV/EREV/BEV variants.
-- [ ] T015 [US1] Add the EV minimums to `minimum_met("specs")` in `backend/src/automind/domain/research_plan.py`:
+- [X] T014 [US1] Add EV query templates `specs_ev` and `measured_ev` to `backend/config/queries.yaml`, and the PHEV CS query (R10). Use them in `backend/src/automind/domain/search_plan.py` for PHEV/EREV/BEV variants.
+- [X] T015 [US1] Add the EV minimums to `minimum_met("specs")` in `backend/src/automind/domain/research_plan.py`:
   - BEV: range_wltp plus (consumption_ev or battery_kwh);
   - PHEV: consumption_cs plus (consumption_ev or battery_kwh + range_wltp).
 
   An unmet minimum plans a deeper round (FR-009). Extend `backend/tests/unit/domain/test_research_plan.py`.
-- [ ] T016 [US1] Add the fallback for FR-001 to `backend/src/automind/orchestration/nodes/compute.py`: when a car's energy item has `missing`, a notice names it, using the new phrase `energy_missing` in en/ru/es in `backend/src/automind/orchestration/phrases.py`.
+- [X] T016 [US1] Add the fallback for FR-001 to `backend/src/automind/orchestration/nodes/compute.py`: when a car's energy item has `missing`, a notice names it, using the new phrase `energy_missing` in en/ru/es in `backend/src/automind/orchestration/phrases.py`.
 - [ ] T017 [P] [US1] Write `backend/tests/graph/test_ev_research.py`: a PHEV with only a weighted figure in the cassette gets a deeper specs job with the CS query, then a TCO "cannot be computed" and a notice.
 - [ ] T018 [US2] Add metrics to `backend/src/automind/orchestration/nodes/common.py`: a helper that records `ev_rejected` and `weighted_blocked` in intake_events from the sense hook, and `energy_missing` from compute.
 

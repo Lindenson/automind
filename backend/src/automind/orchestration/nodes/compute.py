@@ -16,11 +16,12 @@ from automind.domain import research_plan, sense, suggestions, tco
 from automind.domain import verdict as vd
 from automind.domain.casefile import CaseFile
 from automind.domain.criteria import CriteriaScore, score, weight_breakdown, weights_for
+from automind.domain.energy import UsageContext
 from automind.domain.metrics import new_generation_since
 from automind.domain.report_layout import annotate_sections, depths, order_blocks
 from automind.orchestration import report_text
 from automind.orchestration.guard import CheckInput as GuardInput
-from automind.orchestration.phrases import t
+from automind.orchestration.phrases import energy_input, t
 from automind.orchestration.runner import TurnContext
 
 from .common import notice
@@ -67,11 +68,28 @@ def _checked_costs(
     (EUR 513,672/year from a unit error). It is shown flagged and never scored."""
     out: dict[str, float] = {}
     for e in estimates:
+        if energy_missing(e):  # spec 006 FR-014: a cost without its energy line is not compared
+            continue
         r = sense.tco_per_year(e.annual_total, ages.get(e.car_id))
         if r.ok:
             out[e.car_id] = e.annual_total
         else:
             notices.append(notice(f"{e.label}: ownership cost {r.message} looks wrong; shown, not scored", "warning"))
+    return out
+
+
+def energy_missing(e: tco.TcoEstimate) -> list[str]:
+    return next((i.missing for i in e.items if i.kind == "ENERGY" and i.missing), [])
+
+
+def energy_notices(estimates: list[tco.TcoEstimate], names: dict[str, str], lang: str | None) -> list[dict[str, Any]]:
+    """One warning per car whose energy cost cannot be computed, naming the missing inputs (spec 006 FR-001)."""
+    out = []
+    for e in estimates:
+        if miss := energy_missing(e):
+            what = ", ".join(energy_input(m, lang) for m in miss)
+            out.append(notice(t("energy_missing", lang, car=names.get(e.car_id, e.label), missing=what), "warning",
+                              car_id=e.car_id, area="energy"))  # fmt: skip
     return out
 
 
@@ -177,9 +195,16 @@ def _any_values(values: list[Any]) -> set[str]:
     return {k for cv in values for k in cv.values}
 
 
+def usage_context(case: CaseFile) -> UsageContext:
+    """What the energy model needs from the case (spec 006): km, daily distance, climate, usage, home charging."""
+    return UsageContext(annual_km=case.annual_km, daily_km=case.needs.daily_km, climate=case.profile.climate,
+                        usage=tuple(case.usage),
+                        home_charging=getattr(case.profile, "home_charging", None) or "UNKNOWN")  # fmt: skip
+
+
 def _energy_price(t: tco.TcoCar, r: tco.TcoRates) -> float:
     if t.powertrain == "BEV":
-        return r.electricity_eur_per_kwh
+        return r.energy.home.value
     return r.diesel_eur_per_l if t.fuel == "diesel" else r.fuel_eur_per_l
 
 
@@ -190,9 +215,12 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
     sims = {r.car_id: r for r in race.results}
     rates = tco.TcoRates.from_config(c.ports.ref.rates or {}, case.rates_override.model_dump())
     curve = (c.ports.ref.feasibility or {}).get("depreciation") or {}
-    tcars = [await compose.tco_car(car, _cond(x.condition), x.age_years, x.mileage_km, curve) for x, car in keyed]
+    use = usage_context(case)
+    tcars = [await compose.tco_car(car, _cond(x.condition), x.age_years, x.mileage_km, curve, use)
+             for x, car in keyed]  # fmt: skip
     estimates = [tco.compute(t, rates, case.annual_km, case.ownership_years) for t in tcars]
     costs = _checked_costs(estimates, {car["variant"].id: x.age_years for x, car in keyed}, notices)
+    notices += energy_notices(estimates, {car["variant"].id: compose.short_name(car["variant"]) for car in cars}, lang)
     year = _year(c)
     young = {x.key for x, car in keyed if _new_gen(car, year)}
     notices[:] = [n for n in notices if not (n.get("area") == "reliability" and n.get("car_key") in young)]

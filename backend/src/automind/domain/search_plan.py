@@ -195,6 +195,32 @@ def queries(
     return out
 
 
+ELECTRIC = ("BEV", "PHEV", "EREV")
+
+
+def ev_queries(base: Sequence[PlannedQuery], car: Identity, powertrain: str | None,
+               templates: Mapping[str, str]) -> list[PlannedQuery]:  # fmt: skip
+    """Extra favourite queries for electric facts (spec 006 R10): range, kWh/100 km, charging; for plug-ins the
+    consumption with an empty battery. One per area and template, on the first group of favourite sites."""
+    pt = (powertrain or "").upper()
+    if pt not in ELECTRIC:
+        return []
+    keys = ["ev"] + (["cs"] if pt != "BEV" else [])
+    out: list[PlannedQuery] = []
+    seen = {q.text for q in base}
+    for q in base:
+        if q.kind != "FAVOURITE" or q.learned:
+            continue
+        for k in keys:
+            t = templates.get(f"{q.area}_{k}@{q.market}") or templates.get(f"{q.area}_{k}")
+            text = _render(t, car, q.sites) if t else ""
+            if text and text not in seen:
+                seen.add(text)
+                out.append(replace(q, text=text))
+        break  # the first group of sites only: one extra search per template
+    return out
+
+
 def retry_queries(
     empty: Sequence[PlannedQuery], car: Identity, favourite_templates: Mapping[str, str]
 ) -> list[PlannedQuery]:

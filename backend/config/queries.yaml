@@ -80,3 +80,17 @@ used_price:
   open:
     - '{make} {model} {generation} segunda mano precio cuánto cuesta guía de compra'
     - '{make} {model} {generation} used buying guide how much to pay'
+# spec 006 R10: extra favourite queries for electric and plug-in cars (one search each, first site group).
+# `_ev`: range, kWh/100 km, battery and charging; `_cs`: a plug-in's consumption with an empty battery.
+specs_ev:
+  favourite: '{short} autonomía consumo kWh batería carga {sites}'
+  favourite_by_market: {ES: '{short} autonomía consumo kWh batería carga {sites}', EN: '{short} range kWh battery charging {sites}', DE: '{short} Reichweite Verbrauch kWh Akku Laden {sites}'}
+specs_cs:
+  favourite: '{short} consumo batería descargada {sites}'
+  favourite_by_market: {ES: '{short} consumo batería descargada {sites}', EN: '{short} fuel consumption battery depleted {sites}', DE: '{short} Verbrauch leerer Akku {sites}'}
+measured_ev:
+  favourite: '{short} autonomía real prueba {sites}'
+  favourite_by_market: {ES: '{short} autonomía real prueba {sites}', EN: '{short} real world range test {sites}', DE: '{short} Reichweite Test Verbrauch {sites}'}
+measured_cs:
+  favourite: '{short} prueba consumo real {sites}'
+  favourite_by_market: {ES: '{short} prueba consumo real {sites}', EN: '{short} real fuel consumption test {sites}', DE: '{short} Test Verbrauch {sites}'}

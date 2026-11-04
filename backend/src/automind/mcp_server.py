@@ -20,6 +20,7 @@ from automind.domain.criteria import CriteriaModel, score, weights_for
 from automind.domain.metrics import metrics
 from automind.infrastructure import db
 from automind.infrastructure.config import configure_domain, load_yaml
+from automind.infrastructure.config import rates as rates_config
 from automind.infrastructure.db.repositories import CaseRepo
 
 configure_domain()
@@ -169,7 +170,7 @@ async def compute_tco(
     """Ownership cost per car (EUR/year). Every item is labelled SOURCED or ASSUMPTION with its inputs."""
     case = await _case(chat_id)
     ids = car_ids or [x.variant_id for x in case.cars if x.variant_id]
-    rates = tco.TcoRates.from_config(load_yaml("rates.yaml"), case.rates_override.model_dump())
+    rates = tco.TcoRates.from_config(rates_config(), case.rates_override.model_dump())
     ctx = {x.variant_id: x for x in case.cars}
     out = []
     for c in await _cars([i for i in ids if i]):
