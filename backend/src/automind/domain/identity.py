@@ -112,6 +112,41 @@ def is_duplicate(a: Mapping[str, Any], b: Mapping[str, Any], scorer: Callable[[s
     return scorer(_norm(a.get("variant_name")), _norm(b.get("variant_name"))) >= DUPLICATE_THRESHOLD
 
 
+def same_version(a: Mapping[str, Any], b: Mapping[str, Any], *, trim_unknown_ok: bool = True) -> bool:
+    """The same car under two names ("320d M Sport" and "320d M Sport 8-speed automatic"): same make, model and
+    powertrain, the same engine (cm³ within 20, kW within 2, both known), and no field that tells them apart
+    (generation, gearbox, driven wheels, body, version name, fuel: equal or unknown on one side). A new car is
+    matched with trim_unknown_ok=False: "1.5 TSI Style" is not folded into a row without a version name."""
+    for k in ("make", "model", "powertrain"):
+        if _norm(a.get(k)) != _norm(b.get(k)):
+            return False
+    cc_a, cc_b, kw_a, kw_b = a.get("engine_cc"), b.get("engine_cc"), a.get("power_kw"), b.get("power_kw")
+    if None in (kw_a, kw_b) or abs(int(kw_a) - int(kw_b)) > 2:  # type: ignore[arg-type]
+        return False
+    if (cc_a is None) != (cc_b is None) or (cc_a is not None and abs(int(cc_a) - int(cc_b)) > 20):  # type: ignore[arg-type]
+        return False
+    if not trim_unknown_ok and _norm(a.get("trim")) != _norm(b.get("trim")):
+        return False
+    for k in ("generation", "transmission", "drive", "body_class", "trim", "fuel"):
+        x, y = _norm(a.get(k)), _norm(b.get(k))
+        if x and y and x != y:
+            return False
+    return True
+
+
+def duplicate_groups(rows: list[Mapping[str, Any]]) -> list[list[str]]:
+    """Ids of catalog rows that are one car, groups of 2+ only. Every pair in a group is the same version: a row
+    without the driven wheels never joins an RWD and an AWD row into one."""
+    groups: list[list[Mapping[str, Any]]] = []
+    for r in rows:
+        home = next((g for g in groups if all(same_version(r, x) for x in g)), None)
+        if home is None:
+            groups.append([r])
+        else:
+            home.append(r)
+    return [[str(x["id"]) for x in g] for g in groups if len(g) > 1]
+
+
 # --- spec 005: engine identity and names in other scripts (research R3, R4) -----------------------------------
 
 _RU = dict(zip("абвгдеёжзийклмнопрстуфхцчшщъыьэюя", ["a", "b", "v", "g", "d", "e", "e", "zh", "z", "i", "y", "k", "l",

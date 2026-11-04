@@ -84,6 +84,10 @@ def variant_dict(v: db.Variant) -> dict[str, Any]:
         "price_eur": float(v.price_eur) if v.price_eur is not None else None,
         "transmission": v.transmission,
         "drive": v.drive,
+        "engine_cc": v.engine_cc,
+        "power_kw": v.power_kw,
+        "body_class": v.body_class,
+        "fuel": v.fuel,
     }
 
 
@@ -426,13 +430,50 @@ class GenerationMismatch(ValueError):
     """The resolver proposed a generation outside the requested years (never accepted silently)."""
 
 
+async def _catalogued(s: Any, key: str, make: str, model: str, gen: str | None, ident: VariantIdentity) -> Any:
+    """The catalog row of this car: by key, by a near-identical name, or the same version under another name
+    ("320d M Sport" vs "320d M Sport 8-speed automatic": same engine, gearbox, wheels, body and version)."""
+    found = (await s.execute(select(db.Variant).where(db.Variant.canonical_key == key))).scalar_one_or_none()
+    if found is not None:
+        return found
+    q = select(db.Variant).where(
+        func.lower(db.Variant.make) == make.lower(), func.lower(db.Variant.model) == model.lower()
+    )
+    new = {"make": make, "model": model, "generation": gen, "powertrain": ident.powertrain,
+           "variant_name": ident.variant_name, "engine_cc": ident.engine_cc, "power_kw": ident.power_kw,
+           "transmission": ident.transmission, "drive": ident.drive, "body_class": ident.body_class,
+           "trim": ident.trim, "fuel": ident.fuel}  # fmt: skip
+    for v in (await s.execute(q)).scalars():
+        old = variant_dict(v)
+        if identity.is_duplicate(old, new, fuzz.token_sort_ratio) or identity.same_version(
+            old, new, trim_unknown_ok=False
+        ):
+            return v
+    return None
+
+
+def _norm_words(s: str | None) -> str:
+    return " ".join((s or "").lower().split())
+
+
+def _named_version(ident: VariantIdentity, model: str, line: str | None) -> VariantIdentity:
+    """The model line ("N" of i30 N) and the version name ("Style") are part of the variant name; the model's
+    own name is not a version ("Terramar" of the Cupra Terramar)."""
+    if line and line.lower() not in ident.variant_name.lower():
+        ident = ident.model_copy(update={"variant_name": f"{line} {ident.variant_name}"})
+    if ident.trim and _norm_words(ident.trim) == _norm_words(model):
+        ident = ident.model_copy(update={"trim": None})
+    if ident.trim and ident.trim.lower() not in ident.variant_name.lower():
+        ident = ident.model_copy(update={"variant_name": f"{ident.variant_name} {ident.trim}"})
+    return ident
+
+
 async def upsert_variant(ident: VariantIdentity, ref: Reference) -> db.Variant:
     make, model = identity.normalize_make_model(ident.make, ident.model, ref.aliases)
+    if getattr(ref, "makes", None) is not None:  # "Škoda" → "Skoda" (config/makes.yaml): one spelling per make
+        make = ref.makes.canonical(make) or make
     model, trim = model_line(model, await known_models(make, ref))
-    if trim and trim.lower() not in ident.variant_name.lower():
-        ident = ident.model_copy(update={"variant_name": f"{trim} {ident.variant_name}"})
-    if ident.trim and ident.trim.lower() not in ident.variant_name.lower():  # the version is part of the identity
-        ident = ident.model_copy(update={"variant_name": f"{ident.variant_name} {ident.trim}"})
+    ident = _named_version(ident, model, trim)
     name = _strip_prefix(ident.variant_name, make, model, ident.generation)
     if name and name != ident.variant_name:  # "Mazda CX-5 2.0 …" → "2.0 …" (incident 2026-11-03)
         ident = ident.model_copy(update={"variant_name": name})
@@ -442,18 +483,7 @@ async def upsert_variant(ident: VariantIdentity, ref: Reference) -> db.Variant:
         ident = ident.model_copy(update={"transmission": sold[0]})
     key = identity.canonical_key(make, model, gen, ident.variant_name, ident.powertrain, ref.aliases)
     async with db.sessionmaker()() as s:
-        found = (await s.execute(select(db.Variant).where(db.Variant.canonical_key == key))).scalar_one_or_none()
-        if found is None:
-            same = (
-                await s.execute(
-                    select(db.Variant).where(
-                        func.lower(db.Variant.make) == make.lower(), func.lower(db.Variant.model) == model.lower()
-                    )
-                )
-            ).scalars()
-            new = {"make": make, "model": model, "generation": gen, "powertrain": ident.powertrain,
-                   "variant_name": ident.variant_name}  # fmt: skip
-            found = next((v for v in same if identity.is_duplicate(variant_dict(v), new, fuzz.token_sort_ratio)), None)
+        found = await _catalogued(s, key, make, model, gen, ident)
         if found is not None:
             if found.generation_years_from is None and ident.generation_years_from:
                 found.generation_years_from = ident.generation_years_from
