@@ -1,9 +1,26 @@
 # Next session: where to start
 
-State on 2026-11-03:
+State on 2026-11-04:
 
 - **main** contains specs 002–005 and spec 007 (the profile drives the assessment), increments A–J (PRs #14–#24; ADR-027). The review findings and their status are in `docs/review-2026-11-03.md`.
-- **Spec 006 — electrified cars** (`specs/006-electrified-cars/spec.md`) is next. It has a spec only, no plan. Its energy cost plugs into the ownership period of 007 (FR-016), and the TCO already has a DEPRECIATION item and the user's period and km.
+- **Spec 006 — electrified cars**: plan, research, data model, contracts and tasks are in `specs/006-electrified-cars/`. Merged (PRs #28–#32):
+  - A: energy model per powertrain (`domain/energy.py`), EV attributes, meaning rules (`domain/sense_ev.py`), EV queries;
+  - B: Spanish prices with dates (`config/energy.yaml`), home charging and the user's prices, the home-charging question;
+  - C: climate and motorway factors;
+  - D (part): efficiency in €/100 km, DGT label, break-even;
+  - F: electric block, TCO split, explainers.
+- **006 still open** (see tasks.md):
+  - the incentives research (`market_facts`, T035–T038);
+  - brands (E, T039–T043);
+  - the report text (T050);
+  - goldens g8–g12 and metrics (T051–T052);
+  - the paid live check of BYD Seal U DM-i vs Ateca (T054).
+- **Waits for the owner's yes**: a data repair of 65 stored claims. A dry run with the new rules (scratch script, no writes) found:
+  - 5 BYD 0.9 l/100 km → weighted;
+  - 4 BYD 18.3 kWh → gross;
+  - 4 maximum boot volumes rejected;
+  - 47 older unit rejections now accepted (displacement, ground clearance in cm, small hybrid batteries);
+  - 1 DSG "40,000 miles" rejected.
 
 ## Steps
 
