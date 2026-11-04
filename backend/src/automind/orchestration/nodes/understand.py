@@ -120,7 +120,7 @@ _INTAKE_PENDING = ("QUESTIONS", "CONFIRM_VARIANTS", "CONFIRM_INTAKE")
 def _pick(case: CaseFile, text: str) -> tuple[CaseFile, list[str]] | None:
     """The reply is one of the options offered under the pending question (spec 007 F)."""
     return intake.pick(case, text, gearbox_words=phrases.GEARBOX_WORDS, yes=phrases.yes_or_no(text) == "yes",
-                       choose=phrases.choose_for_me(text))  # fmt: skip
+                       choose=phrases.choose_for_me(text) or phrases.go_ahead(text))  # fmt: skip
 
 
 def _charging_from_text(new: CaseFile, text: str) -> list[str]:

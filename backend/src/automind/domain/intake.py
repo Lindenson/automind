@@ -308,12 +308,26 @@ def _apply_choice(car: CaseCar, ch: Choice) -> str:
     return f"{car.key}: {ch.label} (picked)"
 
 
+def _choose_for_user(case: CaseFile, car: CaseCar) -> str:
+    """ "Choose for me" after the identity could not be settled (chat 9b5c0b0c: "Audi A4 2.5 l, 2023" — no A4 of
+    2023 has a 2.5): the engine, version and generation named are dropped, the facts that remain (make, model,
+    year, mileage) decide, and the version found is taken without another question."""
+    k = car.constraints
+    k.generation_hint = k.engine_hint = k.trim_hint = None
+    car.request_text = " ".join(x for x in (car.make, car.model) if x) or car.request_text
+    car.variant_id, car.label, car.resolution, car.identify = None, None, "UNRESOLVED", None
+    car.chosen_for_me = True
+    case.intake.attempts.pop(car.key, None)  # a fresh start for this car, not straight back to "remove or choose"
+    return f"{car.key}: choose for me (the named engine and version are dropped)"
+
+
 def pick(case: CaseFile, text: str, *, gearbox_words: dict[str, str], yes: bool = False,
          choose: bool = False) -> tuple[CaseFile, list[str]] | None:  # fmt: skip
     """A reply that is exactly one of the offered options (a tapped chip, or the option typed) answers the pending
     question by code, without the interpreter: the option's variant, model or engine is set and the hints left by
     an earlier option are dropped. "Yes" to a proposal takes the proposed option; "choose for me" on a gearbox
-    question takes the automatic. Returns None when the reply is not an offered option."""
+    question takes the automatic; "choose for me" (or yes) to "remove or choose?" lets the hub choose.
+    Returns None when the reply is not an offered option."""
     p = case.pending
     if p is None or p.kind != "QUESTIONS":
         return None
@@ -335,12 +349,24 @@ def pick(case: CaseFile, text: str, *, gearbox_words: dict[str, str], yes: bool 
             continue
         raw = item.get("choices")
         choices = [Choice.model_validate(x) for x in raw] if isinstance(raw, list) else []
-        if kind == "PROPOSE" and yes and choices:
-            return new, [_apply_choice(car, choices[0])]
-        hit = next((ch for ch in choices if _plain_text(ch.label) == said), None)
-        if hit is not None:
-            return new, [_apply_choice(car, hit)]
+        if (log := _answer(new, car, str(kind), choices, said, yes=yes, choose=choose)) is not None:
+            return new, [log]
     return None
+
+
+def _answer(case: CaseFile, car: CaseCar, kind: str, choices: list[Choice], said: str, *, yes: bool,
+            choose: bool) -> str | None:  # fmt: skip
+    """The option the reply takes for one question, applied to the car; None when it takes none."""
+    if kind == "PROPOSE" and (yes or choose) and choices:
+        return _apply_choice(car, choices[0])
+    if kind in ("REMOVE_OR_CHOOSE", "PROPOSE") and (yes or choose):
+        return _choose_for_user(case, car)
+    if choose and choices:  # "choose for me" on a list of versions, engines or models: the first suggested one
+        ch = next((x for x in choices if x.suggested), choices[0])
+        car.chosen_for_me = True
+        return _apply_choice(car, ch) + " (chosen for the user)"
+    hit = next((ch for ch in choices if _plain_text(ch.label) == said), None)
+    return _apply_choice(car, hit) if hit is not None else None
 
 
 def inherit_condition(before: CaseFile, after: CaseFile) -> list[str]:

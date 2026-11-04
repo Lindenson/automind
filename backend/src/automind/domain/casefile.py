@@ -220,6 +220,7 @@ class CaseCar(BaseModel):
     alternatives: list[dict[str, object]] = Field(default_factory=list)
     previous_label: str | None = None  # spec 005: the label before the last correction ("before → after")
     identify: IdentifyOutcome | None = None  # spec 005 R1
+    chosen_for_me: bool = False  # the user said "choose for me": the version found is taken without asking again
 
     @property
     def display_name(self) -> str:
