@@ -109,6 +109,23 @@ def _pick(case: CaseFile, text: str) -> tuple[CaseFile, list[str]] | None:
                        choose=phrases.choose_for_me(text))  # fmt: skip
 
 
+def _charging_from_text(new: CaseFile, text: str) -> list[str]:
+    """Where the user can charge and their own electricity price, from their words (spec 006 R5, R7)."""
+    log: list[str] = []
+    p = new.profile
+    if (ch := intake.charging_of(text)) is not None and ch[0] != p.home_charging:
+        p.home_charging = ch[0]  # type: ignore[assignment]
+        p.evidence["home_charging"] = ch[1]
+        new.basis["home_charging"] = "STATED"
+        log.append(f'charging: {ch[0].lower()} ("{ch[1]}")')
+    if (pr := intake.electricity_price_of(text)) is not None:
+        r = new.rates_override
+        if pr[0] != r.home_electricity_eur_per_kwh or (pr[1] and not r.night_tariff):
+            r.home_electricity_eur_per_kwh, r.night_tariff = pr[0], (pr[1] or r.night_tariff)
+            log.append(f"electricity: €{pr[0]:.3f}/kWh (your price){' at night' if pr[1] else ''}")
+    return log
+
+
 def _person_from_text(new: CaseFile, before: CaseFile, text: str, regions: dict[str, Any]) -> list[str]:
     """Deterministic facts about the person and the cars from the user's own words (spec 005 R11): region and
     climate, a yearly distance range, and the answer to "new or used?" for every car still UNKNOWN."""
@@ -123,6 +140,7 @@ def _person_from_text(new: CaseFile, before: CaseFile, text: str, regions: dict[
         new.annual_km, new.annual_km_stated = round((d[0] + d[1]) / 2 / 500) * 500, True
         p.evidence["annual_km"] = text[:120]
         log.append(f"{d[0]:,}–{d[1]:,} km a year" if d[0] != d[1] else f"{d[0]:,} km a year")
+    log += _charging_from_text(new, text)
     if not new.cars and (body := intake.body_of(text)) and body != new.wanted_body:  # spec 007 US7
         new.wanted_body = body  # type: ignore[assignment]
         log.append(f"body wanted: {body}")

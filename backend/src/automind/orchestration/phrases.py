@@ -70,6 +70,15 @@ PHRASES: dict[str, dict[str, str]] = {
         "ru": "Чтобы уточнить: что для вас главное в машине? От ответа здесь зависит победитель.",
         "es": "Para afinar: ¿qué es lo más importante para ti en un coche? La respuesta cambia el ganador.",
     },
+    "profile_HOME_CHARGING": {
+        "en": "To sharpen this: can you charge at home or at work? The answer changes which car is cheaper to run.",
+        "ru": "Чтобы уточнить: можете ли вы заряжать машину дома или на работе? От ответа зависит, какая дешевле "
+        "в содержании.",
+        "es": "Para afinar: ¿puedes cargar en casa o en el trabajo? La respuesta cambia qué coche sale más barato.",
+    },
+    "charge_YES": {"en": "Yes, I can charge at home", "ru": "Да, могу заряжать дома", "es": "Sí, puedo cargar en casa"},
+    "charge_WORK": {"en": "I charge at work", "ru": "Заряжаю на работе", "es": "Cargo en el trabajo"},
+    "charge_NO": {"en": "No, street parking", "ru": "Нет, паркуюсь на улице", "es": "No, aparco en la calle"},
     "profile_OWNERSHIP_YEARS": {
         "en": "To sharpen this: how many years will you keep the car? (I assumed {years}.)",
         "ru": "Чтобы уточнить: сколько лет вы будете владеть машиной? (Я принял {years}.)",

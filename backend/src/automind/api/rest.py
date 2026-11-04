@@ -136,6 +136,7 @@ class ProfilePatch(BaseModel):
     family: Literal["SINGLE", "COUPLE", "FAMILY"] | None = None
     driving_style: Literal["CALM", "MIXED", "SPORTY"] | None = None
     age_band: Literal["UNDER_25", "25_40", "40_60", "OVER_60"] | None = None
+    home_charging: Literal["YES", "WORK", "NO"] | None = None  # spec 006: null = not known
 
 
 class CasePatch(BaseModel):
@@ -385,10 +386,12 @@ def _profile_patch(case: CaseFile, p: ProfilePatch) -> list[str]:
     out = []
     for f in p.model_fields_set:
         val = getattr(p, f)
+        if f == "home_charging" and val is None:
+            val = "UNKNOWN"
         if getattr(case.profile, f) == val:
             continue
         setattr(case.profile, f, val)
-        if val is None:
+        if val in (None, "UNKNOWN"):
             case.profile.evidence.pop(f, None)
             case.basis.pop(f, None)
         else:

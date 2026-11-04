@@ -115,36 +115,36 @@
 
 **Independent test**: quickstart B. The same BEV costs clearly more with NO than with YES at the night tariff. A price the user types is used and marked USER.
 
-- [ ] T019 [P] [US3] Write the tests:
+- [X] T019 [P] [US3] Write the tests:
   - prices and mix: `backend/tests/unit/domain/test_energy_prices.py`;
   - stale price label;
   - user override and zero;
   - interpreter parsing of "12 центов ночью" and "plaza de garaje": `backend/tests/unit/application/test_interpret_charging.py`;
   - ask_value for home_charging: `backend/tests/unit/domain/test_ask_value.py`.
-- [ ] T020 [US3] Fill the `backend/config/energy.yaml` prices with cited values and dates (R7):
+- [X] T020 [US3] Fill the `backend/config/energy.yaml` prices with cited values and dates (R7):
   - PVPC average and a typical fixed tariff;
   - the night price;
   - public AC and DC ranges per network;
   - petrol and diesel from the EU Weekly Oil Bulletin.
 
   Use web search with standard mode (free pages only). Put the source URL and as_of date in each entry.
-- [ ] T021 [US3] Update `backend/src/automind/domain/casefile.py`:
+- [X] T021 [US3] Update `backend/src/automind/domain/casefile.py`:
   - Profile `home_charging`, with basis and evidence, and `night_tariff`;
   - Rates gets home_electricity, public_ac and public_dc (ge=0);
   - a validator migrates legacy `electricity_eur_per_kwh` to home;
   - CaseDelta gets `set_home_charging` and `set_night_tariff`.
-- [ ] T022 [US3] Update `backend/src/automind/application/interpret.py` and its prompt:
+- [X] T022 [US3] Update `backend/src/automind/application/interpret.py` and its prompt:
   - extract the charging words with evidence;
   - convert electricity prices (céntimos/центы → €);
   - reject values above 1.5 €/kWh.
-- [ ] T023 [US3] Build EnergyPrices and ChargingSituation from config, profile and rates in `backend/src/automind/application/compose.py`, with the mix and the stale flag. The TCO inputs show each price with its as_of date and basis.
-- [ ] T024 [US3] Add the `home_charging` field to `backend/src/automind/domain/ask_value.py`:
+- [X] T023 [US3] Build EnergyPrices and ChargingSituation from config, profile and rates in `backend/src/automind/application/compose.py`, with the mix and the stale flag. The TCO inputs show each price with its as_of date and basis.
+- [X] T024 [US3] Add the `home_charging` field to `backend/src/automind/domain/ask_value.py`:
   - candidates YES and NO;
   - only when a PHEV/BEV/EREV is in the case;
   - the existing one-question budget;
   - the chips follow `contracts/case-profile-and-rates.md`, in `backend/config/questions.yaml` en/ru/es.
-- [ ] T025 [US3] Make a PATCH of home_charging, night_tariff or the electricity rates a parameter change (RESCORE) in the 007 fingerprint split, in `backend/src/automind/domain/policy.py`. Extend its test.
-- [ ] T026 [US3] Add the "assumed home charging" notice and the alternative scenario (`alt_scenario`) in `backend/src/automind/orchestration/nodes/compute.py`.
+- [X] T025 [US3] Make a PATCH of home_charging, night_tariff or the electricity rates a parameter change (RESCORE) in the 007 fingerprint split, in `backend/src/automind/domain/policy.py`. Extend its test.
+- [X] T026 [US3] Add the "assumed home charging" notice and the alternative scenario (`alt_scenario`) in `backend/src/automind/orchestration/nodes/compute.py`.
 
 ## Phase 5: US4 — climate and motorway (increment C)
 
@@ -152,9 +152,9 @@
 
 **Independent test**: quickstart C. Sevilla + motorway and Asturias + city give different real ranges, with the factors listed.
 
-- [ ] T027 [P] [US4] Write the tests for the factors, the bypass by a sourced real value for similar conditions, and the motorway share from usage, in `backend/tests/unit/domain/test_energy_climate.py`.
-- [ ] T028 [US4] Implement `_factors(use, cfg, sourced_conditions)` in `backend/src/automind/domain/energy.py`. It is applied to BEV consumption and range and to the PHEV CD part only, and it is listed in `EnergyEstimate.factors`.
-- [ ] T029 [US4] Derive the motorway share from `case.usage` and pass the climate from the profile, in `backend/src/automind/application/compose.py`.
+- [X] T027 [P] [US4] Write the tests for the factors, the bypass by a sourced real value for similar conditions, and the motorway share from usage, in `backend/tests/unit/domain/test_energy_climate.py`.
+- [X] T028 [US4] Implement `_factors(use, cfg, sourced_conditions)` in `backend/src/automind/domain/energy.py`. It is applied to BEV consumption and range and to the PHEV CD part only, and it is listed in `EnergyEstimate.factors`.
+- [X] T029 [US4] Derive the motorway share from `case.usage` and pass the climate from the profile, in `backend/src/automind/application/compose.py`.
 
 ## Phase 6: US5 — fair verdict, break-even, label, incentives (increment D)
 

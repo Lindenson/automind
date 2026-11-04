@@ -307,7 +307,7 @@ def fingerprint_params(case: CaseFile) -> str:
     return _hash({
         "persona": case.persona,
         "profile": [p.age, p.family, p.age_band, p.driving_style, p.region, p.climate, p.annual_km_min,
-                    p.annual_km_max],
+                    p.annual_km_max] + ([p.home_charging] if p.home_charging != "UNKNOWN" else []),
         "ownership_years": case.ownership_years,
         "priorities": sorted((x.criterion, x.strength) for x in case.priorities),
         "weights": sorted((k, round(v, 2)) for k, v in case.weights.items()),

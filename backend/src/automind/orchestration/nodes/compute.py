@@ -6,7 +6,7 @@ persona (FR-030). Weight changes recompute from cached data without research (FR
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from automind.application import compose, research
@@ -213,7 +213,8 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
     cars = [car for _, car in keyed]
     race = compose.run_race(cars, case.race_settings.model_dump() if case.race_settings else None)
     sims = {r.car_id: r for r in race.results}
-    rates = tco.TcoRates.from_config(c.ports.ref.rates or {}, case.rates_override.model_dump())
+    today = c.ports.clock.now().date().isoformat() if getattr(c.ports, "clock", None) is not None else None
+    rates = tco.TcoRates.from_config({**(c.ports.ref.rates or {}), "today": today}, case.rates_override.model_dump())
     curve = (c.ports.ref.feasibility or {}).get("depreciation") or {}
     use = usage_context(case)
     tcars = [await compose.tco_car(car, _cond(x.condition), x.age_years, x.mileage_km, curve, use)
@@ -242,7 +243,8 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
 
     def outcome(probe: CaseFile) -> tuple[str | None, bool]:
         """The same data scored for another profile (pure: no search, no model)."""
-        est = [tco.compute(t, rates, probe.annual_km, probe.ownership_years) for t in tcars]
+        puse = usage_context(probe)
+        est = [tco.compute(replace(t, use=puse), rates, probe.annual_km, probe.ownership_years) for t in tcars]
         cost = _checked_costs(est, {car["variant"].id: x.age_years for x, car in keyed}, [])
         fs = [compose.facts(car, sims.get(car["variant"].id), condition=_cond(x.condition), age_years=x.age_years,
                             annual_cost_eur=cost.get(car["variant"].id), year=year) for x, car in keyed]  # fmt: skip

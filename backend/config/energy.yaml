@@ -1,13 +1,30 @@
 # Energy model for electrified cars (spec 006 R2, R3, R6, R7). Every value is a documented ASSUMPTION shown in
 # the inputs of the energy line, unless an entry names a source (URL) and a date. Users override prices in chat.
 version: 1
-# Spanish prices. `source: assumption` until increment B fills cited values (CNMC/OMIE PVPC, operator tariffs,
-# EU Weekly Oil Bulletin) with their dates.
+# Spanish prices, € with taxes. `basis: sourced` = taken from the cited page on `as_of`; `assumption` = a
+# documented typical value. Comparator prices for home electricity are quoted before taxes: × 1.27 (IVA 21 % and
+# the electricity tax 5.11 %) is applied and noted. A price older than `freshness_days` is shown as outdated.
 prices:
-  home_fixed: {value: 0.25, unit: kWh, as_of: null, source: assumption, freshness_days: 90}
-  home_night: {value: 0.25, unit: kWh, as_of: null, source: assumption, freshness_days: 90}
-  public_ac: {value: 0.45, unit: kWh, as_of: null, source: assumption, freshness_days: 90}
-  public_dc: {value: 0.60, unit: kWh, as_of: null, source: assumption, freshness_days: 90}
+  home_pvpc:   # regulated tariff, October 2026 running average 0.194 €/kWh before taxes (Red Eléctrica via Selectra)
+    {value: 0.246, unit: kWh, as_of: 2026-10-21, basis: sourced, freshness_days: 60,
+     source: "https://selectra.es/energia/noticias/precio-luz/2026-10-21"}
+  home_fixed:  # typical fixed-price offers 0.12–0.15 €/kWh before taxes; midpoint × 1.27
+    {value: 0.171, unit: kWh, as_of: 2026-10-30, basis: assumption, freshness_days: 90,
+     source: "https://www.papernest.es/comparador-luz/tarifas-coche-electrico/"}
+  home_night:  # EV tariffs' off-peak (valle, 00–08 h) 0.06–0.09 €/kWh before taxes (Repsol, Naturgy, Octopus); ≈0.075 × 1.27
+    {value: 0.095, unit: kWh, as_of: 2026-10-30, basis: assumption, freshness_days: 90,
+     source: "https://tarifaluzhora.es/comparador/tarifas-luz-coches-electricos"}
+  public_ac:   # slow public charging: no network-wide published price found; typical operator range 0.35–0.49
+    {value: 0.42, unit: kWh, as_of: 2026-10-30, basis: assumption, freshness_days: 90, source: assumption}
+  public_dc:   # fast charging without subscription: Tesla ≈0.53, Zunder 0.55, Iberdrola|bp pulse 0.60, Ionity 0.62–0.66
+    {value: 0.58, unit: kWh, as_of: 2026-10-30, basis: sourced, freshness_days: 90,
+     source: "https://www.electromovilidad24.com/articulos/precio-kwh-supercharger-tesla-redes-carga-espana-2026.html"}
+  petrol:      # gasolina 95 E5, national average of 10,800+ stations (MITECO Geoportal via fuel-prices.eu)
+    {value: 1.78, unit: l, as_of: 2026-10-10, basis: sourced, freshness_days: 30,
+     source: "https://www.fuel-prices.eu/news/spain-fuel-prices-3-august-10-october-2026/"}
+  diesel:      # gasóleo A, same source and date
+    {value: 1.89, unit: l, as_of: 2026-10-10, basis: sourced, freshness_days: 30,
+     source: "https://www.fuel-prices.eu/news/spain-fuel-prices-3-august-10-october-2026/"}
 # Charging habits behind the plug-in electric share: share of driving days that start with a charged battery.
 habits:
   driving_days: 300            # yearly km ÷ this = the daily distance when the user has not given one

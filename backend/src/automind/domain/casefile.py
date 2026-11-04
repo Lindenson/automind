@@ -57,7 +57,7 @@ Strength = Literal["LOW", "MEDIUM", "HIGH"]
 QuestionKind = Literal[
     "TOO_MANY_CARS", "CAR_IDENTITY", "USED_AGE", "TRIM", "PERSONA", "BUDGET_INTENT", "UNKNOWN_MODEL", "GEARBOX",
     "KM_PER_YEAR", "FAMILY_SIZE", "CONDITION", "ENGINE", "MAKE_LINEUP", "PROPOSE", "REMOVE_OR_CHOOSE",
-    "OWNERSHIP_YEARS", "CONFIRM_PROFILE",
+    "OWNERSHIP_YEARS", "CONFIRM_PROFILE", "HOME_CHARGING",
 ]  # fmt: skip
 # spec 005: what an intake step is about (R6)
 IntakeItem = Literal["MAKE", "MODEL", "ENGINE", "GEARBOX", "YEAR", "CONDITION", "MILEAGE", "TRIM", "CHOICE"]
@@ -81,6 +81,8 @@ class Profile(BaseModel):
     climate: Climate | None = None
     annual_km_min: int | None = Field(default=None, ge=1000, le=200000)
     annual_km_max: int | None = Field(default=None, ge=1000, le=200000)
+    # spec 006 R5: where the user can charge (UNKNOWN is assumed YES and said so in the report)
+    home_charging: Literal["YES", "WORK", "NO", "UNKNOWN"] = "UNKNOWN"
     evidence: dict[str, str] = Field(default_factory=dict)
 
 
@@ -115,8 +117,13 @@ class Needs(BaseModel):
 class Rates(BaseModel):
     fuel_eur_per_l: float | None = Field(default=None, gt=0)
     diesel_eur_per_l: float | None = Field(default=None, gt=0)
-    electricity_eur_per_kwh: float | None = Field(default=None, gt=0)
+    electricity_eur_per_kwh: float | None = Field(default=None, gt=0)  # legacy: read as the home price
     labour_eur_per_h: float | None = Field(default=None, gt=0)
+    # spec 006 R7: the user's own electricity prices (0 = free charging at work) and a night tariff
+    home_electricity_eur_per_kwh: float | None = Field(default=None, ge=0, le=1.5)
+    public_ac_eur_per_kwh: float | None = Field(default=None, ge=0, le=1.5)
+    public_dc_eur_per_kwh: float | None = Field(default=None, ge=0, le=1.5)
+    night_tariff: bool | None = None
 
 
 class RaceSettings(BaseModel):

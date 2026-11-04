@@ -12,3 +12,4 @@ probe:
   annual_km: [8000, 15000, 30000]
   ownership_years: [3, 6, 10]
   persona: [PERFORMANCE, BUYER]
+  home_charging: ["YES", "NO"]   # spec 006 R5: asked only when an electric or plug-in car's cost flips the result

@@ -60,20 +60,27 @@ class EnergyConfig:
                                                                           "default": 0.3})  # fmt: skip
     motorway_extra: float = 0.25
 
+    petrol: Price | None = None  # sourced fuel prices (energy.yaml); None → rates.yaml
+    diesel: Price | None = None
+
     @classmethod
     def from_config(cls, d: Mapping[str, Any] | None, home_override: float | None = None,
-                    ac_override: float | None = None, dc_override: float | None = None) -> EnergyConfig:  # fmt: skip
+                    ac_override: float | None = None, dc_override: float | None = None, night: bool = False,
+                    today: str | None = None) -> EnergyConfig:  # fmt: skip
         d = d or {}
         base = cls()
         p = d.get("prices") or {}
         habits = d.get("habits") or {}
         losses = d.get("losses") or {}
         mw = d.get("motorway") or {}
+        home_key, home_label = ("home_night", "home electricity (night tariff)") if night else (
+            "home_fixed", "home electricity (typical fixed tariff)")  # fmt: skip
         return cls(
-            home=_price(p.get("home_fixed"), base.home, home_override,
-                        "home electricity (typical fixed tariff)"),
-            public_ac=_price(p.get("public_ac"), base.public_ac, ac_override, "public AC charging"),
-            public_dc=_price(p.get("public_dc"), base.public_dc, dc_override, "public DC fast charging"),
+            petrol=_price(p["petrol"], base.home, None, "petrol", today) if p.get("petrol") else None,
+            diesel=_price(p["diesel"], base.home, None, "diesel", today) if p.get("diesel") else None,
+            home=_price(p.get(home_key), base.home, home_override, home_label, today),
+            public_ac=_price(p.get("public_ac"), base.public_ac, ac_override, "public AC charging", today),
+            public_dc=_price(p.get("public_dc"), base.public_dc, dc_override, "public DC fast charging", today),
             driving_days=int(habits.get("driving_days", base.driving_days)),
             charge_probability={**base.charge_probability, **(habits.get("charge_probability") or {})},
             mix={**base.mix, **(d.get("mix") or {})},
@@ -85,14 +92,28 @@ class EnergyConfig:
         )  # fmt: skip
 
 
-def _price(entry: Mapping[str, Any] | None, default: Price, override: float | None, label: str) -> Price:
+def _price(entry: Mapping[str, Any] | None, default: Price, override: float | None, label: str,
+           today: str | None = None) -> Price:  # fmt: skip
+    """A configured price with its date and basis; a user's own price wins. Older than `freshness_days` → stale."""
     if override is not None:
         return Price(float(override), "kWh", label, "USER")
     if not entry:
         return Price(default.value, default.unit, label)
-    src = str(entry.get("source") or "assumption")
-    return Price(float(entry["value"]), str(entry.get("unit") or "kWh"), label,
-                 "ASSUMPTION" if src == "assumption" else "SOURCED", entry.get("as_of"))  # fmt: skip
+    basis = "SOURCED" if entry.get("basis") == "sourced" else "ASSUMPTION"
+    as_of = str(entry["as_of"]) if entry.get("as_of") else None
+    return Price(float(entry["value"]), str(entry.get("unit") or "kWh"), label, basis, as_of,
+                 _stale(as_of, entry.get("freshness_days"), today))  # fmt: skip
+
+
+def _stale(as_of: str | None, days: Any, today: str | None) -> bool:
+    if not (as_of and days and today):
+        return False
+    from datetime import date  # noqa: PLC0415 - only for this comparison
+
+    try:
+        return (date.fromisoformat(today[:10]) - date.fromisoformat(as_of[:10])).days > int(days)
+    except ValueError:
+        return False
 
 
 @dataclass(frozen=True)
