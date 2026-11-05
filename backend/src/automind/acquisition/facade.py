@@ -11,6 +11,7 @@ from typing import Any
 from sqlalchemy import select
 
 from automind.acquisition.api import AcquireRequest, AcquireResult, Emit, KindResult, Need, Tried
+from automind.acquisition.pipeline import merge
 from automind.application import research
 from automind.infrastructure import db
 
@@ -108,8 +109,8 @@ async def unmet_areas(variant_ids: list[str]) -> dict[str, set[str]]:
 
 
 async def gearbox_families_mixed(variant_id: str) -> bool:
-    return research.mixed_families(await research.accepted_gearboxes(variant_id))
+    return merge.mixed_families(await merge.accepted_gearboxes(variant_id))
 
 
 async def reselect(variant_id: str) -> None:
-    await research.reselect(variant_id)
+    await merge.reselect(variant_id)
