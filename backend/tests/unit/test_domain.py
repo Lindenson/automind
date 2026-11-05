@@ -243,7 +243,7 @@ def test_favourite_query_in_the_market_language():
     car = search_plan.Identity(make="Toyota", model="RAV4", generation="XA50", variant="2.5 Hybrid")
     favs = [
         {"domain": "adac.de", "areas": ["reliability"], "markets": ["DE"], "priority": 1},
-        {"domain": "honestjohn.co.uk", "areas": ["reliability"], "markets": ["EN"], "priority": 1},
+        {"domain": "autoexpress.co.uk", "areas": ["reliability"], "markets": ["EN"], "priority": 1},
     ]
     tpl = {
         "reliability": "{make} {model} reliability {sites}",

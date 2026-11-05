@@ -39,7 +39,7 @@ ultimatespecs:
     "drive wheels - traction - drivetrain": {attribute: drivetrain, text: true}
     "fuel consumption - economy - combined": {attribute: consumption, prefix: true, prefer_unit: L/100 km}
     "trunk / boot capacity": {attribute: boot_volume, prefix: true, prefer_unit: L}
-auto_data:
+auto_data:  # never runs since 2026-11-05: auto-data.net is deny-listed (its terms forbid automated collection)
   domains: [auto-data.net]
   pairs: divrow
   labels:
