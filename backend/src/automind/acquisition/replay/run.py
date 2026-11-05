@@ -170,8 +170,8 @@ def read_page(
     rules: dict[str, Any], attributes: list[str] | None = None,
 ) -> scoring.PageResult:  # fmt: skip
     """One stored page through the reader and the live checks (pure apart from the research rule imports)."""
+    from automind.acquisition.infrastructure.fetch import decode_body  # noqa: PLC0415
     from automind.application import research as rs  # noqa: PLC0415
-    from automind.infrastructure.fetch import decode_body  # noqa: PLC0415
     from automind.infrastructure.site_readers import read_pairs  # noqa: PLC0415
 
     url = ref.final_url or ref.url
@@ -320,9 +320,9 @@ async def _extract_cached(doc: WebDoc, sha: str, name: str, text: str, area: str
 async def _extractor_pages(req: ReplayRequest) -> tuple[str, list[scoring.PageResult], int]:
     if not req.allow_llm:
         raise Refused("extractor replay calls models: run it in the worker or pass --allow-llm")
+    from automind.acquisition.infrastructure.pages import main_content  # noqa: PLC0415
     from automind.application import research as rs  # noqa: PLC0415
     from automind.infrastructure import llm_gateway  # noqa: PLC0415
-    from automind.infrastructure.pages import main_content  # noqa: PLC0415
 
     key = str(req.extractor)
     name, text, area = _prompt(key)
@@ -333,7 +333,7 @@ async def _extractor_pages(req: ReplayRequest) -> tuple[str, list[scoring.PageRe
     rules = config.plausibility_rules()
 
     async def per_batch(refs: list[SnapshotRef], bodies: dict[str, bytes], variants: dict[str, Variant]) -> list[Any]:
-        from automind.infrastructure.fetch import decode_body  # noqa: PLC0415
+        from automind.acquisition.infrastructure.fetch import decode_body  # noqa: PLC0415
 
         out = []
         for r in refs:

@@ -47,7 +47,7 @@ async def write(
     document_id: str | None,
 ) -> str:
     """Store one fetch event (and its compressed body when there is one); returns the snapshot id."""
-    from automind.infrastructure.pages import url_hash  # noqa: PLC0415 - the page store imports this module
+    from automind.acquisition.infrastructure.pages import url_hash  # noqa: PLC0415 - the page store imports this module
 
     cfg = config.snapshot_retention()
     now = datetime.now(UTC)

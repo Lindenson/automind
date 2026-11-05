@@ -8,11 +8,11 @@ queries. Moved from `application/research.py` with the bodies unchanged.
 from __future__ import annotations
 
 import asyncio
-from collections import defaultdict
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from automind.acquisition.pipeline import fetch
 from automind.acquisition.pipeline.plan import (
     SITE_QUERY_PAGES,
     _ai_queries,
@@ -141,28 +141,6 @@ async def search(
     return Located(*_rank_hits(ports, v, planned, results, seen))
 
 
-async def _fetch_pages(store: Any, order: list[str], area: str, limit: int) -> tuple[list[Page], dict[str, int]]:
-    """The ranked URLs through the page store, best first, until `limit` pages (R3, R4)."""
-    from automind.application.usage import BudgetExceeded as _BE  # noqa: PLC0415
-
-    pages: list[Page] = []
-    rejected: dict[str, int] = defaultdict(int)
-    pos = 0
-    while len(pages) < limit and pos < len(order) and pos < 2 * limit:
-        batch = order[pos : pos + (limit - len(pages))]
-        pos += len(batch)
-        got = await asyncio.gather(*(store.get(u, area=area) for u in batch), return_exceptions=True)
-        for u, g in zip(batch, got, strict=True):
-            if isinstance(g, _BE):
-                raise g
-            if isinstance(g, Page):
-                pages.append(g)
-            else:
-                reason = store.last_reason(u) if not isinstance(g, BaseException) else type(g).__name__
-                rejected[_reason_key(reason)] += 1
-    return pages, rejected
-
-
 async def _collect(
     ports: Ports,
     planned: list[search_plan.PlannedQuery],
@@ -176,7 +154,7 @@ async def _collect(
     """Search (cache-first) → rank favourites first → fetch pages through the page store (R2–R4)."""
     found = await search(ports, planned, seen, area, v, fresh=fresh)
     limit = limit or int(((ports.ref.search or {}).get("limits") or {}).get("max_pages_per_job", MAX_DOCS_PER_JOB))
-    pages, rejected = await _fetch_pages(ports.page_store, found.order, area, limit)
+    pages, rejected = await fetch.pages(ports.page_store, found.order, area, limit)
     stats = {
         "pages_found": len(found.ranked),
         "pages_cached": sum(1 for p in pages if p.from_cache),
@@ -250,11 +228,3 @@ def _merge_stats(a: dict[str, Any], b: dict[str, Any]) -> dict[str, Any]:
         "empty_queries": [*a.get("empty_queries", []), *b.get("empty_queries", [])],
         "independent_urls": set(a.get("independent_urls", ())) | set(b.get("independent_urls", ())),
     }
-
-
-def _reason_key(reason: str | None) -> str:
-    r = (reason or "error").lower()
-    for k in ("deny-list", "robots", "no content", "content type", "larger than", "http 4", "http 5"):
-        if k in r:
-            return k.replace(" ", "_")
-    return "fetch_error"

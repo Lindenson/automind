@@ -6,9 +6,9 @@ import httpx
 import pytest
 from sqlalchemy import delete
 
+from automind.acquisition.infrastructure.fetch import Fetcher, FetchPolicy
+from automind.acquisition.infrastructure.pages import DbPageStore, url_hash
 from automind.infrastructure import db
-from automind.infrastructure.fetch import Fetcher, FetchPolicy
-from automind.infrastructure.pages import DbPageStore, url_hash
 
 FIX = Path(__file__).resolve().parents[1] / "fixtures" / "pages"
 URLS = ["https://pages.example/spec", "https://pages.example/list.pdf", "https://pages.example/empty",
@@ -50,7 +50,7 @@ async def test_main_content_keeps_table_and_drops_boilerplate(clean):
 async def test_pdf_text(clean):
     p = await store([]).get(URLS[1], area="price")
     # tiny fixture: below the content minimum → stored as NO_CONTENT; the text extraction itself works
-    from automind.infrastructure.pages import pdf_text
+    from automind.acquisition.infrastructure.pages import pdf_text
 
     assert "58.900" in pdf_text((FIX / "price_list.pdf").read_bytes())
     assert p is None
