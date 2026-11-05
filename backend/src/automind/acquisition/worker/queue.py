@@ -48,8 +48,19 @@ async def enqueue(kind: str, payload: dict[str, Any], *, dedupe_key: str, run_at
     """Add a task; None when a task with this dedupe key already exists (idempotent)."""
     stmt = (
         insert(AcqTask)
-        .values(id=uid(), kind=kind, dedupe_key=dedupe_key, payload=payload, priority=priority, state="queued",
-                run_at=run_at or now(), attempts=0, max_attempts=max_attempts, cost_eur=0, created_at=now())  # fmt: skip
+        .values(
+            id=uid(),
+            kind=kind,
+            dedupe_key=dedupe_key,
+            payload=payload,
+            priority=priority,
+            state="queued",
+            run_at=run_at or now(),
+            attempts=0,
+            max_attempts=max_attempts,
+            cost_eur=0,
+            created_at=now(),
+        )  # fmt: skip
         .on_conflict_do_nothing(index_elements=["dedupe_key"])
         .returning(AcqTask.id)
     )
@@ -68,15 +79,20 @@ _BURY = text(
     """
 )
 
+# Research R6's statement, with the candidates in a MATERIALIZED CTE: as `WHERE id IN (SELECT … LIMIT n FOR UPDATE
+# SKIP LOCKED)` Postgres may run the sub-select more than once and update more than n rows (seen under load).
 _CLAIM = """
-    UPDATE acq_tasks SET state = 'running', locked_by = :w, started_at = now(), attempts = attempts + 1,
+    WITH picked AS MATERIALIZED (
+        SELECT id FROM acq_tasks
+        WHERE ((state = 'queued' AND run_at <= now())
+               OR (state = 'running' AND lease_until < now() AND attempts < max_attempts))
+          {kinds}
+        ORDER BY priority, run_at LIMIT :n FOR UPDATE SKIP LOCKED)
+    UPDATE acq_tasks t SET state = 'running', locked_by = :w, started_at = now(), attempts = t.attempts + 1,
            lease_until = now() + make_interval(secs => :lease)
-    WHERE id IN (SELECT id FROM acq_tasks
-                 WHERE ((state = 'queued' AND run_at <= now())
-                        OR (state = 'running' AND lease_until < now() AND attempts < max_attempts))
-                   {kinds}
-                 ORDER BY priority, run_at LIMIT :n FOR UPDATE SKIP LOCKED)
-    RETURNING id, kind, dedupe_key, payload, priority, state, attempts, max_attempts, run_at, lease_until, locked_by
+    FROM picked WHERE t.id = picked.id
+    RETURNING t.id, t.kind, t.dedupe_key, t.payload, t.priority, t.state, t.attempts, t.max_attempts, t.run_at,
+              t.lease_until, t.locked_by
 """
 
 
@@ -97,8 +113,10 @@ async def claim(worker_id: str, n: int, lease_s: int, kinds: Sequence[str] | Non
 async def extend(task_id: str, lease_s: int) -> None:
     async with sessionmaker()() as s:
         await s.execute(
-            text("UPDATE acq_tasks SET lease_until = now() + make_interval(secs => :l) "
-                 "WHERE id = :i AND state = 'running'"),  # fmt: skip
+            text(
+                "UPDATE acq_tasks SET lease_until = now() + make_interval(secs => :l) "
+                "WHERE id = :i AND state = 'running'"
+            ),  # fmt: skip
             {"i": task_id, "l": float(lease_s)},
         )
         await s.commit()
@@ -110,8 +128,13 @@ async def complete(task_id: str, result: dict[str, Any], cost_eur: float = 0, *,
         q = (
             AcqTask.__table__.update()
             .where(AcqTask.id == task_id, AcqTask.state == "running")
-            .values(state="done", result=result, cost_eur=round(float(cost_eur or 0), 4), finished_at=func.now(),
-                    lease_until=None)  # fmt: skip
+            .values(
+                state="done",
+                result=result,
+                cost_eur=round(float(cost_eur or 0), 4),
+                finished_at=func.now(),
+                lease_until=None,
+            )  # fmt: skip
         )
         if worker_id is not None:
             q = q.where(AcqTask.locked_by == worker_id)
@@ -156,8 +179,13 @@ async def release(task_id: str, *, worker_id: str | None = None) -> None:
         q = (
             AcqTask.__table__.update()
             .where(AcqTask.id == task_id, AcqTask.state == "running")
-            .values(state="queued", lease_until=None, locked_by=None, started_at=None,
-                    attempts=func.greatest(AcqTask.attempts - 1, 0))  # fmt: skip
+            .values(
+                state="queued",
+                lease_until=None,
+                locked_by=None,
+                started_at=None,
+                attempts=func.greatest(AcqTask.attempts - 1, 0),
+            )  # fmt: skip
         )
         if worker_id is not None:
             q = q.where(AcqTask.locked_by == worker_id)

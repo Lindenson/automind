@@ -1,1 +1,1 @@
-"""The acquisition worker (spec 011 US2, constitution XIII): background work in its own process with a Postgres queue."""
+"""The acquisition worker (spec 011 US2, constitution XIII): background work in its own process, Postgres queue."""

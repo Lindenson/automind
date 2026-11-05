@@ -58,6 +58,17 @@ async def test_concurrent_claims_never_return_the_same_task():
         assert t.state == "running" and t.attempts == 1 and t.locked_by in {"w0", "w1", "w2"}
 
 
+async def test_a_claim_never_takes_more_than_n():
+    """Regression: `WHERE id IN (SELECT … LIMIT n FOR UPDATE SKIP LOCKED)` updated more than n rows under load."""
+    for _ in range(30):
+        await queue.enqueue("drift", {}, dedupe_key=f"drift:{uuid.uuid4()}")
+    got = await asyncio.gather(*(queue.claim(f"w{i}", 1, 60) for i in range(12)))
+    assert all(len(g) <= 1 for g in got)
+    async with sessionmaker()() as s:
+        running = (await s.execute(text("SELECT count(*) FROM acq_tasks WHERE state = 'running'"))).scalar()
+    assert running == sum(len(g) for g in got)
+
+
 async def test_claim_order_and_due_time():
     late = await queue.enqueue("x", {}, dedupe_key=f"x:{uuid.uuid4()}", run_at=db.now() + timedelta(hours=1))
     low = await queue.enqueue("x", {}, dedupe_key=f"x:{uuid.uuid4()}", priority=9)
