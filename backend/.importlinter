@@ -41,7 +41,8 @@ forbidden_modules =
 ignore_imports =
     automind.application.compose -> automind.infrastructure.**
     automind.application.compose -> sqlalchemy
-    automind.application.research -> automind.infrastructure.**
+    # strangler (spec 011 S1-S7): research.py imports the stages moved to acquisition.pipeline until T049 deletes it
+    automind.application.research -> automind.**
     automind.application.research -> sqlalchemy
     automind.application.resolve -> automind.infrastructure.**
     automind.application.resolve -> sqlalchemy

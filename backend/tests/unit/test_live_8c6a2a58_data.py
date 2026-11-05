@@ -95,14 +95,14 @@ async def test_blocked_analyst_sites_never_crowd_out_the_warranty_page():
 def test_the_used_price_is_searched_for_the_car_s_model_year():
     from types import SimpleNamespace
 
-    from automind.application import research
+    from automind.acquisition.pipeline import plan
     from automind.infrastructure.config import reference
     from automind.orchestration.prompts import load_all
 
     ports = SimpleNamespace(ref=reference(load_all()))
     v = SimpleNamespace(make="Audi", model="A4", generation="B9", variant_name="35 TFSI 150 CV",
                         generation_years_from=2015, generation_years_to=None, powertrain="MHEV")  # fmt: skip
-    texts = [q.text for q in research.queries_for(ports, v, "used_price", 0, [], car_year=2023)]  # type: ignore[arg-type]
+    texts = [q.text for q in plan.queries_for(ports, v, "used_price", 0, [], car_year=2023)]  # type: ignore[arg-type]
     assert texts and all("2023" in t and "2015" not in t for t in texts)
-    opened = [q.text for q in research.queries_for(ports, v, "used_price", 1, [], car_year=2023)]  # type: ignore[arg-type]
+    opened = [q.text for q in plan.queries_for(ports, v, "used_price", 1, [], car_year=2023)]  # type: ignore[arg-type]
     assert any("2023" in t for t in opened)
