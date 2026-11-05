@@ -28,3 +28,7 @@ class Engine:
                                prices: bool = False) -> list[api.WebHint]:  # fmt: skip
         return await api.generation_hints(query, lineup_url=lineup_url, user_url=user_url, prices=prices,
                                           ports=self.ports)  # fmt: skip
+
+    async def dataset_versions(self, make: str, model: str, generation: str | None = None, fuel: str | None = None,
+                               year_from: int | None = None) -> list[api.DatasetVersion]:  # fmt: skip
+        return await api.dataset_versions(make, model, generation, fuel, year_from, ports=self.ports)

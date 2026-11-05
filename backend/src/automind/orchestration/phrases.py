@@ -173,6 +173,7 @@ PHRASES: dict[str, dict[str, str]] = {
         "es": "¿Quizás quisiste decir: {options}?",
     },
     "choose_for_me": {"en": "Choose for me", "ru": "Выбери сам", "es": "Elige tú"},
+    "other_type": {"en": "Another one (I'll type it)", "ru": "Другая (напишу)", "es": "Otra (la escribo)"},
     "used_age_assumed": {
         "en": "The year of the {car} was not given: its costs assume about {age} years ({how}). Tell me the year to "
         "make them exact.",
@@ -202,6 +203,17 @@ PHRASES: dict[str, dict[str, str]] = {
         "{since}), а текущая модель может отличаться. Это ваша? Нажмите её или напишите мощность.",
         "es": "{car}: ninguna fuente lista sus versiones actuales; solo tengo {label} (a la venta desde {since}) y el "
         "modelo actual puede ser distinto. ¿Es la tuya? Tócala o dime la potencia.",
+    },
+    "version_uncertain_datasets": {
+        "en": "{car}: no source lists its current versions. My catalog has only {label} (sold since {since}); EU "
+        "registrations show a newer version since {newest}. Which one is yours? Tap it, «choose for me», or type "
+        "the power.",
+        "ru": "{car}: актуальный список версий в источниках не найден. В каталоге есть только {label} (продаётся с "
+        "{since}); по регистрациям в ЕС с {newest} есть более новая версия. Какая ваша? Нажмите её, «выбери сам» "
+        "или напишите мощность.",
+        "es": "{car}: ninguna fuente lista sus versiones actuales. En el catálogo solo tengo {label} (a la venta "
+        "desde {since}); las matriculaciones en la UE muestran una versión más nueva desde {newest}. ¿Cuál es la "
+        "tuya? Tócala, «elige tú» o escribe la potencia.",
     },
     "ladder_missing": {
         "en": "{car} has no «{missing}» — the version there is: {label}.",

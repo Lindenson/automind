@@ -19,6 +19,7 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 from urllib.parse import urlparse
 
+from automind.acquisition.api import DatasetVersion
 from automind.application import resolve, versions
 from automind.application.ports import Ports
 from automind.domain import evidence, identity, intake, ladder, used
@@ -160,6 +161,10 @@ async def _fallback(ports: Ports, case: CaseFile, car: CaseCar, current_year: in
     a = await resolve.assess_car(car, ports.ref, current_year, case.compare_level)
     now = resolve.bought_now(car, current_year)
     cands = _current_rows(a.candidates, current_year) if now else a.candidates
+    since = _picked_since(car)
+    if now and cands and since is not None and all((c.get("generation_years_from") or 0) < since for c in cands):
+        # the user picked a registered version newer than every catalog row (the facelift): never an old row
+        return await _open_less_certain(ports, case, car, current_year, lineup)
     if cands:
         # the user's words already pick one row (the ranker): that row; rows the words do not tell apart
         # ("2.0 diesel" with 115 and 150 CV rows) are asked level by level, never taken by being first
@@ -180,7 +185,13 @@ async def _fallback(ports: Ports, case: CaseFile, car: CaseCar, current_year: in
                 return await _open_less_certain(ports, case, car, current_year, lineup)
             asked = case.intake.attempt(car.key, "POWER") > 0
             if not (stated or d.auto or asked or car.chosen_for_me):
-                return _stale_asked(car, d.step.version, events)
+                found = await _registered(ports, car, pool, current_year)
+                return _stale_asked(car, d.step.version, events, found, pool)
+            if car.chosen_for_me and not stated:  # "choose for me" on a new car: the version on sale now
+                newest = _newer(await _registered(ports, car, pool, current_year), pool)
+                if newest:
+                    car.constraints.version_hint = _registered_choice(car, newest[0]).engine
+                    return await _open_less_certain(ports, case, car, current_year, lineup)
         events.append({"kind": "identity_less_certain"})
         row = rows[pool.index(d.step.version)]
         fresh = car.resolution not in ("CONFIRMED", "AUTO_OK", "PROPOSED")
@@ -201,15 +212,84 @@ async def _open_less_certain(ports: Ports, case: CaseFile, car: CaseCar, year: i
     return o
 
 
-def _stale_asked(car: CaseCar, v: ladder.Version, events: list[dict[str, str]]) -> IdentifyOutcome:
+def _stale_asked(car: CaseCar, v: ladder.Version, events: list[dict[str, str]],
+                 found: list[DatasetVersion] | None = None,
+                 pool: list[ladder.Version] | None = None) -> IdentifyOutcome:  # fmt: skip
     """Only old catalog rows for a new car (no sourced list): the version is uncertain, asked once (its power),
-    never taken silently; the answer or the next turn takes it, less certain (chat 5821ac77)."""
+    never taken silently; the answer or the next turn takes it, less certain (chat 5821ac77). The options are the
+    catalog row and the versions the registration datasets list besides it — a newer engine first (the facelift),
+    by its engine size, engine kW and years, never a power in CV the data does not give (chat 6e001ee0)."""
     car.ladder = car.ladder or LadderMemo()
     car.ladder.certainty = "LESS_CERTAIN"
-    events.append({"kind": "version_uncertain", "label": v.engine, "since": str(v.years_from or "")})
-    choices = [_choice(car, ladder.Option("POWER", v.engine, fuel=v.fuel, engine_cc=v.engine_cc,
+    pool = pool or [v]
+    found = found or []
+    newer = _newer(found, pool)
+    era = [x for x in found if x not in newer]
+    until = next((x.years_to for x in era if _same_engine(x, v)), None)
+    label = v.engine
+    # the row is one version among others: its power and years tell it apart
+    if found and v.power_kw and not re.search(r"\d\s*(cv|ps|hp|kw|ch)\b", label, re.I):
+        label = f"{label} {round(v.power_kw / 0.7355)} CV"
+    named = label  # the notice says since when it is sold
+    if found and (span := ladder.years_text(v.years_from, until)):
+        label = f"{label} · {span}"
+    choices = [_choice(car, ladder.Option("POWER", label, fuel=v.fuel, engine_cc=v.engine_cc,
                                           power_kw=v.power_kw, engine=v.engine))]  # fmt: skip
+    others = [x for x in era if not any(_same_engine(x, p) for p in pool)]
+    choices[:0] = [_registered_choice(car, x) for x in newer]
+    choices += [_registered_choice(car, x) for x in others]
+    choices = choices[: ladder.MAX_OPTIONS - 1]
+    if newer:
+        events.append({"kind": "version_uncertain_datasets", "label": named, "since": str(v.years_from or ""),
+                       "newest": str(newer[0].years_from or "")})  # fmt: skip
+    else:
+        events.append({"kind": "version_uncertain", "label": named, "since": str(v.years_from or "")})
     return _done(car, IdentifyOutcome(outcome="CHOICES", need="POWER", level="POWER", choices=choices, events=events))
+
+
+_SINCE = re.compile(r"·\s*(\d{4})–\s*$")  # the engine text of a registered version still on sale ("… · 2024–")
+
+
+def _picked_since(car: CaseCar) -> int | None:
+    """The first year of the registered version the user picked (its engine text is the version hint)."""
+    m = _SINCE.search(car.constraints.version_hint or "")
+    return int(m.group(1)) if m else None
+
+
+def _same_engine(x: DatasetVersion, v: ladder.Version) -> bool:
+    """A registered version and a catalog version of the same engine (fuel, ±5 % cm3; the kW is not compared: a
+    hybrid's registered kW is its combustion engine's, the catalog's the system power)."""
+    if v.fuel and x.fuel != v.fuel and not ({x.fuel, v.fuel} <= {"hybrid", "mhev"}):
+        return False
+    return not (x.displacement_cc and v.engine_cc) or abs(x.displacement_cc - v.engine_cc) <= 0.05 * v.engine_cc
+
+
+def _newer(found: list[DatasetVersion], pool: list[ladder.Version]) -> list[DatasetVersion]:
+    """Registered versions first registered after the catalog rows and after the model's first registered
+    versions (a facelift's engine, not the first year of the data), still registered, newest first."""
+    first = min((x.years_from for x in found if x.years_from), default=None)
+    rows = max((p.years_from for p in pool if p.years_from), default=None)
+    return [x for x in found if x.years_from and x.years_to is None and first is not None and x.years_from > first
+            and (rows is None or x.years_from > rows)]  # fmt: skip
+
+
+def _registered_choice(car: CaseCar, x: DatasetVersion) -> Choice:
+    """A registered version as an option of the power level: its label is built in the user's language from its
+    facts (application/ask.py); the engine text names it for the resolver ("1.6 PHEV · engine 118 kW · 2024–")."""
+    label = ladder.registered_label(x.fuel, x.displacement_cc, x.engine_kw, x.power_is_max, x.years_from,
+                                    x.years_to, {})  # fmt: skip
+    return Choice(label=label, make=car.make, model=car.model, engine=label, level="POWER", fuel=x.fuel,
+                  engine_cc=x.displacement_cc, power_kw=x.engine_kw if x.power_is_max else None,
+                  engine_kw=x.engine_kw, power_is_max=x.power_is_max, years_from=x.years_from, years_to=x.years_to,
+                  source_url=x.source_url or None)  # fmt: skip
+
+
+async def _registered(ports: Ports, car: CaseCar, pool: list[ladder.Version], year: int) -> list[DatasetVersion]:
+    """The model's versions registered in the EU since its catalog rows' first year, of the car's fuel."""
+    fuel = (car.constraints.engine_hint.fuel if car.constraints.engine_hint else None) or next(
+        (p.fuel for p in pool if p.fuel), None)  # fmt: skip
+    since = min((p.years_from for p in pool if p.years_from), default=year - versions.DATASET_YEARS)
+    return await versions.dataset_versions(ports, car.make or "", car.model or "", None, fuel, since)
 
 
 def _base_first(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:

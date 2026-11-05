@@ -59,7 +59,7 @@ async def ask_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str,
     version = await save_case(c, case, [f"asked: {', '.join(q['kind'] for q in items)}"])
     labels = {"new": t("cond_new", lang), "used": t("cond_used", lang), "yes": t("yes", lang),
               "no": t("no_other", lang), "choose": t("choose_for_me", lang),
-              "remove": t("remove_car", lang, car="{car}"), **gearboxes}  # fmt: skip
+              "other": t("other_type", lang), "remove": t("remove_car", lang, car="{car}"), **gearboxes}  # fmt: skip
     for q in items:  # machine reasons of suggested models → the conversation language
         for ch in q.get("choices") or []:
             if ch.get("reason"):

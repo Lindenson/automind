@@ -4,6 +4,11 @@ import { useChat } from "../../store/chat";
 
 type B = Extract<Block, { type: "quick_replies" }>;
 
+/** The composer's text box (a "type it" chip puts the cursor there instead of sending). */
+export function focusComposer(): void {
+  document.querySelector<HTMLTextAreaElement>("form textarea")?.focus();
+}
+
 /**
  * One-tap answers under a question: each sends its text as the user's message (spec 004 FR-031). Styled as the
  * user's own reply bubbles, so they read as answers, not as next actions (audit F11).
@@ -24,9 +29,13 @@ export function QuickReplies({ b }: { b: B }) {
             type="button"
             disabled={busy}
             title={it.reason ?? undefined}
-            onClick={() => send(it.text)}
+            onClick={() => (it.typing ? focusComposer() : send(it.text))}
             className={`min-h-11 rounded-2xl rounded-br-md border px-4 py-2 text-left text-sm hover:border-accent/60 disabled:opacity-50 ${
-              it.suggested ? "border-accent/60 bg-accent/10" : "border-accent/30 bg-accent/5"
+              it.suggested
+                ? "border-accent/60 bg-accent/10"
+                : it.typing
+                  ? "border-dashed border-accent/30"
+                  : "border-accent/30 bg-accent/5"
             }`}
           >
             {it.label}

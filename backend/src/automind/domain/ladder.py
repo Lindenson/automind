@@ -509,3 +509,32 @@ def status_line(name: str, generation: str | None, year: int | None, year_assume
     if asking:
         parts.append(f"{words.get(asking.lower(), asking.lower())}: ?")
     return " · ".join(p for p in parts if p)
+
+
+_FUEL_CODE = {"phev": "PHEV", "hybrid": "HEV", "mhev": "MHEV", "bev": "EV"}
+
+
+def years_text(years_from: int | None, years_to: int | None) -> str:
+    """ "2021–2023", "2024–" (still on sale), "" when unknown."""
+    if years_from is None:
+        return ""
+    if years_to is None:
+        return f"{years_from}–"
+    return f"{years_from}–{years_to}" if years_to != years_from else str(years_from)
+
+
+def registered_label(fuel: str | None, engine_cc: int | None, engine_kw: int | None, power_is_max: bool,
+                     years_from: int | None, years_to: int | None, words: Mapping[str, str]) -> str:  # fmt: skip
+    """A version known from the registration datasets, in the user's language (`words`): "1.6 PHEV · engine
+    118 kW · 2024–". A hybrid's kW is its combustion engine's, so it is named as the engine's and never shown as
+    the car's power in CV; a combustion car's kW is its power ("2.2 diesel · 142 kW (193 CV) · 2021–")."""
+    disp = f"{engine_cc / 1000:.1f}" if engine_cc else ""
+    f = _FUEL_CODE.get(fuel or "") or words.get(fuel or "", fuel or "")
+    if engine_kw and power_is_max:
+        power = f"{engine_kw} kW ({_cv(engine_kw)})"
+    elif engine_kw:
+        power = f"{words.get('engine', 'engine')} {engine_kw} kW"
+    else:
+        power = ""
+    head = " ".join(x for x in (disp, f) if x)
+    return " · ".join(x for x in (head, power, years_text(years_from, years_to)) if x)

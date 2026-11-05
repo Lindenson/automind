@@ -189,6 +189,9 @@ def _localized(choices: list[Any], words: dict[str, str]) -> list[Any]:
             label = words.get("automatic" if ch.gearbox == "single" else ch.gearbox, label)
         elif ch.level == "DRIVE" and ch.drive:
             label = words.get(ch.drive, label)
+        elif ch.level == "POWER" and ch.engine_kw and ch.years_from:  # a registered version (chat 6e001ee0)
+            label = ladder.registered_label(ch.fuel, ch.engine_cc, ch.engine_kw, ch.power_is_max, ch.years_from,
+                                            ch.years_to, words)  # fmt: skip
         out.append(ch.model_copy(update={"label": label}))
     return out
 
@@ -323,7 +326,14 @@ def _question_chips(q: dict[str, Any], car: Any, labels: dict[str, str]) -> tupl
     chooses = kind in ("MAKE_LINEUP", "TRIM", "GEARBOX", "REMOVE_OR_CHOOSE", "FUEL", "POWER", "DRIVE") or (
         kind == "ENGINE" and bool(q.get("choices"))
     )
+    if kind in ("ENGINE", "POWER") and labels.get("other") and _uncertain(car):
+        # no sourced list: the options may miss the user's version, so typing it is offered too (chat 6e001ee0)
+        own.append({"label": labels["other"], "text": labels["other"], "typing": True})
     return own, chooses
+
+
+def _uncertain(car: Any) -> bool:
+    return car.ladder is not None and car.ladder.certainty == "LESS_CERTAIN" and _laddered(car)
 
 
 def _fair(groups: list[list[dict[str, Any]]], room: int) -> list[dict[str, Any]]:
