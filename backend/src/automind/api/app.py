@@ -16,12 +16,14 @@ from typing import Any
 
 from fastapi import FastAPI, Request, Response, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_mcp_adapters.tools import load_mcp_tools
 
+from automind.acquisition.registry.application.seed import seed_if_empty
 from automind.api import access, rest
+from automind.api import admin as admin_api
 from automind.api import metrics as metrics_api
 from automind.api.ws import chat_socket
 from automind.config import settings
@@ -33,6 +35,8 @@ from automind.infrastructure.db.repositories import CaseRepo, ChatRepo, EventRep
 from automind.infrastructure.events import EventBus
 from automind.infrastructure.llm_gateway import new_budget
 from automind.infrastructure.retention import retention_loop
+from automind.insight.loop import insight_loop
+from automind.insight.metrics.snapshot import metrics_loop
 from automind.orchestration import graph as hub
 from automind.orchestration.prompts import load_all as load_prompts
 from automind.orchestration.runner import ChatRunner
@@ -79,8 +83,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.runner = ChatRunner(
             hub.build_graph(saver, tools), live_ports(bus, load_prompts()), new_budget, messages=messages
         )
+        try:  # spec 010 US8: the source registry starts from favourites, the 009 survey and learned domains
+            seeded = await seed_if_empty()
+            if seeded:
+                print(f"source registry seeded: {seeded}")
+        except Exception:  # noqa: BLE001 - research works without the registry
+            traceback.print_exc()
         retention = asyncio.create_task(retention_loop())  # spec 003 FR-026; heartbeat "retention" (spec 010)
         stack.callback(retention.cancel)
+        metrics = asyncio.create_task(metrics_loop())  # spec 010 US9: Prometheus snapshot every minute
+        stack.callback(metrics.cancel)
+        insight = asyncio.create_task(insight_loop())  # spec 010 US3: issues and diagnoses, never self-changes
+        stack.callback(insight.cancel)
         resumed = await app.state.runner.resume_incomplete()
         if resumed:
             print(f"resuming {len(resumed)} interrupted turn(s)")
@@ -118,6 +132,17 @@ app.add_middleware(
 )
 app.include_router(rest.router)
 app.include_router(metrics_api.router)  # spec 010 FR-030
+app.include_router(admin_api.router)  # spec 010 US4
+
+
+@app.get("/admin", include_in_schema=False)
+@app.get("/admin/{rest:path}", include_in_schema=False)
+async def admin_page(rest: str = "") -> Response:
+    """The admin SPA view (spec 010 US4): the same built index.html; the page itself asks for the token."""
+    index = settings().frontend_dist / "index.html"
+    if not index.exists():
+        return JSONResponse(status_code=404, content={"code": "no_frontend", "message": "Frontend not built."})
+    return FileResponse(index)
 
 
 @app.websocket("/ws/chat/{chat_id}")

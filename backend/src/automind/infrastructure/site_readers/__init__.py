@@ -87,6 +87,7 @@ def read_pairs(html: str, conf: Mapping[str, Any], reader_id: str) -> SiteReadin
 
 log = logging.getLogger(__name__)
 ALERT_STREAK = 5
+STREAKS: dict[str, int] = {}  # reader -> pages in a row with nothing found (exported to Prometheus, spec 010)
 
 
 class Registry:
@@ -120,6 +121,7 @@ class Registry:
         s = self.stats.setdefault(k, {"ok": 0, "failed": 0, "ambiguous": 0})
         s["failed" if out is None else "ambiguous" if out.ambiguous else "ok"] += 1
         streak = self.fail_streak[k[0]] = self.fail_streak.get(k[0], 0) + 1 if out is None else 0
+        STREAKS[k[0]] = streak
         if streak == ALERT_STREAK:  # a redesign breaks label readers silently (reviewer 2026-11-03): say it once
             log.warning("site_reader.broken reader=%s domain=%s pages_in_a_row=%d", rid, k[0], streak,
                         extra={"event": "site_reader.broken", "reader": rid, "domain": k[0]})  # fmt: skip

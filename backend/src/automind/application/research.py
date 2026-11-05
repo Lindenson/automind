@@ -16,12 +16,14 @@ import hashlib
 import re
 from collections import defaultdict
 from collections.abc import Awaitable, Callable
+from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import Any
 
 from pydantic import BaseModel
 from sqlalchemy import delete, func, select, text
 
+from automind.acquisition.registry.api import Attempt, Plan
 from automind.application import extraction as ex
 from automind.application import incentives_research
 from automind.application.ports import Page, Ports, WebDoc
@@ -231,16 +233,58 @@ async def _record_learned(ports: Ports, area: str, pages: list[Page], accepted_b
         return
 
 
+# spec 010 US6-US8: the registry's plan for the running job (source order and the domains never to read)
+current_plan: ContextVar[Plan | None] = ContextVar("current_plan", default=None)
+PLAN_MARKETS = ["ES", "EN", "DE", "FR", "IT", "PT", "NL"]
+
+
+async def _plan(ports: Ports, job: JobSpec) -> Plan | None:
+    if ports.registry is None:
+        return None
+    try:
+        v = await _variant(job.variant_id) if job.area not in research_plan.MARKET_AREAS else None
+    except Exception:  # noqa: BLE001
+        v = None
+    return await ports.registry.plan(job.area, PLAN_MARKETS, v.make if v is not None else None)
+
+
+PageOutcome = tuple[str, str | None, int]  # (attempt outcome, reason, accepted values)
+
+
+async def _record_registry(ports: Ports, job: JobSpec, pages: list[Page], outcome_by_url: dict[str, PageOutcome],
+                           url_market: dict[str, str], independent: set[str] | None) -> None:  # fmt: skip
+    """Every page read from a search is an attempt of its source for this kind of data (spec 010 FR-015)."""
+    if ports.registry is None:
+        return
+    indep = independent if independent is not None else set(url_market)
+    attempts = []
+    for p in pages:
+        if p.url not in url_market or ev.is_denied(p.url):
+            continue
+        outcome, reason, n = outcome_by_url.get(p.url, ("empty", None, 0))
+        attempts.append(Attempt(domain=ev.domain_of(p.url), area=job.area, market=url_market[p.url], url=p.url,
+                                outcome=outcome, reason=reason, values=n, job_id=job.job_id,  # type: ignore[arg-type]
+                                variant_id=job.variant_id, via_learned_query=p.url not in indep))  # fmt: skip
+    await ports.registry.record(attempts)
+
+
 async def run_job(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
     token = current_job.set((job.job_id, job.area))
+    plan_token = current_plan.set(await _plan(ports, job))
+    count = ports.metrics or (lambda *a, **k: None)  # spec 010: Prometheus counters through the port
     try:
-        return await (_run_market if job.area in research_plan.MARKET_AREAS else _run)(ports, job, emit)
+        result = await (_run_market if job.area in research_plan.MARKET_AREAS else _run)(ports, job, emit)
+        count("research_jobs", area=job.area, status="ok" if result.ok else "failed")
+        return result
     except BudgetExceeded:
+        count("research_jobs", area=job.area, status="budget")
         raise
     except Exception as e:  # one failing job never fails the turn (FR-023)
+        count("research_jobs", area=job.area, status="error")
         await emit("researching", f"{job.area}: failed ({type(e).__name__})")
         return JobResult(job.job_id, job.variant_id, job.area, job.round, ok=False, error=f"{type(e).__name__}: {e}")
     finally:
+        current_plan.reset(plan_token)
         current_job.reset(token)
 
 
@@ -262,6 +306,7 @@ async def _run(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
     values_rejected: dict[str, int] = defaultdict(int)
     totals = {"accepted": 0, "rejected": 0, "reader": 0, "docs": 0}
     accepted_by_url: dict[str, int] = defaultdict(int)
+    outcome_by_url: dict[str, PageOutcome] = {}  # spec 010: attempt outcome per page
 
     brand = job.area in research_plan.BRAND_AREAS
 
@@ -269,6 +314,7 @@ async def _run(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
         r = rel.judge_brand(rel.PageFacts(p.url, p.title, p.text), v.make) if brand else await judge(p)
         if r.verdict in ("OTHER_VARIANT", "NOT_ABOUT_CAR"):
             gate[r.verdict.lower()] += 1
+            outcome_by_url[p.url] = ("rejected", r.verdict.lower(), 0)
             return
         totals["docs"] += 1
         d = p.as_doc()
@@ -291,10 +337,15 @@ async def _run(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
         totals["accepted"] += a
         totals["rejected"] += rj
         accepted_by_url[p.url] += a
+        outcome_by_url[p.url] = (
+            ("accepted", None, a) if a else ("rejected", "values_rejected", 0) if rj else ("empty", None, 0)
+        )
 
     await asyncio.gather(*(one(p) for p in pages))
     await _record_learned(ports, job.area, pages, accepted_by_url, stats.get("url_market", {}),
                           stats.get("independent_urls"))  # fmt: skip
+    await _record_registry(ports, job, pages, outcome_by_url, stats.get("url_market", {}),
+                           stats.get("independent_urls"))  # fmt: skip
     for k, n in gate.items():
         stats["pages_rejected"][k] = stats["pages_rejected"].get(k, 0) + n
     if gate:
@@ -376,13 +427,18 @@ async def _variant(variant_id: str) -> db.Variant:
 
 
 def favourite_priority(ports: Ports, v: db.Variant | None, url: str) -> int | None:
-    """Priority of the favourite (or official manufacturer site) the URL belongs to, else None."""
+    """Priority of the favourite (or official manufacturer site) the URL belongs to, else None. With registry
+    autonomy on, the registry's order replaces the configured favourites (spec 010 US6)."""
     dom = ev.domain_of(url)
+    plan = current_plan.get()
     full = dom + "/" + url.split(dom, 1)[-1].lstrip("/") if dom in url else dom
     if v is not None and (m := ports.ref.manufacturer_sites.get(v.make)):
         host = m.split("/")[0].removeprefix("www.")
         if dom == host or dom.endswith("." + host):  # the host itself (never toyota.es.example.com)
             return 0
+    if plan is not None and plan.autonomy:
+        p = plan.priority_of(dom)
+        return None if p is None else p + 1
     best = None
     for f in ports.ref.favourites:
         d = str(f["domain"])
@@ -390,6 +446,15 @@ def favourite_priority(ports: Ports, v: db.Variant | None, url: str) -> int | No
             p = int(f.get("priority", 3))
             best = p if best is None else min(best, p)
     return best
+
+
+def _skipped(url: str) -> bool:
+    """Blocked in the registry (classifieds, terms forbid, robots): never read (spec 010 US7 hard limits)."""
+    plan = current_plan.get()
+    if plan is None or not plan.skip:
+        return False
+    d = ev.domain_of(url)
+    return any(d == x or d.endswith("." + x) for x in plan.skip)
 
 
 WARRANTY_PAGES = 3  # pages read for the brand's warranty terms in round 0 of the manufacturer area
@@ -419,7 +484,7 @@ def _rank_hits(
             url_market.setdefault(h.url, q.market)
             if not getattr(q, "learned", False):
                 independent.add(h.url)
-            if h.url in seen or ev.is_denied(h.url):
+            if h.url in seen or ev.is_denied(h.url) or _skipped(h.url):
                 continue
             fav = favourite_priority(ports, v, h.url)
             key = (NO_FAVOURITE if fav is None else fav, ev.AUTHORITY.index(ev.classify_source(h.url)), h.rank)

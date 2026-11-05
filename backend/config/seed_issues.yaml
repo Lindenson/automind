@@ -1,0 +1,134 @@
+# Spec 010 US5: known flaws entered as the first issues (from spec 009 and the UI audit of 2026-11-05).
+# Read by insight/application/seed.py (idempotent by `slug`). The system never edits this file.
+version: 1
+issues:
+  - slug: phev-cs-consumption
+    component: nodata
+    klass: no_data
+    title: "PHEV without charge-sustaining consumption: ownership costs compared without fuel"
+    chat: 20b5b7f9
+    quote: "Kia Sorento 2024 1.6 T-GDI PHEV: no fuel-with-empty-battery figure; the TCO had no fuel but costs were still compared."
+    fix: {kind: code, files: [src/automind/domain/energy.py, src/automind/domain/tco.py, src/automind/application/compose.py],
+          direction: "Estimate charge-sustaining consumption from the weighted WLTP figure, electric range and the EU utility factor (labelled estimate); never compare ownership cost when a car lacks energy, maintenance or depreciation (009 FR-014, FR-015)."}
+    verify: "Replay chat 20b5b7f9 with stored data: the Sorento shows a fuel cost marked estimate; without it no TCO comparison."
+  - slug: junk-used-price
+    component: data
+    klass: wrong_data
+    title: "Junk used price accepted (US-dollar market floor converted to euros)"
+    chat: 20b5b7f9
+    quote: "Prado J150 2010 used price €18,400 from a 'market entry floor' page in USD; the real Spanish price is about €30,000."
+    fix: {kind: code, files: [src/automind/application/research.py, src/automind/domain/plausibility.py, src/automind/orchestration/prompts/extract_used_price.md],
+          direction: "Reject used-price figures that are a market floor, a whole-generation range, or another currency without a dated rate; record the reason (009 FR-016)."}
+    verify: "Unit test on the junk page text; replay chat 20b5b7f9."
+  - slug: manuales-gearbox
+    component: check
+    klass: sense.gearbox
+    title: "Gearbox rule matches 'manual' inside 'manuales'"
+    chat: 20b5b7f9
+    quote: "Pages with 'manuales' were rejected as manual-gearbox pages for an automatic car."
+    fix: {kind: code, files: [src/automind/domain/relevance.py, src/automind/application/research.py],
+          direction: "Match gearbox and drive words as whole words only (009 FR-018)."}
+    verify: "Unit test: 'manuales del propietario' does not count as a manual gearbox."
+  - slug: bare-year-generation
+    component: relevance
+    klass: other_variant
+    title: "Generation stored as a bare year rejects facelift pages of the same generation"
+    chat: 20b5b7f9
+    quote: "Sorento generation stored as '2024' instead of MQ4: facelift pages were judged another variant."
+    fix: {kind: code, files: [src/automind/domain/relevance.py, config/generations.yaml, src/automind/application/identify.py],
+          direction: "Map a bare-year generation to the generation code and years containing it; same-generation pages incl. facelift are relevant (009 FR-019)."}
+    verify: "Relevance unit test with a 2022 facelift page for a 2024 MQ4."
+  - slug: brand-wide-service-pages
+    component: relevance
+    klass: not_about_car
+    title: "Brand-wide service and warranty pages rejected as 'not about this car'"
+    chat: 8c6a2a58
+    quote: "The brand's warranty and maintenance pages name the make, not the model, and were rejected; the report said 'no data'."
+    fix: {kind: code, files: [src/automind/domain/relevance.py],
+          direction: "For maintenance and warranty, a brand-wide page naming the make is relevant (009 FR-020)."}
+    verify: "Relevance unit test with a brand warranty page."
+  - slug: used-queries-without-year
+    component: nodata
+    klass: no_data
+    title: "Used-car searches carry no year or market model name"
+    chat: 20b5b7f9
+    quote: "Searches for the 15-year-old Prado had no year and were flooded by the new generation."
+    fix: {kind: code, files: [src/automind/domain/search_plan.py, config/queries.yaml],
+          direction: "Queries for a used car carry its year or generation and the market's model name, e.g. 'Land Cruiser' in Spain (009 FR-017, FR-021)."}
+    verify: "search_plan unit test for a used Prado J150 2010."
+  - slug: first-message-could-not-map
+    component: dialogue
+    klass: not_understood
+    title: "First message 'find me a Kia to replace my Prado 150' got 'could not map' / 'which model?'"
+    chat: 20b5b7f9
+    quote: "найди мне подходящую kia для замены моего ленд круер прадо 150 возрастом 15 лет"
+    fix: {kind: code, files: [src/automind/application/candidates.py, src/automind/orchestration/nodes/understand.py, src/automind/orchestration/prompts/interpreter.md],
+          direction: "A make to choose from plus a car to replace leads to 2-3 candidate proposals and recognises the car to replace (009 FR-022)."}
+    verify: "Graph test replaying the first message."
+  - slug: engines-not-sold-that-year
+    component: wrong_car
+    klass: wrong_car
+    title: "Engines not sold in the car's year offered for a used car"
+    chat: 20b5b7f9
+    quote: "Prado aged 15 years: the ladder offered engines of later years."
+    fix: {kind: code, files: [src/automind/domain/ladder.py, src/automind/application/versions.py],
+          direction: "The first identification of a used car with a known age offers only engines sold in that year (009 FR-023)."}
+    verify: "Ladder property test with a year filter."
+  - slug: seats-boot-differ-between-reports
+    component: data
+    klass: wrong_data
+    title: "Seats and boot volume differ between two reports of one chat"
+    chat: 20b5b7f9
+    quote: "The same car showed different seat count and boot volume in two reports."
+    fix: {kind: code, files: [src/automind/application/research.py, src/automind/domain/evidence.py],
+          direction: "The same rule picks the value every time unless the car's identity changed (009 FR-024)."}
+    verify: "Two reselects on the same claims give the same value."
+  - slug: a4-used-price-range
+    component: data
+    klass: wrong_data
+    title: "Only a UK whole-generation range found as the used price of an Audi A4 2023"
+    chat: 8c6a2a58
+    quote: "The only used price for an Audi A4 2023 was a UK whole-generation range."
+    fix: {kind: code, files: [src/automind/application/research.py],
+          direction: "A whole-generation range never stands for one model year; query valuers per year (009 US2)."}
+    verify: "Replay chat 8c6a2a58."
+  - slug: ux-progress-grid
+    component: ui
+    klass: ux
+    title: "UI F7: long-research progress grid replaces the timeline and is cut on mobile"
+    quote: "docs/ux-audit-2026-11-05.md F7"
+    fix: {kind: code, files: [frontend/src/components/ProgressGrid.tsx, frontend/src/components/StatusTimeline.tsx],
+          direction: "Keep the stage timeline with the 'Resolved: …' line next to the grid; scrollable grid at 390 px."}
+    verify: "Screenshot at 390 px."
+  - slug: ux-error-states
+    component: ui
+    klass: ux
+    title: "UI F8: connection, error, limit and busy states give no next step"
+    quote: "docs/ux-audit-2026-11-05.md F8"
+    fix: {kind: code, files: [frontend/src/App.tsx, frontend/src/components/Message.tsx],
+          direction: "Each state shows what happened and one action (retry, continue, wait)."}
+    verify: "Component tests for each state."
+  - slug: ux-intake-chips
+    component: ui
+    klass: ux
+    title: "UI F10: intake card chips and actions are ambiguous"
+    quote: "docs/ux-audit-2026-11-05.md F10"
+    fix: {kind: code, files: [frontend/src/components/IntakeCard.tsx],
+          direction: "Label what each chip changes; separate 'confirm' from 'edit'."}
+    verify: "Audit screenshots."
+  - slug: ux-report-hierarchy
+    component: ui
+    klass: ux
+    title: "UI F11-F13: report hierarchy, rating discoverability, mobile layout"
+    quote: "docs/ux-audit-2026-11-05.md F11, F12, F13"
+    fix: {kind: code, files: [frontend/src/components/Message.tsx, frontend/src/components/RatingControl.tsx],
+          direction: "See the audit: fewer duplicated actions, rating near the verdict, 390 px fixes."}
+    verify: "Audit screenshots at 390/1280."
+  - slug: ux-a11y-mock
+    component: ui
+    klass: ux
+    title: "UI F14-F15: accessibility basics and a mock that covers the real flows"
+    quote: "docs/ux-audit-2026-11-05.md F14, F15"
+    fix: {kind: code, files: [frontend/src/mock/mockTransport.ts],
+          direction: "Mock intake, case file, progress, verdict, error and limit messages; axe scan in CI (T097)."}
+    verify: "axe scan: no critical/serious issues."

@@ -44,6 +44,7 @@ async def recheck(ref: Reference, chat_id: str, variant_id: str, attribute: str,
             )
         ).all()
         rejected, kept = [], []
+        claim_id = rows[0][0].id if rows else None  # spec 010 FR-006: the claim behind the shown value
         ctx = rs._plausibility_ctx(v, {})  # noqa: SLF001 - the research-time rules
         for c, e, d in rows:
             claim = rs._ReaderClaim(c.attribute, c.raw_value, c.raw_unit, c.excerpt)  # noqa: SLF001
@@ -73,12 +74,23 @@ async def recheck(ref: Reference, chat_id: str, variant_id: str, attribute: str,
         else:
             outcome = "UNRESOLVED"
         details = {"before": old, "after": new, "rejected": rejected, "sources": sources}
+        turn_id = None
         if await s.get(db.Chat, chat_id) is not None:  # chat-scoped record (deleted with the chat)
-            s.add(db.ValueChallenge(chat_id=chat_id, variant_id=variant_id, attribute=attribute,
-                                    user_text=user_text[:500], outcome=outcome, details=details))  # fmt: skip
+            turn_id = (
+                await s.execute(
+                    select(db.Turn.id)
+                    .where(db.Turn.chat_id == chat_id, db.Turn.status == "DONE")
+                    .order_by(db.Turn.seq.desc())
+                    .limit(1)
+                )
+            ).scalar_one_or_none()
+            s.add(db.ValueChallenge(chat_id=chat_id, variant_id=variant_id, attribute=attribute, turn_id=turn_id,
+                                    claim_id=claim_id, user_text=user_text[:500], outcome=outcome,
+                                    details=details))  # fmt: skip
             await s.commit()
     area = specs.ATTRS[attribute].category
-    return {"outcome": outcome, "attribute": attribute, "car_id": variant_id, "area": area, **details}
+    return {"outcome": outcome, "attribute": attribute, "car_id": variant_id, "area": area, **details,
+            "turn_id": turn_id, "claim_id": claim_id}  # fmt: skip
 
 
 def _shown(attribute: str, sv: Any) -> str | None:

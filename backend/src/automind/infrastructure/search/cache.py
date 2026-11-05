@@ -20,6 +20,7 @@ from automind.domain.evidence import is_denied
 from automind.infrastructure.db import SearchCache, sessionmaker
 from automind.infrastructure.db.repositories import UsageRepo
 from automind.infrastructure.llm_gateway import prices
+from automind.insight.metrics import prom
 
 from . import SearchUnavailable
 
@@ -63,6 +64,7 @@ class CachedSearcher:
         return str(m.get("gl", "es")), str(m.get("hl", "es"))
 
     async def _record(self, provider: str, cost: float, cached: bool, area: str | None) -> None:
+        prom.inc("search_calls", provider=provider, cached=cached, ok=True)
         b = current_budget.get()
         job = current_job.get()
         await self.usage.record_search(

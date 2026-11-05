@@ -8,6 +8,8 @@ from typing import Any, TypeVar
 from langchain.agents import create_agent
 from pydantic import BaseModel
 
+from automind.acquisition.registry.application.service import RegistryService
+from automind.acquisition.registry.infrastructure.repo import RegistryRepo
 from automind.application.lineup import get_lineup
 from automind.application.ports import Ports, Reference
 from automind.domain.cost import AreaAverage, CostPrices, estimate
@@ -91,6 +93,7 @@ def live_ports(events: EventBus, prompts: dict[str, str]) -> Ports:
         versions=ModelVersionsRepo(),
         outcomes=_outcomes(ref, prompts),
         metrics=prom.inc,
+        registry=RegistryService(RegistryRepo(), ref.registry),
     )
 
 

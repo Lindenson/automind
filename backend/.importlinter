@@ -121,7 +121,11 @@ forbidden_modules =
     automind.orchestration
     automind.api
     automind.domain.casefile
-    automind.insight
+    automind.insight.domain
+    automind.insight.application
+    automind.insight.infrastructure
+# direct imports only: the shared infrastructure (config loader, adapters) reaches everything
+allow_indirect_imports = True
 
 [importlinter:contract:insight-independent]
 name = Insight does not depend on the chat graph or registry internals (spec 010)
@@ -133,3 +137,4 @@ forbidden_modules =
     automind.api
     automind.acquisition.registry.application
     automind.acquisition.registry.infrastructure
+allow_indirect_imports = True
