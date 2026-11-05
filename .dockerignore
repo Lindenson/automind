@@ -18,5 +18,5 @@ specs/
 .claude/
 backups/
 docs/
-backend/tests/
+# backend/tests/ is needed by the `check` stage; the runtime stage skips it (COPY --exclude=tests)
 frontend/dist/

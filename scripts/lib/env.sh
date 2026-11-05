@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Shared by scripts/dev.sh and scripts/deploy.sh: Docker access, .env checks and .env.docker (DB password).
 say() { printf '\033[1m==>\033[0m %s\n' "$*"; }
 die() { printf '\033[31merror:\033[0m %s\n' "$*" >&2; exit 1; }

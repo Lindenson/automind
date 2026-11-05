@@ -337,6 +337,8 @@ scripts/dev.sh
 ```
 
 - UI work: `cd frontend && npm run dev` → http://127.0.0.1:5173 (proxied to the API).
+- No uv or node on the host: `scripts/dev.sh --docker` runs the API from the image with `backend/` mounted
+  (`uvicorn --reload`) and Vite in a `node:22` container on 5173 (host network, Linux).
 - No backend at all: open the UI with `?mock=1` to see recorded data.
 - Other model providers: set `MODEL_<ROLE>=provider:model` (for example `MODEL_REPORTER=openai:gpt-5.4`) and the
   matching API key.
@@ -359,12 +361,32 @@ absent; existing values are kept. The container runs migrations before
 uvicorn, runs as a non-root user and exposes `/api/v1/health`. It binds to 127.0.0.1 by default
 (`AUTOMIND_BIND`, `AUTOMIND_PORT`); put a reverse proxy with TLS in front before exposing it.
 
+```bash
+scripts/deploy.sh up --monitoring        # also Prometheus (127.0.0.1:9090, 400 days) + Alertmanager (127.0.0.1:9093)
+scripts/deploy.sh monitoring up|down|status
+scripts/deploy.sh export [--encrypt]     # one bundle: DB dump, .env, .env.docker, metrics token, deploy/ config
+scripts/deploy.sh import <bundle>        # on a fresh clone: same commit, secrets, dump, healthy
+scripts/deploy.sh move user@host [dir]   # export → clone on the target → import there (this stack keeps running)
+scripts/deploy.sh bootstrap              # empty server: checks Docker/compose/git, prints install commands, creates .env
+```
+
+Moving to another server step by step, and how to verify it: [docs/deploy.md](docs/deploy.md). Alert rules live in
+`deploy/prometheus/automind-rules.yml`; put your Telegram/Slack/e-mail receiver in
+`deploy/prometheus/alertmanager.yml` (it ships a placeholder that delivers nowhere).
+
+**Public HTTPS (optional).** The compose profile `public` adds Caddy (`caddy:2.10`, `deploy/caddy/Caddyfile`) with
+automatic Let's Encrypt certificates on ports 80/443, reverse-proxying to the app (`/metrics` is not proxied). Set
+`AUTOMIND_DOMAIN=automind.example.com` in `.env.docker`, point DNS at the server, keep `AUTOMIND_BIND=127.0.0.1`, and
+run `scripts/deploy.sh up --public`. AutoMind has no login yet: before a public exposure, work through the security
+list in [docs/review-2026-11-03.md](docs/review-2026-11-03.md) (and the limits below).
+
 ---
 
 ## Tests and quality gates
 
 ```bash
 scripts/check.sh                                  # ruff, format, mypy (domain), import-linter, pytest, frontend
+scripts/check.sh --docker                         # the same inside the Dockerfile `check` stage (host needs only Docker)
 cd backend
 uv run pytest tests/unit                          # pure rules
 uv run pytest tests/graph                         # graph mechanics: fake LLM + fixture search + real Postgres

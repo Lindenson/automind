@@ -1,0 +1,155 @@
+# AutoMind alert rules (spec 010 US9, contracts/metrics.md). Loaded by deploy/prometheus/prometheus.yml.
+# Every automind_* name must exist in automind.insight.metrics.prom.metric_names() (tests/unit/test_prom_rules.py).
+# Comparisons between the 7d and 30d windows ignore the `window` label so the series pair up.
+groups:
+  - name: automind-quality
+    rules:
+      - alert: AutomindSatisfactionDrop
+        expr: |
+          automind_satisfaction_index{window="7d"}
+            < ignoring(window) automind_satisfaction_index{window="30d"} - 0.15
+          and ignoring(window)
+            automind_satisfaction_turns{window="7d"} >= 10
+        for: 30m
+        labels: { severity: warning }
+        annotations:
+          summary: 'Satisfaction for "{{ $labels.kind }}" fell to {{ $value | printf "%.2f" }} (7d), more than 0.15 below the 30d level'
+          admin: /admin
+
+      - alert: AutomindComplaintSpike
+        expr: |
+          automind_complaints_24h > 3 * automind_complaints_daily_avg_30d
+          and automind_complaints_24h >= 3
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: '{{ $value }} "{{ $labels.kind }}" complaints in 24 h, more than 3x the 30-day daily average'
+          admin: /admin
+
+      - alert: AutomindInaccuracyHigh
+        expr: |
+          automind_accuracy_share{window="7d"} < 0.85
+          and automind_accuracy_signals{window="7d"} >= 10
+        for: 30m
+        labels: { severity: critical }
+        annotations:
+          summary: 'Only {{ $value | humanizePercentage }} of "{{ $labels.area }}" values confirmed right over 7 days'
+          admin: /admin
+
+      - alert: AutomindNoDataRise
+        expr: |
+          automind_nodata_share{window="7d"}
+            > ignoring(window) automind_nodata_share{window="30d"} + 0.15
+        for: 1h
+        labels: { severity: warning }
+        annotations:
+          summary: 'No-data answers for "{{ $labels.area }}" rose to {{ $value | humanizePercentage }} (7d), 15 points above the 30d level'
+          admin: /admin
+
+  - name: automind-sources
+    rules:
+      - alert: AutomindSourceWrongBurst
+        expr: automind_source_wrong_values_24h >= 3
+        for: 0m
+        labels: { severity: warning }
+        annotations:
+          summary: '{{ $labels.domain }} gave {{ $value }} wrong values in 24 h'
+          admin: /admin
+
+      - alert: AutomindSourceDegraded
+        expr: increase(automind_registry_changes_total{change=~"demoted|blocked"}[15m]) > 0
+        for: 0m
+        labels: { severity: warning }
+        annotations:
+          summary: 'A source was {{ $labels.change }} by {{ $labels.author }} in the last 15 minutes'
+          admin: /admin
+
+      - alert: AutomindSourcesBelowMin
+        expr: automind_active_sources < 2
+        for: 1h
+        labels: { severity: warning }
+        annotations:
+          summary: 'Only {{ $value }} active sources for "{{ $labels.area }}" in market {{ $labels.market }}'
+          admin: /admin
+
+      - alert: AutomindReaderZero
+        expr: automind_reader_zero_streak >= 5
+        for: 0m
+        labels: { severity: critical }
+        annotations:
+          summary: 'Site reader {{ $labels.reader }} returned nothing {{ $value }} times in a row (layout change?)'
+          admin: /admin
+
+  - name: automind-providers
+    rules:
+      - alert: AutomindFallbackHigh
+        expr: automind_llm_fallback_share{window="1h"} > 0.2
+        for: 15m
+        labels: { severity: warning }
+        annotations:
+          summary: '{{ $value | humanizePercentage }} of "{{ $labels.role }}" model calls answered by a fallback in the last hour'
+          admin: /admin
+
+      - alert: AutomindProviderDown
+        expr: automind_provider_unavailable_seconds >= 300
+        for: 0m
+        labels: { severity: critical }
+        annotations:
+          summary: 'Model provider {{ $labels.provider }} unavailable for {{ $value | humanizeDuration }}'
+          admin: /admin
+
+      - alert: AutomindBudget80
+        expr: |
+          automind_spend_today_eur >= 0.8 * automind_daily_cap_eur
+          and on() automind_daily_cap_eur > 0
+        for: 0m
+        labels: { severity: warning }
+        annotations:
+          summary: 'Spend today is {{ $value | printf "%.2f" }} EUR, at least 80% of the daily cap'
+          admin: /admin
+
+      - alert: AutomindBackgroundBudgetUsed
+        expr: |
+          automind_background_spend_today_eur >= automind_background_budget_eur
+          and automind_background_budget_eur > 0
+        for: 0m
+        labels: { severity: warning }
+        annotations:
+          summary: 'Background loop {{ $labels.loop }} used its daily budget ({{ $value | printf "%.2f" }} EUR)'
+          admin: /admin
+
+  - name: automind-operations
+    rules:
+      - alert: AutomindLoopStale
+        expr: |
+          time() - automind_loop_last_success_timestamp_seconds
+            > 2 * automind_loop_interval_seconds
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: 'Background loop {{ $labels.loop }} has not succeeded for {{ $value | humanizeDuration }}'
+          admin: /admin
+
+      - alert: AutomindLoopFailing
+        expr: automind_loop_fails_in_row >= 2
+        for: 0m
+        labels: { severity: critical }
+        annotations:
+          summary: 'Background loop {{ $labels.loop }} failed {{ $value }} times in a row'
+          admin: /admin
+
+      - alert: AutomindIssueRegression
+        expr: automind_issues{status="regression"} > 0
+        for: 0m
+        labels: { severity: warning }
+        annotations:
+          summary: '{{ $value }} fixed problem(s) in {{ $labels.component }} came back'
+          admin: /admin
+
+      - alert: AutomindDown
+        expr: up{job="automind"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: 'Prometheus cannot scrape AutoMind at {{ $labels.instance }} (app down or METRICS_TOKEN mismatch)'
+          admin: /api/v1/health
