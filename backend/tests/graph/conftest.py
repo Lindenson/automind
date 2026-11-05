@@ -5,6 +5,8 @@ from datetime import UTC, datetime
 
 import pytest
 
+from automind.acquisition.engine import Engine
+from automind.acquisition.ports import AcqPorts
 from automind.application.ports import Ports
 from automind.application.usage import Limits, Prices, TurnBudget
 from automind.infrastructure.checkpoint import checkpointer
@@ -50,21 +52,39 @@ def chat_id():
 
 
 def make_ports(llm=None, search=None, events=None) -> Ports:
+    """Chat ports with the engine bound to the same model, reference data and market facts (as live_ports does);
+    `search` is the engine's searcher and, for fixture searches, its page store too."""
+    llm = llm or FakeLLM()
+    ref = open_web_reference()
+    facts = MarketFactRepo()
+    acq = AcqPorts(llm=llm, ref=ref, search=search, market_facts=facts)
     return Ports(
-        llm=llm or FakeLLM(),
-        search=search,
+        llm=llm,
+        acquisition=Engine(acq),
         cases=CaseRepo(),
         turns=TurnRepo(),
         events=events or EventBus(EventRepo()),
         jobs=JobRepo(),
         clock=FixedClock(),
-        ref=open_web_reference(),
+        ref=ref,
         messages=MessageRepo(),
         estimator=FixedEstimator(),
         feasibility=FeasibilityRepo(),
-        market_facts=MarketFactRepo(),
+        market_facts=facts,
         models_on_sale=models_on_sale,
     )
+
+
+def engine(ports: Ports) -> AcqPorts:
+    """The engine's ports behind the chat's (search, page store, readers, registry, reference data)."""
+    return ports.acquisition.ports  # type: ignore[union-attr]
+
+
+def share(ports: Ports, **values) -> None:  # noqa: ANN003
+    """Set shared parts (ref, registry, llm, market_facts) on the chat's ports and the engine's alike."""
+    for k, v in values.items():
+        setattr(ports, k, v)
+        setattr(engine(ports), k, v)
 
 
 def open_web_reference(**overrides):

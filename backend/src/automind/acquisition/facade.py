@@ -28,8 +28,6 @@ def job_spec(req: AcquireRequest, kind: str) -> job.JobSpec:
 
 
 async def acquire(req: AcquireRequest, emit: Emit | None, *, ports: Any) -> AcquireResult:
-    if ports is None:
-        raise TypeError("acquire() needs the engine's ports")
     say = emit or _quiet
     kinds = []
     for kind in req.kinds:

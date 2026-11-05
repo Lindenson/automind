@@ -19,7 +19,7 @@ from automind.infrastructure.db.session import sessionmaker
 from tests.fakes.fake_llm import FakeLLM
 from tests.fakes.fixture_search import FixtureSearch
 
-from .conftest import make_ports, open_web_reference
+from .conftest import engine, make_ports, open_web_reference
 
 
 async def _setup() -> str:
@@ -62,7 +62,7 @@ async def test_follow_up_round_queries_registry_candidates_of_other_european_mar
     llm.responders["extractor"] = _extractor
     llm.responders["relevance"] = lambda s, u: {"verdict": "RELEVANT", "reason": "the car"}
     search = FixtureSearch("registry")
-    ports = make_ports(llm=llm, search=search)
+    ports = engine(make_ports(llm=llm, search=search))
     cfg = {**load_yaml("registry.yaml"), "autonomy": False}  # querying does not need autonomy
     ports.registry = RegistryService(RegistryRepo(cfg), cfg)
     ports.ref = open_web_reference(  # open web as in every fixture scenario, plus the registry query templates

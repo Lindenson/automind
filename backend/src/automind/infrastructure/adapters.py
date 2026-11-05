@@ -8,20 +8,20 @@ from typing import Any, TypeVar
 from langchain.agents import create_agent
 from pydantic import BaseModel
 
-from automind.acquisition.parsing.legacy import live_readers
+from automind.acquisition.engine import Engine
+from automind.acquisition.infrastructure.wiring import engine_ports
 from automind.acquisition.registry.application.service import RegistryService
 from automind.acquisition.registry.infrastructure.repo import RegistryRepo
 from automind.application.lineup import get_lineup
 from automind.application.ports import Ports, Reference
 from automind.domain.cost import AreaAverage, CostPrices, estimate
 from automind.infrastructure import llm_gateway
-from automind.infrastructure.config import config_dir, fetch_policy, reference, search_config
+from automind.infrastructure.config import config_dir, reference, search_config
 from automind.infrastructure.db.outcomes import OutcomeRepo, settings_version
 from automind.infrastructure.db.repositories import (
     CaseRepo,
     FeasibilityRepo,
     JobRepo,
-    LearnedSourceRepo,
     MarketFactRepo,
     MessageRepo,
     ModelVersionsRepo,
@@ -29,13 +29,7 @@ from automind.infrastructure.db.repositories import (
     UsageRepo,
 )
 from automind.infrastructure.events import EventBus
-from automind.infrastructure.fetch import Fetcher, FetchPolicy
 from automind.infrastructure.models_on_sale import models_on_sale
-from automind.infrastructure.pages import DbPageStore
-from automind.infrastructure.search.cache import CachedSearcher
-from automind.infrastructure.search.serpapi import SerpApiProvider
-from automind.infrastructure.search.serper import SerperProvider
-from automind.infrastructure.search.tavily import TavilyProvider
 from automind.insight.metrics import prom
 
 T = TypeVar("T", bound=BaseModel)
@@ -53,18 +47,6 @@ class LiveLLM:
         return create_agent(llm_gateway.chat_model(role), tools, system_prompt=system_prompt)
 
 
-def live_search() -> CachedSearcher:
-    """Cache-first searcher over the providers named in config/search.yaml (primary, then fallback)."""
-    cfg = search_config()
-    make = {"serper": SerperProvider, "serpapi": SerpApiProvider, "tavily": TavilyProvider}
-    names = [cfg["provider"], *[p for p in cfg.get("fallback") or [] if p != cfg["provider"]]]
-    return CachedSearcher([make[n]() for n in names], cfg)
-
-
-def live_pages() -> DbPageStore:
-    return DbPageStore(Fetcher(FetchPolicy.from_config(fetch_policy())))
-
-
 class SystemClock:
     def now(self) -> datetime:
         return datetime.now(UTC)
@@ -72,9 +54,11 @@ class SystemClock:
 
 def live_ports(events: EventBus, prompts: dict[str, str]) -> Ports:
     ref = reference(prompts)
+    llm = LiveLLM()
+    registry = RegistryService(RegistryRepo(ref.registry), ref.registry)
     return Ports(
-        llm=LiveLLM(),
-        search=live_search(),
+        llm=llm,
+        acquisition=Engine(engine_ports(llm, ref, registry)),
         cases=CaseRepo(),
         turns=TurnRepo(),
         events=events,
@@ -83,17 +67,14 @@ def live_ports(events: EventBus, prompts: dict[str, str]) -> Ports:
         ref=ref,
         messages=MessageRepo(),
         estimator=LiveEstimator(),
-        pages=live_pages(),
-        readers=live_readers(),
         feasibility=FeasibilityRepo(),
         market_facts=MarketFactRepo(),
         lineup=get_lineup,
         models_on_sale=models_on_sale,
-        learned=LearnedSourceRepo(),
         versions=ModelVersionsRepo(),
         outcomes=_outcomes(ref, prompts),
         metrics=prom.inc,
-        registry=RegistryService(RegistryRepo(ref.registry), ref.registry),
+        registry=registry,
     )
 
 

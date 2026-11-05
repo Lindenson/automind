@@ -1,8 +1,8 @@
 """Brand line-up lookup (spec 005 R2, FR-007, FR-008, FR-011): the models of a make on sale in Spain, with sources.
 
-Cache-first (`brand_lineups`, refreshed after `intake.lineup_ttl_days`). On a miss: one Spanish search plus the
-official site, ≤ `lineup_max_pages` pages read through the page store (robots respected, deny-list never read), the
-`lineup` web reader extracts, and code keeps only what the documents support:
+Cache-first (`brand_lineups`, refreshed after `intake.lineup_ttl_days`). On a miss the acquisition engine reads
+one Spanish search plus the official site (≤ `lineup_max_pages` pages, robots respected, deny-list never read) with
+the `lineup` web reader (`acquisition.api.lineup`), and code here keeps only what the documents support:
 - a model must be written in the text of its document;
 - a price must be written in its excerpt, and the excerpt in the document;
 - at least one source must be the official site or a page that states a price (otherwise nothing is stored).
@@ -15,26 +15,13 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from pydantic import BaseModel, Field
 from sqlalchemy import select
 
+from automind.acquisition.api import LineupEntry
 from automind.application.ports import Ports
 from automind.domain import evidence
 from automind.domain.intake import LineupModel
 from automind.infrastructure import db
-
-
-class _Entry(BaseModel):
-    model: str
-    body: str = ""
-    powertrains: list[str] = Field(default_factory=list)
-    price_from_eur: int | None = None
-    excerpt: str = ""
-    source_url: str = ""
-
-
-class LineupOut(BaseModel):
-    models: list[_Entry] = Field(default_factory=list)
 
 
 @dataclass
@@ -57,7 +44,7 @@ def _price_in(excerpt: str, price: int) -> bool:
     return str(price) in digits
 
 
-def validate(make: str, entries: list[_Entry], docs: dict[str, tuple[str, str]], official: str | None) -> Lineup:
+def validate(make: str, entries: list[LineupEntry], docs: dict[str, tuple[str, str]], official: str | None) -> Lineup:
     """Keep the entries their documents support (pure apart from the evidence helpers)."""
     out: list[LineupModel] = []
     used: dict[str, dict[str, Any]] = {}
@@ -127,21 +114,12 @@ async def get_lineup(ports: Ports, make: str) -> Lineup | None:
         return hit
     reg = ports.ref.makes
     official = reg.site(make) if reg is not None else None
-    hits = await ports.search.search(f"{make} gama modelos precios España", market="ES", area="price")
-    urls = [f"https://www.{official}" if official else None] + [h.url for h in hits[:4]]
-    docs: dict[str, tuple[str, str]] = {}
-    for u in [x for x in urls if x and not evidence.is_denied(x)]:
-        if len(docs) >= int(lim.get("lineup_max_pages", 2)):
-            break
-        page = await ports.page_store.get(u, area="price")
-        if page and page.text:
-            docs[page.url] = (page.title or "", page.text[:12000])
-    if not docs:
+    if ports.acquisition is None:
         return None
-    blob = "\n\n".join(f'<untrusted_document url="{u}">\n{t}\n{x[:6000]}\n</untrusted_document>'
-                       for u, (t, x) in docs.items())  # fmt: skip
-    out = await ports.llm.structured("lineup", LineupOut, ports.ref.prompts["lineup"], f"Make: {make}\n\n{blob}")
-    lu = validate(make, out.models, docs, official)
+    read = await ports.acquisition.lineup(make, official=official, max_pages=int(lim.get("lineup_max_pages", 2)))
+    if read is None:
+        return None
+    lu = validate(make, read.out.models, read.docs, official)
     if not lu.models:
         return None
     await store(lu)

@@ -9,7 +9,7 @@ import pytest
 from sqlalchemy import delete, func, select
 from tests.fakes.fake_llm import FakeLLM
 from tests.fakes.fixture_search import FixtureSearch
-from tests.graph.conftest import make_ports, open_web_reference
+from tests.graph.conftest import engine, make_ports, open_web_reference
 
 from automind.acquisition.domain import served
 from automind.acquisition.domain.versions import prompt_key_from_header
@@ -137,7 +137,7 @@ async def test_research_job_names_producer_version_model_and_snapshot():
     llm.responders["extractor"] = _extractor
     llm.responders["validator"] = lambda s, u: {"verdicts": [{"index": 0, "verdict": "SAME_VARIANT"}]}
     fx = SnapshottingSearch("bmw520")
-    ports = make_ports(llm=llm, search=fx)
+    ports = engine(make_ports(llm=llm, search=fx))
     ports.ref = open_web_reference(
         favourites=[KM77], favourite_queries={"specs": "{make} {model} {generation} {variant} {sites}"}
     )

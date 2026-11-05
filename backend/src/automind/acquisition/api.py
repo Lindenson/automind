@@ -20,9 +20,19 @@ from enum import StrEnum
 from types import ModuleType
 from typing import Any, Literal
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 __all__: list[str] = [
+    "LineupEntry",
+    "LineupOut",
+    "LineupRead",
+    "VersionEntry",
+    "VersionsOut",
+    "VersionsRead",
+    "WebHint",
+    "generation_hints",
+    "lineup",
+    "versions",
     "AcquireRequest",
     "AcquireResult",
     "AcquiredValue",
@@ -131,9 +141,9 @@ class AcquireResult(BaseModel):
 async def acquire(req: AcquireRequest, emit: Emit | None = None, *, ports: Any = None) -> AcquireResult:
     """Research the requested kinds of data for one car. Raises only `BudgetExceeded` (the caller pauses and asks
     the user); any other failure is a `KindResult(ok=False)` and never fails the other kinds. `ports`: the engine's
-    ports (the chat passes its `Ports` today; tests pass fakes)."""
+    ports (`acquisition/ports.py: AcqPorts`; tests pass fakes); None: the live ones of this process."""
     facade = _engine("acquisition.facade")
-    return await facade.acquire(req, emit, ports=ports)  # type: ignore[no-any-return]
+    return await facade.acquire(req, emit, ports=_ports(ports))  # type: ignore[no-any-return]
 
 
 # --- read model: stored data only, no network or model call ------------------------------------------------------
@@ -217,6 +227,98 @@ async def revalidate_claims(rules: dict[str, Any] | None) -> RevalidateResult:
 async def recheck_minimums(variant_id: str) -> None:
     """The area minimums of a variant's research runs again from its stored evidence."""
     await _engine("acquisition.recheck").recheck_minimums(variant_id)
+
+
+# --- identity readers (strangler S8): the chat keeps its caches and checks, the engine searches and reads ----------
+
+
+class LineupEntry(BaseModel):
+    model: str
+    body: str = ""
+    powertrains: list[str] = Field(default_factory=list)
+    price_from_eur: int | None = None
+    excerpt: str = ""
+    source_url: str = ""
+
+
+class LineupOut(BaseModel):
+    models: list[LineupEntry] = Field(default_factory=list)
+
+
+class LineupRead(BaseModel):
+    """What the `lineup` web reader listed, and the pages it read (url -> (title, text)) for the chat's checks."""
+
+    docs: dict[str, tuple[str, str]]
+    out: LineupOut
+
+
+GEARBOX = Literal["manual", "automatic", "dct", "cvt", "e-cvt", "single"]
+
+
+class VersionEntry(BaseModel):
+    engine: str
+    fuel: Literal["petrol", "diesel", "hybrid", "mhev", "phev", "bev", "lpg"] | None = None
+    displacement_l: float | None = None
+    power_cv: int | None = None
+    power_kw: int | None = None
+    gearboxes: list[GEARBOX] = Field(default_factory=list)
+    drives: list[Literal["FWD", "RWD", "AWD"]] = Field(default_factory=list)
+    years_from: int | None = None
+    years_to: int | None = None
+    excerpt: str = ""
+    source_url: str = ""
+
+
+class VersionsOut(BaseModel):
+    generation: str | None = None
+    generation_years_from: int | None = None
+    generation_years_to: int | None = None
+    body_class: Literal["HATCHBACK", "SEDAN", "WAGON", "COUPE", "CONVERTIBLE", "SUV", "MPV", "PICKUP"] | None = None
+    versions: list[VersionEntry] = Field(default_factory=list)
+
+
+class VersionsRead(BaseModel):
+    """What the `versions` web reader listed, and the pages it read (url -> (title, text)) for the chat's checks."""
+
+    docs: dict[str, tuple[str, str]]
+    out: VersionsOut
+
+
+class WebHint(BaseModel):
+    """A search result or page for the resolver (its text is page content: untrusted)."""
+
+    url: str
+    title: str
+    text: str
+
+
+async def lineup(make: str, *, official: str | None, max_pages: int, ports: Any = None) -> LineupRead | None:
+    """A make's line-up in Spain as the `lineup` web reader reads it from a search and the official site."""
+    identity = _engine("acquisition.pipeline.identity")
+    return await identity.lineup(_ports(ports), make, official=official, max_pages=max_pages)  # type: ignore[no-any-return]
+
+
+async def versions(
+    make: str, model: str, generation: str | None, *, year: int | None, queries: list[str], limits: dict[str, Any],
+    done: set[str] | None = None, ports: Any = None,
+) -> VersionsRead | None:  # fmt: skip
+    """The versions of a model generation as the `versions` web reader reads them from the searches' pages."""
+    identity = _engine("acquisition.pipeline.identity")
+    return await identity.versions(_ports(ports), make, model, generation, year=year, queries=queries, limits=limits,  # type: ignore[no-any-return]
+                                   done=done)  # fmt: skip
+
+
+async def generation_hints(query: str, *, lineup_url: str | None = None, user_url: str | None = None,
+                           prices: bool = False, ports: Any = None) -> list[WebHint]:  # fmt: skip
+    """Search results and pages for the resolver (generations, engines, and for new cars the Spanish versions)."""
+    identity = _engine("acquisition.pipeline.identity")
+    return await identity.generation_hints(_ports(ports), query, lineup_url=lineup_url, user_url=user_url,  # type: ignore[no-any-return]
+                                           prices=prices)  # fmt: skip
+
+
+def _ports(ports: Any) -> Any:
+    """The engine's ports: the caller's (tests, the chat's bound engine) or the live ones of this process."""
+    return ports if ports is not None else _engine("acquisition.infrastructure.wiring").live_acq_ports()
 
 
 # --- gold ----------------------------------------------------------------------------------------------------------

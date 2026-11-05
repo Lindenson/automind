@@ -9,11 +9,7 @@ CHAT = ("application", "orchestration")
 
 # Files still doing acquisition work while the strangler moves it into the engine. Only shrinks: every strangler
 # step removes the files it emptied; T051 leaves it empty.
-ALLOWED_DURING_STRANGLER: set[str] = {
-    "application/lineup.py",
-    "application/resolve.py",
-    "application/versions.py",
-}
+ALLOWED_DURING_STRANGLER: set[str] = set()
 
 ROLES = {"extractor", "relevance", "validator", "lineup", "versions", "terms_reader"}
 

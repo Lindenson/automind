@@ -21,7 +21,7 @@ from automind.infrastructure.db import models as m
 from automind.infrastructure.db.session import sessionmaker
 from tests.fakes.fixture_search import FixtureSearch
 
-from .conftest import make_ports, open_web_reference
+from .conftest import make_ports, open_web_reference, share
 from .test_research_flow import INTERPRET, MAKE, llm_for_research, runner
 from .test_research_flow import fresh_variant as fresh_variant  # noqa: F401  (fixture)
 
@@ -43,10 +43,9 @@ async def _registry_candidate() -> None:
 
 def _with_registry(rn) -> None:  # noqa: ANN001
     cfg = {**load_yaml("registry.yaml"), "autonomy": False}
-    rn.ports.registry = RegistryService(RegistryRepo(cfg), cfg)
-    rn.ports.ref = open_web_reference(
+    share(rn.ports, registry=RegistryService(RegistryRepo(cfg), cfg), ref=open_web_reference(
         favourite_queries={k: v for k, v in favourite_queries().items() if k.startswith("registry")}
-    )
+    ))  # fmt: skip
 
 
 async def _left_short(area: str) -> str:

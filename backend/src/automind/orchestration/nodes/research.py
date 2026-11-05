@@ -108,7 +108,7 @@ async def research_job(job: dict[str, Any], runtime: Runtime[TurnContext]) -> di
     await progress("searching")
     try:
         async with asyncio.timeout(c.budget.limits.job_timeout_s):
-            got = await acquisition.acquire(
+            got = await c.ports.acquisition.acquire(  # type: ignore[union-attr]
                 acquisition.AcquireRequest(
                     job_id=job["job_id"],
                     variant_id=job["variant_id"],
@@ -118,7 +118,6 @@ async def research_job(job: dict[str, Any], runtime: Runtime[TurnContext]) -> di
                     car_year=car.year if car else None,
                 ),
                 emit,
-                ports=c.ports,
             )
             res = got.kinds[0]
     except BudgetExceeded as e:

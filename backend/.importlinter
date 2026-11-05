@@ -178,12 +178,16 @@ forbidden_modules =
     automind.acquisition.agents
     automind.acquisition.domain
     automind.acquisition.drift
+    automind.acquisition.engine
     automind.acquisition.facade
     automind.acquisition.gates
     automind.acquisition.gold
     automind.acquisition.infrastructure
     automind.acquisition.parsing
     automind.acquisition.pipeline
+    automind.acquisition.ports
+    automind.acquisition.read
+    automind.acquisition.recheck
     automind.acquisition.replay
     automind.acquisition.reputation
     automind.acquisition.snapshots

@@ -12,8 +12,10 @@ from __future__ import annotations
 import re
 from types import SimpleNamespace
 
+from automind.acquisition.api import VersionEntry as _V
+from automind.acquisition.api import VersionsOut
+from automind.acquisition.engine import Engine
 from automind.application import identify, resolve, versions
-from automind.application.versions import _V, VersionsOut
 from automind.domain.casefile import CaseCar, CaseFile, Constraints
 from automind.domain.identity import parse_engine
 from automind.infrastructure.config import reference
@@ -81,6 +83,7 @@ def _ports(make: str) -> tuple[SimpleNamespace, list[str]]:
         ref=ref, versions=Store(), registry=Registry(), search=SimpleNamespace(search=search),
         page_store=SimpleNamespace(get=get), llm=SimpleNamespace(structured=structured),
     )  # fmt: skip
+    ports.acquisition = Engine(ports)  # type: ignore[arg-type]
     return ports, queries
 
 
