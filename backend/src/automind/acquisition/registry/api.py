@@ -67,8 +67,12 @@ class Attempt(BaseModel):
         return self
 
 
+Component = Literal["source", "relevance", "parser", "extractor", "units_sense", "fusion"]
+_COMPONENT_OF_010 = {"check": "units_sense"}
+
+
 class TruthSignalIn(BaseModel):
-    kind: Literal["challenge", "bad_source", "replacement", "agreement", "gold"]
+    kind: Literal["challenge", "bad_source", "replacement", "agreement", "gold", "physics"]
     verdict: Literal["right", "wrong"]
     domain: str
     area: str
@@ -78,6 +82,18 @@ class TruthSignalIn(BaseModel):
     claim_id: str | None = None
     blame: Literal["source", "parser", "extractor", "relevance", "check", "fusion"] = "source"
     details: dict[str, object] = {}
+    # spec 011 US3 (research R9): shares per component (sum 1); only the source share changes the capability, the
+    # others go to component_reputation under `components[component]` (km77@v1, extract_specs@v3|<model>, ...)
+    blame_vector: dict[Component, float] | None = None
+    components: dict[str, str] = {}
+    gold_id: str | None = None
+    snapshot_id: str | None = None
+    disputed: bool = False
+
+    def vector(self) -> dict[str, float]:
+        if self.blame_vector:
+            return {k: float(v) for k, v in self.blame_vector.items() if v > 0}
+        return {_COMPONENT_OF_010.get(self.blame, self.blame): 1.0}
 
 
 class RegistryPort(Protocol):

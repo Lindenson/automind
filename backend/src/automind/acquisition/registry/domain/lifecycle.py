@@ -1,7 +1,8 @@
 """Lifecycle of a capability (spec 010 US7, research R9). Pure.
 
 discovered → candidate (admitted) | blocked
-candidate  → active    when the sample is big enough and the accuracy lower bound and yield pass
+candidate  → active    when the sample is big enough, the accuracy lower bound and yield pass, and there are at least
+                       `promote.min_signals` accuracy signals (spec 011 FR-012: never on yield alone)
 active     → degraded  when the lower bound or the yield falls, or the last N attempts all failed
 degraded   → active    when it recovers;  degraded → retired after N days without recovery
 retired    → candidate after the retry period (one more chance)
@@ -27,6 +28,7 @@ class CapState:
     status_since: datetime
     access: str = "unknown"
     recent: Sequence[bool] = field(default_factory=tuple)
+    signals_w: float = 0.0  # spec 011: decayed weight of accuracy signals (priors excluded)
 
 
 @dataclass(frozen=True)
@@ -45,9 +47,12 @@ def _candidate(c: CapState, lc: Mapping[str, Any], days: float) -> Move | None:
         c.attempts >= float(pro.get("min_attempts", 8))
         and c.acc_lb >= float(pro.get("min_acc_lb", 0.6))
         and c.yield_ >= float(pro.get("min_yield", 0.2))
+        and c.signals_w >= float(pro.get("min_signals", 5))
     ):
         return Move(
-            "active", f"accuracy lower bound {_f(c.acc_lb)} and yield {_f(c.yield_)} over {c.attempts:.0f} attempts"
+            "active",
+            f"accuracy lower bound {_f(c.acc_lb)} and yield {_f(c.yield_)} over {c.attempts:.0f} attempts, "
+            f"{c.signals_w:.1f} accuracy signals",
         )
     return None
 

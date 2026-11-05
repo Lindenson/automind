@@ -58,6 +58,7 @@ async def _setup() -> None:
                     accepted=acc,
                     right_w=right,
                     wrong_w=wrong,
+                    signals_w=right + wrong,  # spec 011 FR-012: these are accuracy signals
                     recent=recent,
                     status_since=old,
                     decayed_at=now(),

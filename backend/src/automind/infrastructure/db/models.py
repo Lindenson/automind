@@ -767,6 +767,11 @@ class CapabilityRow(Base):
     decayed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     status_since: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     last_used: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # spec 011 US3 (0021): decayed weight of accuracy signals (promotion minimum), family agreements, today's
+    # exploration spend (reset by the daily roll-up)
+    signals_w: Mapped[float] = mapped_column(Float, default=0.0)
+    families_agree: Mapped[float] = mapped_column(Float, default=0.0)
+    explore_spent_eur: Mapped[float] = mapped_column(Float, default=0.0)
 
 
 class RegistryAttempt(Base):
@@ -791,6 +796,7 @@ class RegistryAttempt(Base):
 
 class TruthSignal(Base):
     __tablename__ = "truth_signals"
+    __table_args__ = (Index("ix_truth_signals_claim_kind", "claim_id", "kind"),)
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, index=True)
     capability_id: Mapped[str | None] = mapped_column(String(36), index=True)
@@ -800,8 +806,14 @@ class TruthSignal(Base):
     kind: Mapped[str] = mapped_column(String(12))
     verdict: Mapped[str] = mapped_column(String(6))
     weight: Mapped[float] = mapped_column(Float)
-    blame: Mapped[str] = mapped_column(String(10))
+    blame: Mapped[str] = mapped_column(String(10))  # the top component under the 010 labels
     details: Mapped[dict] = mapped_column(JSONB, default=dict)
+    # spec 011 US3 (0021): vector blame (research R9), the gold value and page behind the signal, judge pending
+    blame_vector: Mapped[dict | None] = mapped_column(JSONB)
+    component: Mapped[str | None] = mapped_column(String(160))  # parser:km77@v1 | source:<domain> | ...
+    gold_id: Mapped[str | None] = mapped_column(String(36))
+    snapshot_id: Mapped[str | None] = mapped_column(String(36))
+    disputed: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
 class RegistryChange(Base):
@@ -962,3 +974,50 @@ class AcqWorker(Base):
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     beat_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     tasks_done: Mapped[int] = mapped_column(Integer, default=0)
+
+
+# --- spec 011 US3: honest reputation (migration 0021) ----------------------------------------------------------------
+
+
+class ComponentReputation(Base):
+    """Decayed right/wrong weight of a pipeline component that vector blame can name (research R9)."""
+
+    __tablename__ = "component_reputation"
+    __table_args__ = (PrimaryKeyConstraint("kind", "key"),)
+    kind: Mapped[str] = mapped_column(String(12))  # parser | extractor | relevance | rule | fusion
+    key: Mapped[str] = mapped_column(String(160))  # km77@v1 | extract_specs@v3|<model> | sense.<rule> | merge@1
+    right_w: Mapped[float] = mapped_column(Float, default=0.0)
+    wrong_w: Mapped[float] = mapped_column(Float, default=0.0)
+    acc_lb: Mapped[float] = mapped_column(Float, default=0.0)
+    decayed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class AcqDaily(Base):
+    """Daily roll-up per area and market: searches per accepted value (SC-009) and the accuracy KPI."""
+
+    __tablename__ = "acq_daily"
+    __table_args__ = (PrimaryKeyConstraint("day", "area", "market"),)
+    day: Mapped[date] = mapped_column(Date)
+    area: Mapped[str] = mapped_column(String(20))
+    market: Mapped[str] = mapped_column(String(8))
+    searches: Mapped[int] = mapped_column(Integer, default=0)
+    pages: Mapped[int] = mapped_column(Integer, default=0)
+    accepted_values: Mapped[int] = mapped_column(Integer, default=0)
+    wrong_values: Mapped[int] = mapped_column(Integer, default=0)
+    gold_checked: Mapped[int] = mapped_column(Integer, default=0)
+    gold_wrong: Mapped[int] = mapped_column(Integer, default=0)
+    cost_eur: Mapped[float] = mapped_column(Numeric(10, 4), default=0)
+    explore_eur: Mapped[float] = mapped_column(Numeric(10, 4), default=0)
+
+
+class KpiBaseline(Base):
+    """A recorded window of the accuracy and satisfaction KPIs (FR-014), e.g. "pre-autonomy"."""
+
+    __tablename__ = "kpi_baselines"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    name: Mapped[str] = mapped_column(String(60), index=True)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    values: Mapped[dict] = mapped_column(JSONB, default=dict)
+    recorded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    note: Mapped[str | None] = mapped_column(Text)

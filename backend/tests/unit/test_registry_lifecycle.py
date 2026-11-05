@@ -11,7 +11,7 @@ from automind.acquisition.registry.domain.limits import Guard, check
 NOW = datetime(2026, 11, 5, tzinfo=UTC)
 CFG = {
     "lifecycle": {
-        "promote": {"min_attempts": 8, "min_acc_lb": 0.6, "min_yield": 0.2},
+        "promote": {"min_attempts": 8, "min_acc_lb": 0.6, "min_yield": 0.2, "min_signals": 5},
         "degrade": {"min_attempts": 10, "max_acc_lb": 0.45, "max_yield": 0.05, "zero_in_last": 10},
         "recover": {"min_acc_lb": 0.55, "min_yield": 0.15},
         "retire_after_days": 21,
@@ -29,6 +29,7 @@ def st(status: str, **kw: object) -> CapState:
         "status_since": NOW - timedelta(days=1),
         "access": "ok",
         "recent": (True,) * 10,
+        "signals_w": 6.0,
     }
     base.update(kw)
     return CapState(status=status, **base)  # type: ignore[arg-type]
@@ -47,6 +48,17 @@ def test_transitions():
     assert transition(st("degraded", acc_lb=0.2, status_since=old), CFG, NOW).to == "retired"
     assert transition(st("retired", status_since=NOW - timedelta(days=31)), CFG, NOW).to == "candidate"
     assert transition(st("blocked", access="ok"), CFG, NOW) is None
+
+
+def test_no_promotion_on_yield_alone():
+    """Spec 011 T063 (FR-012): a candidate above the attempts, accuracy and yield thresholds is not promoted before
+    `min_signals` accuracy signals, whatever its yield."""
+    assert transition(st("candidate", yield_=0.95, attempts=200, signals_w=4.9), CFG, NOW) is None
+    assert transition(st("candidate", yield_=0.95, attempts=200, signals_w=0.0), CFG, NOW) is None
+    mv = transition(st("candidate", signals_w=5.0), CFG, NOW)
+    assert mv.to == "active" and "5.0 accuracy signals" in mv.reason
+    no_cfg = {"lifecycle": {**CFG["lifecycle"], "promote": {"min_attempts": 8, "min_acc_lb": 0.6, "min_yield": 0.2}}}
+    assert transition(st("candidate", signals_w=4.0), no_cfg, NOW) is None  # the default minimum is 5
 
 
 def test_limits():

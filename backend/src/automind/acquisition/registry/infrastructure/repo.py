@@ -6,11 +6,13 @@ import logging
 from collections.abc import Iterable, Mapping
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
+from automind.acquisition.domain.blame import LABEL_010, REPUTATION_KIND
 from automind.acquisition.registry.api import Attempt, TruthSignalIn
 from automind.acquisition.registry.domain.model import Capability, Source
 from automind.acquisition.registry.domain.score import Counts, decay, score_of
+from automind.acquisition.reputation import components
 from automind.acquisition.snapshots import store
 from automind.infrastructure.db.models import (
     CapabilityRow,
@@ -48,10 +50,18 @@ def _cap_dict(r: CapabilityRow) -> dict[str, Any]:
         "status": r.status,
         "score": r.score,
         "priority_seed": r.priority_seed,
+        # spec 011 R7: what Thompson sampling draws from
+        "attempts": r.attempts,
+        "accepted": r.accepted,
+        "right_w": r.right_w,
+        "wrong_w": r.wrong_w,
+        "cost_eur": r.cost_eur,
+        "explore_spent_eur": r.explore_spent_eur or 0.0,
     }
 
 
-DECAYED = ("attempts", "accepted", "right_w", "wrong_w", "robots_refusals", "junk", "cost_eur")
+DECAYED = ("attempts", "accepted", "right_w", "wrong_w", "robots_refusals", "junk", "cost_eur", "signals_w",
+           "families_agree")  # fmt: skip
 
 
 def _decay(cap: CapabilityRow, hl: float) -> None:
@@ -86,8 +96,19 @@ class RegistryRepo:
 
     async def capabilities(self, area: str, markets: list[str]) -> list[dict[str, Any]]:
         async with sessionmaker()() as s:
-            q = select(CapabilityRow).where(CapabilityRow.area == area, CapabilityRow.market.in_(markets))
-            return [_cap_dict(r) for r in (await s.execute(q)).scalars()]
+            q = (
+                select(CapabilityRow, SourceRow.source_type, SourceRow.access)
+                .outerjoin(SourceRow, SourceRow.domain == CapabilityRow.domain)
+                .where(CapabilityRow.area == area, CapabilityRow.market.in_(markets))
+            )
+            return [{**_cap_dict(r), "source_type": st or "OTHER", "access": acc or "unknown"}
+                    for r, st, acc in (await s.execute(q)).all()]  # fmt: skip
+
+    async def explore_spent(self) -> float:
+        """Today's exploration spend over all capabilities (reset by the daily roll-up)."""
+        async with sessionmaker()() as s:
+            return float((await s.execute(select(func.coalesce(func.sum(CapabilityRow.explore_spent_eur), 0.0)))
+                          ).scalar() or 0.0)  # fmt: skip
 
     async def queryable(self, area: str, markets: list[str]) -> list[dict[str, Any]]:
         """Active and candidate capabilities with their source's access (for `site:` queries)."""
@@ -223,6 +244,8 @@ class RegistryRepo:
                 if a.outcome == "rejected" and a.reason:
                     cap.rejected = {**(cap.rejected or {}), a.reason: float((cap.rejected or {}).get(a.reason, 0)) + 1}
                 cap.cost_eur += a.cost_eur
+                if cap.status == "candidate":  # spec 011 R7: a candidate's attempt is exploration
+                    cap.explore_spent_eur = (cap.explore_spent_eur or 0.0) + a.cost_eur
                 cap.recent = [*(cap.recent or []), ok][-RECENT:]
                 cap.last_used = now()
                 _refresh(cap, await self._type(s, a.domain, types), self.cfg)
@@ -248,20 +271,36 @@ class RegistryRepo:
         await _mark_snapshots(attempts)
 
     async def signal(self, sig: TruthSignalIn, weight: float) -> None:
+        """Spec 011 US3: the signal's weight is split by its blame vector; only the source share changes the
+        capability (right/wrong and the accuracy-signal weight `signals_w`), the other shares go to the blamed
+        components' reputation (FR-011)."""
+        vector = sig.vector()
+        source_share = vector.get("source", 0.0)
         async with sessionmaker()() as s:
             cap = None
-            if sig.blame == "source":
+            if source_share > 0:
                 q = select(CapabilityRow).where(CapabilityRow.domain == sig.domain, CapabilityRow.area == sig.area)
                 if sig.market:
                     q = q.where(CapabilityRow.market == sig.market)
                 cap = (await s.execute(q.order_by(CapabilityRow.attempts.desc()).limit(1))).scalar_one_or_none()
                 if cap is not None:
                     _decay(cap, self.hl)
+                    w = weight * source_share
                     if sig.verdict == "right":
-                        cap.right_w += weight
+                        cap.right_w += w
                     else:
-                        cap.wrong_w += weight
+                        cap.wrong_w += w
+                    cap.signals_w = (cap.signals_w or 0.0) + w
+                    if sig.kind == "agreement":
+                        cap.families_agree = (cap.families_agree or 0.0) + source_share
                     _refresh(cap, await self._type(s, cap.domain, {}), self.cfg)
+            for comp, share in vector.items():
+                if comp == "source" or share <= 0 or comp not in REPUTATION_KIND:
+                    continue
+                key = sig.components.get(comp) or "unknown"
+                await components.add(s, REPUTATION_KIND[comp], key, sig.verdict, weight * share, self.hl)
+            top = max(vector, key=lambda c: vector[c]) if vector else "source"
+            top_key = sig.domain if top == "source" else sig.components.get(top) or "unknown"
             s.add(
                 TruthSignal(
                     capability_id=cap.id if cap else None,
@@ -271,8 +310,13 @@ class RegistryRepo:
                     kind=sig.kind,
                     verdict=sig.verdict,
                     weight=weight,
-                    blame=sig.blame,
+                    blame=LABEL_010.get(top, sig.blame) if sig.blame_vector else sig.blame,
                     details={"domain": sig.domain, "area": sig.area, **sig.details},
+                    blame_vector=vector if sig.blame_vector else None,
+                    component=f"{REPUTATION_KIND.get(top, top)}:{top_key}"[:160],
+                    gold_id=sig.gold_id,
+                    snapshot_id=sig.snapshot_id,
+                    disputed=sig.disputed,
                 )
             )
             await s.commit()
