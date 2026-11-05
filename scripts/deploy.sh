@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-# AutoMind deployment with Docker Compose (app + Postgres 16; optional Prometheus/Alertmanager and Caddy).
+# AutoMind deployment with Docker Compose (app + worker + Postgres 16; optional Prometheus/Alertmanager and Caddy).
+# The worker (spec 011) runs the background tasks from the same image; stopping the app does not stop it.
 #
 #   scripts/deploy.sh [up] [--monitoring] [--public]
 #                                 build the image, start/upgrade the stack, run migrations, wait until healthy;
 #                                 --monitoring also starts Prometheus + Alertmanager, --public also starts Caddy (TLS)
 #   scripts/deploy.sh down        stop the stack, all profiles (data volumes are kept)
-#   scripts/deploy.sh restart     restart the app container
+#   scripts/deploy.sh restart     restart the app and worker containers
 #   scripts/deploy.sh status      containers and the health endpoint
-#   scripts/deploy.sh logs        follow the app logs
+#   scripts/deploy.sh logs        follow the app and worker logs
 #   scripts/deploy.sh backup      pg_dump into ./backups/automind-<time>.sql.gz
 #   scripts/deploy.sh restore F   restore a dump made by `backup` (replaces the current data)
 #   scripts/deploy.sh destroy     stop and DELETE the database volume (asks for confirmation)
@@ -88,6 +89,8 @@ wait_healthy() {
       health=$(curl -fsS "$(url)/api/v1/health" 2>/dev/null || true)
       say "Healthy: $(url)"
       [[ -n "$health" ]] && echo "$health" | python3 -c 'import json,sys; h=json.load(sys.stdin); print("   keys:", h["keys"], "| mcp tools:", len(h["mcp_tools"]))' 2>/dev/null || true
+      wstate=$(compose ps --format '{{.State}} {{.Health}}' worker 2>/dev/null || true)
+      say "Worker (background tasks): ${wstate:-not running}"
       return 0
     fi
     [[ "$state" == "unhealthy" ]] && break
@@ -270,7 +273,7 @@ do_import() {
     die "the database here already has $tables tables; use --force to replace them with the bundle"
   fi
   say "Restoring the database dump"
-  compose stop app >/dev/null 2>&1 || true
+  compose stop app worker >/dev/null 2>&1 || true
   gunzip -c "$tmp/automind.sql.gz" | compose exec -T postgres psql -q -U automind -d automind -v ON_ERROR_STOP=1 >/dev/null
   say "Starting the app"
   compose up -d --remove-orphans
@@ -423,7 +426,7 @@ case "$cmd" in
     port_free
     say "Building the image"
     compose build --pull app
-    say "Starting Postgres and the app (migrations run at container start)"
+    say "Starting Postgres, the app (migrations run at container start) and the worker"
     compose ${profiles[@]+"${profiles[@]}"} up -d --remove-orphans
     wait_healthy
     if [[ " ${profiles[*]-} " == *" monitoring "* ]]; then
@@ -433,13 +436,13 @@ case "$cmd" in
     if [[ " ${profiles[*]-} " == *" public "* ]]; then say "Public: https://${AUTOMIND_DOMAIN}"; fi
     ;;
   down)    ensure_env; compose "${ALL_PROFILES[@]}" down ;;
-  restart) ensure_env; compose restart app; wait_healthy ;;
+  restart) ensure_env; compose restart app worker; wait_healthy ;;
   status)
     ensure_env
     compose "${ALL_PROFILES[@]}" ps
     curl -fsS "$(url)/api/v1/health" >/dev/null && say "health: ok ($(url))" || echo "health: unreachable"
     ;;
-  logs)    ensure_env; compose logs -f --tail 200 app ;;
+  logs)    ensure_env; compose logs -f --tail 200 app worker ;;
   backup)
     ensure_env
     mkdir -p backups
@@ -450,9 +453,9 @@ case "$cmd" in
   restore)
     ensure_env
     f="${1:-}"; [[ -f "$f" ]] || die "usage: scripts/deploy.sh restore backups/<file>.sql.gz"
-    compose stop app
+    compose stop app worker
     gunzip -c "$f" | compose exec -T postgres psql -q -U automind -d automind -v ON_ERROR_STOP=1 >/dev/null
-    compose start app
+    compose start app worker
     wait_healthy
     ;;
   destroy)

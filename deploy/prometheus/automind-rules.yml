@@ -146,6 +146,16 @@ groups:
           summary: '{{ $value }} fixed problem(s) in {{ $labels.component }} came back'
           admin: /admin
 
+      - alert: AutomindWorkerDown
+        expr: |
+          time() - automind_worker_beat_timestamp_seconds > 120
+          or up{job="automind-worker"} == 0
+        for: 2m
+        labels: { severity: critical }
+        annotations:
+          summary: 'The acquisition worker {{ $labels.worker }}{{ $labels.instance }} has not beaten for 2 minutes (background work stopped)'
+          admin: /admin
+
       - alert: AutomindDown
         expr: up{job="automind"} == 0
         for: 2m

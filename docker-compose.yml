@@ -29,8 +29,29 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
 
+  # Spec 011 (constitution XIII): background work (metrics snapshot, registry review, insight, later prefetch and the
+  # engine's agents) runs here from the acq_tasks queue, so stopping `app` does not stop it. Same image as `app`; it
+  # waits for the app's migrations. Prometheus scrapes worker:9101 inside the compose network (no published port).
+  worker:
+    image: ${COMPOSE_PROJECT_NAME:-automind}:latest
+    restart: unless-stopped
+    env_file: [.env, .env.docker]
+    environment:
+      DATABASE_URL: postgresql+asyncpg://automind:${POSTGRES_PASSWORD:?run scripts/deploy.sh}@postgres:5432/automind
+      AUTOMIND_WORKER_METRICS_ADDR: 0.0.0.0
+    command: ["python", "-m", "automind.acquisition.worker"]
+    stop_grace_period: 30s
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:9101/metrics', timeout=4).status == 200 else 1)"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+    depends_on:
+      postgres: { condition: service_healthy }
+
   # --- profile `monitoring` (scripts/deploy.sh monitoring up, or up --monitoring) --------------------------------
-  # Prometheus scrapes app:8000/metrics with METRICS_TOKEN (deploy/prometheus/metrics_token, written by deploy.sh,
+  # Prometheus scrapes app:8000/metrics with METRICS_TOKEN and worker:9101/metrics (compose network only) (deploy/prometheus/metrics_token, written by deploy.sh,
   # mode 600). It runs as the host user (AUTOMIND_UID) so it can read that file, in group nobody (65534) so it can
   # write the image's /prometheus directory.
   prometheus:
@@ -49,7 +70,7 @@ services:
       - ./deploy/prometheus/metrics_token:/etc/prometheus/metrics_token:ro
       - promdata:/prometheus
     ports: ["127.0.0.1:${AUTOMIND_PROMETHEUS_PORT:-9090}:9090"]
-    depends_on: [app, alertmanager]
+    depends_on: [app, worker, alertmanager]
 
   alertmanager:
     image: prom/alertmanager:v0.28.1

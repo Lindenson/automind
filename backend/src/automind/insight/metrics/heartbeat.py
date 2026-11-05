@@ -29,6 +29,11 @@ def beat(loop: str, ok: bool, interval_s: float | None = None) -> None:
         st["fails"] += 1
 
 
+def restore(loop: str, last_ok: float, fails: float, interval_s: float) -> None:
+    """Set a loop's health from a journal (spec 011: the worker reads it from acq_tasks, the same for every worker)."""
+    _STATE[loop] = {"last_ok": float(last_ok), "fails": float(fails), "interval": float(interval_s)}
+
+
 def state() -> dict[str, dict[str, float]]:
     return {k: dict(v) for k, v in _STATE.items()}
 

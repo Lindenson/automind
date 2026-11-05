@@ -21,7 +21,6 @@ from fastapi.staticfiles import StaticFiles
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_mcp_adapters.tools import load_mcp_tools
 
-from automind.acquisition.registry.application.review import registry_loop
 from automind.acquisition.registry.application.seed import seed_if_empty
 from automind.api import access, rest
 from automind.api import admin as admin_api
@@ -36,8 +35,6 @@ from automind.infrastructure.db.repositories import CaseRepo, ChatRepo, EventRep
 from automind.infrastructure.events import EventBus
 from automind.infrastructure.llm_gateway import new_budget
 from automind.infrastructure.retention import retention_loop
-from automind.insight.loop import insight_loop
-from automind.insight.metrics.snapshot import metrics_loop
 from automind.orchestration import graph as hub
 from automind.orchestration.prompts import load_all as load_prompts
 from automind.orchestration.runner import ChatRunner
@@ -92,12 +89,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             traceback.print_exc()
         retention = asyncio.create_task(retention_loop())  # spec 003 FR-026; heartbeat "retention" (spec 010)
         stack.callback(retention.cancel)
-        metrics = asyncio.create_task(metrics_loop())  # spec 010 US9: Prometheus snapshot every minute
-        stack.callback(metrics.cancel)
-        registry = asyncio.create_task(registry_loop())  # spec 010 US7: daily source review (autonomy flag)
-        stack.callback(registry.cancel)
-        insight = asyncio.create_task(insight_loop())  # spec 010 US3: issues and diagnoses, never self-changes
-        stack.callback(insight.cancel)
+        # Spec 011 (constitution XIII): the metrics snapshot, the registry review and the insight run are tasks of
+        # the acquisition worker (python -m automind.acquisition.worker), not loops of this process.
         resumed = await app.state.runner.resume_incomplete()
         if resumed:
             print(f"resuming {len(resumed)} interrupted turn(s)")
