@@ -1,4 +1,5 @@
-"""Admin API (spec 010 US4, contracts/admin-api.md): two screens — Top problems and Sources.
+"""Admin API (spec 010 US4, contracts/admin-api.md): Top problems and Sources; spec 011 US6 adds Parsers, Changes,
+the accuracy drill-down and the engine status strip, read through `automind.acquisition.admin_api`.
 
 Every route requires the admin token (or this machine when none is set). Detailed metrics and alerts are in
 Prometheus, not here (FR-029).
@@ -10,10 +11,12 @@ from collections.abc import Callable
 from datetime import timedelta
 from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
+from automind.acquisition import admin_api
 from automind.acquisition.registry.domain.model import ACCESS_BLOCKING
 from automind.acquisition.registry.domain.seed_rules import denied
 from automind.api import access
@@ -361,3 +364,156 @@ async def revert(change_id: str) -> dict[str, Any]:
         await s.commit()
     prom.inc("registry_changes", change="reverted", author="owner")
     return {"reverted": change_id, "by": rev.id}
+
+
+# --- Acquisition engine (spec 011 US6, FR-021): Parsers, Changes, the accuracy drill-down, the engine strip ------
+
+
+def _http(e: Exception) -> HTTPException:
+    if isinstance(e, admin_api.NotFound):
+        return HTTPException(status_code=404, detail="not found")
+    return HTTPException(status_code=409, detail=str(e))
+
+
+@router.get("/parsers", dependencies=[Admin])
+async def parsers() -> list[dict[str, Any]]:
+    return await admin_api.parsers()
+
+
+@router.get("/parsers/{reader}", dependencies=[Admin])
+async def parser(reader: str) -> dict[str, Any]:
+    try:
+        return await admin_api.parser(reader)
+    except admin_api.NotFound as e:
+        raise _http(e) from e
+
+
+class RollbackIn(BaseModel):
+    to: str = Field(min_length=3, max_length=80)
+
+
+@router.post("/parsers/{reader}/rollback", dependencies=[Admin])
+async def parser_rollback(reader: str, body: RollbackIn) -> dict[str, Any]:
+    try:
+        return await admin_api.rollback_parser(reader, body.to)
+    except (admin_api.NotFound, admin_api.Conflict) as e:
+        raise _http(e) from e
+
+
+@router.post("/parsers/{reader}/freeze", dependencies=[Admin])
+async def parser_freeze(reader: str) -> dict[str, Any]:
+    try:
+        return await admin_api.freeze_parser(reader, True)
+    except admin_api.NotFound as e:
+        raise _http(e) from e
+
+
+@router.post("/parsers/{reader}/unfreeze", dependencies=[Admin])
+async def parser_unfreeze(reader: str) -> dict[str, Any]:
+    try:
+        return await admin_api.freeze_parser(reader, False)
+    except admin_api.NotFound as e:
+        raise _http(e) from e
+
+
+@router.get("/changes", dependencies=[Admin])
+async def all_changes(
+    origin: Literal["engine", "registry"] | None = None,
+    agent: str | None = None,
+    object_kind: str | None = None,
+    status: str | None = None,
+    days: int = 30,
+    limit: int = 50,
+) -> list[dict[str, Any]]:
+    """Every automatic change of every agent in one list: the engine journal and the registry journal."""
+    return await admin_api.changes(origin, agent or None, object_kind or None, status or None, days, limit)
+
+
+@router.get("/changes/{change_id}", dependencies=[Admin])
+async def one_change(change_id: str) -> dict[str, Any]:
+    try:
+        return await admin_api.change(change_id)
+    except admin_api.NotFound as e:
+        raise _http(e) from e
+
+
+async def _origin(change_id: str) -> str:
+    try:
+        return await admin_api.origin_of(change_id)
+    except admin_api.NotFound as e:
+        raise _http(e) from e
+
+
+@router.post("/changes/{change_id}/revert", dependencies=[Admin])
+async def change_revert(change_id: str) -> dict[str, Any]:
+    if await _origin(change_id) == "registry":
+        return await revert(change_id)  # 010's revert of a registry change
+    try:
+        return await admin_api.revert_change(change_id)
+    except (admin_api.NotFound, admin_api.Conflict) as e:
+        raise _http(e) from e
+
+
+@router.post("/changes/{change_id}/reject", dependencies=[Admin])
+async def change_reject(change_id: str) -> dict[str, Any]:
+    if await _origin(change_id) == "registry":
+        raise HTTPException(status_code=409, detail="a registry change is applied at once: revert it instead")
+    try:
+        return await admin_api.reject_change(change_id)
+    except (admin_api.NotFound, admin_api.Conflict) as e:
+        raise _http(e) from e
+
+
+class ForbidIn(BaseModel):
+    days: int | None = Field(default=30, ge=1, le=3650)
+
+
+@router.post("/changes/{change_id}/forbid-similar", dependencies=[Admin])
+async def change_forbid(change_id: str, body: ForbidIn) -> dict[str, Any]:
+    """Forbid similar changes on this object: the object is frozen (a registry source, a parser)."""
+    if await _origin(change_id) == "registry":
+        async with sessionmaker()() as s:
+            ch = await s.get(RegistryChange, change_id)
+            domain = ch.domain if ch else ""
+        await freeze(domain)
+        return {"object_kind": "source", "object_key": domain, "frozen": True, "blocked": False, "until": None}
+    try:
+        return await admin_api.forbid_similar(change_id, body.days)
+    except (admin_api.NotFound, admin_api.Conflict) as e:
+        raise _http(e) from e
+
+
+@router.get("/accuracy", dependencies=[Admin])
+async def accuracy(days: int = 30) -> dict[str, Any]:
+    """The accuracy KPI against the baseline, by kind of data, and the components to blame (click 1 picks one)."""
+    return await admin_api.accuracy(days)
+
+
+@router.get("/accuracy/{component:path}/values", dependencies=[Admin])
+async def accuracy_values(component: str, days: int = 30) -> list[dict[str, Any]]:
+    """The wrong values blamed on one component (`parser:km77@v4`, `source:motor.es`, …); click 2 picks one."""
+    return await admin_api.wrong_values(component, days)
+
+
+@router.get("/values/{claim_id}", dependencies=[Admin])
+async def value(claim_id: str) -> dict[str, Any]:
+    """One value with its source, producer, quote, page snapshot and signals (click 3)."""
+    try:
+        return await admin_api.value(claim_id)
+    except admin_api.NotFound as e:
+        raise _http(e) from e
+
+
+@router.get("/snapshots/{snapshot_id}/text", dependencies=[Admin], response_class=PlainTextResponse)
+async def snapshot_text(snapshot_id: str, around: str | None = Query(default=None, max_length=2000)) -> str:
+    """The page text (at most 4,000 characters, plain text, never HTML) around the quote."""
+    try:
+        return await admin_api.snapshot_text(snapshot_id, around)
+    except admin_api.NotFound as e:
+        raise _http(e) from e
+
+
+@router.get("/engine", dependencies=[Admin])
+async def engine() -> dict[str, Any]:
+    """The header strip: worker beat, tasks, today's budgets, baseline, autonomy, open changes."""
+    return await admin_api.engine()
