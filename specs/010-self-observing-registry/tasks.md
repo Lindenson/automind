@@ -181,6 +181,20 @@ Paths are relative to `backend/` unless they start with `frontend/`, `deploy/`, 
 - [ ] T077 Run `scripts/check.sh` and `tests/golden`; then walk `specs/010-self-observing-registry/quickstart.md` sections 1–5 on `scripts/dev.sh` and record the results in `specs/010-self-observing-registry/checklists/requirements.md` notes.
 - [ ] T078 Turn `registry.autonomy: true` in `config/registry.yaml` after T077 passes, with a note in `docs/next-session.md` (the first live week is the baseline).
 
+## Phase 14: Everything in Docker, portable to another server (cross-cutting; can start right after Phase 1)
+
+Owner's requirement (2026-11-05): the whole project runs in Docker and moves to another server with one deployment script. Today `app` + `postgres` are already containers, but `scripts/deploy.sh` still demands `OPENAI_API_KEY` although `models.yaml` uses Gemini, there is no way to move a running installation, tests and dev run on the host, and Prometheus is not containerised yet.
+
+- [ ] T079 Fix `ensure_env` in `scripts/deploy.sh`: derive the required keys from the providers used in `backend/config/models.yaml` (+ `MODEL_<ROLE>` overrides in `.env`): `google_genai` → `GOOGLE_API_KEY` or `GEMINI_API_KEY`, `openai` → `OPENAI_API_KEY`, `anthropic` → `ANTHROPIC_API_KEY`; search key from `config/search.yaml` provider. Generate `ADMIN_TOKEN` and `METRICS_TOKEN` into `.env.docker` when missing (like `POSTGRES_PASSWORD`). Update `.env.example` (Gemini first, tokens documented).
+- [ ] T080 Add `scripts/deploy.sh export [file]`: one archive (`automind-bundle-<time>.tar.gz`, mode 600) with a fresh DB dump, `.env`, `.env.docker`, the git commit id, and `deploy/prometheus/metrics_token`; and `scripts/deploy.sh import <bundle>` on a fresh clone: checks out the commit, restores secrets, `up`, restores the dump, waits healthy. Optionally `--encrypt` with `age`/`gpg` when available.
+- [ ] T081 Add `scripts/deploy.sh move user@host [dir]`: over SSH, installs nothing but requires Docker + git on the target, clones the repo at the same commit, copies the bundle via `scp`, runs `import` remotely, prints the target URL; the source stack keeps running until the owner runs `down` (no silent cut-over).
+- [ ] T082 Add `scripts/deploy.sh bootstrap` for an empty Ubuntu/Debian server: checks Docker and the compose plugin, prints the exact install commands if missing (never runs `sudo` silently), creates `.env` from `.env.example` interactively.
+- [ ] T083 Optional reverse proxy with TLS: compose profile `public` with Caddy (`caddy:2.10`, automatic HTTPS for `AUTOMIND_DOMAIN`), app bound to the internal network only when the profile is on; documented in README. (Public exposure still requires the security list in `docs/review-2026-11-03.md`.)
+- [ ] T084 Tests and checks in Docker: `scripts/check.sh --docker` runs ruff, mypy, import-linter, pytest (against the compose Postgres, test DBs `automind_test`, `automind_mig`) and the frontend tests inside a `check` stage of the `Dockerfile` (dev dependencies), so the host needs only Docker. Keep the host mode as the default for speed.
+- [ ] T085 `scripts/dev.sh --docker`: run the API from the image with the source mounted and `uvicorn --reload`, frontend via Vite in a node container; host `uv`/`node` become optional.
+- [ ] T086 Monitoring profile (T073) and the bundle (T080) include Prometheus/Alertmanager config; `deploy.sh up --monitoring` starts both profiles. Document a full move in `docs/deploy.md`: export → move → verify `/api/v1/health`, `/metrics`, admin login → `down` on the old host.
+- [ ] T087 Rehearse a move on a throwaway target (local VM or a second compose project name on the same host via `COMPOSE_PROJECT_NAME=automind-move`): export → import → the same chats, issues and registry visible; record the result in `docs/deploy.md`.
+
 ## Dependencies & execution order
 
 - Phase 1 → Phase 2 → stories.
