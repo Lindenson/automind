@@ -430,7 +430,10 @@ case "$cmd" in
     compose ${profiles[@]+"${profiles[@]}"} up -d --remove-orphans
     wait_healthy
     if [[ " ${profiles[*]-} " == *" monitoring "* ]]; then
-      curl -fsS -X POST "http://127.0.0.1:${AUTOMIND_PROMETHEUS_PORT:-9090}/-/reload" >/dev/null 2>&1 || true
+      # pick up new scrape jobs and rules: reload if the lifecycle API is on, else restart the container
+      if ! curl -fsS -X POST "http://127.0.0.1:${AUTOMIND_PROMETHEUS_PORT:-9090}/-/reload" >/dev/null 2>&1; then
+        compose --profile monitoring restart prometheus >/dev/null
+      fi
       say "Prometheus: http://127.0.0.1:${AUTOMIND_PROMETHEUS_PORT:-9090}  Alertmanager: http://127.0.0.1:${AUTOMIND_ALERTMANAGER_PORT:-9093}"
     fi
     if [[ " ${profiles[*]-} " == *" public "* ]]; then say "Public: https://${AUTOMIND_DOMAIN}"; fi
