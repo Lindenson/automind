@@ -1,0 +1,24 @@
+# Prometheus for AutoMind (spec 010 US9). Started by `scripts/deploy.sh monitoring up` (compose profile `monitoring`).
+# The bearer token is METRICS_TOKEN from .env.docker, written by deploy.sh to deploy/prometheus/metrics_token
+# (mode 600, gitignored) and mounted read-only; it is never stored in this file.
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+
+rule_files:
+  - /etc/prometheus/automind-rules.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+scrape_configs:
+  - job_name: automind
+    metrics_path: /metrics
+    scheme: http
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/metrics_token
+    static_configs:
+      - targets: ["app:8000"]

@@ -1,0 +1,12 @@
+# Caddy for the compose profile `public` (scripts/deploy.sh up --public). Automatic HTTPS for AUTOMIND_DOMAIN
+# (set it in .env.docker; DNS must point at this host and ports 80/443 must be reachable for the certificate).
+# Before exposing AutoMind publicly, work through the security list in docs/review-2026-11-03.md.
+{$AUTOMIND_DOMAIN} {
+	encode zstd gzip
+
+	# Prometheus scrapes app:8000 inside the Docker network; never publish /metrics.
+	@metrics path /metrics /metrics/*
+	respond @metrics 404
+
+	reverse_proxy app:8000
+}

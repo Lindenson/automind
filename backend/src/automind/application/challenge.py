@@ -22,7 +22,9 @@ from automind.domain import specs
 from automind.infrastructure import db
 
 
-async def recheck(ref: Reference, chat_id: str, variant_id: str, attribute: str, user_text: str = "") -> dict[str, Any]:
+async def recheck(
+    ref: Reference, chat_id: str, variant_id: str, attribute: str, user_text: str = "", registry: Any = None
+) -> dict[str, Any]:
     async with db.sessionmaker()() as s:
         v = await s.get(db.Variant, variant_id)
         if v is None or attribute not in specs.ATTRS:
@@ -44,6 +46,7 @@ async def recheck(ref: Reference, chat_id: str, variant_id: str, attribute: str,
             )
         ).all()
         rejected, kept = [], []
+        judged: list[tuple[str, str, str, str | None, str | None, bool]] = []  # (domain, area, claim, excerpt, by, ok)
         claim_id = rows[0][0].id if rows else None  # spec 010 FR-006: the claim behind the shown value
         ctx = rs._plausibility_ctx(v, {})  # noqa: SLF001 - the research-time rules
         for c, e, d in rows:
@@ -55,6 +58,9 @@ async def recheck(ref: Reference, chat_id: str, variant_id: str, attribute: str,
                 rejected.append({"source": e.domain, "value": c.raw_value, "why": status.lower()})
             else:
                 kept.append(e.domain)
+            excerpt_missing = status == "REJECTED_UNSUPPORTED"  # the quote is not on the page: our extraction erred
+            by = "LLM_EXCERPT" if excerpt_missing else c.extracted_by
+            judged.append((e.domain, c.area or "specs", c.id, c.excerpt, by, status == "ACCEPTED"))
         await s.commit()
     await rs.reselect(variant_id)
     async with db.sessionmaker()() as s:
@@ -89,6 +95,7 @@ async def recheck(ref: Reference, chat_id: str, variant_id: str, attribute: str,
                                     details=details))  # fmt: skip
             await s.commit()
     area = specs.ATTRS[attribute].category
+    await _signals(registry, outcome, judged, new, variant_id, attribute)
     return {"outcome": outcome, "attribute": attribute, "car_id": variant_id, "area": area, **details,
             "turn_id": turn_id, "claim_id": claim_id}  # fmt: skip
 
@@ -97,3 +104,27 @@ def _shown(attribute: str, sv: Any) -> str | None:
     if sv is None or not sv.available:
         return None
     return str(sv.value_text if sv.value_text is not None else sv.value_num)
+
+
+async def _signals(registry: Any, outcome: str, judged: list[tuple[str, str, str, str | None, str | None, bool]],
+                   corrected: str | None, variant_id: str, attribute: str) -> None:  # fmt: skip
+    """Spec 010 T060: a challenge is a truth signal for the sources behind the value. A page that holds the right
+    number but was misread blames our reader or extractor, not the source (FR-017)."""
+    if registry is None or outcome == "UNRESOLVED":
+        return
+    from automind.acquisition.registry.api import (
+        TruthSignalIn,  # noqa: PLC0415
+        blame,  # noqa: PLC0415
+    )
+
+    for domain, area, claim_id, excerpt, by, ok in judged:
+        if outcome == "CONFIRMED" and ok:
+            verdict, who = "right", "source"
+        elif not ok:
+            verdict = "wrong"
+            who = "extractor" if by == "LLM_EXCERPT" else blame(corrected, excerpt, by)
+        else:
+            continue
+        await registry.signal(TruthSignalIn(kind="challenge", verdict=verdict, domain=domain, area=area,
+                                            variant_id=variant_id, attribute=attribute, claim_id=claim_id,
+                                            blame=who))  # type: ignore[arg-type]  # fmt: skip

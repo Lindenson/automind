@@ -67,24 +67,76 @@ const CONF: Record<Confidence, string> = {
   LOW: "bg-bad",
 };
 
+const CONF_TEXT: Record<Confidence, string> = {
+  HIGH: "text-good",
+  MEDIUM: "text-warn",
+  LOW: "text-bad",
+};
+
+/** Confidence as a dot and as text (spec 010 FR-040): never colour only. */
 export function ConfidenceDot({ c }: { c: Confidence }) {
   const t = useT();
-  const label = t("conf.dot", { c: t(`conf.${c}` as "conf.HIGH") });
+  const word = t(`conf.${c}` as "conf.HIGH");
+  const label = t("conf.dot", { c: word });
   return (
-    <span
-      className="inline-flex shrink-0 items-center"
-      role="img"
-      title={label}
-      aria-label={label}
-    >
+    <span className="inline-flex shrink-0 items-center gap-1" role="img" aria-label={label}>
       <span
+        aria-hidden
         className={cx(
           "h-2 w-2 rounded-full ring-2 ring-panel",
           CONF[c],
           c === "LOW" && "animate-pulse",
         )}
       />
+      <span aria-hidden className={cx("text-[10px] font-medium", CONF_TEXT[c])} data-testid="conf-text">
+        {word}
+      </span>
     </span>
+  );
+}
+
+/**
+ * A reason reachable by tap and keyboard (spec 010 FR-040), instead of a `title` tooltip: the trigger is a button
+ * that shows the reason as a visible line below it.
+ */
+export function Reveal({
+  children,
+  reason,
+  what,
+  className,
+  as = "span",
+  plain = false,
+}: {
+  children: ReactNode;
+  reason?: string | null;
+  /** what the reason is about, for the button name */
+  what: string;
+  className?: string;
+  as?: "span" | "li";
+  /** no dotted underline (a cell that is already a box) */
+  plain?: boolean;
+}) {
+  const t = useT();
+  const [open, setOpen] = useState(false);
+  const Tag = as;
+  if (!reason) return <Tag className={className}>{children}</Tag>;
+  return (
+    <Tag className="inline-flex max-w-full flex-col items-start">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-label={t("reason.aria", { what })}
+        onClick={() => setOpen((o) => !o)}
+        className={cx(className, "cursor-pointer", !plain && "underline decoration-dotted underline-offset-2")}
+      >
+        {children}
+      </button>
+      {open && (
+        <span role="note" className="mt-0.5 max-w-xs text-[11px] leading-snug text-muted">
+          {reason}
+        </span>
+      )}
+    </Tag>
   );
 }
 

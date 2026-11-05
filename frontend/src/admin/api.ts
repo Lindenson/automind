@@ -1,11 +1,17 @@
 /** Spec 010 T044: typed fetch layer of the admin page. Every call carries the admin token (FR-025). */
 import type { z } from "zod";
 import {
+  ChangeListSchema,
   ProblemDetailSchema,
   ProblemListSchema,
+  SourceDetailSchema,
+  SourceListSchema,
   StatusPatchSchema,
+  type Change,
   type ProblemDetail,
   type ProblemItem,
+  type SourceDetail,
+  type SourceList,
   type StatusPatch,
 } from "./schemas";
 
@@ -93,4 +99,19 @@ export const adminApi = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(StatusPatchSchema.parse(patch)),
     }),
+
+  sources: (area: string): Promise<SourceList> =>
+    adminFetch(`/sources?area=${encodeURIComponent(area)}`, SourceListSchema),
+  changes: (area: string, days = 30): Promise<Change[]> =>
+    adminFetch(`/sources/changes?days=${days}&area=${encodeURIComponent(area)}`, ChangeListSchema),
+  source: (domain: string): Promise<SourceDetail> =>
+    adminFetch(`/sources/${encodeURIComponent(domain)}`, SourceDetailSchema),
+  /** Owner actions on a whole source: freeze, unfreeze, block. */
+  sourceAction: (domain: string, action: SourceAction): Promise<void> =>
+    adminFetch(`/sources/${encodeURIComponent(domain)}/${action}`, null, { method: "POST" }),
+  /** Revert a journal entry; a refusal comes back as ApiError(409) with the server's reason. */
+  revert: (changeId: string): Promise<void> =>
+    adminFetch(`/sources/changes/${encodeURIComponent(changeId)}/revert`, null, { method: "POST" }),
 };
+
+export type SourceAction = "freeze" | "unfreeze" | "block";

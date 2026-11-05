@@ -1,4 +1,5 @@
 import type { Block } from "../../lib/protocol";
+import { Agreed } from "./Agreed";
 import { CaseSummary } from "./CaseSummary";
 import { CriteriaScores } from "./CriteriaScores";
 import { Engineering } from "./Engineering";
@@ -37,6 +38,8 @@ export function BlockView({ block }: { block: Block }) {
       return <Sources b={block} />;
     case "notice":
       return <Notice b={block} />;
+    case "agreed":
+      return <Agreed b={block} />;
     case "case_summary":
       return <CaseSummary b={block} />;
     case "criteria_scores":

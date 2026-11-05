@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from typing import Any
 
 from sqlalchemy import select
 
 from automind.acquisition.registry.api import Attempt, TruthSignalIn
 from automind.acquisition.registry.domain.model import Capability, Source
+from automind.acquisition.registry.domain.score import Counts, decay, score_of
 from automind.infrastructure.db.models import (
     CapabilityRow,
     RegistryAttempt,
@@ -35,7 +36,39 @@ def _cap_dict(r: CapabilityRow) -> dict[str, Any]:
     }
 
 
+DECAYED = ("attempts", "accepted", "right_w", "wrong_w", "robots_refusals", "junk", "cost_eur")
+
+
+def _decay(cap: CapabilityRow, hl: float) -> None:
+    """Fade counts and signals to now (half-life), so a site that went bad loses trust (spec 010 US6)."""
+    t = now()
+    days = (t - cap.decayed_at).total_seconds() / 86400 if cap.decayed_at else 0.0
+    if days > 0:
+        for f in DECAYED:
+            setattr(cap, f, decay(float(getattr(cap, f) or 0.0), days, hl))
+    cap.decayed_at = t
+
+
+def _refresh(cap: CapabilityRow, source_type: str, cfg: Mapping[str, Any]) -> None:
+    q = score_of(Counts(cap.attempts, cap.accepted, cap.right_w, cap.wrong_w, cap.cost_eur), source_type, cfg)
+    cap.score, cap.acc_mean, cap.acc_lb, cap.yield_ = q.score, q.acc_mean, q.acc_lb, q.yield_
+
+
 class RegistryRepo:
+    def __init__(self, cfg: Mapping[str, Any] | None = None) -> None:
+        if cfg is None:
+            from automind.infrastructure.config import load_yaml  # noqa: PLC0415
+
+            cfg = load_yaml("registry.yaml")
+        self.cfg = cfg
+        self.hl = float(cfg.get("half_life_days", 90))
+
+    async def _type(self, s: Any, domain: str, cache: dict[str, str]) -> str:
+        if domain not in cache:
+            src = await s.get(SourceRow, domain)
+            cache[domain] = src.source_type if src is not None else "OTHER"
+        return cache[domain]
+
     async def capabilities(self, area: str, markets: list[str]) -> list[dict[str, Any]]:
         async with sessionmaker()() as s:
             q = select(CapabilityRow).where(CapabilityRow.area == area, CapabilityRow.market.in_(markets))
@@ -145,9 +178,11 @@ class RegistryRepo:
         return cap
 
     async def record(self, attempts: list[Attempt]) -> None:
+        types: dict[str, str] = {}
         async with sessionmaker()() as s:
             for a in attempts:
                 cap = await self._capability(s, a.domain, a.area, a.market)
+                _decay(cap, self.hl)
                 ok = a.outcome == "accepted"
                 if not a.via_learned_query or not ok:  # spec 007 rule: no self-reinforcement through own queries
                     cap.attempts += 1
@@ -161,6 +196,7 @@ class RegistryRepo:
                 cap.cost_eur += a.cost_eur
                 cap.recent = [*(cap.recent or []), ok][-RECENT:]
                 cap.last_used = now()
+                _refresh(cap, await self._type(s, a.domain, types), self.cfg)
                 s.add(
                     RegistryAttempt(
                         capability_id=cap.id,
@@ -185,10 +221,12 @@ class RegistryRepo:
                     q = q.where(CapabilityRow.market == sig.market)
                 cap = (await s.execute(q.order_by(CapabilityRow.attempts.desc()).limit(1))).scalar_one_or_none()
                 if cap is not None:
+                    _decay(cap, self.hl)
                     if sig.verdict == "right":
                         cap.right_w += weight
                     else:
                         cap.wrong_w += weight
+                    _refresh(cap, await self._type(s, cap.domain, {}), self.cfg)
             s.add(
                 TruthSignal(
                     capability_id=cap.id if cap else None,

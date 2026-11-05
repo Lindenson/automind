@@ -11,7 +11,7 @@ from dataclasses import dataclass, field, replace
 from datetime import date
 from typing import Any
 
-from automind.application import compose, electric_block, incentives_research, research
+from automind.application import car_view, compose, electric_block, incentives_research, research
 from automind.application import feasibility as fz_app
 from automind.domain import incentives, intake, research_plan, sense, suggestions, tco, used
 from automind.domain import insights as ins
@@ -534,14 +534,25 @@ async def _blocks(
 ) -> list[dict[str, Any]]:  # fmt: skip
     cars = [car for _, car in keyed]
     model = c.ports.ref.criteria
+    try:
+        views = await car_view.view(case)  # spec 010 FR-036: the version line of each car
+    except Exception:  # noqa: BLE001 - a label, never a reason to fail the report
+        views = {}
     blocks: list[dict[str, Any]] = [
         compose.case_summary_block(
             case.persona,
             case_facts(case),
             [
-                {"key": x.key, "label": x.label or x.request_text, "condition": x.condition, "year": x.year}
+                {
+                    "key": x.key,
+                    "label": x.label or x.request_text,
+                    "condition": x.condition,
+                    "year": x.year,
+                    "variant_label": (views.get(x.key) or {}).get("variant_label"),
+                    "variant_id": x.variant_id,
+                }
                 for x in case.cars
-            ],
+            ],  # fmt: skip
         ),
         compose.spec_table(cars, {}, iset),
         compose.metric_bars(cars),

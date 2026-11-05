@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from automind.api import access
+from automind.application import car_view
 from automind.application.ports import TurnBusy, VersionConflict
 from automind.config import settings
 from automind.domain.casefile import (
@@ -196,7 +197,7 @@ async def get_case(chat_id: str, request: Request) -> dict[str, Any] | JSONRespo
         return _error(410, "chat_deleted", "This chat was deleted.")
     version, data, changed_by = await request.app.state.cases.latest(chat_id)
     case = CaseFile.model_validate(data) if data else CaseFile()
-    return {"version": version, "case": case.model_dump(mode="json"), "changed_by": changed_by}
+    return {"version": version, "case": await car_view.case_payload(case), "changed_by": changed_by}
 
 
 @router.get("/api/v1/chats/{chat_id}/weights", response_model=None)
@@ -248,8 +249,8 @@ async def patch_case(chat_id: str, patch: CasePatch, request: Request) -> dict[s
         return {"version": version, "case": data or {}, "changes": [], "rescore": "queued", "queued": True}
     version, new, changes = saved
     if changes:
-        await st.bus.publish(chat_id, None, "case_file", {"version": version, "case": new.model_dump(mode="json"),
-                                                          "changes": changes})  # fmt: skip
+        payload = {"version": version, "case": await car_view.case_payload(new), "changes": changes}
+        await st.bus.publish(chat_id, None, "case_file", payload)
     rescore = _want_rescore(st, chat_id, new, changes)
     return {"version": version, "case": new.model_dump(mode="json"), "changes": changes, "rescore": rescore}
 
@@ -327,8 +328,8 @@ async def _apply_queued(st: Any, chat_id: str) -> bool:
             return False
         version, new, changes = saved
         if changes:
-            await st.bus.publish(chat_id, None, "case_file", {"version": version, "case": new.model_dump(mode="json"),
-                                                              "changes": changes})  # fmt: skip
+            payload = {"version": version, "case": await car_view.case_payload(new), "changes": changes}
+            await st.bus.publish(chat_id, None, "case_file", payload)
             _CHANGES.setdefault(chat_id, []).extend(changes)
     return True
 

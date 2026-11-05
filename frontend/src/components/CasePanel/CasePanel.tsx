@@ -7,7 +7,8 @@ import { useLang, useT } from "../../i18n";
  */
 import { useCallback, useEffect, useId, useState, type ReactNode } from "react";
 import type { Key } from "../../i18n/en";
-import type { CaseFile } from "../../lib/protocol";
+import type { CaseCar, CaseFile } from "../../lib/protocol";
+import { CarChange } from "../CarChange";
 import { cx, useEscape, yearsLabel } from "../../lib/util";
 import { BASIS_CLS } from "../badges";
 import { patchCase, useCasePanel, type CasePatch } from "../../store/case";
@@ -172,36 +173,9 @@ export function CaseBody() {
           </p>
         )}
         <ul className="space-y-1.5">
-          {c.cars.map((car) => {
-            const r = RESOLUTION[car.resolution] ?? RESOLUTION.UNRESOLVED!;
-            return (
-              <li
-                key={car.key}
-                className="rounded border border-line/60 bg-panel2/60 px-2 py-1.5 text-sm"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <span className="min-w-0 font-medium">
-                    {car.label ?? car.request_text}
-                  </span>
-                  <span
-                    className={cx(
-                      "shrink-0 rounded border px-1 text-[10px] uppercase",
-                      r.cls,
-                    )}
-                  >
-                    {t(r.label)}
-                  </span>
-                </div>
-                <div className="text-xs text-muted">
-                  {nice(car.condition)}
-                  {car.year ? ` · ~${car.year}` : ""}
-                  {car.mileage_km
-                    ? ` · ${car.mileage_km.toLocaleString()} km`
-                    : ""}
-                </div>
-              </li>
-            );
-          })}
+          {c.cars.map((car) => (
+            <CarRow key={car.key} car={car} />
+          ))}
         </ul>
       </Section>
 
@@ -421,6 +395,60 @@ export function CaseBody() {
         </Section>
       )}
     </div>
+  );
+}
+
+/** A car of the case: its version line and "Change" (spec 010 FR-036/FR-037). A car still to confirm or of an
+ *  unknown model has its badge as the button that opens the change. */
+export function CarRow({ car }: { car: CaseCar }) {
+  const t = useT();
+  const [open, setOpen] = useState(false);
+  const focus = useCasePanel((s) => s.focus);
+  const r = RESOLUTION[car.resolution] ?? RESOLUTION.UNRESOLVED!;
+  const name = car.label ?? car.request_text;
+  const actionable = car.resolution === "PROPOSED" || car.resolution === "UNKNOWN_MODEL";
+  useEffect(() => {
+    if (focus !== car.key) return;
+    document.getElementById(`case-car-${car.key}`)?.scrollIntoView?.({ block: "nearest" });
+    useCasePanel.setState({ focus: null });
+  }, [focus, car.key]);
+  const badge = cx("shrink-0 rounded border px-1 text-[10px] uppercase", r.cls);
+  return (
+    <li
+      id={`case-car-${car.key}`}
+      className="rounded border border-line/60 bg-panel2/60 px-2 py-1.5 text-sm"
+      data-testid={`case-car-${car.key}`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <span className="min-w-0 font-medium">{name}</span>
+        {actionable ? (
+          <button
+            type="button"
+            aria-expanded={open}
+            aria-label={`${t(r.label)} — ${t("change.aria", { car: name })}`}
+            onClick={() => setOpen(!open)}
+            className={cx(badge, "underline decoration-dotted underline-offset-2 hover:bg-panel")}
+          >
+            {t(r.label)}
+          </button>
+        ) : (
+          <span className={badge}>{t(r.label)}</span>
+        )}
+      </div>
+      {car.variant_label && (
+        <div className="text-xs text-fg/80" data-testid="case-version">
+          {car.variant_label}
+        </div>
+      )}
+      <div className="flex flex-wrap items-center justify-between gap-1 text-xs text-muted">
+        <span>
+          {nice(car.condition)}
+          {car.year ? ` · ~${car.year}` : ""}
+          {car.mileage_km ? ` · ${car.mileage_km.toLocaleString()} km` : ""}
+        </span>
+      </div>
+      <CarChange car={car} name={name} open={open} onOpenChange={setOpen} className="mt-1 w-full" />
+    </li>
   );
 }
 

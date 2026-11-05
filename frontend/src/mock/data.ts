@@ -1,8 +1,8 @@
 import type { Block, SourceRef } from "../lib/protocol";
 import { simulate, timeToSpeed, type MockCarPhysics } from "./race";
 
-const GTI = "vw-golf-gti-mk8";
-const I30N = "hyundai-i30-n-2021";
+export const GTI = "vw-golf-gti-mk8";
+export const I30N = "hyundai-i30-n-2021";
 const GTI_LABEL = "VW Golf GTI Mk8 (2020–)";
 const I30N_LABEL = "Hyundai i30 N (2021–)";
 

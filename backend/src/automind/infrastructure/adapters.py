@@ -93,7 +93,7 @@ def live_ports(events: EventBus, prompts: dict[str, str]) -> Ports:
         versions=ModelVersionsRepo(),
         outcomes=_outcomes(ref, prompts),
         metrics=prom.inc,
-        registry=RegistryService(RegistryRepo(), ref.registry),
+        registry=RegistryService(RegistryRepo(ref.registry), ref.registry),
     )
 
 
