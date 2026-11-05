@@ -2,10 +2,12 @@
 (domain/ladder.py, spec 008 US6).
 
 Cache-first (the `versions` port: table `model_versions`, shared by every chat, refreshed after
-`intake.versions_ttl_days`). On a miss: one Spanish search for the model and the year (or generation),
+`intake.versions_ttl_days`). On a miss: Spanish searches for the model and the year (or generation),
 ≤ `intake.versions_max_pages` pages through the page store (robots respected, deny-list never read), the `versions`
 web reader extracts, and code keeps only what the documents support (FR-017): the power of each version is written
-in its excerpt, the excerpt occurs in its document, and its years overlap the generation's.
+in its excerpt, the excerpt occurs in its document, and its years overlap the generation's. A new car whose first
+searches find no list tries harder before the fallback (chat 5821ac77: an old catalog row won for a new Sorento):
+the generation with the current year, the market's model name, and the registry's spec sources (`site:`).
 """
 
 from __future__ import annotations
@@ -17,7 +19,7 @@ from pydantic import BaseModel, Field
 
 from automind.application.ports import Ports
 from automind.application.usage import current_budget
-from automind.domain import evidence, identity
+from automind.domain import evidence, identity, search_plan
 from automind.domain.ladder import Generation, Version, sold_in
 
 _GEARBOX = Literal["manual", "automatic", "dct", "cvt", "e-cvt", "single"]
@@ -119,23 +121,54 @@ def _rank(url: str, make: str) -> int:
     return score
 
 
-async def _read(ports: Ports, make: str, when_query: str, lim: dict[str, Any]) -> dict[str, tuple[str, str]]:
-    """Two searches (the range, the data sheet), up to `versions_read_pages` pages read (range pages first), the
-    richest `versions_max_pages` kept. Identification, not research: the searches are counted apart."""
+def _first_queries(when_query: str) -> list[str]:
+    """Two searches: the range, the data sheet."""
+    return [f"{when_query} gama motores versiones CV precios",
+            f"{when_query} versiones motores potencia CV ficha técnica"]  # fmt: skip
+
+
+HARDER_QUERIES = 3  # a new car without a list after the first searches: at most this many more
+SPEC_SITES = 3  # registry spec sources in the `site:` query
+
+
+async def _harder_queries(ports: Ports, make: str, model: str, generation: str | None, year: int) -> list[str]:
+    """A new car: the range of the current year (with the generation code), under the model's Spanish market name,
+    and on the registry's spec sources (spec 010; 009 FR-021)."""
+    aliases = getattr(getattr(ports.ref, "aliases", None), "market_names", None)
+    name = search_plan.market_names_of(aliases, make, model, generation).get("ES") or model
+    out = [f"{make} {name} {generation or ''} {year} gama motores versiones CV".replace("  ", " ")]
+    if name != model or generation:
+        out.append(f"{make} {name} {year} precios versiones potencia CV")
+    reg = getattr(ports, "registry", None)
+    if reg is not None and hasattr(reg, "sources_for"):
+        try:
+            sites = [s.domain for s in await reg.sources_for("specs", ["ES", "ANY"], SPEC_SITES)]
+        except Exception:  # noqa: BLE001 - the look-up works without the registry
+            sites = []
+        if sites:
+            out.append(f"{make} {name} {year} " + " OR ".join(f"site:{d}" for d in sites[:SPEC_SITES]))
+    return out[:HARDER_QUERIES]
+
+
+async def _read(ports: Ports, make: str, queries: list[str], lim: dict[str, Any],
+                done: set[str] | None = None) -> dict[str, tuple[str, str]]:  # fmt: skip
+    """The searches, up to `versions_read_pages` pages read (range pages first; `done`: URLs read before, skipped
+    and updated), the richest `versions_max_pages` kept. Identification, not research: counted apart."""
     budget = current_budget.get()
     before = budget.search_calls if budget is not None else 0
+    done = done if done is not None else set()
     try:
         urls: list[str] = []
-        for q in (f"{when_query} gama motores versiones CV precios",
-                  f"{when_query} versiones motores potencia CV ficha técnica"):  # fmt: skip
+        for q in queries:
             for h in await ports.search.search(q, market="ES", area="specs"):
-                if h.url not in urls and not evidence.is_denied(h.url):
+                if h.url not in urls and h.url not in done and not evidence.is_denied(h.url):
                     urls.append(h.url)
         urls.sort(key=lambda u: -_rank(u, make))  # stable: the search order within a rank
         read: dict[str, tuple[str, str]] = {}
         for url in urls[:12]:
             if len(read) >= int(lim.get("versions_read_pages", 6)):
                 break
+            done.add(url)
             page = await ports.page_store.get(url, area="specs")
             if page and page.text:
                 read[page.url] = (page.title or "", page.text[:14000])
@@ -147,9 +180,10 @@ async def _read(ports: Ports, make: str, when_query: str, lim: dict[str, Any]) -
 
 
 async def lookup(ports: Ports, make: str, model: str, *, generation: str | None, year: int | None,
-                 new: bool) -> Generation | None:  # fmt: skip
+                 new: bool, current_year: int | None = None) -> Generation | None:  # fmt: skip
     """The versions of this model in the generation asked (or the one built in `year`, or on sale now); None when
-    there is no store or no document supports any version (the fallback identifies then, FR-020)."""
+    there is no store or no document supports any version (the fallback identifies then, FR-020). A new car
+    (`current_year` given) tries harder before giving up (the current year's range, the registry's spec sources)."""
     store = ports.versions
     if store is None or "versions" not in (ports.ref.prompts or {}):
         return None
@@ -158,9 +192,20 @@ async def lookup(ports: Ports, make: str, model: str, *, generation: str | None,
     if hit is not None and covers(hit, year):
         return hit  # type: ignore[no-any-return]
     when = " ".join(x for x in (generation, str(year) if year else None) if x) or "nuevo"
-    docs = await _read(ports, make, f"{make} {model} {when}", lim)
-    if not docs:
-        return None
+    read: set[str] = set()
+    docs = await _read(ports, make, _first_queries(f"{make} {model} {when}"), lim, read)
+    g = await _from_docs(ports, store, hit, make, model, generation, year, docs, lim) if docs else None
+    if g is None and new and current_year:
+        more = await _harder_queries(ports, make, model, generation, current_year)
+        docs = await _read(ports, make, more, lim, read)
+        g = await _from_docs(ports, store, hit, make, model, generation, year, docs, lim) if docs else None
+    return g
+
+
+async def _from_docs(ports: Ports, store: Any, hit: Generation | None, make: str, model: str,
+                     generation: str | None, year: int | None, docs: dict[str, tuple[str, str]],
+                     lim: dict[str, Any]) -> Generation | None:  # fmt: skip
+    """The versions the documents list (the `versions` web reader, then code checks them); None when too few."""
     blob = "\n\n".join(f'<untrusted_document url="{u}">\n{t}\n{x[:7000]}\n</untrusted_document>'
                        for u, (t, x) in docs.items())  # fmt: skip
     ask = (f"Make: {make}\nModel: {model}\n" + (f"Generation: {generation}\n" if generation else "")

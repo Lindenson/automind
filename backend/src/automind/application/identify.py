@@ -138,6 +138,17 @@ def _catalog_version(c: dict[str, Any]) -> ladder.Version:
                           years_from=c.get("generation_years_from"), years_to=c.get("generation_years_to"))  # fmt: skip
 
 
+def _current_rows(rows: list[dict[str, Any]], year: int) -> list[dict[str, Any]]:
+    """A new car bought now: never a row that ended, or that a newer row of the same engine supersedes (the 2020
+    265 CV Sorento PHEV row next to the 2024 facelift's 288 CV row, chat 5821ac77)."""
+    vs = [_catalog_version(c) for c in rows]
+    now = ladder.on_sale(vs, year)
+    return [c for c, v in zip(rows, vs, strict=True) if v in now]
+
+
+CATALOG_STALE_YEARS = 4  # default; config/search.yaml intake.catalog_stale_years
+
+
 async def _fallback(ports: Ports, case: CaseFile, car: CaseCar, current_year: int, lineup: Any) -> IdentifyOutcome:
     """No sourced list of versions (FR-020): the catalog rows of the model follow the same levels — where they
     differ at a level the user did not state, it is asked; a row is never taken by being first. The identity is
@@ -147,27 +158,58 @@ async def _fallback(ports: Ports, case: CaseFile, car: CaseCar, current_year: in
     car.ladder = memo
     events = _reconcile(ports, car)
     a = await resolve.assess_car(car, ports.ref, current_year, case.compare_level)
-    if a.candidates:
+    now = resolve.bought_now(car, current_year)
+    cands = _current_rows(a.candidates, current_year) if now else a.candidates
+    if cands:
         # the user's words already pick one row (the ranker): that row; rows the words do not tell apart
         # ("2.0 diesel" with 115 and 150 CV rows) are asked level by level, never taken by being first
-        rows = _base_first(a.candidates) if a.state.ambiguous else a.candidates[:1]
+        rows = _base_first(cands) if a.state.ambiguous and len(cands) > 1 else cands[:1]
         pool = [_catalog_version(c) for c in rows]
         d = _decide(ports, case, car, pool, memo, events)
-        events.append({"kind": "identity_less_certain"})
         if not d.done or d.step.version is None:
+            events.append({"kind": "identity_less_certain"})
             return _asked(car, d, events)
+        years = int(_intake_cfg(ports).get("catalog_stale_years", CATALOG_STALE_YEARS))
+        # the sources were searched for the versions on sale and listed none (the versions store is there, the ladder
+        # fell back), and every row left was first sold long ago: the version may be a pre-facelift one
+        searched = getattr(ports, "versions", None) is not None
+        old = now and searched and all(ladder.stale(v, current_year, years) for v in pool)
+        if old:
+            stated = car.constraints.engine_hint is not None and bool(car.constraints.engine_hint.power_kw)
+            if stated and any(m.endswith(" CV") for m in d.missing):  # a power the old rows lack: the resolver
+                return await _open_less_certain(ports, case, car, current_year, lineup)
+            asked = case.intake.attempt(car.key, "POWER") > 0
+            if not (stated or d.auto or asked or car.chosen_for_me):
+                return _stale_asked(car, d.step.version, events)
+        events.append({"kind": "identity_less_certain"})
         row = rows[pool.index(d.step.version)]
         fresh = car.resolution not in ("CONFIRMED", "AUTO_OK", "PROPOSED")
         car.variant_id, car.label = row["id"], row["label"]
-        car.resolution = "AUTO_OK" if fresh and car.condition != "USED" and len(pool) == 1 else _proposed(car)
-        memo.others = [c["label"] for c in a.candidates if c["id"] != row["id"]][:4]
+        single = fresh and car.condition != "USED" and len(pool) == 1 and not old
+        car.resolution = "AUTO_OK" if single else _proposed(car)
+        memo.others = [c["label"] for c in cands if c["id"] != row["id"]][:4]
         choices = [Choice(label=c["label"], make=c["make"], model=c["model"], variant_id=c["id"])
-                   for c in a.candidates[:4]]  # fmt: skip
+                   for c in cands[:4]]  # fmt: skip
         return _done(car, IdentifyOutcome(outcome="IDENTIFIED", choices=choices, missing=d.missing, events=events))
-    o = await _resolve_open(ports, case, car, current_year, lineup)
+    return await _open_less_certain(ports, case, car, current_year, lineup)
+
+
+async def _open_less_certain(ports: Ports, case: CaseFile, car: CaseCar, year: int, lineup: Any) -> IdentifyOutcome:
+    o = await _resolve_open(ports, case, car, year, lineup)
     if o.outcome == "IDENTIFIED":
         o.events.append({"kind": "identity_less_certain"})
     return o
+
+
+def _stale_asked(car: CaseCar, v: ladder.Version, events: list[dict[str, str]]) -> IdentifyOutcome:
+    """Only old catalog rows for a new car (no sourced list): the version is uncertain, asked once (its power),
+    never taken silently; the answer or the next turn takes it, less certain (chat 5821ac77)."""
+    car.ladder = car.ladder or LadderMemo()
+    car.ladder.certainty = "LESS_CERTAIN"
+    events.append({"kind": "version_uncertain", "label": v.engine, "since": str(v.years_from or "")})
+    choices = [_choice(car, ladder.Option("POWER", v.engine, fuel=v.fuel, engine_cc=v.engine_cc,
+                                          power_kw=v.power_kw, engine=v.engine))]  # fmt: skip
+    return _done(car, IdentifyOutcome(outcome="CHOICES", need="POWER", level="POWER", choices=choices, events=events))
 
 
 def _base_first(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -467,7 +509,8 @@ async def _ladder(ports: Ports, case: CaseFile, car: CaseCar, year: int) -> Iden
     new = car.condition != "USED"
     gen = _generation(ports, car, year)
     try:
-        g = await versions.lookup(ports, car.make, car.model, generation=gen, year=None if new else car.year, new=new)
+        g = await versions.lookup(ports, car.make, car.model, generation=gen, year=None if new else car.year, new=new,
+                                  current_year=year)  # fmt: skip
     except Exception:  # noqa: BLE001 - a failed look-up never blocks the intake: the fallback identifies
         g = None
     if g is None or not g.versions:

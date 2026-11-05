@@ -164,6 +164,9 @@ class ResearchRun(Base):
     claims_rejected: Mapped[int] = mapped_column(Integer, default=0)
     rounds_used: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     minimum_met: Mapped[bool | None] = mapped_column(Boolean)
+    # spec 010 FR-022: when the area last tried the registry's sources with the escalation to the other European
+    # markets (None: never; an area below its minimum then gets that round in the first research of a turn)
+    registry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class ChatMessage(Base):
