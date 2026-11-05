@@ -159,7 +159,7 @@ Paths are relative to `backend/` unless they start with `frontend/`, `deploy/`, 
 - [ ] T067 [US7] "No data" only after active sources and bounded discovery failed, and the report names the sources tried (FR-022): pass the plan's tried domains for an area into the composed "no data" item in `application/compose.py` and render them in `frontend/src/components/blocks/DataPanel.tsx`.
 - [X] T068 [US7] Admin endpoints in `src/automind/api/admin.py` per contracts/admin-api.md: `GET /sources?area=`, `GET /sources/changes?days=&area=` (change kinds `promoted|demoted|retired|reordered|added|blocked|unblocked|frozen|reverted`), `GET /sources/{domain}`, `POST /sources/{domain}/freeze|unfreeze|block`, `POST /sources/changes/{id}/revert` (409 on hard limits and when a later change exists). Extend `tests/integration/test_admin_api.py`.
 - [ ] T069 [US7] Frontend `frontend/src/admin/Sources.tsx` (area selector; table: rank, domain, market, status, score, acc_lb, accuracy, yield, attempts, frozen/access marks; counts by status; "recent changes (30 days)" list with reason and revert button) and `frontend/src/admin/SourceCard.tsx` (capabilities, history, admission evidence with quotes, freeze/block). Tests in `frontend/src/admin/__tests__/sources.test.tsx`.
-- [ ] T070 [US7] Integration test `tests/integration/test_registry_autonomy.py` implementing the independent test with the `registry` fixture scenario and a fake `terms_reader`.
+- [X] T070 [US7] Integration test `tests/integration/test_registry_autonomy.py` implementing the independent test with the `registry` fixture scenario and a fake `terms_reader`.
 
 **Checkpoint**: the registry runs itself; the owner sees quality and changes.
 

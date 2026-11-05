@@ -321,6 +321,7 @@ async def revert(change_id: str) -> dict[str, Any]:
                     RegistryChange.created_at > ch.created_at,
                     RegistryChange.capability_id == ch.capability_id,
                     RegistryChange.held.is_(False),
+                    RegistryChange.change != "reordered",
                 )
                 .limit(1)
             )
