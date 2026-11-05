@@ -1,6 +1,6 @@
 # Quickstart: validating spec 011
 
-Prerequisites: `scripts/dev.sh` (Postgres in Docker, migrations to the latest (0018–0024), API on :8000, worker
+Prerequisites: `scripts/dev.sh` (Postgres in Docker, migrations to the latest (0018–0025), API on :8000, worker
 started unless `--no-worker`), `ADMIN_TOKEN` in `.env` (or loopback). Paths relative to `backend/`.
 
 ## 0. Automated (every stage)
@@ -30,7 +30,8 @@ By hand:
 ## 2. Separation and worker (US2)
 ```bash
 uv run pytest tests/unit/test_architecture.py tests/unit/test_no_acquisition_calls_in_chat.py -q
-uv run pytest tests/integration/test_task_queue.py tests/integration/test_worker.py tests/integration/test_prefetch.py -q
+uv run pytest tests/integration/test_task_queue.py tests/integration/test_worker.py tests/unit/test_worker_schedule.py -q
+# (tests/integration/test_prefetch.py is not written yet: T057; the prefetch path is covered in test_worker.py and test_redesign_acceptance.py)
 ```
 By hand:
 1. `docker compose up -d worker` (or dev.sh). `select kind, state, count(*) from acq_tasks group by 1,2`.
@@ -49,7 +50,8 @@ uv run pytest tests/integration/test_honest_reputation.py -q
 `active` and ranks below `honest`; a wrong value whose right number is in the snapshot lowers
 `component_reputation(parser, …)` and leaves the source's `wrong_w` unchanged.
 
-Baseline: `select name, started_at, ended_at from kpi_baselines` → a 7-day row exists before the owner sets
+Baseline: `uv run python -m automind.acquisition.reputation.baseline status --name pre-autonomy` or
+`select name, started_at, ended_at from kpi_baselines` → a 7-day row exists before the owner sets
 `registry.autonomy: true` (T-task with owner gate).
 
 ## 4. Parsers and drift (US4)
@@ -85,7 +87,7 @@ uv run pytest tests/integration/test_redesign_acceptance.py -q
 ## 6. Admin (US6)
 ```bash
 uv run pytest tests/integration/test_admin_engine_api.py -q
-cd ../frontend && npm test -- admin
+cd ../frontend && npx vitest run admin
 ```
 By hand: open `/admin` → **Parsers** shows `km77` with versions, daily chart, drift marker, canary; **Changes** lists
 the redesign change with its one-sentence explanation; **Revert** restores the previous version. Drill-down: Accuracy
@@ -93,7 +95,7 @@ KPI → `parser:km77@v1` → a wrong value → page text with the quote highligh
 
 ## 7. 010 leftovers (US7)
 ```bash
-uv run pytest tests/integration/test_unverified_label.py tests/integration/test_nodata_tried.py -q
+uv run pytest tests/graph/test_unverified_label.py tests/graph/test_nodata_tried.py -q
 test ! -e src/automind/domain/learned.py && echo "learned rule removed"
 ```
 A report with a candidate-sourced value shows "unverified source"; a "no data" area lists the sources tried.

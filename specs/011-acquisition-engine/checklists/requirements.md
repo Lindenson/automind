@@ -46,3 +46,18 @@
   The facade test (T038) returns the values recorded from the pre-move `run_job` on `bmw520`. Open: the SC-005
   measurement (p50/p95 of `automind_turn_duration_seconds` on 10 live turns with the worker's prefetch running vs
   stopped) needs the worker (T054–T057, branch `011-us2-worker`) and live model/search calls; T059 stays open for it.
+
+- Quickstart walk (T127, 2026-11-05, branch `011-adr-quickstart` from main 0045ec2): offline variant — own test
+  database `automind_test_qs` in the live `automind` Postgres (created, then dropped; the live stack untouched), dummy
+  model/search keys, no paid calls. A separate compose project was not started.
+
+  | Section | Ran | Result | Notes |
+  |---|---|---|---|
+  | 0 Automated | yes (pieces of `check.sh`) | passed | goldens 12 passed; `lint-imports` 10 contracts kept; full pytest 1,391 passed — the 9 `test_migrations` roundtrip failures are an artefact of the DB name (the test derives `automind_mig` by replacing `/automind_test`, which gave a nonexistent `automind_mig_qs`); frontend admin vitest 57 passed. `scripts/check.sh` itself not run (it targets the shared `automind_test`). |
+  | 1 Measurability | yes | passed | 41 tests incl. `test_v1_vs_broken_v2`; CLI on the test DB: `alembic upgrade head`, `gold.load --dataset reference_set` (0 values: empty DB), `replay --reader km77@v1 --since 30d --json` → 2 pages, 0.095 s, `network_calls: 0`, `llm_calls: 0`. Skipped: chat report + snapshot ratio SQL and `--dataset eea_co2` (live models / network). |
+  | 2 Separation, worker | yes | passed | 34 tests; `worker --once registry_review` → `done`, autonomy false, €0. `research.py` absent. Skipped: stopping a running API (no stack started); `test_prefetch.py` does not exist (T057), command fixed. |
+  | 3 Honest reputation | yes | passed | 33 tests; `baseline status --name pre-autonomy` → `null` (no window on the test DB). |
+  | 4 Parsers, drift | yes | passed | 62 tests incl. `test_parser_drift.py`. |
+  | 5 Agents, gates | yes | passed | 70 tests incl. `test_redesign_acceptance.py` (fake LLM, SC-007/SC-008). |
+  | 6 Admin | yes | passed | API 7 tests (token auth covered there); admin vitest 57. Skipped: clicking through `/admin` (no stack started). |
+  | 7 010 leftovers | yes | passed | 2 tests (paths fixed to `tests/graph/`); `learned.py` absent. |
