@@ -13,6 +13,7 @@ import type { Block } from "../lib/protocol";
 import { RatingControl } from "./RatingControl";
 import { buildCarColors, CarColorContext } from "./carColors";
 import { Logo } from "./Logo";
+import { MessageIdContext } from "./badges";
 import { WarnIcon } from "./icons";
 
 export const Message = memo(function Message({ m }: { m: UiMessage }) {
@@ -76,6 +77,7 @@ function AssistantMessage({ m }: { m: ChatMessage }) {
       <div className="hidden shrink-0 sm:block">
         <Logo small />
       </div>
+      <MessageIdContext.Provider value={m.message_id}>
       <div className="min-w-0 flex-1 space-y-3">
         <div className="flex items-center gap-2 text-xs text-muted">
           <span className="font-display font-semibold text-fg">AutoMind</span>
@@ -123,6 +125,7 @@ function AssistantMessage({ m }: { m: ChatMessage }) {
         </CarColorContext.Provider>
         {lead.length > 0 && <RatingControl messageId={m.message_id} />}
       </div>
+      </MessageIdContext.Provider>
     </div>
   );
 }

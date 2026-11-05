@@ -1,4 +1,6 @@
 import {
+  createContext,
+  useContext,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -9,6 +11,18 @@ import { createPortal } from "react-dom";
 import type { Confidence, Provenance, SourceRef } from "../lib/protocol";
 import { useT } from "../i18n";
 import { cx, fmtDate, hostOf } from "../lib/util";
+import { badSourceKey, useChat, type BadSourceState } from "../store/chat";
+
+/** The assistant message whose blocks are being rendered (spec 010 US2: "bad source" needs it). */
+export const MessageIdContext = createContext<string | null>(null);
+
+/** Where a source was cited: lets a "bad source" mark be tied to a value (all optional). */
+export interface SourceWhere {
+  messageId?: string;
+  carId?: string;
+  attribute?: string;
+  area?: string;
+}
 
 /** Theme tokens (`--prov-*` in index.css) with light variants: readable in both themes (audit F5). */
 const PROV: Record<Provenance, string> = {
@@ -75,14 +89,89 @@ export function ConfidenceDot({ c }: { c: Confidence }) {
 }
 
 
+/** spec 010 US2: "bad source" on an accepted source of an answer; "noted ✓" once the server acks. */
+export function BadSourceAction({
+  url,
+  messageId,
+  carId,
+  attribute,
+  area,
+}: { url: string; messageId: string } & Omit<SourceWhere, "messageId">) {
+  const state = useChat((st) => st.badSources[badSourceKey(messageId, url)]);
+  const badSource = useChat((st) => st.badSource);
+  return (
+    <BadSourceButton
+      state={state}
+      onClick={() => badSource({ messageId, url, carId, attribute, area })}
+    />
+  );
+}
+
+/** The "bad source" button itself, by state (no store). */
+export function BadSourceButton({
+  state,
+  onClick,
+}: {
+  state?: BadSourceState;
+  onClick?: () => void;
+}) {
+  const t = useT();
+  const label =
+    state === "noted"
+      ? t("sources.bad.noted")
+      : state === "ignored"
+        ? t("sources.bad.ignored")
+        : t("sources.bad");
+  return (
+    <button
+      type="button"
+      disabled={Boolean(state)}
+      aria-busy={state === "pending" || undefined}
+      aria-label={state ? label : t("sources.bad.aria")}
+      title={t("sources.bad.title")}
+      onClick={onClick}
+      className={cx(
+        "inline-flex items-center gap-1 rounded px-1 py-px text-[11px] font-medium text-muted transition hover:bg-panel2 hover:text-bad disabled:cursor-default disabled:hover:bg-transparent",
+        state === "noted" && "text-good disabled:hover:text-good",
+        state === "pending" && "opacity-70",
+        state === "ignored" && "disabled:hover:text-muted",
+      )}
+    >
+      {!state && <FlagIcon />}
+      {label}
+    </button>
+  );
+}
+
+function FlagIcon() {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      className="h-3 w-3"
+      aria-hidden
+    >
+      <path d="M4 18V3m0 1h9l-1.5 3.5L13 11H4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function SourceItem({
   s,
   compact,
+  messageId,
+  carId,
+  attribute,
+  area,
 }: {
   s: SourceRef;
   compact?: boolean;
-}) {
+} & SourceWhere) {
   const t = useT();
+  const ctxMessageId = useContext(MessageIdContext);
+  const mid = messageId ?? ctxMessageId ?? undefined;
   return (
     <div className="min-w-0">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -101,6 +190,9 @@ export function SourceItem({
         </span>
         <span>{hostOf(s.url)}</span>
         <span>{t("sources.retrieved", { date: fmtDate(s.retrieved_at) })}</span>
+        {!s.rejected && mid && s.url && (
+          <BadSourceAction url={s.url} messageId={mid} carId={carId} attribute={attribute} area={area} />
+        )}
       </div>
       {s.excerpt && (
         <p
@@ -118,7 +210,11 @@ export function SourceItem({
 
 /** Small "n sources" button with a viewport-clamped popover rendered in a portal.
  *  `what` names the value the sources are for (e.g. "0–100 km/h, Golf GTI") for screen readers. */
-export function SourcesButton({ sources, what }: { sources: SourceRef[]; what?: string }) {
+export function SourcesButton({
+  sources,
+  what,
+  ...where
+}: { sources: SourceRef[]; what?: string } & SourceWhere) {
   const t = useT();
   const [open, setOpen] = useState(false);
   const btn = useRef<HTMLButtonElement>(null);
@@ -213,7 +309,7 @@ export function SourcesButton({ sources, what }: { sources: SourceRef[]; what?: 
             </div>
             <div className="space-y-3">
               {sources.map((s, i) => (
-                <SourceItem key={i} s={s} />
+                <SourceItem key={i} s={s} {...where} />
               ))}
             </div>
           </div>,

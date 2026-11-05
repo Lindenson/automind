@@ -38,7 +38,7 @@ export function Engineering({ b }: { b: BlockOf<"engineering"> }) {
                       {it.display}
                       <ConfidenceDot c={it.confidence} />
                       {it.sources.length > 0 && (
-                        <SourcesButton sources={it.sources} />
+                        <SourcesButton sources={it.sources} carId={car.car_id} attribute={it.key} area="engineering" />
                       )}
                     </dd>
                   </div>

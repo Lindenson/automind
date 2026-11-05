@@ -33,6 +33,18 @@ export interface PendingTurn {
   kind?: "question" | "answer" | "edit";
 }
 
+/** spec 010 US2: state of a "bad source" mark, keyed by `${messageId}|${url}`. */
+export type BadSourceState = "pending" | "noted" | "ignored";
+export const badSourceKey = (messageId: string, url: string) => `${messageId}|${url}`;
+
+export interface BadSourceArgs {
+  messageId: string;
+  url: string;
+  carId?: string;
+  attribute?: string;
+  area?: string;
+}
+
 export interface CaseState {
   version: number;
   data: CaseFile;
@@ -68,6 +80,10 @@ interface ChatState {
   find: (focusCars: string[], areas: string[], text: string) => void;
   rate: (messageId: string, rating: number, note: string) => void;
   challenge: (carId: string, attribute: string) => void;
+  /** spec 010 US2: "bad source" marks sent in this chat */
+  badSources: Record<string, BadSourceState>;
+  /** true when the mark went out */
+  badSource: (args: BadSourceArgs) => boolean;
   answerConfirm: (choice: string, text?: string) => void;
   editIntake: (carKey: string | null, field: string, value: string) => void;
   cancel: () => void;
@@ -95,6 +111,7 @@ export const useChat = create<ChatState>((set, get) => {
     rescore: "idle",
     setRescore: (rescore) => set({ rescore }),
     usageByTurn: {},
+    badSources: {},
     historyLoading: false,
     transport: null,
 
@@ -191,6 +208,22 @@ export const useChat = create<ChatState>((set, get) => {
               },
             ],
           }));
+          break;
+        }
+        case "feedback_ack": {
+          // the ack names the url only: settle every pending mark of it
+          const state: BadSourceState = msg.ignored ? "ignored" : "noted";
+          set((s) => {
+            const badSources = { ...s.badSources };
+            let changed = false;
+            for (const [k, v] of Object.entries(badSources)) {
+              if (v === "pending" && k.endsWith(`|${msg.url}`)) {
+                badSources[k] = state;
+                changed = true;
+              }
+            }
+            return changed ? { badSources } : {};
+          });
           break;
         }
         case "turn_cancelled":
@@ -328,6 +361,23 @@ export const useChat = create<ChatState>((set, get) => {
       });
     },
 
+    badSource: ({ messageId, url, carId, attribute, area }) => {
+      const { transport, badSources } = get();
+      if (!transport || !messageId || !url) return false;
+      const key = badSourceKey(messageId, url);
+      if (badSources[key]) return false;
+      const ok = transport.send({
+        type: "bad_source",
+        message_id: messageId,
+        url,
+        ...(carId ? { car_id: carId } : {}),
+        ...(attribute ? { attribute } : {}),
+        ...(area ? { area } : {}),
+      });
+      if (ok) set((s) => ({ badSources: { ...s.badSources, [key]: "pending" } }));
+      return ok;
+    },
+
     setLang: (lang) => {
       storeLang(lang);
       set({ manualLang: lang });
@@ -426,6 +476,7 @@ export const useChat = create<ChatState>((set, get) => {
         confirm: null,
         caseFile: null,
         usageByTurn: {},
+        badSources: {},
       });
     },
 
@@ -439,6 +490,7 @@ export const useChat = create<ChatState>((set, get) => {
         confirm: null,
         caseFile: null,
         usageByTurn: {},
+        badSources: {},
       });
     },
   };
