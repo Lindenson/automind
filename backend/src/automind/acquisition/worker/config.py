@@ -20,6 +20,7 @@ DEFAULTS: dict[str, Any] = {
     },  # fmt: skip
     "schedule": {},
     "prefetch": {"enabled": False, "eur_per_day": 0.30, "jobs_per_run": 6, "window_days": 30, "due_within_h": 48},
+    # (a missing file keeps prefetch off; config/acquisition.yaml enables it)
     "tasks": {"done_days": 30, "dead_days": 90, "short_days": {}},
 }
 

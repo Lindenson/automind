@@ -40,6 +40,7 @@ def _cfg(**worker):
     cfg = worker_config()
     cfg["worker"] = {**cfg["worker"], "poll_s": 0.05, "lease_s": 30, "beat_s": 0.2, "grace_s": 0.2,
                      "schedule_s": 3600, "metrics_port": 0, **worker}  # fmt: skip
+    cfg["prefetch"] = {**cfg["prefetch"], "enabled": False}  # the real prefetch is tested in test_prefetch.py
     return cfg
 
 
@@ -73,7 +74,7 @@ async def test_due_background_tasks_run_and_are_journalled_without_the_api():
     assert rows["metrics_snapshot"]["result"]["series"] >= 0
     assert rows["registry_review"]["result"]["autonomy"] is False  # autonomy off: journalled, no source changes
     assert rows["registry_review"]["result"]["changes"] == 0
-    assert rows["prefetch"]["result"] == {"skipped": "disabled"}  # T057 not built yet: the slot is off by config
+    assert rows["prefetch"]["result"] == {"skipped": "disabled"}  # off here: tests/integration/test_prefetch.py
     for r in rows.values():
         assert r["locked_by"] == w.id and r["finished_at"] is not None and r["attempts"] == 1
     await w.beat()  # the heartbeat adds the tasks done since the last beat
@@ -100,7 +101,7 @@ async def test_scheduler_enqueues_each_period_once():
     first = await w.tick_schedule(t)
     again = await w.tick_schedule(t + timedelta(seconds=20))
     assert "metrics_snapshot" in first and "registry_review" in first and "insight_run" in first
-    assert "prefetch" not in first  # disabled until T057
+    assert "prefetch" not in first  # hourly 06-22 UTC only
     assert again == []  # same periods: the dedupe keys exist
     keys = {r["dedupe_key"] for r in await _rows()}
     assert {"snap:2026-11-05T03:00", "review:2026-11-05"} <= keys

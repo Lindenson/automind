@@ -39,10 +39,10 @@ def test_interval_is_the_longest_gap():
     assert scheduler.interval_s({"hourly": [6, 22]}) == 8 * 3600  # 22:00 -> 06:00
 
 
-def test_shipped_schedule_has_handlers_and_prefetch_is_off():
+def test_shipped_schedule_has_handlers_and_prefetch_runs_hourly():
     cfg = worker_config()
     assert set(cfg["schedule"]) <= set(HANDLERS)
-    assert cfg["schedule"]["prefetch"]["enabled"] is False and cfg["prefetch"]["enabled"] is False
-    assert {"metrics_snapshot", "registry_review", "insight_run", "prune_tasks"} <= set(
+    assert cfg["prefetch"]["enabled"] is True  # T057: the owner accepted the €0.30/day budget
+    assert {"metrics_snapshot", "registry_review", "insight_run", "prune_tasks", "prefetch"} <= set(
         scheduler.enabled(cfg["schedule"])
     )

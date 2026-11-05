@@ -26,7 +26,7 @@ schedule:
   registry_review: {daily: "03:00", key: review, loop: registry}     # registry.yaml autonomy decides what it does
   retention_snapshots: {daily: "01:00", key: snapret}                # snapshot retention (US1 T030) when it exists
   prune_tasks: {daily: "01:30", key: prune}                          # old acq_tasks rows (see `tasks`)
-  prefetch: {hourly: [6, 22], key: prefetch, enabled: false}         # T057: off until acquire() exists
+  prefetch: {hourly: [6, 22], key: prefetch}                         # T057: popular cars refreshed, prefetch budget
   reputation_signals: {every_s: 900, key: repsig, loop: reputation}  # US3 T070: gold/physics/agreement/replacement
   rollup: {daily: "00:30", key: rollup, loop: rollup}                # US3 T072: acq_daily, exploration reset, fade
   baseline: {daily: "00:45", key: baseline}                          # US3 T073: open KPI baselines
@@ -38,12 +38,18 @@ schedule:
   parser_doctor: {daily: "03:40", key: doctorsweep}                  # US5 T105: spec sites without a parser
   evaluator: {daily: "04:00", key: eval, loop: evaluator}            # US5 T103: KPI, shadow deadlines, watch/rollback
 
-prefetch:
-  enabled: false        # the handler slot completes with {"skipped": "disabled"} while false
-  eur_per_day: 0.30
-  jobs_per_run: 6
-  window_days: 30
-  due_within_h: 48
+prefetch:                # spec 011 T057 (worker/prefetch.py); the owner accepted the budget (2026-11-05)
+  enabled: true            # false: the handler slot completes with {"skipped": "disabled"}
+  eur_per_day: 0.30        # all prefetch tasks of a UTC day (their llm_calls + search_calls); stops before a job
+                           # when less than min_eur_per_job is left, and inside a job at the cap (+ one model call)
+  min_eur_per_job: 0.01
+  jobs_per_run: 6          # acquire() calls (car x area) per hourly run
+  variants_per_run: 3      # cars per run, the most asked first (distinct chats, then jobs)
+  window_days: 30          # popularity window over research_jobs
+  due_within_h: 48         # an area is refreshed when its freshness ends within this (or it never ran)
+  short_retry_h: 72        # an area left below its minimum is tried again after this
+  other_fresh_days: 90     # freshness of areas without a Settings.fresh_*_days
+  busy_min: 15             # a car with a chat's research job running for less than this is skipped
 
 reputation:                # spec 011 US3 (T070)
   lookback_h: 26           # variants with claims, selections or gold newer than this are re-checked each run
