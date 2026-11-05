@@ -58,7 +58,7 @@ export function CriteriaScores({ b }: { b: BlockOf<"criteria_scores"> }) {
                     {car.label}
                   </span>
                   {win && (
-                    <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold uppercase text-white">
+                    <span className="shrink-0 rounded-full bg-accent-solid px-2 py-0.5 text-[10px] font-bold uppercase text-on-accent">
                       Best fit
                     </span>
                   )}

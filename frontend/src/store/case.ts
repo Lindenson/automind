@@ -1,7 +1,7 @@
 /** Case file REST client (GET/PATCH /api/v1/chats/{id}/case, FR-009) and panel UI state. */
 import { create } from "zustand";
 import { CaseSchema, type CaseFile } from "../lib/protocol";
-import { useChat } from "./chat";
+import { noteworthy, useChat } from "./chat";
 
 export type CasePatch = Partial<{
   persona: CaseFile["persona"];
@@ -97,9 +97,50 @@ export async function patchCase(
 interface PanelState {
   open: boolean;
   setOpen: (v: boolean) => void;
+  /** spec 010 FR-038: case changes that arrived while the panel was closed */
+  unseen: number;
+  /** the field a "Noted … — Edit" link asked to show (a car key or a section), cleared by the panel */
+  focus: string | null;
+  openAt: (focus: string | null) => void;
 }
 
 export const useCasePanel = create<PanelState>((set) => ({
   open: false,
-  setOpen: (open) => set({ open }),
+  unseen: 0,
+  focus: null,
+  setOpen: (open) => set(open ? { open, unseen: 0 } : { open, focus: null }),
+  openAt: (focus) => set({ open: true, unseen: 0, focus }),
 }));
+
+/** Wide screens show the panel beside the chat (spec 010 FR-038). */
+export const WIDE = "(min-width: 1280px)";
+const isWide = () =>
+  typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia(WIDE).matches;
+
+/**
+ * The panel speaks up: it opens by itself on the first case file of a chat on a wide screen, and counts the changes
+ * that arrive while it is closed (the badge on "Your case").
+ */
+export function watchCase(wide: () => boolean = isWide): () => void {
+  let opened = false;
+  return useChat.subscribe((s, prev) => {
+    if (s.chatId !== prev.chatId) {
+      opened = false;
+      useCasePanel.setState({ unseen: 0, focus: null });
+      return;
+    }
+    const cf = s.caseFile;
+    if (!cf || cf === prev.caseFile) return;
+    const panel = useCasePanel.getState();
+    if (!opened && !prev.caseFile && cf.data.cars.length > 0) {
+      opened = true;
+      if (wide() && !panel.open) {
+        panel.setOpen(true);
+        return;
+      }
+    }
+    const fresh = !prev.caseFile || cf.version > prev.caseFile.version;
+    if (fresh && noteworthy(cf.changes).length > 0 && !useCasePanel.getState().open)
+      useCasePanel.setState((p) => ({ unseen: p.unseen + 1 }));
+  });
+}

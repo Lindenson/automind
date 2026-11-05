@@ -55,7 +55,7 @@ function LegacyConfirm({ req }: { req: ConfirmRequest }) {
           <>
             <button
               type="button"
-              className="rounded-full bg-accent px-4 py-1.5 text-sm font-semibold text-bg hover:opacity-90"
+              className="rounded-full bg-accent-solid px-4 py-1.5 text-sm font-semibold text-on-accent hover:opacity-90"
               onClick={() => answer("run")}
             >
               {t("confirm.run")}
@@ -76,7 +76,7 @@ function LegacyConfirm({ req }: { req: ConfirmRequest }) {
               onClick={() => answer(o.id)}
               className={
                 i === 0
-                  ? "rounded-full bg-accent px-4 py-1.5 text-sm font-semibold text-bg hover:opacity-90"
+                  ? "rounded-full bg-accent-solid px-4 py-1.5 text-sm font-semibold text-on-accent hover:opacity-90"
                   : "rounded-full border border-line/70 px-4 py-1.5 text-sm hover:border-accent/60"
               }
             >
@@ -100,7 +100,7 @@ function LegacyConfirm({ req }: { req: ConfirmRequest }) {
             ))}
             <button
               type="button"
-              className="rounded-xl bg-accent px-3 py-1.5 text-sm font-semibold text-bg hover:opacity-90"
+              className="rounded-xl bg-accent-solid px-3 py-1.5 text-sm font-semibold text-on-accent hover:opacity-90"
               onClick={() => answer("confirm")}
             >
               {t("confirm.yes")}

@@ -6,6 +6,7 @@ from typing import Any
 
 from langgraph.runtime import Runtime
 
+from automind.application import car_view
 from automind.domain.casefile import CaseFile
 from automind.orchestration.runner import TurnContext
 
@@ -27,7 +28,7 @@ async def load_case(c: TurnContext) -> tuple[int, CaseFile]:
 async def save_case(c: TurnContext, case: CaseFile, changes: list[str], *, publish: bool = True) -> int:
     version = await c.ports.cases.save_version(c.chat_id, case.model_dump(mode="json"), "hub", changes)
     if publish:
-        await c.emit("case_file", {"version": version, "case": case.model_dump(mode="json"), "changes": changes})
+        await c.emit("case_file", {"version": version, "case": await car_view.case_payload(case), "changes": changes})
     return version
 
 

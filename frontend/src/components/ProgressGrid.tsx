@@ -3,6 +3,7 @@ import { useT } from "../i18n";
 import type { ProgressMsg } from "../lib/protocol";
 import { cx, sentence } from "../lib/util";
 import type { PendingTurn } from "../store/chat";
+import { Reveal } from "./badges";
 
 const STATE: Record<ProgressMsg["state"], { icon: string; cls: string }> = {
   queued: { icon: "·", cls: "text-muted border-line/60" },
@@ -39,7 +40,7 @@ export function ProgressGrid({ pending }: { pending: PendingTurn }) {
           {t("progress.seconds", { s: elapsed })}
         </span>
       </div>
-      <div className="-mx-1 overflow-x-auto scroll-thin">
+      <div className="-mx-1 overflow-x-auto scroll-thin" tabIndex={0} role="region" aria-label={t("progress.title")}>
         <table className="w-full border-separate border-spacing-1 text-xs">
           <thead>
             <tr>
@@ -62,15 +63,15 @@ export function ProgressGrid({ pending }: { pending: PendingTurn }) {
                   const what = `${t(`progress.${c.state}` as "progress.done")}${c.accepted ? ` · ${c.accepted}` : ""}`;
                   return (
                     <td key={a}>
-                      <span
-                        title={what}
-                        role="img"
-                        aria-label={`${label}, ${sentence(a)}: ${what}`}
+                      <Reveal
+                        reason={what}
+                        what={`${label}, ${sentence(a)}`}
+                        plain
                         className={cx("flex h-7 min-w-7 items-center justify-center rounded-md border", st.cls)}
                       >
                         {st.icon}
                         {c.accepted ? <span className="ml-0.5 tabular">{c.accepted}</span> : null}
-                      </span>
+                      </Reveal>
                     </td>
                   );
                 })}

@@ -167,7 +167,7 @@ export function RaceChart({ b }: { b: BlockOf<"race_chart"> }) {
       )}
 
       {results.length > 0 && (
-        <div className="mt-4 overflow-x-auto scroll-thin">
+        <div className="mt-4 overflow-x-auto scroll-thin" tabIndex={0} role="region" aria-label={b.title}>
           <table className="w-full min-w-[460px] text-sm">
             <thead>
               <tr className="border-b border-line/60 text-left text-[11px] uppercase tracking-wider text-muted">
@@ -193,7 +193,7 @@ export function RaceChart({ b }: { b: BlockOf<"race_chart"> }) {
                       className={cx(
                         "inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold",
                         r.rank === 1
-                          ? "bg-accent text-white"
+                          ? "bg-accent-solid text-on-accent"
                           : "bg-panel2 text-muted",
                       )}
                     >

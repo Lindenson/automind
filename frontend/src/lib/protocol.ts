@@ -213,6 +213,22 @@ export const CaseSummaryBlockSchema = z.object({
       label: z.string(),
       condition: ConditionSchema,
       year: z.number().nullable(),
+      // spec 010 FR-036: engine · gearbox · trim · year of the resolved version
+      variant_label: z.string().nullish(),
+      variant_id: z.string().nullish(),
+    }),
+  ),
+});
+
+// spec 010 FR-035: what was agreed after a confirmation (persisted, read-only)
+export const AgreedBlockSchema = z.object({
+  type: z.literal("agreed"),
+  cars: z.array(
+    z.object({
+      key: z.string(),
+      label: z.string(),
+      variant_label: z.string().nullish(),
+      basis: z.string().default("LOOKED_UP"),
     }),
   ),
 });
@@ -638,6 +654,7 @@ export const SuggestionsBlockSchema = z.object({
 });
 
 export const BlockSchema = z.discriminatedUnion("type", [
+  AgreedBlockSchema,
   SuggestionsBlockSchema,
   ValueRetentionBlockSchema,
   DataPanelBlockSchema,
@@ -760,6 +777,16 @@ export const AssistantMsgSchema = z.object({
   language: z.string().nullish(), // spec 004 FR-024: drives the interface language
 });
 
+// spec 010 FR-035: the "Agreed" entry, saved by the server after a confirmation (the turn goes on)
+export const AgreedMsgSchema = z.object({
+  ...Envelope,
+  type: z.literal("agreed"),
+  message_id: z.string(),
+  created_at: z.string(),
+  text: z.string(),
+  blocks: RawBlocks,
+});
+
 export const UserAckSchema = z.object({
   ...Envelope,
   type: z.literal("user_message_ack"),
@@ -774,6 +801,17 @@ export const ErrorMsgSchema = z.object({
   code: z.string().nullish(), // e.g. "chat_deleted"
 });
 
+/** The choices of "Change" on a car (spec 010 FR-037), from the catalog and the version ladder. */
+const optionList = z.array(z.string()).default([]).catch([]);
+export const CarOptionsSchema = z.object({
+  generation: optionList,
+  engine: optionList,
+  gearbox: optionList,
+  trim: optionList,
+});
+export type CarOptions = z.infer<typeof CarOptionsSchema>;
+export type CarEditField = "generation" | "engine" | "gearbox" | "trim" | "not_this_car" | "remove";
+
 /** The case file is rendered by the case panel; its inner shape is validated loosely (data-model §2). */
 export const CaseCarSchema = z.object({
   key: z.string(),
@@ -787,6 +825,11 @@ export const CaseCarSchema = z.object({
   resolution: z
     .enum(["UNRESOLVED", "PROPOSED", "CONFIRMED", "AUTO_OK", "UNKNOWN_MODEL"])
     .catch("UNRESOLVED"),
+  make: z.string().nullish(),
+  model: z.string().nullish(),
+  // spec 010 FR-036/FR-037: views added by the server (never stored in the case)
+  variant_label: z.string().nullish(),
+  options: CarOptionsSchema.nullish().catch(null),
 });
 export const CaseSchema = z
   .object({
@@ -844,6 +887,7 @@ export const CaseSchema = z
   })
   .passthrough();
 export type CaseFile = z.infer<typeof CaseSchema>;
+export type CaseCar = z.infer<typeof CaseCarSchema>;
 
 export const CaseFileMsgSchema = z.object({
   ...Envelope,
@@ -957,6 +1001,7 @@ export const FeedbackAckSchema = z.object({
   ignored: z.boolean().nullish(),
 });
 export type FeedbackAck = z.infer<typeof FeedbackAckSchema>;
+export type ChallengeResult = z.infer<typeof ChallengeResultSchema>;
 
 // spec 004 FR-023: one cell of the car × area research grid
 export const ProgressMsgSchema = z.object({
@@ -980,6 +1025,7 @@ export const ProgressMsgSchema = z.object({
 export type ProgressMsg = z.infer<typeof ProgressMsgSchema>;
 
 export const ServerMsgSchema = z.discriminatedUnion("type", [
+  AgreedMsgSchema,
   ProgressMsgSchema,
   ChallengeResultSchema,
   FeedbackAckSchema,
@@ -1081,7 +1127,16 @@ export type IntakeEditOut = {
   field: string;
   value: string;
 };
+/** spec 010 FR-037: "Change" on a car, applied by code on the server. */
+export type CarEditOut = {
+  type: "car_edit";
+  message_id?: string;
+  car_key: string;
+  field: CarEditField;
+  value?: string;
+};
 export type ClientMsg =
+  | CarEditOut
   | UserMessageOut
   | HelloOut
   | ConfirmOut

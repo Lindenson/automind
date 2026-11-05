@@ -7,8 +7,8 @@ from typing import Any
 
 from langgraph.runtime import Runtime
 
+from automind.application import car_view, research, resolve
 from automind.application import feasibility as fz_app
-from automind.application import research, resolve
 from automind.application.interpret import Interpretation, InterpretError, interpret
 from automind.config import settings
 from automind.domain import identification, intake, research_plan
@@ -29,7 +29,7 @@ from automind.orchestration.phrases import t
 from automind.orchestration.runner import TurnContext
 from automind.orchestration.state import PER_TURN_RESET, TurnState
 
-from .common import ctx, current_year, history, load_case, notice, save_case
+from .common import ctx, current_year, history, load_case, notice, record_intake, save_case
 
 
 async def load_case_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
@@ -43,6 +43,8 @@ async def interpret_node(state: TurnState, runtime: Runtime[TurnContext]) -> dic
     c = ctx(runtime)
     _, case = await load_case(c)
     preset = state.get("preset")
+    if preset and preset.get("kind") == "car_edit":  # spec 010 FR-037: a structured car edit, applied by code
+        return await _car_edit(c, case, preset)
     if preset:  # a button already knows the request ("find it"): no model call
         said = [m["text"] for m in await history(c) if m["role"] == "user"]
         lang = preset.get("language") or phrases.guess_language(said)
@@ -73,11 +75,29 @@ async def interpret_node(state: TurnState, runtime: Runtime[TurnContext]) -> dic
     return {"interpretation": i.model_dump(mode="json"), "request_kind": i.request, "language": i.language}
 
 
+async def _car_edit(c: TurnContext, case: CaseFile, preset: dict[str, Any]) -> dict[str, Any]:
+    """ "Change" on a car (engine, gearbox, trim, generation, not this car, remove): the delta is built by code and
+    goes the normal way (apply_delta → identify → assess → policy); the interpreter is never called."""
+    said = [m["text"] for m in await history(c) if m["role"] == "user"]
+    lang = preset.get("language") or phrases.guess_language(said)
+    key, field = str(preset.get("car_key") or ""), str(preset.get("field") or "")
+    try:
+        delta = car_view.edit_delta(case, key, field, str(preset.get("value") or ""), c.ports.ref.makes.match_make
+                                    if c.ports.ref.makes is not None else None)  # fmt: skip
+    except (ValueError, KeyError):
+        return {"action": "ASK", "done": True, "reply_text": t("which_car", lang), "language": lang}
+    await record_intake(c, "CARD_EDITED", key, field, source="car_edit")
+    i = Interpretation(request="correction", language=lang, relation="correction", delta=delta)
+    return {"interpretation": i.model_dump(mode="json"), "request_kind": i.request, "language": i.language}
+
+
 async def apply_delta_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
     c = ctx(runtime)
     _, case = await load_case(c)
     i = Interpretation.model_validate(state["interpretation"])  # type: ignore[typeddict-item]
     year = current_year(c)
+    if (state.get("preset") or {}).get("kind") == "car_edit":  # the edit's label is not the user's words
+        state = {**state, "user_text": ""}  # type: ignore[typeddict-item]
     picked = _pick(case, state.get("user_text") or "") if state.get("picked") else None
     try:
         new, changes = picked if picked is not None else apply(case, i.delta, current_year=year)

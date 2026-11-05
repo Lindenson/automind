@@ -4,6 +4,7 @@ import type { BlockOf } from "../../lib/protocol";
 import { cx, fmtNum } from "../../lib/util";
 import { useChat } from "../../store/chat";
 import { useCarColor } from "../carColors";
+import { Reveal } from "../badges";
 
 const CONF: Record<string, { cls: string }> = {
   HIGH: { cls: "border-good/40 text-good" },
@@ -15,7 +16,7 @@ const CONF: Record<string, { cls: string }> = {
 export const DataPanelPresent = createContext(false);
 
 /** The verdict card: first block of every report (spec 004 FR-001). Built by code; every number is sourced. */
-export function Verdict({ b }: { b: BlockOf<"verdict"> }) {
+export function Verdict({ b, versions }: { b: BlockOf<"verdict">; /** the cars with their version lines (FR-036) */ versions?: string }) {
   const t = useT();
   const color = useCarColor();
   const conf = CONF[b.confidence] ?? CONF.MEDIUM!;
@@ -36,12 +37,16 @@ export function Verdict({ b }: { b: BlockOf<"verdict"> }) {
           )}
           <span className="min-w-0">{b.headline}</span>
         </h2>
+        {versions && (
+          <p className="order-last w-full text-xs text-muted" data-testid="verdict-for">
+            {t("verdict.for", { cars: versions })}
+          </p>
+        )}
         <span
           className={cx(
             "shrink-0 rounded-full border px-2 py-0.5 text-xs",
             conf.cls,
           )}
-          title={b.confidence_reason}
         >
           {t(`verdict.conf.${b.confidence}` as "verdict.conf.HIGH")}
         </span>
@@ -113,7 +118,14 @@ function Electrified({ b }: { b: BlockOf<"verdict"> }) {
   const labels = Object.values(b.labels ?? {}).filter((l) => l.label !== "UNKNOWN");
   return (
     <div className="space-y-1 text-sm">
-      {text && <p title={be?.inputs.join("\n")}>{text}</p>}
+      {text && (
+        <p>
+          {text}{" "}
+          <Reveal reason={be?.inputs.join("; ")} what={text} className="text-xs text-muted">
+            {t("reason.show")}
+          </Reveal>
+        </p>
+      )}
       {labels.length > 0 && (
         <p className="text-xs text-muted">
           {t("verdict.labels")}

@@ -362,6 +362,11 @@ PHRASES: dict[str, dict[str, str]] = {
         "ru": "{car}: поиск — {area} не завершён ({error})",
         "es": "{car}: búsqueda de {area} incompleta ({error})",
     },
+    "agreed": {
+        "en": "Agreed: {cars}",
+        "ru": "Договорились: {cars}",
+        "es": "Acordado: {cars}",
+    },
     "which_car": {
         "en": "Which of the cars do you mean? Please name it.",
         "ru": "Какую из машин вы имеете в виду? Назовите её, пожалуйста.",

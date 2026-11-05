@@ -115,12 +115,16 @@ class ChatRunner:
     ) -> TurnResult:
         """Handle a user message: resume a pending confirmation, or start a new turn. `preset` is a request a
         button already knows (e.g. "find it": research_more for given cars and areas): no interpretation call.
-        A rescore preset (a panel edit) is stored with the hidden role `edit`: it is not the user's words, so the
-        chat does not show it and the interpreter never reads it (spec 007 J, T073)."""
+        A rescore or car-edit preset (a panel edit) is stored with the hidden role `edit`: it is not the user's
+        words, so the chat does not show it and the interpreter never reads it (spec 007 J, T073)."""
         active = await self.ports.turns.active(chat_id)
         if active is not None and active.status == "RUNNING":
             raise Busy("a turn is already running in this chat")
-        edit = (preset or {}).get("kind") in ("rescore", "report_saved")
+        kind = (preset or {}).get("kind")
+        edit = kind in ("rescore", "report_saved", "car_edit")
+        if kind == "car_edit" and active is not None and active.status == "WAITING_CONFIRMATION":
+            await self._supersede(chat_id, active.id)  # "Change" on a car replaces the open question
+            active = None
         if edit and active is not None:
             raise Busy("a question is open: the edit is used when the user answers")
         msg = await self.messages.save(chat_id, "edit" if edit else "user", text, message_id=message_id)
@@ -396,6 +400,11 @@ class ChatRunner:
             limits_reached=list(ctx.budget.limits_reached),
             state=dict(final),
         )
+
+    async def _supersede(self, chat_id: str, turn_id: str) -> None:
+        """A waiting turn whose question a structured edit replaced: closed without an answer (not a failure)."""
+        await self.ports.jobs.skip_open(turn_id)
+        await self.ports.turns.update(turn_id, status="CANCELLED")
 
     async def _finish_cancelled(self, chat_id: str, turn_id: str) -> None:
         """Validated data already stored stays cached (FR-043); open research jobs are skipped."""
