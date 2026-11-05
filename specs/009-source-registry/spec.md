@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-05
 
-**Status**: Draft
+**Status**: Superseded by spec 010 (`specs/010-self-observing-registry/spec.md`), 2026-11-05. The registry, statistics, admission and discovery requirements are restated in 010 with autonomy instead of review; the data and dialogue fixes (US1, US2, US5, US6, FR-014…024, FR-032…033) are seeded as issues in 010's issue queue. Kept as history; the survey `registry-survey.yaml` seeds the 010 registry.
 
 **Input**: User description: "009 — Verified source registry: research finds data where it exists, learns which sources deliver, and records every lesson as a source update; plus the fixes shown by chat 20b5b7f9." (full text in the conversation of 2026-11-05; the incidents are summarised below)
 
