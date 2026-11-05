@@ -74,6 +74,20 @@ class RegistryRepo:
             q = select(CapabilityRow).where(CapabilityRow.area == area, CapabilityRow.market.in_(markets))
             return [_cap_dict(r) for r in (await s.execute(q)).scalars()]
 
+    async def queryable(self, area: str, markets: list[str]) -> list[dict[str, Any]]:
+        """Active and candidate capabilities with their source's access (for `site:` queries)."""
+        async with sessionmaker()() as s:
+            q = (
+                select(CapabilityRow, SourceRow.access)
+                .join(SourceRow, SourceRow.domain == CapabilityRow.domain)
+                .where(
+                    CapabilityRow.area == area,
+                    CapabilityRow.market.in_(markets),
+                    CapabilityRow.status.in_(("active", "candidate")),
+                )
+            )
+            return [{**_cap_dict(c), "access": access} for c, access in (await s.execute(q)).all()]
+
     async def is_empty(self) -> bool:
         async with sessionmaker()() as s:
             return (await s.execute(select(SourceRow.domain).limit(1))).first() is None

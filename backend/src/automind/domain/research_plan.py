@@ -236,6 +236,31 @@ def energy_inputs_missing(powertrain: str | None, have: set[str]) -> list[str]:
     return [g[0] for g in groups if not any(a in have for a in g)]
 
 
+# Spec 009 FR-009: Europe is one market (no country preferred); prices come from European markets only, other kinds
+# of data may also come from the best source outside Europe. Codes are the registry's markets (EN = UK and Ireland,
+# DE = Germany, Austria and Switzerland, FR = France and Belgium; ANY = Europe-wide sources).
+EUROPE: tuple[str, ...] = ("ES", "EN", "DE", "FR", "IT", "PT", "NL", "SE", "DK", "NO", "FI", "PL", "CZ", "ANY")
+OUTSIDE_EUROPE: tuple[str, ...] = ("US", "JP", "RU", "CN", "KR", "AU", "CA")
+PRICE_AREAS: tuple[str, ...] = ("price", "used_price", "depreciation")
+
+
+def registry_markets(area: str, searched: Iterable[str], round_: int) -> list[str]:
+    """Markets whose registry sources get `site:` queries in a round (spec 009 FR-009, gap rounds FR-020).
+
+    Round 0 stays on the markets the area searches (and Europe-wide sources). A follow-up round is the escalation
+    for an area still below its minimum: the registry sources of the other European markets, then, for anything but
+    prices, the markets outside Europe. Market-level areas (incentives) are about the user's own market: none."""
+    if area in MARKET_AREAS:
+        return []
+    own = list(dict.fromkeys([*searched, "ANY"]))
+    if round_ == 0:
+        return own
+    other = [m for m in EUROPE if m not in own]
+    if area not in PRICE_AREAS:
+        other += [m for m in OUTSIDE_EUROPE if m not in own]
+    return other
+
+
 def gaps(p: ResearchPlan, met: Mapping[tuple[str, str], bool], round_done: int) -> list[Job]:
     """Follow-up jobs for areas below their minimum, if the depth allows another round (FR-020)."""
     if round_done >= p.rounds:

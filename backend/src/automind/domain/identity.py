@@ -24,6 +24,8 @@ class Aliases:
     makes: Mapping[str, str] = field(default_factory=dict)  # lower alias -> canonical make
     models: Mapping[str, tuple[str, str]] = field(default_factory=dict)  # "make|alias" -> (make, model)
     generations: Mapping[str, Mapping[str, str]] = field(default_factory=dict)  # "make|model" -> alias -> gen
+    # "Make|Model[|Generation]" -> market -> the model's name on that market (spec 009 FR-021)
+    market_names: Mapping[str, Mapping[str, str]] = field(default_factory=dict)
 
     @classmethod
     def from_config(cls, d: Mapping[str, Any]) -> Aliases:
@@ -37,7 +39,9 @@ class Aliases:
             _norm(k): {_norm(str(a)): str(g) for a, g in (v or {}).items()}
             for k, v in (d.get("generations") or {}).items()
         }
-        return cls(makes=makes, models=models, generations=gens)
+        names = {str(k): {str(m).upper(): str(n) for m, n in (v or {}).items()}
+                 for k, v in (d.get("market_names") or {}).items()}  # fmt: skip
+        return cls(makes=makes, models=models, generations=gens, market_names=names)
 
 
 _EMPTY = Aliases()

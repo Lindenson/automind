@@ -58,7 +58,7 @@ fetch:
 favourites:
   # --- Spain ---
   - {domain: km77.com, source_type: SPEC_DATABASE, areas: [specs, engineering, measured, price, maintenance, reviews, reliability, used_issues, used_price], markets: [ES], priority: 1, reader: km77, tos_checked: 2026-11-02}
-  - {domain: motor.es, source_type: PUBLICATION, areas: [specs, reviews, price, depreciation, manufacturer], markets: [ES], priority: 2, reader: null, tos_checked: null}
+  - {domain: motor.es, source_type: PUBLICATION, areas: [specs, reviews, price, depreciation, manufacturer, used_price], markets: [ES], priority: 2, reader: null, tos_checked: null}
   - {domain: autopista.es, source_type: INSTRUMENTED_TEST, areas: [measured, reviews, reliability, used_issues, used_price, price, depreciation], markets: [ES], priority: 1, reader: null, tos_checked: null}
   # spec 006 US5: official pages for incentives (programme rules, dates, amounts)
   - {domain: idae.es, source_type: PUBLICATION, areas: [incentives], markets: [ES], priority: 1, reader: null, tos_checked: null}
@@ -77,7 +77,11 @@ favourites:
   # --- German ---
   - {domain: auto-motor-und-sport.de, source_type: INSTRUMENTED_TEST, areas: [measured, reviews], markets: [DE], priority: 1, reader: null, tos_checked: null}
   - {domain: autobild.de, source_type: INSTRUMENTED_TEST, areas: [measured, reviews, reliability, used_issues, used_price], markets: [DE], priority: 1, reader: null, tos_checked: null}
-  - {domain: adac.de, source_type: PUBLICATION, areas: [specs, maintenance, reliability, used_issues, used_price], markets: [DE], priority: 1, reader: null, tos_checked: null}
+  - {domain: adac.de, source_type: PUBLICATION, areas: [specs, maintenance, reliability, used_issues, used_price, depreciation], markets: [DE], priority: 1, reader: null, tos_checked: null}
+  # spec 009 survey 2026-11-05, verdict candidate (robots allow the model pages, no automated-access clause in the
+  # terms): open used-price guidance. motor.es: its classifieds paths are deny-listed (motor.es/segunda-mano);
+  # dat.de: the per-model "Was ist … noch wert?" pages and DAT-Report (the valuation tool /valuateNG is disallowed).
+  - {domain: dat.de, source_type: PUBLICATION, areas: [used_price, depreciation], markets: [DE], priority: 2, reader: null, tos_checked: null}
   # --- automotive press (reviews, tests, long-term reports) — added 2026-11-02 ---
   - {domain: autofacil.es, source_type: PUBLICATION, areas: [reviews, measured, maintenance, used_issues, price, depreciation, reliability], markets: [ES], priority: 2, reader: null, tos_checked: null}
   - {domain: motorpasion.com, source_type: PUBLICATION, areas: [reviews, engineering, manufacturer, depreciation, reliability], markets: [ES], priority: 2, reader: null, tos_checked: null}

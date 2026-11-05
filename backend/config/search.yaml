@@ -14,12 +14,26 @@ markets:                    # case market → provider locale
   ES: {gl: es, hl: es}
   EN: {gl: gb, hl: en}
   DE: {gl: de, hl: de}
+  FR: {gl: fr, hl: fr}       # registry sources of other European markets (spec 009 FR-009: Europe is one market)
+  IT: {gl: it, hl: it}
+  PT: {gl: pt, hl: pt}
+  NL: {gl: nl, hl: nl}
+  SE: {gl: se, hl: sv}
+  DK: {gl: dk, hl: da}
+  NO: {gl: no, hl: no}
+  FI: {gl: fi, hl: fi}
+  PL: {gl: pl, hl: pl}
+  CZ: {gl: cz, hl: cs}
+  US: {gl: us, hl: en}
+  JP: {gl: jp, hl: ja}
+  RU: {gl: ru, hl: ru}
+  ANY: {gl: gb, hl: en}
 default_markets: [ES, EN]   # markets searched when the case does not name one (cars are priced for Spain)
 area_markets:               # markets searched per area (German instrumented tests and breakdown statistics help)
   measured: [ES, EN, DE]
   reliability: [ES, EN, DE]
   used_issues: [ES, EN, DE]
-  used_price: [ES, EN]
+  used_price: [ES, EN, DE]  # Europe is one market (spec 009 FR-009): German valuers and clubs too
   depreciation: [ES, EN]   # residual values: Spanish and UK analysts (spec 004)
 sites_per_query: 4          # favourite sites grouped into one `site:a OR site:b` query
 ai_followup: {max_queries_per_area: 3, depths: [DEEP, STANDARD]}

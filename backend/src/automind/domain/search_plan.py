@@ -14,7 +14,7 @@ from typing import Any, Literal
 
 from automind.domain.evidence import is_denied
 
-Kind = Literal["FAVOURITE", "FAVOURITE_RETRY", "OPEN", "AI"]
+Kind = Literal["FAVOURITE", "FAVOURITE_RETRY", "OPEN", "AI", "REGISTRY"]
 
 
 @dataclass(frozen=True)
@@ -133,6 +133,65 @@ def _render(template: str, car: Identity, sites: Sequence[str] = (), level: int 
     return " ".join(text.split())
 
 
+def for_market(car: Identity, market: str, market_names: Mapping[str, str] | None) -> Identity:
+    """The model under the name the market sells it as (spec 009 FR-017, FR-021): the Prado J150 is a "Land
+    Cruiser" in Spain. `market_names` maps a market to the name (config/aliases.yaml market_names)."""
+    name = (market_names or {}).get(market)
+    return replace(car, model=name) if name and name != car.model else car
+
+
+def market_names_of(config: Mapping[str, Any] | None, make: str, model: str, generation: str | None) -> dict[str, str]:
+    """market -> model name for a car, from config/aliases.yaml `market_names` ("Make|Model" or the more precise
+    "Make|Model|Generation")."""
+    cfg = config or {}
+    out = dict(cfg.get(f"{make}|{model}") or {})
+    if generation:
+        out.update(cfg.get(f"{make}|{model}|{generation}") or {})
+    return {str(k).upper(): str(v) for k, v in out.items()}
+
+
+_SITE = re.compile(r"^[a-z0-9-]+(?:\.[a-z0-9-]+)+(?:/[\w./-]*)?$")
+
+
+def registry_queries(
+    area: str,
+    car: Identity,
+    sources: Sequence[tuple[str, str]],
+    templates: Mapping[str, str],
+    *,
+    exclude: Sequence[str] = (),
+    domains_per_query: int = 3,
+    max_queries: int = 4,
+    market_names: Mapping[str, str] | None = None,
+) -> list[PlannedQuery]:
+    """`site:` queries for the registry's sources of an area (spec 010; 009 FR-009): (domain, market) pairs in the
+    registry's order, grouped per market into `site:a OR site:b` queries of at most `domains_per_query` domains,
+    at most `max_queries` queries. Sites already queried as favourites (`exclude`), deny-listed sites and anything
+    that is not a plain domain are skipped. The template is language-neutral by default ("{short} {sites}"): the
+    site is the area's source, so the words only need to name the car (registry:<area>[@market] in queries.yaml)."""
+    if max_queries <= 0:
+        return []
+    skip = {d.lower().removeprefix("www.") for d in exclude}
+    by_market: dict[str, list[str]] = {}
+    for domain, market in sources:
+        d = domain.lower().removeprefix("www.")
+        if d in skip or not _SITE.match(d) or is_denied(f"https://{d}/"):
+            continue
+        skip.add(d)
+        by_market.setdefault(market, []).append(d)
+    out: list[PlannedQuery] = []
+    for market, domains in by_market.items():
+        template = (templates.get(f"registry:{area}@{market}") or templates.get(f"registry:{area}")
+                    or templates.get("registry") or "{short} {sites}")  # fmt: skip
+        ident = for_market(car, market, market_names)
+        for i in range(0, len(domains), max(1, domains_per_query)):
+            if len(out) >= max_queries:
+                return out
+            group = tuple(domains[i : i + max(1, domains_per_query)])
+            out.append(PlannedQuery(_render(template, ident, group), "REGISTRY", area, market, group))
+    return out
+
+
 def favourite_sites(area: str, market: str, favourites: Sequence[Mapping[str, Any]]) -> list[str]:
     """Favourite domains for an area and market (ANY matches every market), by priority then config order."""
     chosen = [
@@ -156,7 +215,9 @@ def queries(
     sites_per_query: int = 4,
     learned: Mapping[str, Sequence[str]] | None = None,
     learned_per_area: int = 4,
+    market_names: Mapping[str, str] | None = None,
 ) -> list[PlannedQuery]:
+    """`market_names`: the model's name per market (the Prado is a "Land Cruiser" in Spain; FR-021)."""
     out: list[PlannedQuery] = []
     seen_text: set[str] = set()
 
@@ -172,6 +233,7 @@ def queries(
         for market in dict.fromkeys(markets):  # keep order, drop duplicates
             # the market's own words when configured ("reliability@DE": Pannenstatistik, TÜV-Report)
             template = favourite_templates.get(f"{area}@{market}") or favourite_templates[area]
+            ident = for_market(car, market, market_names)
             sites = favourite_sites(area, market, favourites)
             official = manufacturer_site and market == "ES" and area in ("price", "specs", "maintenance")
             if official and manufacturer_site and not is_denied(f"https://{manufacturer_site}/"):
@@ -180,26 +242,27 @@ def queries(
             used.update(sites)
             for i in range(0, len(sites), max(1, sites_per_query)):
                 group = tuple(sites[i : i + sites_per_query])
-                add(PlannedQuery(_render(template, car, group), "FAVOURITE", area, market, group))
+                add(PlannedQuery(_render(template, ident, group), "FAVOURITE", area, market, group))
             # learned sources (FR-022): after the configured ones, never denied, never twice
             extra = [d for d in dict.fromkeys((learned or {}).get(market, ()))
                      if d not in used and not is_denied(f"https://{d}/")][: max(0, learned_per_area)]  # fmt: skip
             used.update(extra)
             for i in range(0, len(extra), max(1, sites_per_query)):
                 group = tuple(extra[i : i + sites_per_query])
-                add(PlannedQuery(_render(template, car, group), "FAVOURITE", area, market, group, learned=True))
+                add(PlannedQuery(_render(template, ident, group), "FAVOURITE", area, market, group, learned=True))
         return out
     first_market = markets[0] if markets else "ES"
+    ident = for_market(car, first_market, market_names)
     for t in open_templates.get(area, ()):
-        add(PlannedQuery(_render(t, car), "OPEN", area, first_market))
+        add(PlannedQuery(_render(t, ident), "OPEN", area, first_market))
     return out
 
 
 ELECTRIC = ("BEV", "PHEV", "EREV")
 
 
-def ev_queries(base: Sequence[PlannedQuery], car: Identity, powertrain: str | None,
-               templates: Mapping[str, str]) -> list[PlannedQuery]:  # fmt: skip
+def ev_queries(base: Sequence[PlannedQuery], car: Identity, powertrain: str | None, templates: Mapping[str, str],
+               market_names: Mapping[str, str] | None = None) -> list[PlannedQuery]:  # fmt: skip
     """Extra favourite queries for electric facts (spec 006 R10): range, kWh/100 km, charging; for plug-ins the
     consumption with an empty battery. One per area and template, on the first group of favourite sites."""
     pt = (powertrain or "").upper()
@@ -213,7 +276,7 @@ def ev_queries(base: Sequence[PlannedQuery], car: Identity, powertrain: str | No
             continue
         for k in keys:
             t = templates.get(f"{q.area}_{k}@{q.market}") or templates.get(f"{q.area}_{k}")
-            text = _render(t, car, q.sites) if t else ""
+            text = _render(t, for_market(car, q.market, market_names), q.sites) if t else ""
             if text and text not in seen:
                 seen.add(text)
                 out.append(replace(q, text=text))
@@ -233,7 +296,10 @@ def warranty_query(base: Sequence[PlannedQuery], area: str, round_: int, car: Id
 
 
 def retry_queries(
-    empty: Sequence[PlannedQuery], car: Identity, favourite_templates: Mapping[str, str]
+    empty: Sequence[PlannedQuery],
+    car: Identity,
+    favourite_templates: Mapping[str, str],
+    market_names: Mapping[str, str] | None = None,
 ) -> list[PlannedQuery]:
     """One shorter retry per favourite query that found nothing (FR-021). A retry is never retried."""
     out: list[PlannedQuery] = []
@@ -243,7 +309,7 @@ def retry_queries(
         template = favourite_templates.get(f"{q.area}@{q.market}") or favourite_templates.get(q.area)
         if not template:
             continue
-        text = _render(template, car, q.sites, level=1)
+        text = _render(template, for_market(car, q.market, market_names), q.sites, level=1)
         if text != q.text and text not in {o.text for o in out}:
             out.append(replace(q, text=text, kind="FAVOURITE_RETRY"))
     return out

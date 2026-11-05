@@ -5,6 +5,7 @@
 - `used_price_for`: the sourced used market price for the car's year (the purchase price of a used car; never
   the new price, FR-023).
 - `warranty_status`: the maker's warranty remaining or expired, from the first registration year (FR-026).
+- `whole_generation`: a range over several model years never stands for one model year (chat 8c6a2a58).
 """
 
 from __future__ import annotations
@@ -26,6 +27,17 @@ def assumed_age(mileage_km: int | None, gen_from: int | None, gen_to: int | None
         mid = (gen_from + min(gen_to or now_year, now_year)) / 2
         return max(1, int(now_year - mid + 0.5)), f"middle of its generation ({gen_from}–{gen_to or 'now'})"
     return max(1, default), "no year, mileage or generation known"
+
+
+MAX_YEAR_SPAN = 1  # a used-price range for a car with a year covers at most two adjacent model years
+
+
+def whole_generation(year_from: int | None, year_to: int | None, car_year: int | None) -> bool:
+    """True when a range spans more model years than MAX_YEAR_SPAN and the car has a year: a generation-wide range
+    ("Land Cruiser 2009–2023: 12 000–60 000 €") is not the price of a 2016 car."""
+    if car_year is None or year_from is None or year_to is None:
+        return False
+    return abs(year_to - year_from) > MAX_YEAR_SPAN
 
 
 @dataclass(frozen=True)
@@ -59,6 +71,7 @@ def used_price_for(ranges: Sequence[UsedRange], year: int | None) -> UsedPrice |
     pick: UsedRange | None = None
     exact = False
     if year is not None:
+        ranges = [r for r in ranges if not whole_generation(r.year_from, r.year_to, year)]
         hit = [r for r in ranges if covers(r, year, 0)]
         near = [r for r in ranges if covers(r, year, 1)]
         if hit:
