@@ -112,7 +112,7 @@ Paths are relative to `backend/` unless they start with `frontend/`, `deploy/`, 
 
 **Independent test**: the queue lists every 009 item with its chat and a copy text.
 
-- [ ] T046 [US5] Add `config/seed_issues.yaml` with one entry per 009 flaw (spec US5 list; chats 20b5b7f9, 8c6a2a58; component, class, title, examples as quotes from spec 009, proposed fix: code (files from docs/baseline.md) or config (`sense.yaml`/`plausibility.yaml`/`queries.yaml` keys where they apply), verify step) and an idempotent seeder `src/automind/insight/application/seed.py` (`source=seed:009`, fingerprint `seed:<slug>`), run from the insight loop on start.
+- [ ] T046 [US5] Add `config/seed_issues.yaml` with one entry per 009 flaw and per UX finding F1–F8 of `docs/ux-audit-2026-11-05.md` (component `ui`, fix kind `code`, files from the report) (spec US5 list; chats 20b5b7f9, 8c6a2a58; component, class, title, examples as quotes from spec 009, proposed fix: code (files from docs/baseline.md) or config (`sense.yaml`/`plausibility.yaml`/`queries.yaml` keys where they apply), verify step) and an idempotent seeder `src/automind/insight/application/seed.py` (`source=seed:009`, fingerprint `seed:<slug>`), run from the insight loop on start.
 - [ ] T047 [US5] Test `tests/integration/test_seed_issues.py`: seeding twice gives one row per item; seeded issues appear in `GET /problems` ranked by a fixed seed impact.
 
 ## Phase 9: User Story 8 — registry seeded, same behaviour (P2)
