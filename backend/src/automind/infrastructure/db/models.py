@@ -772,6 +772,9 @@ class CapabilityRow(Base):
     signals_w: Mapped[float] = mapped_column(Float, default=0.0)
     families_agree: Mapped[float] = mapped_column(Float, default=0.0)
     explore_spent_eur: Mapped[float] = mapped_column(Float, default=0.0)
+    # spec 011 US5 (0023): path prefixes of pages that gave accepted values (the scout's locator), e.g. ["/fichas/"];
+    # the registry's `site:` queries then name `domain/prefix`
+    url_patterns: Mapped[list] = mapped_column(JSONB, default=list, server_default="[]")
 
 
 class RegistryAttempt(Base):

@@ -174,8 +174,8 @@ def registry_queries(
     skip = {d.lower().removeprefix("www.") for d in exclude}
     by_market: dict[str, list[str]] = {}
     for domain, market in sources:
-        d = domain.lower().removeprefix("www.")
-        if d in skip or not _SITE.match(d) or is_denied(f"https://{d}/"):
+        d = domain.lower().removeprefix("www.")  # a domain, or domain/path (a learned path prefix, spec 011 T108)
+        if d in skip or d.split("/", 1)[0] in skip or not _SITE.match(d) or is_denied(f"https://{d}/"):
             continue
         skip.add(d)
         by_market.setdefault(market, []).append(d)

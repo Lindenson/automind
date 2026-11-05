@@ -126,6 +126,18 @@ async def blame_judge(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any]:
     return await judge(str(task.payload["signal_id"]), charge=ctx.budget().charge)
 
 
+async def scout(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any]:
+    """Spec 011 T108: new sources for gaps within `agents.budgets.scout` and `registry.discovery.eur_per_day`, at
+    most `agents.max_runs_per_day.scout` runs a day; changes only registry rows (journalled, hard limits)."""
+    from automind.acquisition.agents import scout as agent  # noqa: PLC0415
+    from automind.acquisition.infrastructure.wiring import live_search  # noqa: PLC0415
+
+    max_runs = int((load_yaml("agents.yaml").get("max_runs_per_day") or {}).get("scout", 3))
+    if await agent.runs_today() >= max_runs:
+        return {"skipped": "runs"}
+    return await agent.run(live_search(), charge=ctx.budget().charge, used=await agent.used_today(), task_id=task.id)
+
+
 def _day(task: queue.Task) -> Any:
     """The task's `day` (ISO) or yesterday (UTC): a daily task rolls up the day that has ended."""
     from datetime import UTC, date, datetime, timedelta  # noqa: PLC0415
@@ -174,4 +186,5 @@ HANDLERS: dict[str, Handler] = {
     "blame_judge": blame_judge,
     "parser_daily": parser_daily,
     "drift": drift,
+    "scout": scout,
 }

@@ -20,6 +20,12 @@ class PlannedSource(BaseModel):
     priority: int
     status: Literal["active", "candidate", "retired"]
     unverified: bool = False
+    path: str = ""  # spec 011 T108: the learned path prefix of its pages ("/fichas/"), for `site:domain/path`
+
+    @property
+    def site(self) -> str:
+        """What a `site:` query names: the domain, narrowed to the learned path prefix when there is one."""
+        return self.domain + self.path.rstrip("/") if self.path else self.domain
 
 
 class Plan(BaseModel):

@@ -25,6 +25,7 @@ CAPS: dict[str, tuple[str, str]] = {
     "registry_review": ("registry.yaml", "discovery.eur_per_day"),
     "insight_run": ("insight.yaml", "budget_eur"),
     "blame_judge": ("agents.yaml", "budgets.blame_judge"),
+    "scout": ("agents.yaml", "budgets.scout"),  # spec 011 T108; registry.discovery.eur_per_day bounds it too
 }
 
 _SPENT = text(

@@ -117,7 +117,7 @@ async def registry_queries(ports: Ports, v: db.Variant, job: JobSpec,
     if job.area == "used_price" and job.car_year:
         ident = dataclasses.replace(ident, years=str(job.car_year))
     return search_plan.registry_queries(
-        job.area, ident, [(s.domain, s.market) for s in sources], ports.ref.favourite_queries, exclude=exclude,
+        job.area, ident, [(s.site, s.market) for s in sources], ports.ref.favourite_queries, exclude=exclude,
         domains_per_query=per_query, max_queries=per_area, market_names=market_names(ports, v),
     )  # fmt: skip
 
