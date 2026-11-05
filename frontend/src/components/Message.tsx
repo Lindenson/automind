@@ -4,9 +4,11 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { UiMessage } from "../store/chat";
 import type { ChatMessage } from "../lib/protocol";
-import { fmtTime } from "../lib/util";
+import { messageDomId } from "../lib/scroll";
+import { fmtTime, isDebug, sentence } from "../lib/util";
 import { useChat } from "../store/chat";
 import { BlockView } from "./blocks/BlockView";
+import { DataPanelPresent } from "./blocks/Verdict";
 import type { Block } from "../lib/protocol";
 import { RatingControl } from "./RatingControl";
 import { buildCarColors, CarColorContext } from "./carColors";
@@ -16,7 +18,7 @@ import { WarnIcon } from "./icons";
 export const Message = memo(function Message({ m }: { m: UiMessage }) {
   if (m.role === "user") {
     return (
-      <div className="flex animate-fadeUp justify-end">
+      <div id={messageDomId(m.message_id)} className="flex animate-fadeUp justify-end">
         <div className="max-w-[85%] sm:max-w-[75%]">
           <div className="whitespace-pre-wrap break-words rounded-2xl rounded-br-md bg-gradient-to-br from-accent to-orange-600 px-4 py-2.5 text-[15px] text-white shadow-lg shadow-accent/10">
             {m.text}
@@ -31,6 +33,7 @@ export const Message = memo(function Message({ m }: { m: UiMessage }) {
   if (m.role === "error") {
     return (
       <div
+        id={messageDomId(m.message_id)}
         className="flex animate-fadeUp items-start gap-2 rounded-xl border border-bad/40 bg-bad/10 px-3.5 py-2.5 text-sm"
         role="alert"
       >
@@ -66,8 +69,10 @@ function AssistantMessage({ m }: { m: ChatMessage }) {
   // spec 004 FR-001: the verdict card comes first, before the explanation
   const lead = m.blocks.filter((b) => b.type === "verdict");
   const rest = m.blocks.filter((b) => b.type !== "verdict");
+  // audit F11: one "find the missing data" action per report — the data panel's, when there is one
+  const hasPanel = m.blocks.some((b) => b.type === "data_panel");
   return (
-    <div className="flex animate-fadeUp gap-3">
+    <div id={messageDomId(m.message_id)} className="flex animate-fadeUp gap-3">
       <div className="hidden shrink-0 sm:block">
         <Logo small />
       </div>
@@ -78,9 +83,11 @@ function AssistantMessage({ m }: { m: ChatMessage }) {
           <UsageBadge turnId={m.turn_id} />
         </div>
         <CarColorContext.Provider value={colors}>
-          {lead.map((b, i) => (
-            <BlockView key={`lead-${i}`} block={b} />
-          ))}
+          <DataPanelPresent.Provider value={hasPanel}>
+            {lead.map((b, i) => (
+              <BlockView key={`lead-${i}`} block={b} />
+            ))}
+          </DataPanelPresent.Provider>
         </CarColorContext.Provider>
         {m.text && (
           <div className="md">
@@ -100,8 +107,8 @@ function AssistantMessage({ m }: { m: ChatMessage }) {
           {groupSections(rest).map((g, i) =>
             g.section ? (
               <details key={i} open={g.open} className="group rounded-xl border border-line/40 p-2 sm:p-3">
-                <summary className="min-h-11 cursor-pointer select-none py-2 text-sm font-semibold capitalize">
-                  {SECTIONS.has(g.section) ? t(`section.${g.section}` as "section.comparison") : g.section.replace(/_/g, " ")}
+                <summary className="min-h-11 cursor-pointer select-none py-2 text-sm font-semibold">
+                  {SECTIONS.has(g.section) ? t(`section.${g.section}` as "section.comparison") : sentence(g.section)}
                 </summary>
                 <div className="mt-2 space-y-3">
                   {g.blocks.map((b, j) => (
@@ -120,10 +127,13 @@ function AssistantMessage({ m }: { m: ChatMessage }) {
   );
 }
 
-/** AI usage of the turn that produced this answer (FR-042): calls, tokens and estimated cost. */
+const DEBUG = isDebug();
+
+/** AI usage of the turn that produced this answer (FR-042): calls, tokens and estimated cost.
+ *  Internal, so only in the developer view (audit F11). */
 function UsageBadge({ turnId }: { turnId?: string | null }) {
   const u = useChat((s) => (turnId ? s.usageByTurn[turnId] : undefined));
-  if (!u) return null;
+  if (!u || !DEBUG) return null;
   return (
     <span
       className="chip text-[10px]"

@@ -23,7 +23,7 @@ function LegacyConfirm({ req }: { req: ConfirmRequest }) {
     <div
       className="card animate-fadeUp space-y-3 border-accent/40 p-3 sm:p-4"
       role="group"
-      aria-label={isCost ? "Confirm research cost" : isChoice ? "Choose how to continue" : "Confirm variants"}
+      aria-label={t(isCost ? "confirm.aria.cost" : isChoice ? "confirm.aria.choice" : "confirm.aria.variants")}
     >
       <div className="prose-sm text-sm">
         <ReactMarkdown>{req.text}</ReactMarkdown>
@@ -58,14 +58,14 @@ function LegacyConfirm({ req }: { req: ConfirmRequest }) {
               className="rounded-full bg-accent px-4 py-1.5 text-sm font-semibold text-bg hover:opacity-90"
               onClick={() => answer("run")}
             >
-              Run research
+              {t("confirm.run")}
             </button>
             <button
               type="button"
               className="rounded-full border border-line/70 px-4 py-1.5 text-sm hover:border-accent/60"
               onClick={() => answer("skip")}
             >
-              Answer with what you have
+              {t("confirm.skip")}
             </button>
           </>
         ) : isChoice ? (
@@ -103,15 +103,13 @@ function LegacyConfirm({ req }: { req: ConfirmRequest }) {
               className="rounded-xl bg-accent px-3 py-1.5 text-sm font-semibold text-bg hover:opacity-90"
               onClick={() => answer("confirm")}
             >
-              Yes, these
+              {t("confirm.yes")}
             </button>
           </>
         )}
       </div>
       <p className="text-xs text-muted">
-        {isCost || isChoice
-          ? "Or type what to change below."
-          : "Something else? Type it below — e.g. “the diesel one, 2014”."}
+        {isCost || isChoice ? t("confirm.typeChange") : t("confirm.typeElse")}
       </p>
     </div>
   );

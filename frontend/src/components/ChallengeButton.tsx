@@ -12,7 +12,7 @@ export function ChallengeButton({ carId, attribute }: { carId: string; attribute
       type="button"
       disabled={sent}
       title={t("challenge.title")}
-      aria-label={`This is wrong: ${attribute.replace(/_/g, " ")}`}
+      aria-label={t("challenge.aria", { attr: attribute.replace(/_/g, " ") })}
       onClick={() => {
         challenge(carId, attribute);
         setSent(true);

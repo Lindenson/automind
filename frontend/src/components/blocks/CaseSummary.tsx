@@ -1,21 +1,20 @@
 /** What AutoMind understood (case file summary) at the top of a report. */
+import { useT } from "../../i18n";
 import type { BlockOf } from "../../lib/protocol";
 import { BlockCard } from "../badges";
 import { InfoIcon } from "../icons";
 
-const PERSONA: Record<string, string> = {
-  EXPERT: "Engineer / expert",
-  PERFORMANCE: "Performance enthusiast",
-  BUYER: "Everyday / family buyer",
-  UNKNOWN: "Balanced view",
-};
-
 export function CaseSummary({ b }: { b: BlockOf<"case_summary"> }) {
+  const t = useT();
+  const persona =
+    b.persona === "UNKNOWN"
+      ? t("summary.persona.UNKNOWN")
+      : t(`persona.${b.persona}` as "persona.BUYER");
   return (
     <BlockCard
-      title="What I understood"
+      title={t("summary.title")}
       icon={<InfoIcon />}
-      right={<span className="chip">{PERSONA[b.persona]}</span>}
+      right={<span className="chip">{persona}</span>}
     >
       <ul className="flex flex-wrap gap-1.5 text-xs">
         {b.cars.map((c) => (

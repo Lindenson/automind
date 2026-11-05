@@ -1,27 +1,18 @@
 import { useEffect, useState } from "react";
+import { useT } from "../i18n";
 import type { Stage } from "../lib/protocol";
 import type { PendingTurn } from "../store/chat";
 import { cx } from "../lib/util";
 import { CheckIcon } from "./icons";
 
-const STAGE_LABEL: Record<Stage, string> = {
-  understanding: "Understand",
-  asking: "Ask",
-  resolving: "Resolve",
-  cache: "Cache",
-  researching: "Research",
-  searching: "Search",
-  reading: "Read",
-  relevance: "Variant check",
-  validating: "Validate",
-  feasibility: "Fits your case?",
-  followup: "Follow-up",
-  estimating: "Estimate",
-  computing: "Compute",
-  analyzing: "Analyze",
-  composing: "Compose",
-  done: "Done",
-};
+const stageKey = (st: Stage) => `stage.${st}` as "stage.done";
+
+/** What the waiting line says before the first status: a question, an answer to a card, or a card edit. */
+const SENDING = {
+  question: "timeline.sending",
+  answer: "timeline.sendingAnswer",
+  edit: "timeline.sendingEdit",
+} as const;
 
 const PIPELINE: Stage[] = [
   "understanding",
@@ -48,6 +39,7 @@ const slot = (st: Stage): Stage => RAIL_SLOT[st] ?? st;
 const MAX_ROWS = 6;
 
 export function StatusTimeline({ pending }: { pending: PendingTurn }) {
+  const t = useT();
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 250);
@@ -74,7 +66,7 @@ export function StatusTimeline({ pending }: { pending: PendingTurn }) {
       <div className="mb-3 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-sm font-medium">
           <Spinner />
-          <span>AutoMind is working</span>
+          <span>{t("timeline.working")}</span>
         </div>
         <span className="tabular text-xs text-muted">{elapsed} s</span>
       </div>
@@ -87,7 +79,7 @@ export function StatusTimeline({ pending }: { pending: PendingTurn }) {
           const active = i === currentIdx && last?.stage !== "done";
           const skipped = !reached.has(st) && i < currentIdx;
           return (
-            <div key={st} className="min-w-0 flex-1" title={STAGE_LABEL[st]}>
+            <div key={st} className="min-w-0 flex-1" title={t(stageKey(st))}>
               <div
                 className={cx(
                   "h-1 rounded-full transition-colors duration-500",
@@ -110,7 +102,7 @@ export function StatusTimeline({ pending }: { pending: PendingTurn }) {
                       : "text-muted/60",
                 )}
               >
-                {STAGE_LABEL[st]}
+                {t(stageKey(st))}
               </div>
             </div>
           );
@@ -119,8 +111,8 @@ export function StatusTimeline({ pending }: { pending: PendingTurn }) {
 
       <ol className="space-y-1.5">
         {hidden > 0 && (
-          <li className="pl-6 text-[11px] text-muted/70">
-            +{hidden} earlier steps
+          <li className="pl-6 text-[11px] text-muted">
+            {t("timeline.earlier", { n: hidden })}
           </li>
         )}
         {statuses.length === 0 && (
@@ -128,7 +120,7 @@ export function StatusTimeline({ pending }: { pending: PendingTurn }) {
             <span className="flex h-4 w-4 items-center justify-center">
               <span className="h-1.5 w-1.5 animate-ping rounded-full bg-accent" />
             </span>
-            Sending your question…
+            {t(SENDING[pending.kind ?? "question"])}
           </li>
         )}
         {visible.map((s, i) => {
@@ -151,7 +143,7 @@ export function StatusTimeline({ pending }: { pending: PendingTurn }) {
                 )}
               </span>
               <span className="w-[72px] shrink-0 text-[10px] font-semibold uppercase leading-5 tracking-wider text-muted">
-                {STAGE_LABEL[s.stage]}
+                {t(stageKey(s.stage))}
               </span>
               <span
                 className={cx(
