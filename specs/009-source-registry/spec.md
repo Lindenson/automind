@@ -107,6 +107,52 @@ Sources that keep failing are demoted, and candidates that keep delivering are p
 
 ---
 
+### User Story 7 - New sources are found, checked and admitted by a defined procedure (Priority: P1)
+
+When the verified sources for a kind of data give nothing for a car, research looks wider: Europe first, then any market where the same car is sold. Newly met sites are not trusted at once:
+- each passes an automatic admission check: not classifieds, robots allows the path, the terms do not forbid automated access, the page has readable content;
+- it is then tried as a candidate, with its values labelled and cross-checked;
+- it is promoted to verified only after it has delivered correct values in several runs and a reviewer has accepted the proposal.
+
+Every step leaves a lesson in the registry.
+
+**Why this priority**: The user wants many dozens of verified sources that grow over time, not a fixed list that goes stale.
+
+**Independent Test**: Use fixture searches where the verified sources give nothing and three new sites appear: one classifieds site, one whose terms forbid robots, and one usable.
+- The first two are recorded as rejected with the reason, and the third becomes a candidate.
+- After three fixture runs with values that agree with other sources, it appears as a proposal for promotion.
+
+**Acceptance Scenarios**:
+
+1. **Given** a kind of data with no value after the verified sources, **When** research continues, **Then** a bounded discovery search runs in the European markets and languages, then on other markets where the model is sold. Sites not in the registry are recorded as discovered.
+2. **Given** a discovered site, **When** the admission check runs, **Then** it is classified, with the evidence (quote, rule or URL) kept in the registry:
+   - `classifieds`;
+   - `blocked` (robots, per path);
+   - `terms forbid` (a quoted clause);
+   - `no content` (JS-only, paywall or hidden data);
+   - `candidate`.
+3. **Given** a candidate, **When** its values are used, **Then** they are labelled "unverified source", count at most as half of an independent source towards an area's minimum, and are compared with verified values where both exist.
+4. **Given** a candidate with accepted values in at least 3 runs, agreement with verified sources where comparable, and no junk rejections, **When** proposals are listed, **Then** it is proposed for promotion with its counts.
+5. **Given** a verified source that fails for a kind of data in 3 consecutive runs, or whose values are rejected as junk, **When** proposals are listed, **Then** it is proposed for demotion and skipped until reviewed. A robots refusal is applied at once for that path.
+6. **Given** verified and blocked entries, **When** their check date is older than the re-check period (90 days for verified, 180 days for blocked or terms-forbid), **Then** robots and terms are checked again and any change becomes a proposal.
+
+---
+
+### User Story 8 - Used prices from listings the user opened (Priority: P2)
+
+The user can paste the text of a listing search they opened themselves (for example on coches.net, with their year and mileage filters), or send the open page with one click. The assistant extracts the asking prices, years and mileages, and uses the range as the used price, labelled "from N listings you opened, date".
+
+**Why this priority**: Live Spanish market prices exist only on classifieds, which our robot may not read (coches.net terms, clause j). The user reading them and showing them to the assistant is lawful and gives the most current price.
+
+**Independent Test**: Paste a saved listing-page text. The car's used price becomes the range of the matching listings, labelled with the count and date, and it wins over other sources.
+
+**Acceptance Scenarios**:
+
+1. **Given** pasted listing text with prices, years and mileages, **When** it is processed, **Then** only listings matching the car's model, generation, year (±1) and mileage band count, and the median and range are shown with the count.
+2. **Given** fewer than 3 matching listings, **When** it is processed, **Then** the assistant says so and keeps the other sources' price.
+
+---
+
 ### User Story 5 - Fewer good pages rejected by our own checks (Priority: P2)
 
 Pages about the right car are kept:
@@ -185,10 +231,37 @@ Searches for a used car carry its year or generation and the model's name on tha
 
 **Research uses the registry**
 
-- **FR-009**: For each kind of data, research MUST query the verified sources for that kind of data first, on every market they cover. Bounded open search follows. The Spanish market is preferred only when it has a verified source for that kind of data.
+- **FR-009**: For each kind of data, research MUST query the verified sources for that kind of data first, on every market they cover. Bounded open search follows. The search scope is Europe, and Spain has no special place except for new and used prices, where a Spanish verified source ranks first. Specifications, consumption, reliability, maintenance intervals, tests and used-car issues are taken from the best verified source in any market, including Russia, China, Japan and the US for cars sold there.
 - **FR-010**: Values from another market MUST be accepted with the market labelled. Prices MUST be converted to euros with a dated rate and labelled as that market's price.
 - **FR-011**: "No data" MUST be shown only after every verified source and a bounded open search have failed. The report MUST name the sources tried, and the system MUST record a "find a source" gap for that kind of data.
 - **FR-012**: Classifieds MUST NOT be searched, read or used for any kind of data.
+
+**Discovery and admission of new sources**
+
+- **FR-025**: When a kind of data has no value after the verified sources, the system MUST run a bounded discovery search. It covers the European markets and their languages first, then other markets where the model is sold (for example Russia, China, Japan or the US for specifications, reliability and real consumption; never for prices). Sites not in the registry MUST be recorded as discovered, with the kind of data and the car.
+- **FR-026**: A discovered site MUST pass an automatic admission check before any of its values is used:
+  - not classifieds and not deny-listed;
+  - robots allows the path for our agent;
+  - its terms page (found by the usual legal-page links, in any language) has no clause forbidding automated access;
+  - the page has readable content (not JS-only, paywalled or hidden).
+
+  The outcome and its evidence (rule, quote, URL) MUST be stored. A site whose terms could not be found is a candidate marked "terms unchecked".
+- **FR-027**: Values from a candidate MUST be labelled "unverified source". They count at most as half an independent source towards an area's minimum, and MUST be compared with verified values where both exist.
+- **FR-028**: Promotion to verified MUST be proposed when all of these hold:
+  - the candidate has accepted values in at least 3 runs;
+  - it agrees with verified sources where comparable (at least 80%);
+  - it has no junk rejections;
+  - its terms have been checked.
+
+  It applies only when a reviewer accepts it.
+- **FR-029**: Demotion MUST be proposed, and the source skipped until review, after 3 consecutive failed runs for a kind of data, or after any junk rejection. A robots refusal MUST apply at once for that path.
+- **FR-030**: Verified entries MUST be re-checked for robots and terms every 90 days, and blocked or terms-forbid entries every 180 days. Changes become proposals.
+- **FR-031**: Every status change MUST add a lesson to the entry: date, run or chat, and evidence.
+
+**Prices**
+
+- **FR-032**: The official Spanish tax valuation tables (published yearly in the official gazette for every model and version, with the percentage by age) MUST be a source for used price, labelled "tax valuation", ranked below market valuers and guides.
+- **FR-033**: The user MUST be able to give listing text they opened themselves. Its matching asking prices give the used price, labelled with the count and date, ahead of other sources.
 
 **Lessons as registry updates**
 
@@ -225,7 +298,11 @@ Searches for a used car carry its year or generation and the model's name on tha
 
 - **Kind of data**: what a source gives, such as used price, maintenance or PHEV consumption. It maps onto the existing research areas.
 - **Registry entry**: a source × kind of data, with its markets, what it gives, status, date checked, path limits and lessons.
-- **Lesson**: date, chat or run, what happened and the change made (for example "dealerportal.grouptyre.co.uk: US-dollar floor prices read as a used price; junk for used price; chat 20b5b7f9").
+- **Lesson**: date, chat or run, what happened and the change made. Examples:
+  - "dealerportal.grouptyre.co.uk: US-dollar floor prices read as a used price; junk for used price; chat 20b5b7f9";
+  - "coches.net: robots allows SEO listing pages 1–6 and fichas técnicas, but its terms (condiciones de uso, clause j) forbid robots, scraping and identity impersonation; user-opened pages only; 2026-11-05".
+- **Discovered site**: a site met in a discovery search, not yet checked; with the kind of data and car that led to it.
+- **Admission check**: the automatic classification of a discovered site (classifieds, blocked, terms forbid, no content, candidate) with its evidence.
 - **Run statistics**: per source × kind of data × run: pages read, values accepted, robots refusals, relevance rejections, value rejections.
 - **Proposal**: a suggested registry change (demote, block, promote a candidate) with its evidence counts; it applies only after review.
 - **Source gap**: a kind of data × car for which every verified source and the open search failed; it is input for finding new sources.
@@ -241,7 +318,9 @@ Searches for a used car carry its year or generation and the model's name on tha
 - **SC-003**: The share of fetched pages rejected by our relevance checks in the replay of chat 20b5b7f9 falls by at least half against the live run.
 - **SC-004**: Every lesson of chats 8c6a2a58 and 20b5b7f9 is in the registry, and the lesson check reports none missing.
 - **SC-005**: After the registry is in use, the share of research areas ending below their evidence minimum, for the cars of the last five live chats replayed, falls by at least a third.
-- **SC-006**: No classifieds page is fetched in any test or live run.
+- **SC-006**: No classifieds page is fetched by the robot in any test or live run.
+- **SC-007**: The registry starts with at least 80 checked sources across European, Russian, Chinese and global sites. Each has its kinds of data, markets, robots and terms status, and the date checked.
+- **SC-008**: In fixture runs, no value from a site that failed the admission check is ever used. A candidate becomes a promotion proposal after 3 successful runs.
 
 ## Assumptions
 
@@ -250,4 +329,6 @@ Searches for a used car carry its year or generation and the model's name on tha
 - **Exchange rates.** Dated exchange rates already exist for price conversion. GBP and USD are added where missing, with their date and source.
 - **Thresholds.** The defaults for demotion and promotion (N, M) are configurable, starting at 3 runs.
 - **Reuse of the existing pieces.** The favourites list and the learned sources counter are reused: the registry replaces the favourites list as the curated source, and learned sources feed the proposals.
-- **Out of scope.** Classifieds, paid data providers and live dealer stock.
+- **Classifieds stay closed to the robot.** Classifieds are not read by the robot; their content reaches the assistant only when the user opens it and gives it (User Story 8).
+- **Scope of the robot.** Pages are read only where robots and the site's terms allow it. The robot never imitates a browser or bypasses protection.
+- **Out of scope.** Paid data providers and live dealer stock.
