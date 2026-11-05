@@ -12,7 +12,7 @@ from typing import Any
 from automind.acquisition.gold.versions import live_rows
 from automind.acquisition.infrastructure.fetch import Fetcher, FetchPolicy
 from automind.acquisition.infrastructure.pages import DbPageStore
-from automind.acquisition.parsing.legacy import live_readers
+from automind.acquisition.parsing.registry import live_readers
 from automind.acquisition.ports import AcqPorts
 from automind.acquisition.registry.application.service import RegistryService
 from automind.acquisition.registry.infrastructure.repo import RegistryRepo

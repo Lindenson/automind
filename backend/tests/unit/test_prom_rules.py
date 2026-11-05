@@ -27,6 +27,7 @@ EXPECTED = {
     "AutomindLoopStale", "AutomindLoopFailing", "AutomindIssueRegression", "AutomindDown",
     "AutomindWorkerDown",  # spec 011 contracts/task-queue.md
     "AutomindAccuracyDrop", "AutomindSearchesPerValueUp",  # spec 011 US3 (T075)
+    "AutomindParserDrift",  # spec 011 US4 (T089)
 }  # fmt: skip
 
 

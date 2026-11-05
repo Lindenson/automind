@@ -74,24 +74,35 @@ def accept(v: Verdict, page: str, attribute: str, ours: float | None, truth: flo
     return ok, "" if ok else "the quote does not hold the reference value"
 
 
-def rerun_reader(producer_version: str | None, raw: bytes, attribute: str) -> dict[str, Any] | None:
-    """The current version of the claim's reader on the stored page: what it reads for the attribute."""
+def rerun_reader(producer_version: str | None, raw: bytes, attribute: str, spec: Any = None) -> dict[str, Any] | None:
+    """The claim's reader version (a `ParserSpec`; the YAML v1 reader when none is given) on the stored page: what it
+    reads for the attribute."""
     if not producer_version:
         return None
     try:
         rid, _ = parse_key(producer_version)
-        from automind.infrastructure.config import load_yaml  # noqa: PLC0415
-        from automind.infrastructure.fetch import decode_body  # noqa: PLC0415
-        from automind.infrastructure.site_readers import read_pairs  # noqa: PLC0415
+        from automind.acquisition.infrastructure.fetch import decode_body  # noqa: PLC0415
+        from automind.acquisition.parsing import interpreter  # noqa: PLC0415
+        from automind.acquisition.parsing.migrate_v1 import yaml_specs  # noqa: PLC0415
 
-        conf = load_yaml("site_readers.yaml").get(rid)
-        if not isinstance(conf, dict):
+        spec = spec or yaml_specs().get(rid)
+        if spec is None:
             return None
-        reading = read_pairs(decode_body(raw, None), conf, rid)
+        reading = interpreter.read(spec, decode_body(raw, None))
     except Exception:  # noqa: BLE001 - a broken page or reader reads as nothing
         return {"reader": producer_version, "rows": 0, "values": []}
     rows = [r for r in (reading.rows if reading else []) if r.attribute == attribute]
     return {"reader": producer_version, "rows": len(rows), "values": [r.raw_value for r in rows][:5]}
+
+
+async def _stored_spec(producer_version: str | None) -> Any:
+    from automind.acquisition.parsing import store  # noqa: PLC0415
+
+    try:
+        v = await store.version(producer_version) if producer_version else None
+    except Exception:  # noqa: BLE001 - a legacy key or no parser table: the YAML reader
+        return None
+    return v.spec if v is not None else None
 
 
 @dataclass
@@ -154,7 +165,8 @@ async def judge(signal_id: str, llm: LLM | None = None, charge: Any = None) -> d
     attribute = sig.attribute or ""
     result: dict[str, Any] = {"signal": signal_id, "code": code_vector}
     if claim is not None and claim.producer == "reader":
-        result["rerun"] = rerun_reader(claim.producer_version, raw, attribute) if raw else None
+        spec = await _stored_spec(claim.producer_version) if raw else None
+        result["rerun"] = rerun_reader(claim.producer_version, raw, attribute, spec) if raw else None
     try:
         if charge is not None:
             await charge(EST_EUR)

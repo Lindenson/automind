@@ -15,7 +15,7 @@ from automind.acquisition.domain import served
 from automind.acquisition.domain.versions import prompt_key_from_header
 from automind.acquisition.infrastructure.fetch import Fetcher, FetchPolicy
 from automind.acquisition.infrastructure.pages import DbPageStore
-from automind.acquisition.parsing.legacy import Registry
+from automind.acquisition.parsing.registry import ParserRegistry
 from automind.acquisition.pipeline import job as research
 from automind.acquisition.registry.application.service import RegistryService
 from automind.acquisition.registry.infrastructure.repo import RegistryRepo
@@ -141,7 +141,7 @@ async def test_research_job_names_producer_version_model_and_snapshot():
     ports.ref = open_web_reference(
         favourites=[KM77], favourite_queries={"specs": "{make} {model} {generation} {variant} {sites}"}
     )
-    ports.readers = Registry(load_yaml("site_readers.yaml"), [KM77])
+    ports.readers = ParserRegistry.from_yaml([KM77])
     cfg = {**load_yaml("registry.yaml"), "autonomy": False}
     ports.registry = RegistryService(RegistryRepo(cfg), cfg)
 
@@ -176,6 +176,12 @@ async def _check_job(ports, vid, emit):  # noqa: ANN001
         snaps = list((await s.execute(select(m.PageSnapshot).where(m.PageSnapshot.id.in_(accepted)))).scalars())
     assert snaps and all(x.retention_class == "accepted" and vid in x.variant_ids for x in snaps)
     assert all(x.keep_until - x.fetched_at >= timedelta(days=179) for x in snaps)
+    # spec 011 T087: the reader stamps its version and the page's structure fingerprint on the snapshot it read
+    # (the G60 page is rejected by relevance before any reader)
+    read_ids = {a.snapshot_id for a in km77 if a.outcome == "accepted"}
+    async with db.sessionmaker()() as s:
+        read = list((await s.execute(select(m.PageSnapshot).where(m.PageSnapshot.id.in_(read_ids)))).scalars())
+    assert read and all(x.parser_version == "km77@v1" and len(x.structure_hash or "") == 16 for x in read)
 
 
 @pytest.mark.parametrize("cap_bytes", [0])

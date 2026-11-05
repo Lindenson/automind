@@ -97,6 +97,16 @@ groups:
           summary: 'Web searches per accepted value in "{{ $labels.area }}" rose to {{ $value }} (25 % above a month ago)'
           admin: /admin
 
+      # spec 011 US4 (T089): a parser version degraded by drift (7d vs 30d drop, structure change or a zero streak);
+      # the reason is in the Changes journal (acq_changes, author system)
+      - alert: AutomindParserDrift
+        expr: automind_parser_drift == 1
+        for: 0m
+        labels: { severity: warning }
+        annotations:
+          summary: 'Parser "{{ $labels.reader }}" degraded by drift (layout change?); the parser doctor is queued'
+          admin: /admin
+
   - name: automind-providers
     rules:
       - alert: AutomindFallbackHigh

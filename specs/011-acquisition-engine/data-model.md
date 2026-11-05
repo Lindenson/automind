@@ -224,8 +224,10 @@ satisfaction_index, nodata_share: {area: x}, searches_per_value: {area: x}, cove
 | reverted_by | uuid null | owner revert / automatic rollback row |
 | closed_at | timestamptz null | |
 
-Index: `unique (object_kind, object_key) where status in ('proposed','replay','shadow','accepted','watch')` — one
-change per object at a time (FR-018).
+Index: `unique (object_kind, object_key) where status in ('proposed','replay','shadow','accepted','watch') and
+closed_at is null` — one change per object at a time (FR-018). The `closed_at` condition (added in 0022) lets the
+drift journal rows (`system`, `accepted`, closed at once) coexist with the parser doctor's open proposal for the
+same parser.
 Created in 0022 because drift (US4) journals parser status changes here (`author=system`, `object_kind=parser`,
 `status=accepted`, no gates); the agents of US5 use the same table.
 

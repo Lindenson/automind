@@ -8,7 +8,7 @@ from tests.fakes.fixture_search import FixtureSearch
 from tests.graph.conftest import engine, make_ports, open_web_reference
 
 from automind.acquisition import api as acquisition
-from automind.acquisition.parsing.legacy import Registry
+from automind.acquisition.parsing.registry import ParserRegistry
 from automind.acquisition.registry.application.service import RegistryService
 from automind.acquisition.registry.infrastructure.repo import RegistryRepo
 from automind.infrastructure import db
@@ -55,7 +55,7 @@ def _ports(fx: FixtureSearch):  # noqa: ANN202
     ports.ref = open_web_reference(
         favourites=[KM77], favourite_queries={"specs": "{make} {model} {generation} {variant} {sites}"}
     )
-    ports.readers = Registry(load_yaml("site_readers.yaml"), [KM77])
+    ports.readers = ParserRegistry.from_yaml([KM77])
     cfg = {**load_yaml("registry.yaml"), "autonomy": False}
     ports.registry = RegistryService(RegistryRepo(cfg), cfg)
     return ports

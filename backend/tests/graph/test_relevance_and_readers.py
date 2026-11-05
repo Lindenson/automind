@@ -7,8 +7,7 @@ import uuid
 import pytest
 from sqlalchemy import delete, select
 
-from automind.acquisition.parsing.legacy import Registry
-from automind.infrastructure.config import load_yaml
+from automind.acquisition.parsing.registry import ParserRegistry
 from automind.infrastructure.db import models as m
 from automind.infrastructure.db.repositories import MessageRepo
 from automind.infrastructure.db.session import sessionmaker
@@ -83,7 +82,7 @@ async def test_gate_reader_and_market_validator(saver):
     share(ports, ref=open_web_reference(
         favourites=[KM77], favourite_queries={"specs": "{make} {model} {generation} {variant} {sites}"}
     ))  # fmt: skip
-    engine(ports).readers = Registry(load_yaml("site_readers.yaml"), [KM77])
+    engine(ports).readers = ParserRegistry.from_yaml([KM77])
     r = await ChatRunner(build_graph(saver, tools=[]), ports, budget_factory(), messages=MessageRepo()).run_turn(
         str(uuid.uuid4()), "BMW 520d G30 for a race enthusiast"
     )
