@@ -46,6 +46,7 @@
   The facade test (T038) returns the values recorded from the pre-move `run_job` on `bmw520`. Open: the SC-005
   measurement (p50/p95 of `automind_turn_duration_seconds` on 10 live turns with the worker's prefetch running vs
   stopped) needs the worker (T054–T057, branch `011-us2-worker`) and live model/search calls; T059 stays open for it.
+<<<<<<< HEAD
 
 - Quickstart walk (T127, 2026-11-05, branch `011-adr-quickstart` from main 0045ec2): offline variant — own test
   database `automind_test_qs` in the live `automind` Postgres (created, then dropped; the live stack untouched), dummy
@@ -61,3 +62,24 @@
   | 5 Agents, gates | yes | passed | 70 tests incl. `test_redesign_acceptance.py` (fake LLM, SC-007/SC-008). |
   | 6 Admin | yes | passed | API 7 tests (token auth covered there); admin vitest 57. Skipped: clicking through `/admin` (no stack started). |
   | 7 010 leftovers | yes | passed | 2 tests (paths fixed to `tests/graph/`); `learned.py` absent. |
+=======
+- SC-005 turn latency with the worker (T059, 2026-11-05, branch `011-prefetch`): `uv run pytest
+  tests/golden/test_bench_turns.py -m bench -s` with `BENCH_ROUNDS=10` replays the 12 golden dialogues (26 turns, fake
+  model from the cassettes, fixture search) 10 times with the worker stopped and 10 times with a worker process
+  (`tests/golden/bench_load.py`: metrics snapshot, reputation signals, roll-up, parser metrics and prefetch through
+  `acquire()`) running against the same test database, alternating the order per round; 260 turns per mode, wall time
+  of `ChatRunner.run_turn`/`resume`, 32-core host, Postgres in Docker:
+
+  | worker load | stopped p50 / p95 | running p50 / p95 | worker tasks |
+  |---|---|---|---|
+  | back to back (worst case), run 1 | 172 / 320 ms | 226 / 441 ms | 1,770 |
+  | back to back (worst case), run 2 | 174 / 413 ms | 207 / 415 ms | 1,765 |
+  | 2 s pause between batches | 180 / 445 ms | 195 / 404 ms | 200 |
+
+  Run-to-run noise with the worker stopped is about ±5 ms on p50 and ±60 ms on p95. With a paced worker (still far
+  busier than the deployed one: prefetch hourly, snapshot every 60 s) the difference is within noise (p50 +14 ms,
+  p95 lower). A worker saturating the database back to back adds 33–54 ms to p50 of these 0.2 s replayed turns, p95
+  within noise; live turns are model- and network-bound (tens of seconds), so even the worst case is well under 1% of
+  a live turn. T059 closed on these numbers; live turns were not measured (they cost money) — repeat with
+  `automind_turn_duration_seconds` on the dev stack if a regression is suspected.
+>>>>>>> origin/011-prefetch

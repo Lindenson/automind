@@ -41,6 +41,11 @@ CHANGES = Counter(P + "acq_changes", "Transitions of gated changes by agent and 
 OPEN_CHANGES = Gauge(P + "acq_open_changes", "Open gated changes by agent and phase", ["agent", "phase"])
 AGENT_SPEND = Gauge(P + "agent_spend_today_eur", "Spend of an engine agent today (its tasks and gates)", ["agent"])
 AGENT_BUDGET = Gauge(P + "agent_budget_eur", "Daily budget of an engine agent (config/agents.yaml)", ["agent"])
+# spec 011 T057: prefetch (cars and areas refreshed before users ask; the day's spend against its cap)
+PREFETCH_VARIANTS = Counter(P + "prefetch_variants", "Cars refreshed by prefetch")
+PREFETCH_AREAS = Counter(P + "prefetch_areas", "Areas refreshed by prefetch", ["area"])
+PREFETCH_SPEND = Gauge(P + "prefetch_spend_today_eur", "Spend of prefetch today (all its tasks)")
+PREFETCH_BUDGET = Gauge(P + "prefetch_budget_eur", "Daily budget of prefetch (acquisition.yaml prefetch.eur_per_day)")
 
 _counts: list[tuple[str, str, int]] = []
 
@@ -52,7 +57,8 @@ def metric_names() -> set[str]:
             d + "_bucket", d + "_sum", d + "_count", P + "searches_per_accepted_value", P + "wrong_share",
             P + "wrong_share_baseline", P + "component_acc_lb", P + "parser_fields_per_page", P + "parser_pass_rate",
             P + "parser_drift", P + "acq_changes_total", P + "acq_open_changes", P + "agent_spend_today_eur",
-            P + "agent_budget_eur"}  # fmt: skip
+            P + "agent_budget_eur", P + "prefetch_variants_total", P + "prefetch_areas_total",
+            P + "prefetch_spend_today_eur", P + "prefetch_budget_eur"}  # fmt: skip
 
 
 def start(port: int, addr: str = "127.0.0.1") -> Any:
