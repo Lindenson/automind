@@ -250,6 +250,7 @@ class CaseCar(BaseModel):
     chosen_for_me: bool = False  # the user said "choose for me": the version found is taken without asking again
     year_assumed: bool = False  # spec 008 FR-022: a used car's year assumed from mileage or generation
     ladder: LadderMemo | None = None  # spec 008
+    replaced: bool = False  # 009 FR-022: the user's own car that the purchase replaces (compared, not a candidate)
 
     @property
     def display_name(self) -> str:
@@ -343,6 +344,9 @@ class CaseFile(BaseModel):
     # proposed for it: {key, make, model, why: [reason keys], price_from_eur}
     wanted_body: Literal["suv", "estate", "mpv", "sedan", "hatchback"] | None = None
     candidates: list[dict[str, object]] = Field(default_factory=list)
+    # 009 FR-022: the make to choose from when the user names a make but no model ("find me a Kia to replace my
+    # Prado"): candidates of that make are proposed instead of asking "which model?"
+    wanted_make: str | None = None
     # spec 007 FR-013: scores and weights at the last report, so the next one can show what changed
     last_scores: dict[str, dict[str, float]] = Field(default_factory=dict)
     last_weights: dict[str, float] = Field(default_factory=dict)
@@ -413,6 +417,8 @@ class CarRef(BaseModel):
     age_years: int | None = Field(default=None, ge=0, le=80)
     mileage_km: int | None = Field(default=None, ge=0)
     constraints: Constraints = Field(default_factory=Constraints)
+    replaced: bool = Field(default=False, description="The user's own car that the purchase replaces ('to replace "
+                           "my Prado'); it is compared with the candidates")  # fmt: skip
 
 
 class CarContext(BaseModel):
@@ -451,6 +457,8 @@ class CaseDelta(BaseModel):
     unmapped_wishes: list[str] = Field(default_factory=list)
     set_race_settings: RaceSettings | None = None
     set_prediction: Prediction | None = None
+    choose_from_make: str | None = Field(default=None, description="A make the user wants a car of without naming "
+                                         "a model ('find me a Kia'); never also in add_cars")  # fmt: skip
 
     def is_empty(self) -> bool:
         return self == CaseDelta()
@@ -578,6 +586,9 @@ def _apply_settings(c: CaseFile, d: CaseDelta, log: list[str]) -> None:
     if d.set_race_settings is not None and d.set_race_settings != c.race_settings:
         c.race_settings = d.set_race_settings
         log.append(f"race: {d.set_race_settings.surface}, +{d.set_race_settings.extra_load_kg:g} kg")
+    if d.choose_from_make and d.choose_from_make.strip() and d.choose_from_make.strip() != c.wanted_make:
+        c.wanted_make = d.choose_from_make.strip()
+        log.append(f"make to choose from: {c.wanted_make}")
 
 
 def _apply_constraints(c: CaseFile, d: CaseDelta, log: list[str]) -> None:

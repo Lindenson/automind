@@ -10,8 +10,12 @@ Before any text is written, code decides which differences matter:
 - relevance = the weight of the user's criterion behind the attribute × how far the difference exceeds the
   threshold (capped), so the user's priorities come first;
 - money: a consumption difference is also expressed in € per year at the user's km;
-- trade-offs: two meaningful money insights won by different cars (one cheaper to buy, the other cheaper to
-  run) give a break-even in years.
+- ownership cost is compared on the TOTAL over the user's period, running costs plus the value the car loses
+  (`tco_period`); running costs per year (`tco_per_year`) are a secondary figure, labelled "without
+  depreciation" (chat 5821ac77: a verdict on running costs alone called the dearer car the saving);
+- trade-offs: one car cheaper to buy, the other cheaper to run give a payback in years, from the cars' total cost
+  curves (running + value lost, year by year), never from running costs alone. When the cheaper-to-run car is
+  still dearer over the period, the trade-off says so (`no_payback`, or a payback beyond the period).
 
 The same input always gives the same output (sorted, no randomness).
 """
@@ -21,6 +25,8 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Literal
+
+from .tco import payback_years
 
 Direction = Literal["higher", "lower"]
 Confidence = Literal["HIGH", "MEDIUM", "LOW"]
@@ -74,6 +80,7 @@ class CarValues:
     confidence: Mapping[str, str] = field(default_factory=dict)  # attribute -> HIGH | MEDIUM | LOW
     sources: Mapping[str, Sequence[str]] = field(default_factory=dict)  # attribute -> claim/evidence ids
     energy_eur_per_unit: float | None = None  # € per litre / kWh of this car's energy (for money per year)
+    cost_curve: tuple[float, ...] = ()  # total cost incl. value lost after 1, 2, … years (empty: value loss unknown)
 
 
 @dataclass(frozen=True)
@@ -81,6 +88,7 @@ class Profile:
     weights: Mapping[str, float]  # criterion -> weight (any scale)
     annual_km: int = 15000
     background_weight: float = 0.3
+    years: int = 5  # the ownership period the totals cover
 
 
 @dataclass(frozen=True)
@@ -116,7 +124,9 @@ class TradeOff:
     cost: str  # insight id won by the other car
     gain_car: str
     cost_car: str
-    break_even_years: float | None  # extra price ÷ yearly saving, when both are money
+    break_even_years: float | None  # when gain_car's total cost (running + value lost) drops to cost_car's
+    no_payback: bool = False  # gain_car is cheaper to run but its total never drops to cost_car's (≤ 15 years)
+    period_loser: str | None = None  # the car whose total over the period is higher, when the totals are known
 
 
 @dataclass(frozen=True)
@@ -197,21 +207,30 @@ def _insight(rule: AttributeRule, cars: Sequence[CarValues], profile: Profile) -
 
 
 _PRICE = "official_price_es"
+_PERIOD = "tco_period"
 _RUNNING = ("tco_per_year", "consumption")
 
 
-def _trade_offs(found: Sequence[Insight]) -> list[TradeOff]:
-    """Opposite winners on meaningful insights. Price vs running cost gives a break-even."""
+def _trade_offs(found: Sequence[Insight], cars: Sequence[CarValues] = ()) -> list[TradeOff]:
+    """Opposite winners on meaningful insights. Price against running cost gives a payback, counted on the total
+    cost curves (running + value lost); without them no payback is claimed."""
     by = {i.id: i for i in found if i.meaningful and i.better_car}
+    curves = {c.car_id: c.cost_curve for c in cars if c.cost_curve}
     out: list[TradeOff] = []
     price = by.get(_PRICE)
+    period = next((i for i in found if i.id == _PERIOD and i.meaningful), None)
+    loser = period.worse_car if period is not None else None
     for run in (by.get(k) for k in _RUNNING):
         if price is None or run is None or run.better_car == price.better_car:
             continue
-        saving = run.diff if run.id == "tco_per_year" else run.money_per_year
-        extra = next((abs(c.value - price.cars[0].value) for c in price.cars if c.car_id == run.better_car), None)
-        years = round(extra / saving, 1) if extra and saving else None
-        out.append(TradeOff(run.id, _PRICE, str(run.better_car), str(price.better_car), years))
+        gain, other = str(run.better_car), str(price.better_car)
+        years, never = None, False
+        if gain in curves and other in curves:
+            years = payback_years(curves[gain], curves[other])
+            never = years is None
+        win_period = period is not None and period.better_car == gain
+        out.append(TradeOff(_PERIOD if win_period else run.id, _PRICE if win_period or period is None else _PERIOD,
+                            gain, other, years, never, loser))  # fmt: skip
         break
     ranked = sorted(by.values(), key=lambda i: (-i.relevance, i.id))
     for a in ranked:
@@ -228,4 +247,4 @@ def build(cars: Sequence[CarValues], profile: Profile, rules: Mapping[str, Attri
     found = [i for i in (_insight(r, cars, profile) for _, r in sorted(rules.items())) if i is not None]
     found.sort(key=lambda i: (not i.meaningful, -i.relevance, i.id))
     ties = tuple(i.id for i in found if len(i.tiers) == 1)
-    return InsightSet(tuple(found), ties, tuple(_trade_offs(found)))
+    return InsightSet(tuple(found), ties, tuple(_trade_offs(found, cars)))

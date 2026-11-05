@@ -168,9 +168,19 @@ def _reliability(c: CarFacts, sc: Mapping[str, Any]) -> Result:
 
 
 def _ownership(c: CarFacts, sc: Mapping[str, Any]) -> Result:
+    """The total cost over the user's period, running costs plus the value lost, per year (chat 5821ac77: running
+    costs alone made a new car that loses €5,000 a year look €3,600 a year cheaper). Running costs only when the
+    value loss is unknown for some compared car, and then said."""
+    if c.period_cost_eur is not None and c.period_years:
+        per_year = c.period_cost_eur / c.period_years
+        return lin(per_year, sc.get("lo_total", sc["lo"]), sc.get("hi_total", sc["hi"])), [
+            f"ownership cost {c.period_cost_eur:.0f} EUR over {c.period_years} years including depreciation "
+            f"({per_year:.0f} EUR/year)"]  # fmt: skip
     if c.annual_cost_eur is None:
         return None, []
-    return lin(c.annual_cost_eur, sc["lo"], sc["hi"]), [f"ownership cost {c.annual_cost_eur:.0f} EUR/year"]
+    return lin(c.annual_cost_eur, sc["lo"], sc["hi"]), [
+        f"running costs {c.annual_cost_eur:.0f} EUR/year (without depreciation: no value data for every car)"
+    ]
 
 
 def _price(c: CarFacts, sc: Mapping[str, Any]) -> Result:

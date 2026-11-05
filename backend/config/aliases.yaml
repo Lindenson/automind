@@ -33,3 +33,8 @@ generations:
   "BMW|3 Series": {f30: F30, f31: F30, g20: G20, g21: G20, e90: E90}
   "Volkswagen|Golf": {mk7: Mk7, "7": Mk7, mk7.5: Mk7.5, mk8: Mk8, "8": Mk8, mk8.5: Mk8.5}
   "Hyundai|i30 N": {pd: PDe, pde: PDe}
+market_names:
+  # "<canonical make>|<canonical model>[|<generation>]" -> {market: the name the model is sold under there}.
+  # Search queries use it per market (spec 009 FR-017, FR-021): the Prado J150 is a "Land Cruiser" in Spain and
+  # Germany (the big J200 is the "Land Cruiser V8" there); other markets keep the canonical "Land Cruiser Prado".
+  "Toyota|Land Cruiser Prado": {ES: Land Cruiser, DE: Land Cruiser}

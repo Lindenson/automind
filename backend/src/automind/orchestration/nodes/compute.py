@@ -52,7 +52,7 @@ def case_facts(case: CaseFile) -> list[str]:
     out += [x[0].lower() + x[1:] for x in fz_app.constraint_lines(case)]
     if case.priorities:
         out.append("priorities: " + ", ".join(p.criterion.replace("_", " ") for p in case.priorities))
-    out.append(f"{case.annual_km:,} km per year")
+    out.append(f"{case.annual_km:,} km per year" + (" (assumed)" if km_assumed(case) else ""))
     for x in case.cars:  # spec 008 FR-027: a used car is labelled as used, an assumed year as assumed
         if x.condition == "USED":
             yr = (f"~{x.year} (assumed)" if x.year_assumed else str(x.year)) if x.year else "year unknown"
@@ -85,6 +85,16 @@ def _checked_costs(
     return out
 
 
+def period_totals(estimates: list[tco.TcoEstimate], costs: dict[str, float]) -> dict[str, float]:
+    """Total over the ownership period, running costs plus the value lost, for the cars whose running cost is
+    compared (chat 5821ac77). Empty unless every one of them has its value loss: a total without it would make
+    the car with unknown depreciation look cheaper."""
+    cars = [e for e in estimates if e.car_id in costs]
+    if not cars or not all(tco.depreciation_known(e) for e in cars):
+        return {}
+    return {e.car_id: e.period_total for e in cars}
+
+
 def per_100km(estimates: list[tco.TcoEstimate]) -> dict[str, float]:
     """Energy cost per 100 km per car (spec 006 FR-023), only where the energy line could be computed."""
     out = {}
@@ -104,9 +114,11 @@ def _reg_year(x: Any, car: dict[str, Any], year: int | None) -> int | None:
 
 def verdict_extras(keyed: list[Any], tcars: list[tco.TcoCar], estimates: list[tco.TcoEstimate], case: CaseFile,
                    year: int | None, market: list[dict[str, Any]] | None = None,
-                   today: date | None = None) -> dict[str, Any]:  # fmt: skip
+                   today: date | None = None,
+                   curves: dict[str, tuple[float, ...]] | None = None) -> dict[str, Any]:  # fmt: skip
     """The DGT label of every car and the break-even of an electrified car against a combustion one (spec 006
-    FR-015, FR-016): computed by code, with the rule and the inputs."""
+    FR-015, FR-016): computed by code, with the rule and the inputs. The payback counts the value each car loses
+    (`curves`: total cost year by year); without it no payback is claimed (chat 5821ac77)."""
     labels = {}
     for (x, car), tc in zip(keyed, tcars, strict=True):
         lb = incentives.env_label(tc.powertrain, tc.range_wltp, tc.fuel, _reg_year(x, car, year))
@@ -123,13 +135,20 @@ def verdict_extras(keyed: list[Any], tcars: list[tco.TcoCar], estimates: list[tc
     if len(elec) == 1 and len(comb) == 1:
         e, c0 = elec[0], comb[0]
         sub = incentives_research.subsidy(views.get(e.car_id, []))
-        b = incentives.break_even(e.price_eur, c0.price_eur, run.get(e.car_id), run.get(c0.car_id),
-                                  subsidy_eur=sub, ownership_years=case.ownership_years)  # fmt: skip
+        cv = curves or {}
+        b = incentives.break_even(_buy_price(e), _buy_price(c0), run.get(e.car_id), run.get(c0.car_id),
+                                  subsidy_eur=sub, ownership_years=case.ownership_years,
+                                  curve_e=cv.get(e.car_id), curve_c=cv.get(c0.car_id))  # fmt: skip
         out["break_even"] = {"electrified_car_id": e.car_id, "against_car_id": c0.car_id, "verdict": b.verdict,
                              "electrified_label": e.label, "against_label": c0.label,
                              "years": b.years, "beyond_ownership": b.beyond_ownership, "inputs": b.inputs,
                              "ownership_years": case.ownership_years, "subsidy_eur": sub}  # fmt: skip
     return out
+
+
+def _buy_price(t: tco.TcoCar) -> float | None:
+    """What the car costs to buy: a used car's sourced used price, never its new price (spec 008 FR-023)."""
+    return t.used_price_eur if t.condition == "USED" else t.price_eur
 
 
 async def _energy_metrics(c: TurnContext, keyed: list[Any], estimates: list[tco.TcoEstimate]) -> None:
@@ -214,6 +233,7 @@ async def _insights(
     costs: dict[str, float], crit: CriteriaScore | None, sims: dict[str, Any], rates: tco.TcoRates, lang: str,
     limits: list[vd.Limit] | None = None, other: vd.OtherProfile | None = None,
     used_prices: dict[str, float | None] | None = None,
+    totals: dict[str, float] | None = None, curves: dict[str, tuple[float, ...]] | None = None,
 ) -> tuple[Any, Any, dict[str, Any], GuardInput]:  # fmt: skip
     """Insights → verdict → the verdict card (spec 004 FR-001, FR-009)."""
     rel = {s.car_id: s.parts.get("reliability") for s in crit.cars} if crit else {}
@@ -227,12 +247,13 @@ async def _insights(
             retention_curve=None if recent_make(c)(getattr(car["variant"], "make", None))
             else (c.ports.ref.feasibility or {}).get("depreciation"),
             used=x.condition == "USED", used_price_eur=(used_prices or {}).get(x.key),
+            period_total=(totals or {}).get(car["variant"].id), cost_curve=(curves or {}).get(car["variant"].id, ()),
         )
         for x, car in keyed
     ]  # fmt: skip
     model = c.ports.ref.criteria
     weights = weights_for(case, model) if model else {}
-    profile = ins.Profile(weights=weights, annual_km=case.annual_km)
+    profile = ins.Profile(weights=weights, annual_km=case.annual_km, years=_years(case, rates))
     iset = ins.build(values, profile, ins.rules_from_config(c.ports.ref.insights))
     names = {car["variant"].id: compose.short_name(car["variant"]) for _, car in keyed}
     unmet = await research.unmet_areas([car["variant"].id for _, car in keyed])
@@ -252,8 +273,38 @@ async def _insights(
     has = {t for t, ok in (("tco", bool(costs)), ("price", "official_price_es" in _any_values(values)),
                            ("consumption", "consumption" in _any_values(values))) if ok}  # fmt: skip
     has |= {i.attribute for i in iset.insights}
-    check = GuardInput(frozenset(has), frozenset(iset.ties), v.tie, tuple(sorted(set(names.values()))))
+    check = GuardInput(frozenset(has), frozenset(iset.ties), v.tie, tuple(sorted(set(names.values()))),
+                       costlier=costlier_names(iset, names))  # fmt: skip
     return iset, v, block, check
+
+
+def costlier_names(iset: Any, names: dict[str, str]) -> tuple[str, ...]:
+    """The cars whose total over the period (running + value lost) is meaningfully higher than the cheapest one:
+    the text may never call them the saving (chat 5821ac77)."""
+    period = iset.get("tco_period") if iset is not None else None
+    if period is None or not period.meaningful:
+        return ()
+    best = set(period.tiers[0])
+    return tuple(sorted(names[c.car_id] for c in period.cars if c.car_id not in best and c.car_id in names))
+
+
+def _years(case: CaseFile, rates: tco.TcoRates) -> int:
+    return case.ownership_years or rates.horizon_years
+
+
+def km_assumed(case: CaseFile) -> bool:
+    return case.basis.get("annual_km", "ASSUMED") == "ASSUMED" and not case.annual_km_stated
+
+
+def assumption_lines(case: CaseFile, rates: tco.TcoRates, lang: str | None) -> list[str]:
+    """One short line for what the costs assume and the user never said (annual km, years of ownership), with the
+    value and an invitation to correct it (chat 5821ac77: 15,000 km a year was assumed silently)."""
+    km = km_assumed(case)
+    yrs = case.ownership_years is None or case.basis.get("ownership_years", "ASSUMED") == "ASSUMED"
+    if not km and not yrs:
+        return []
+    key = "assumed_km_years" if km and yrs else "assumed_km" if km else "assumed_years"
+    return [t(key, lang, km=report_text.thousands(case.annual_km, lang), years=_years(case, rates))]
 
 
 def _year(c: TurnContext) -> int | None:
@@ -392,6 +443,10 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
              for x, car in keyed]  # fmt: skip
     estimates = tco.like_for_like([tco.compute(t, rates, case.annual_km, case.ownership_years) for t in tcars])
     costs = _checked_costs(estimates, {car["variant"].id: ages[x.key] for x, car in keyed}, notices)
+    totals = period_totals(estimates, costs)
+    curves = {tc.car_id: cv for tc in tcars if tc.car_id in totals
+              and (cv := tco.cost_curve(tc, rates, case.annual_km))}  # fmt: skip
+    years = _years(case, rates)
     eff = per_100km(estimates)
     notices += energy_notices(estimates, {car["variant"].id: compose.short_name(car["variant"]) for car in cars}, lang)
     await _energy_metrics(c, keyed, estimates)
@@ -415,6 +470,8 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
             energy_eur_per_100km=eff.get(car["variant"].id),
             mileage_km=x.mileage_km,
             used_price_eur=up(x),
+            period_cost_eur=totals.get(car["variant"].id),
+            period_years=years,
         )
         for x, car in keyed
     ]
@@ -428,11 +485,13 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
         est = tco.like_for_like([tco.compute(replace(t, use=puse), rates, probe.annual_km, probe.ownership_years)
                                  for t in tcars])  # fmt: skip
         cost = _checked_costs(est, {car["variant"].id: ages[x.key] for x, car in keyed}, [])
+        tot = period_totals(est, cost)
         eff_p = per_100km(est)
         fs = [compose.facts(car, sims.get(car["variant"].id), condition=_cond(x.condition), age_years=ages[x.key],
                             annual_cost_eur=cost.get(car["variant"].id), year=year,
                             energy_eur_per_100km=eff_p.get(car["variant"].id), mileage_km=x.mileage_km,
-                            used_price_eur=up(x)) for x, car in keyed]  # fmt: skip
+                            used_price_eur=up(x), period_cost_eur=tot.get(car["variant"].id),
+                            period_years=_years(probe, rates)) for x, car in keyed]  # fmt: skip
         w = weights_for(probe, model)
         r = score(fs, w, model) if fs and w else None
         return (r.winner_car_id, r.tie) if r else (None, False)
@@ -441,7 +500,7 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
     other = persona_counterfactual(case, outcome) if crit is not None and len(keyed) > 1 else None
     iset, verdict, vblock, check = await _insights(c, case, keyed, tcars, costs, crit, sims, rates, lang,
                                                    limits_from(case, fz), other,
-                                                   {x.key: up(x) for x, _ in keyed})  # fmt: skip
+                                                   {x.key: up(x) for x, _ in keyed}, totals, curves)  # fmt: skip
     extras = verdict_extras(
         keyed,
         tcars,
@@ -450,16 +509,19 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
         year,
         await _market_facts(c),
         c.ports.clock.now().date() if getattr(c.ports, "clock", None) is not None else None,
+        curves,
     )
     vblock.update(extras)
     blocks = await _blocks(c, case, keyed, race, crit, estimates, iset, fz)
     eb = electric_block.build(cars, tcars, estimates, rates, extras["labels"], lang, extras.get("incentives"))
     if eb is not None:
         blocks.append(eb)
-    said = bool(verdict.trade_off and verdict.trade_off.break_even_years)
+    said = bool(verdict.trade_off and (verdict.trade_off.break_even_years or verdict.trade_off.no_payback))
     names_e = {t.car_id: compose.short_name(car["variant"]) for t, car in zip(tcars, cars, strict=True)}
     if lines := report_text.electric_lines(eb, extras.get("break_even"), names_e, lang, years_said=said):
         vblock["profile_notes"] = [*vblock.get("profile_notes", []), *lines]
+    assumed = assumption_lines(case, rates, lang) if cars else []  # what the costs assume, said with the value
+    vblock["profile_notes"] = [*vblock.get("profile_notes", []), *assumed]
     out_notices = list(notices)
     if case.unmapped_wishes:
         out_notices.append(notice("Not assessable with data: " + ", ".join(case.unmapped_wishes)))
@@ -483,24 +545,58 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
     body = annotate_sections(case.persona, body, c.ports.ref.layouts or {})
     ordered = [*head, *body] if cars else []
     summary = compose.summary_for_llm(cars, race, crit)
-    summary["ownership_cost"] = [
-        {
-            "label": e.label,
-            "annual_eur": e.annual_total,
-            "five_year_eur": e.five_year_total,
-            "items": [{"kind": i.kind, "annual_eur": i.annual_eur, "basis": i.basis} for i in e.items],
-        }
-        for e in estimates
-    ]
+    summary["ownership_cost"] = ownership_facts(estimates, totals, years, names, iset)
     summary["insights"] = report_text.insights_for_llm(iset, verdict, names, lang, case.ownership_years)
     if lines:
         summary["electrified"] = lines  # spec 006 T050: the code-built sentences, numbers from code
+    summary["assumptions"] = assumed
     summary["profile_focus"] = profile_focus(case, crit, verdict, names, lang)
     summary["section_depth"] = depths(case.persona, c.ports.ref.layouts or {})  # spec 004 FR-019
     if ul := used_lines(case, usedf):  # spec 008 FR-027: say these figures are for a used car
         summary["used_cars"] = ul
     return Computed(blocks=ordered, facts=summary, criteria=crit, cars=cars, tco=estimates, race=race,
                     insights=iset, verdict=verdict, check=check, outcome=outcome)  # fmt: skip
+
+
+def ownership_facts(estimates: list[tco.TcoEstimate], totals: dict[str, float], years: int,
+                    names: dict[str, str], iset: Any = None) -> dict[str, Any]:  # fmt: skip
+    """Ownership cost for the writer (chat 5821ac77): the total over the period including depreciation is THE
+    comparison; running costs per year are labelled as without depreciation. Code decides which car is cheaper."""
+    cars = []
+    for e in estimates:
+        dep = next((i.five_year_eur for i in e.items if i.kind == "DEPRECIATION"), None)
+        row: dict[str, Any] = {
+            "car": names.get(e.car_id, e.label),
+            "running_costs_per_year_without_depreciation_eur": e.annual_total,
+            "items": [{"kind": i.kind, "annual_eur": i.annual_eur, "basis": i.basis} for i in e.items],
+        }
+        if e.car_id in totals:
+            row["total_over_the_period_including_depreciation_eur"] = totals[e.car_id]
+            row["depreciation_over_the_period_eur"] = dep
+        cars.append(row)
+    out: dict[str, Any] = {"period_years": years, "cars": cars}
+    period = iset.get("tco_period") if iset is not None else None
+    if len(totals) >= 2 and period is not None and period.meaningful:
+        cheap = [names.get(c, c) for c in period.tiers[0]]
+        out["cheaper_to_own_over_the_period"] = " / ".join(cheap)
+        out["costlier_to_own_over_the_period"] = list(costlier_names(iset, names))
+        out["difference_over_the_period_eur"] = period.diff
+        out["rule"] = (
+            "Compare ownership cost ONLY on the totals including depreciation. Running costs per year "
+            "may be quoted only as 'running costs (without depreciation)' and never as a saving."
+        )
+    elif len(totals) >= 2:
+        out["about_the_same_over_the_period"] = True
+        out["rule"] = (
+            "The totals including depreciation are about the same: name no car as cheaper to own. Running "
+            "costs per year may be quoted only as 'running costs (without depreciation)'."
+        )
+    else:
+        out["rule"] = (
+            "Depreciation is not known for every car: these are running costs only. Say so; never claim "
+            "that a car saves money or pays back."
+        )
+    return out
 
 
 def profile_focus(
@@ -578,7 +674,9 @@ async def _blocks(
             blocks.append(extra)
     if estimates:
         ids = [x for e in estimates for i in e.items for x in i.evidence_ids]
-        blocks.append(compose.tco_block(estimates, await compose.evidence_refs(ids)))
+        tb = compose.tco_block(estimates, await compose.evidence_refs(ids))
+        tb["annual_km_assumed"] = km_assumed(case)  # chat 5821ac77: said on the block, not only in the text
+        blocks.append(tb)
     return blocks
 
 

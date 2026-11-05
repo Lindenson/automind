@@ -26,12 +26,36 @@ A4 = [
     Version("2.0 TDI 204 CV", "mhev", 1968, 150, ("dct",), ("AWD",), 2019, 2024, "https://km77.es/a"),
 ]
 
+# 009 FR-023: the sources give the first engines no end year; the facelift's engines start later. Test-only makes:
+# the settled versions are stored in the catalog, and a real "Toyota Land Cruiser Prado" row would change the goldens
+PRADO = [
+    Version("3.0 D-4D 173 CV", "diesel", 2982, 127, ("manual", "automatic"), ("AWD",), 2009, None, "https://km77.es/p"),
+    Version("4.0 V6 282 CV", "petrol", 3956, 207, ("automatic",), ("AWD",), 2009, 2013, "https://km77.es/p"),
+    Version("2.8 D-4D 177 CV", "diesel", 2755, 130, ("manual", "automatic"), ("AWD",), 2015, None, "https://km77.es/p"),
+]
+# chat 5821ac77: the 2024 facelift sells the PHEV at 288 CV; the 2020 page writes "265 CV, 2020–"
+SORENTO = [
+    Version(
+        "1.6 T-GDi HEV 230 CV", "hybrid", 1598, 169, ("automatic",), ("FWD", "AWD"), 2020, None, "https://km77.es/s"
+    ),
+    Version("1.6 T-GDi PHEV 265 CV", "phev", 1598, 195, ("automatic",), ("AWD",), 2020, None, "https://km77.es/s"),
+    Version("2.2 CRDi 193 CV", "diesel", 2151, 142, ("dct",), ("FWD", "AWD"), 2020, None, "https://km77.es/s"),
+    Version(
+        "1.6 T-GDi HEV 215 CV", "hybrid", 1598, 158, ("automatic",), ("FWD", "AWD"), 2024, None, "https://km77.es/s"
+    ),
+    Version("1.6 T-GDi PHEV 288 CV", "phev", 1598, 212, ("automatic",), ("AWD",), 2024, None, "https://km77.es/s"),
+]
+
 
 class Store:
     def __init__(self) -> None:
         self.gens = {
             ("Skoda", "Octavia", "Mk4"): Generation("Skoda", "Octavia", "Mk4", 2020, None, "WAGON", OCTAVIA),
             ("Audi", "A4", "B9"): Generation("Audi", "A4", "B9", 2015, 2024, "SEDAN", A4),
+            ("Laddertoyota", "Land Cruiser Prado", "J150"): Generation(
+                "Laddertoyota", "Land Cruiser Prado", "J150", 2009, 2023, "SUV", PRADO
+            ),  # fmt: skip
+            ("Ladderkia", "Sorento", "MQ4"): Generation("Ladderkia", "Sorento", "MQ4", 2020, None, "SUV", SORENTO),
         }
         self.asked: list[tuple[object, ...]] = []
 
@@ -190,3 +214,49 @@ async def test_fallback_without_a_sourced_list_asks_the_power_never_takes_the_fi
     assert o.outcome == "IDENTIFIED" and "115" in (car.label or "")
     assert car.ladder is not None and car.ladder.origin.get("POWER") == "CHOSEN"
     assert {"kind": "identity_less_certain"} in o.events
+
+
+def _prado(age: int) -> CaseCar:
+    return CaseCar(key="car#1", request_text=f"ленд круер прадо 150 возрастом {age} лет", make="Laddertoyota",
+                   model="Land Cruiser Prado", condition="USED", year=2026 - age, age_years=age,
+                   constraints=Constraints(generation_hint="J150"))  # fmt: skip
+
+
+async def test_used_prado_15_years_offers_only_the_engines_sold_in_its_year() -> None:
+    """009 FR-023 (chat 20b5b7f9): the first identification of a 15-year-old Prado offers the 2011 engines only."""
+    ports, car = _ports(), _prado(15)
+    o = await identify._ladder(ports, CaseFile(cars=[car]), car, 2026)
+    assert o is not None and o.outcome == "CHOICES"
+    assert {c.label for c in o.choices} == {"3.0 D-4D 173 CV", "4.0 V6 282 CV"}
+
+
+async def test_used_prado_after_the_facelift_is_not_offered_the_engine_it_replaced() -> None:
+    """The 3.0 D-4D has no end year in the source, but the 2.8 D-4D of the facelift replaced it: an 8-year-old
+    Prado (2018) has one engine, and the 3.0 D-4D is neither taken nor offered."""
+    ports, car = _ports(), _prado(8)
+    car.chosen_for_me = True
+    o = await identify._ladder(ports, CaseFile(cars=[car]), car, 2026)
+    assert o is not None and o.outcome == "IDENTIFIED", o
+    assert "2.8 D-4D 177 CV" in (car.label or "")
+    assert car.ladder is not None and not any("3.0" in x for x in car.ladder.others)
+
+
+async def test_new_sorento_phev_is_the_facelift_288_cv_not_the_2020_265_cv() -> None:
+    """Chat 5821ac77: a new Sorento PHEV bought now is the 2024 facelift's 288 CV; the 2020 265 CV is not on sale."""
+    ports = _ports()
+    car = CaseCar(key="car#1", request_text="Sorento PHEV nuevo", make="Ladderkia", model="Sorento", condition="NEW",
+                  constraints=Constraints(generation_hint="MQ4", engine_hint=parse_engine("PHEV")))  # fmt: skip
+    car.chosen_for_me = True
+    o = await identify._ladder(ports, CaseFile(cars=[car]), car, 2026)
+    assert o is not None and o.outcome == "IDENTIFIED", o
+    assert "288" in (car.label or "") and "265" not in (car.label or "")
+    assert car.ladder is not None and all("230" not in x and "265" not in x for x in car.ladder.others)
+
+
+async def test_new_sorento_asks_among_the_current_engines_only() -> None:
+    ports = _ports()
+    car = CaseCar(key="car#1", request_text="Kia Sorento nuevo", make="Ladderkia", model="Sorento", condition="NEW",
+                  constraints=Constraints(generation_hint="MQ4"))  # fmt: skip
+    o = await identify._ladder(ports, CaseFile(cars=[car]), car, 2026)
+    assert o is not None and o.outcome == "CHOICES"
+    assert {c.label for c in o.choices} == {"1.6 T-GDi HEV 215 CV", "1.6 T-GDi PHEV 288 CV", "2.2 CRDi 193 CV"}

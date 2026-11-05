@@ -16,12 +16,46 @@ import { asLang, storeLang, storedLang, type Lang } from "../i18n/lang";
 import { translate, uiLang } from "../i18n/translate";
 import { loadChatId, saveChatId, uuid } from "../lib/util";
 
+/**
+ * What kind of failure an error line reports, so it can offer one next step (audit F8):
+ * - generic: something broke → try again
+ * - overloaded: the AI provider is busy or out of quota → wait a minute, then try again
+ * - limit: the research budget is used up → continue with the data already researched
+ * - busy: a research is already running → wait for it or stop it
+ * - stopped: the user stopped the turn → ask again
+ * - offline: the message could not be sent → reconnect now (the text stays in the composer)
+ * - gone: the chat cannot be opened here → start a new chat
+ */
+export type ErrorKind = "generic" | "overloaded" | "limit" | "busy" | "stopped" | "offline" | "gone";
+
 export type ErrorEntry = {
   role: "error";
   message_id: string;
   created_at: string;
   text: string;
+  kind?: ErrorKind;
+  /** the user's question the error interrupted: "Try again" sends it again */
+  retry?: string;
 };
+
+/** The kind of a server `error` message: by its code, else by the server's wording (api/ws.py, runner.py). */
+export function errorKind(code: string | null | undefined, text: string): ErrorKind {
+  const c = (code ?? "").toLowerCase();
+  if (c === "chat_deleted" || c === "chat_not_found") return "gone";
+  if (c === "busy" || /^busy\b/i.test(text)) return "busy";
+  if (/cap|limit|budget|quota_exceeded/.test(c)) return "limit";
+  if (/overloaded|out of quota/i.test(text)) return "overloaded";
+  return "generic";
+}
+
+/** The text of the user's latest question, for "Try again". */
+function lastQuestion(messages: UiMessage[]): string | undefined {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i]!;
+    if (m.role === "user") return m.text;
+  }
+  return undefined;
+}
 /** spec 010 FR-038: a one-line "Noted: … — Edit" entry per set of case changes (this browser only). */
 export type NoteEntry = {
   role: "note";
@@ -74,6 +108,8 @@ export interface CaseState {
 interface ChatState {
   chatId: string;
   conn: ConnState;
+  /** reconnect attempts since the connection was lost (audit F8) */
+  connAttempt: number;
   messages: UiMessage[];
   pending: PendingTurn | null;
   /** current turn id while running or waiting (v2) */
@@ -88,7 +124,9 @@ interface ChatState {
   transport: Transport | null;
 
   setTransport: (t: Transport | null) => void;
-  setConn: (c: ConnState) => void;
+  setConn: (c: ConnState, attempt?: number) => void;
+  /** "Retry now": reconnect without waiting for the backoff */
+  reconnect: () => void;
   setHistory: (msgs: ChatMessage[]) => void;
   setHistoryLoading: (v: boolean) => void;
   handleRaw: (raw: unknown) => void;
@@ -125,6 +163,7 @@ export const useChat = create<ChatState>((set, get) => {
   return {
     chatId: loadChatId(),
     conn: "connecting",
+    connAttempt: 0,
     messages: [],
     manualLang: storedLang(),
     convoLang: null,
@@ -143,7 +182,9 @@ export const useChat = create<ChatState>((set, get) => {
     setTransport: (transport) => set({ transport }),
 
     // Protocol v2 replays missed events after a reconnect, so a turn in flight is not lost.
-    setConn: (conn) => set({ conn }),
+    setConn: (conn, attempt) => set({ conn, connAttempt: conn === "open" || conn === "mock" ? 0 : attempt ?? 0 }),
+
+    reconnect: () => get().transport?.reconnect?.(),
 
     setCase: (caseFile) => set({ caseFile }),
 
@@ -292,6 +333,8 @@ export const useChat = create<ChatState>((set, get) => {
                 message_id: uuid(),
                 created_at: now(),
                 text: tr("chat.stopped"),
+                kind: "stopped",
+                retry: lastQuestion(s.messages),
               },
             ],
           }));
@@ -332,8 +375,9 @@ export const useChat = create<ChatState>((set, get) => {
             };
           });
           break;
-        case "error":
-          if (msg.code === "chat_deleted") {
+        case "error": {
+          const kind = errorKind(msg.code, msg.text);
+          if (kind === "gone") {
             set({
               pending: null,
               confirm: null,
@@ -342,14 +386,16 @@ export const useChat = create<ChatState>((set, get) => {
                   role: "error",
                   message_id: uuid(),
                   created_at: now(),
-                  text: tr("chat.deleted"),
+                  text: tr(msg.code === "chat_deleted" ? "chat.deleted" : "chat.notFound"),
+                  kind,
                 },
               ],
             });
             break;
           }
           set((s) => ({
-            pending: null,
+            // "busy": the running research goes on, so its progress stays on screen
+            pending: kind === "busy" ? s.pending : null,
             messages: [
               ...s.messages,
               {
@@ -357,10 +403,13 @@ export const useChat = create<ChatState>((set, get) => {
                 message_id: uuid(),
                 created_at: now(),
                 text: msg.text,
+                kind,
+                retry: lastQuestion(s.messages),
               },
             ],
           }));
           break;
+        }
       }
     },
 
@@ -513,6 +562,7 @@ export const useChat = create<ChatState>((set, get) => {
               message_id: uuid(),
               created_at: now(),
               text: tr("chat.notConnected"),
+              kind: "offline",
             },
           ],
         }));

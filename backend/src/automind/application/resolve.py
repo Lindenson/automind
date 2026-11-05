@@ -221,8 +221,9 @@ def _rank(car: CaseCar, cands: list[db.Variant], level: str | None = None) -> tu
     if len(cands) <= 1:
         return cands, False
     bonus = {v.id: (UNIQUE_MARGIN * 2 if level and v.trim_level == level else 0.0) for v in cands}
+    # equal scores in a fixed order (the least power first, then the label), never the database's row order
     scored = sorted(((fuzz.token_set_ratio(car.request_text.lower(), v.label.lower()) + bonus[v.id], v)
-                     for v in cands), key=lambda x: -x[0])  # fmt: skip
+                     for v in cands), key=lambda x: (-x[0], x[1].power_kw or 10**6, x[1].label))  # fmt: skip
     ambiguous = scored[0][0] - scored[1][0] < UNIQUE_MARGIN
     return [v for _, v in scored], ambiguous
 

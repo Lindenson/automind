@@ -278,6 +278,8 @@ async def select_candidates(state: TurnState, runtime: Runtime[TurnContext]) -> 
     await c.status("resolving", "Choosing candidates for you")
     proposed = await candidates.propose(c.ports, case)
     if not proposed:
+        if (note := candidates.ask_the_model(case)) is not None:  # 009 FR-022: a make with nothing to propose
+            return {"route": "identify", "case_version": await save_case(c, case, [note])}
         return {"route": "general"}
     names = ", ".join(f"{x['make']} {x['model']}" for x in proposed)
     version = await save_case(c, case, [f"candidates: {names}"])
@@ -299,7 +301,15 @@ def _candidate_lines(case: Any, lang: str) -> str:
         price = x.get("price_from_eur")
         cost = t("cand_price", lang, eur=f"{int(price):,}".replace(",", " ")) if price else t("cand_price_check", lang)
         lines.append(f"• {x['make']} {x['model']} — {why or t('cand_fits', lang)}; {cost}")
-    return (t("cand_intro", lang) + "\n" + "\n".join(lines)) if lines else ""
+    if not lines:
+        return ""
+    make = getattr(case, "wanted_make", None)
+    if not make:
+        return t("cand_intro", lang) + "\n" + "\n".join(lines)
+    # 009 FR-022: "a Kia to replace my Prado": the make's candidates, compared with the user's own car
+    own = [x.display_name + (f" (~{x.year})" if x.year else "") for x in case.cars if getattr(x, "replaced", False)]
+    replaces = t("cand_replaces", lang, car=", ".join(own)) if own else ""
+    return t("cand_intro_make", lang, make=make, replaces=replaces) + "\n" + "\n".join(lines)
 
 
 async def prepare_intake(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:

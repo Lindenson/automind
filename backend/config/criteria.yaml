@@ -19,9 +19,10 @@ criteria:
     min_data: reliability minimum met (≥2 independent sources)
   ownership_cost:
     label: Ownership cost
-    definition: Estimated annual cost of owning the car (maintenance, energy, tyres, tax, repair reserve).
-    inputs: [annual ownership cost (EUR/year)]
-    scale: {lo: 6000, hi: 1500}
+    definition: Total cost of owning the car over your period, per year - the value it loses (depreciation) plus
+      maintenance, energy, tyres, tax and repair reserve. Running costs alone only when a car has no value data.
+    inputs: [total ownership cost over the period including depreciation (EUR), running costs (EUR/year)]
+    scale: {lo: 6000, hi: 1500, lo_total: 14000, hi_total: 2500}   # *_total: per year including depreciation
     min_data: an ownership cost estimate
   purchase_price:
     label: Purchase price

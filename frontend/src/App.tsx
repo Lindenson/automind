@@ -1,5 +1,4 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { CancelButton } from "./components/CancelButton";
 import { CaseSheet, CaseSidebar } from "./components/CasePanel/CasePanel";
 import { ChatList } from "./components/ChatList";
 import { Composer } from "./components/Composer";
@@ -8,7 +7,6 @@ import { EmptyState } from "./components/EmptyState";
 import { Header } from "./components/Header";
 import { Message } from "./components/Message";
 import { StatusTimeline } from "./components/StatusTimeline";
-import { ProgressGrid } from "./components/ProgressGrid";
 import { HistorySchema } from "./lib/protocol";
 import {
   createWsTransport,
@@ -38,6 +36,8 @@ export default function App() {
   const scroller = useRef<HTMLDivElement>(null);
   const [chatsOpen, setChatsOpen] = useState(false);
   const stick = useRef(true);
+  /** mock mode: the question a `?scenario=` opens with (audit F15) */
+  const mockAsk = useRef<string | null>(null);
 
   // spec 010 FR-038: the case panel opens by itself on wide screens and counts unseen changes
   useEffect(() => watchCase(), []);
@@ -50,8 +50,9 @@ export default function App() {
     let cancelled = false;
     if (MOCK) {
       // The mock (and its data) is only downloaded in mock mode.
-      void import("./mock/mockTransport").then(({ createMockTransport }) => {
+      void import("./mock/mockTransport").then(({ createMockTransport, mockScenario, scenarioText }) => {
         if (cancelled) return;
+        mockAsk.current = scenarioText(mockScenario());
         t = createMockTransport(h);
         setTransport(t);
       });
@@ -71,7 +72,7 @@ export default function App() {
   const autoAsked = useRef(false);
   useEffect(() => {
     if (!MOCK || !transport || autoAsked.current) return;
-    const q = new URLSearchParams(window.location.search).get("q");
+    const q = new URLSearchParams(window.location.search).get("q") ?? mockAsk.current;
     if (!q) return;
     autoAsked.current = true;
     send(q);
@@ -137,6 +138,7 @@ export default function App() {
   }, [messages.length, statusCount, !!pending, !!confirm]);
 
   const ready = conn === "open" || conn === "mock";
+  const notReady = conn === "gone" ? t("error.next.gone") : t("composer.connecting");
   const busy = pending !== null;
   const empty = messages.length === 0 && !pending;
 
@@ -159,6 +161,8 @@ export default function App() {
           onScroll={onScroll}
           className="scroll-thin flex-1 overflow-y-auto overflow-x-hidden"
         >
+          {/* the empty state has its own visible h1 (audit F14) */}
+          {!empty && <h1 className="sr-only">{t("app.title")}</h1>}
           <div className="mx-auto w-full max-w-4xl space-y-6 px-3 py-6 sm:px-4">
             {empty ? (
               historyLoading ? (
@@ -172,13 +176,9 @@ export default function App() {
               messages.map((m) => <Message key={m.message_id} m={m} />)
             )}
             {pending && (
-              <div className="space-y-2 sm:pl-11">
-                {pending.grid && Object.keys(pending.grid).length > 0 ? (
-                  <ProgressGrid pending={pending} />
-                ) : (
-                  <StatusTimeline pending={pending} />
-                )}
-                <CancelButton />
+              <div className="sm:pl-11">
+                {/* audit F7: the research grid lives inside the timeline card, with Stop in its header */}
+                <StatusTimeline pending={pending} />
               </div>
             )}
             {confirm && !pending && (
@@ -192,19 +192,19 @@ export default function App() {
       </div>
       <CaseSheet />
       <ChatList open={chatsOpen} onClose={() => setChatsOpen(false)} />
-      <div className="border-t border-line/40 bg-bg/80 backdrop-blur-md">
+      <footer className="border-t border-line/40 bg-bg/80 backdrop-blur-md">
         <Composer
           onSend={doSend}
           disabled={!ready || busy}
           busy={busy}
           placeholder={
-            busy ? t("composer.busy") : ready ? t("composer.placeholder") : t("composer.connecting")
+            busy ? t("composer.busy") : ready ? t("composer.placeholder") : notReady
           }
           shortPlaceholder={
-            busy ? t("composer.busy") : ready ? t("composer.placeholder.short") : t("composer.connecting")
+            busy ? t("composer.busy") : ready ? t("composer.placeholder.short") : notReady
           }
         />
-      </div>
+      </footer>
     </div>
   );
 }

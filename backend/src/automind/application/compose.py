@@ -263,6 +263,8 @@ def facts(
     energy_eur_per_100km: float | None = None,
     mileage_km: int | None = None,
     used_price_eur: float | None = None,
+    period_cost_eur: float | None = None,
+    period_years: int | None = None,
 ) -> scoring.CarFacts:
     v = car["variant"]
     return scoring.CarFacts(
@@ -295,6 +297,8 @@ def facts(
         mileage_km=mileage_km,
         used_price_eur=used_price_eur if condition == "USED" else None,
         annual_cost_eur=annual_cost_eur,
+        period_cost_eur=period_cost_eur,
+        period_years=period_years if period_cost_eur is not None else None,
         energy_eur_per_100km=energy_eur_per_100km,
         reliability=reliability_summary(car),
         reviews=review_summary(car),
@@ -585,12 +589,12 @@ def data_panel_block(
 
 
 def criteria_block(sc: CriteriaScore, model: CriteriaModel, unmapped: list[str], breakdown: Any = None) -> dict:
-    """criteria_scores (contracts/chat-protocol.md): 0–100 indices, labelled as scores, with inputs; each weight
-    with its reasons (spec 007 FR-011)."""
+    """criteria_scores (contracts/chat-protocol.md): 0–100 scores computed from the sourced data, with the data each
+    one is built from (per criterion and per car); each weight with its reasons (spec 007 FR-011)."""
     lines = breakdown.lines if breakdown is not None else {}
     return {
         "type": "criteria_scores",
-        "title": "Criteria and scores (0–100 indices, not measurements)",
+        "title": "Criteria and scores (0–100, computed from the sourced data)",
         "criteria_version": sc.criteria_version,
         "criteria": [
             {
@@ -598,6 +602,7 @@ def criteria_block(sc: CriteriaScore, model: CriteriaModel, unmapped: list[str],
                 "label": model.criteria[k].label,
                 "weight": round(w, 1),
                 "definition": model.criteria[k].definition,
+                "inputs": list(model.criteria[k].inputs),
                 "reasons": [{"code": c, "points": p} for c, p in lines[k].contributions] if k in lines else [],
                 "manual": lines[k].manual if k in lines else 0.0,
             }
@@ -858,7 +863,7 @@ def tco_block(estimates: list[tco.TcoEstimate], evidence: dict[str, dict] | None
     years = estimates[0].years if estimates else 5
     return {
         "type": "tco",
-        "title": f"Ownership cost (per year and over {years} years)",
+        "title": f"Ownership cost (over {years} years including depreciation; running costs per year)",
         "annual_km": estimates[0].annual_km if estimates else 15000,
         "years": years,
         "cars": [
@@ -1071,6 +1076,8 @@ def insight_values(
     retention_curve: dict | None = None,
     used: bool = False,
     used_price_eur: float | None = None,
+    period_total: float | None = None,
+    cost_curve: tuple[float, ...] = (),
 ) -> ins.CarValues:
     """A used car's price is what it costs used (spec 008 FR-023): its sourced used price, else no price at all —
     the new price never stands for a used car in the verdict or the text."""
@@ -1093,15 +1100,18 @@ def insight_values(
         values["accel_0_100"], conf["accel_0_100"] = float(claimed.value_num), str(claimed.confidence or "MEDIUM")
     elif accel_0_100 is not None:
         values["accel_0_100"], conf["accel_0_100"] = accel_0_100, "LOW"  # simulated
-    if annual_cost is not None:
-        values["tco_per_year"], conf["tco_per_year"] = annual_cost, "MEDIUM"
+    # running costs per year (secondary) and the total over the user's period with the value lost (what ownership
+    # cost compares, chat 5821ac77)
+    costs = {k: x for k, x in (("tco_per_year", annual_cost), ("tco_period", period_total)) if x is not None}
+    values |= costs
+    conf |= dict.fromkeys(costs, "MEDIUM")
     if reliability_score is not None:
         values["reliability_score"], conf["reliability_score"] = reliability_score, "MEDIUM"
     five = next((p for p in retention_points(car, retention_curve or {}) if p["years"] == 5), None)
     if five is not None and five["share"]:
         values["value_retention_5y"] = round(five["share"] * 100, 1)
         conf["value_retention_5y"] = "MEDIUM" if five["basis"] == "SOURCED" else "LOW"
-    return ins.CarValues(v.id, short_name(v), values, conf, srcs, energy_eur_per_unit)
+    return ins.CarValues(v.id, short_name(v), values, conf, srcs, energy_eur_per_unit, tuple(cost_curve))
 
 
 # --- value retention (spec 004 FR-005) ----------------------------------------------------------------------

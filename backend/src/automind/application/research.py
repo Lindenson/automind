@@ -29,7 +29,7 @@ from automind.application import incentives_research
 from automind.application.ports import Page, Ports, WebDoc
 from automind.application.usage import BudgetExceeded, current_job
 from automind.domain import evidence as ev
-from automind.domain import identity, plausibility, research_plan, search_plan, sense, sense_ev, specs
+from automind.domain import identity, plausibility, research_plan, search_plan, sense, sense_ev, specs, used
 from automind.domain import learned as learned_rules
 from automind.domain import relevance as rel
 from automind.infrastructure import db
@@ -162,6 +162,17 @@ def identity_of(v: db.Variant) -> search_plan.Identity:
     return search_plan.Identity(v.make, v.model, v.generation, v.variant_name, years)
 
 
+def market_names(ports: Ports, v: db.Variant) -> dict[str, str]:
+    """The model's name per market (spec 009 FR-021; config/aliases.yaml market_names)."""
+    return search_plan.market_names_of(getattr(getattr(ports.ref, "aliases", None), "market_names", None), v.make,
+                                       v.model, v.generation)  # fmt: skip
+
+
+def area_markets(ports: Ports, area: str) -> list[str]:
+    cfg = ports.ref.search or {}
+    return list((cfg.get("area_markets") or {}).get(area) or cfg.get("default_markets") or ["ES"])
+
+
 def queries_for(
     ports: Ports,
     v: db.Variant,
@@ -173,7 +184,8 @@ def queries_for(
 ) -> list[search_plan.PlannedQuery]:
     """Favourites first (round 0), open web for later rounds or when an area has no favourites (R2)."""
     cfg = ports.ref.search or {}
-    markets = list((cfg.get("area_markets") or {}).get(area) or cfg.get("default_markets") or ["ES"])
+    markets = area_markets(ports, area)
+    names = market_names(ports, v)
     ident = identity_of(v)
     if area == "used_price" and car_year:  # spec 008 FR-023: the price of the car's model year, not the generation's
         ident = dataclasses.replace(ident, years=str(car_year))
@@ -184,16 +196,55 @@ def queries_for(
             {area: ports.ref.queries.get(area, [])}, r,
             manufacturer_site=ports.ref.manufacturer_sites.get(v.make),
             sites_per_query=int(cfg.get("sites_per_query", 4)),
-            learned=learned, learned_per_area=_learned_cfg(ports).per_area,
+            learned=learned, learned_per_area=_learned_cfg(ports).per_area, market_names=names,
         )  # fmt: skip
 
     out = plan(round_) or (plan(1) if round_ == 0 else [])
-    out += search_plan.ev_queries(out, ident, getattr(v, "powertrain", None), ports.ref.favourite_queries)
+    out += search_plan.ev_queries(out, ident, getattr(v, "powertrain", None), ports.ref.favourite_queries, names)
     if round_ > 0 and area in ("specs", "engineering") and missing:
         labels = ", ".join(specs.ATTRS[k].label for k in missing if k in specs.ATTRS)
         text = f"{v.make} {v.model} {v.generation or ''} {v.variant_name} {labels}"
         out.insert(0, search_plan.PlannedQuery(" ".join(text.split()), "OPEN", area, markets[0]))
     return out
+
+
+SITE_QUERIES_PER_AREA = 4  # defaults; config/registry.yaml site_queries_per_area …
+SITE_QUERY_DOMAINS = 3
+SITE_QUERY_PAGES = 3
+
+
+async def registry_queries(ports: Ports, v: db.Variant, job: JobSpec,
+                           planned: list[search_plan.PlannedQuery]) -> list[search_plan.PlannedQuery]:  # fmt: skip
+    """`site:` queries to the registry's sources of the area (spec 010; 009 FR-009), whatever the autonomy flag:
+    round 0 on the area's own markets, a follow-up round (an area below its minimum) on the other European markets
+    and, except for prices, beyond. "Find it" (fresh) tries both at once. Sites already queried are skipped."""
+    reg = getattr(ports, "registry", None)
+    if reg is None or not hasattr(reg, "sources_for") or job.area in research_plan.MARKET_AREAS:
+        return []
+    cfg = ports.ref.registry or {}
+    per_area = int(cfg.get("site_queries_per_area", SITE_QUERIES_PER_AREA))
+    per_query = int(cfg.get("site_query_domains_per_query", SITE_QUERY_DOMAINS))
+    own = area_markets(ports, job.area)
+    markets = research_plan.registry_markets(job.area, own, job.round)
+    if job.fresh and job.round == 0:
+        markets += [m for m in research_plan.registry_markets(job.area, own, 1) if m not in markets]
+    if not markets or per_area <= 0:
+        return []
+    exclude = [d for q in planned for d in q.sites]
+    exclude += [str(f["domain"]) for f in ports.ref.favourites if job.area in f.get("areas", ())]
+    if m := ports.ref.manufacturer_sites.get(v.make):
+        exclude.append(m)
+    try:
+        sources = await reg.sources_for(job.area, markets, per_area * per_query + len(exclude))
+    except Exception:  # noqa: BLE001 - research works without the registry
+        return []
+    ident = identity_of(v)
+    if job.area == "used_price" and job.car_year:
+        ident = dataclasses.replace(ident, years=str(job.car_year))
+    return search_plan.registry_queries(
+        job.area, ident, [(s.domain, s.market) for s in sources], ports.ref.favourite_queries, exclude=exclude,
+        domains_per_query=per_query, max_queries=per_area, market_names=market_names(ports, v),
+    )  # fmt: skip
 
 
 def _learned_cfg(ports: Ports) -> learned_rules.Config:
@@ -333,7 +384,8 @@ async def _run(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
                 return
             uncertain = r.verdict in ("UNCERTAIN", "MULTI_VARIANT")
             async with sem:
-                a, rj = await _persist(ports, v, job.area, d, out, target, uncertain, p, known, values_rejected)
+                a, rj = await _persist(ports, v, job.area, d, out, target, uncertain, p, known, values_rejected,
+                                       car_year=job.car_year)  # fmt: skip
         totals["accepted"] += a
         totals["rejected"] += rj
         accepted_by_url[p.url] += a
@@ -560,12 +612,22 @@ async def _search_pages(
         planned += warranty
         stats = _merge_stats(stats, more_stats)
     retry_on = bool((ports.ref.search or {}).get("favourite_retry", True))
-    retry = search_plan.retry_queries(stats["empty_queries"], identity_of(v), ports.ref.favourite_queries)
+    retry = search_plan.retry_queries(stats["empty_queries"], identity_of(v), ports.ref.favourite_queries,
+                                      market_names(ports, v))  # fmt: skip
     if retry_on and retry:  # a favourite query found nothing: once more, shorter (spec 007 FR-021)
         await emit("searching", f"{job.area}: {len(retry)} shorter searches")
         more, more_stats = await _collect(ports, retry, seen | {p.url for p in pages}, job.area, v)
         pages += more
         planned += retry
+        stats = _merge_stats(stats, more_stats)
+    site = await registry_queries(ports, v, job, planned)
+    if site:  # spec 010: the registry's sources, with their own few pages so the favourites cannot crowd them out
+        await emit("searching", f"{job.area}: {len(site)} searches on registered sources")
+        limit = int((ports.ref.registry or {}).get("site_query_pages_per_job", SITE_QUERY_PAGES))
+        more, more_stats = await _collect(ports, site, seen | {p.url for p in pages}, job.area, v,
+                                          fresh=job.fresh, limit=limit)  # fmt: skip
+        pages += more
+        planned += site
         stats = _merge_stats(stats, more_stats)
     if job.round > 0 and len(pages) < 2:  # open web found too little: bounded AI-proposed queries (FR-004)
         extra = await _ai_queries(ports, v, job.area, missing, [q.text for q in planned])
@@ -715,6 +777,8 @@ async def _persist(
     page: Page | None = None,
     known: dict[str, float] | None = None,
     values_rejected: dict[str, int] | None = None,
+    *,
+    car_year: int | None = None,
 ) -> tuple[int, int]:
     async with db.sessionmaker()() as s:
         e = await _evidence(s, v, d, page, favourite_priority(ports, v, d.url))
@@ -723,7 +787,7 @@ async def _persist(
                                       values_rejected if values_rejected is not None else defaultdict(int))  # fmt: skip
         else:
             rates = {k: float(x) for k, x in (ports.ref.feasibility.get("currency_to_eur") or {}).items()}
-            a, r = await _items(s, v, area, d, e, out, rates)
+            a, r = await _items(s, v, area, d, e, out, rates, car_year=car_year)
         await s.commit()
     return a, r
 
@@ -1094,7 +1158,15 @@ def _manufacturer(s: Any, v: db.Variant, d: WebDoc, out: Any, k: _Counter) -> No
 
 
 async def _items(
-    s: Any, v: db.Variant, area: str, d: WebDoc, e: db.Evidence, out: Any, rates: dict[str, float] | None = None
+    s: Any,
+    v: db.Variant,
+    area: str,
+    d: WebDoc,
+    e: db.Evidence,
+    out: Any,
+    rates: dict[str, float] | None = None,
+    *,
+    car_year: int | None = None,
 ) -> tuple[int, int]:
     """Non-numeric areas: keep only items whose excerpt literally occurs in the document."""
     k = _Counter(d.text)
@@ -1109,7 +1181,7 @@ async def _items(
     elif area == "manufacturer":
         _manufacturer(s, v, d, out, k)
     elif area == "used_price":
-        _used_prices(s, v, e, out, k, ports_rates=rates or {"EUR": 1.0})
+        _used_prices(s, v, e, out, k, ports_rates=rates or {"EUR": 1.0}, car_year=car_year)
     elif area == "depreciation":
         _retention(s, v, e, out, k)
     return k.accepted, k.rejected
@@ -1137,20 +1209,27 @@ def _retention(s: Any, v: db.Variant, e: db.Evidence, out: Any, k: _Counter) -> 
 USED_RANGE_MAX_RATIO = 1.6  # a used-price range wider than this (max / min) is a whole-market spread, not a price
 
 
-def _used_prices(s: Any, v: db.Variant, e: db.Evidence, out: Any, k: _Counter, ports_rates: dict[str, float]) -> None:
-    """Editorial used-price ranges (FR-022): verbatim excerpt containing the price, plausible numbers, EUR."""
+def _used_prices(s: Any, v: db.Variant, e: db.Evidence, out: Any, k: _Counter, ports_rates: dict[str, float],
+                 car_year: int | None = None) -> None:  # fmt: skip
+    """Editorial used-price ranges (FR-022): verbatim excerpt containing the price, plausible numbers, EUR. For a car
+    with a model year, a range over several model years (a whole generation) is rejected: it never stands for one
+    year (seeded issue, chat 8c6a2a58)."""
     for r in out.ranges:
         lo, hi = sorted((float(r.min), float(r.max)))
         rate = ports_rates.get(r.currency, 1.0)
         # chat fcf5b3b8: "21 100 € – 93 520 €" for every Land Cruiser of a year is a market spread, not a price
         plausible = 500 <= lo * rate <= hi * rate <= 600_000 and hi <= USED_RANGE_MAX_RATIO * lo
-        good = k.ok(r.excerpt) and plausible
+        whole = used.whole_generation(r.model_year_from, r.model_year_to, car_year)
+        good = not whole and k.ok(r.excerpt) and plausible
+        if whole:
+            k.rejected += 1
         s.add(
             db.UsedPriceRange(
                 variant_id=v.id, evidence_id=e.id, model_year_from=r.model_year_from, model_year_to=r.model_year_to,
                 min_eur=round(lo * rate), max_eur=round(hi * rate), market=r.market,
                 quoted_on=_date(r.quoted_on), excerpt=r.excerpt[:300],
-                status="ACCEPTED" if good else ("REJECTED_IMPLAUSIBLE" if not plausible else "REJECTED_UNSUPPORTED"),
+                status="ACCEPTED" if good else "REJECTED_OTHER_YEAR" if whole else (
+                    "REJECTED_IMPLAUSIBLE" if not plausible else "REJECTED_UNSUPPORTED"),
             )
         )  # fmt: skip
 

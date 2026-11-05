@@ -146,6 +146,11 @@ export function reportFlow(mc: MockCase, firstTime: boolean): Step[] {
     );
   }
   const cars = [["car#1", "VW Golf GTI Mk8"], ["car#2", "Hyundai i30 N"]].filter(([k]) => !mc.removed.has(k!));
+  // the stage timeline above the grid (audit F7): what was resolved stays pinned while the grid fills
+  steps.push(
+    { delay: 150, msg: st("resolving", `Resolved: ${cars.map(([k, c]) => `${c} (${mc.variantLabel(k!)})`).join(", ")}`) },
+    { delay: 150, msg: st("researching", "Researching specs, reliability and value retention") },
+  );
   const areas = ["specs", "reliability", "value_retention"];
   for (const state of ["searching", "reading", "done"] as const)
     for (const [key, car] of cars)
@@ -211,7 +216,22 @@ function reportBlocks(mc: MockCase): Record<string, unknown>[] {
       })),
     },
     ...mockBlocks("performance", false).filter((b) => !["notice", "future_widget"].includes(b.type)),
-    { type: "quick_replies", items: [{ id: "q1", label: "What about insurance?", text: "What about insurance?" }] },
+    {
+      type: "quick_replies",
+      question: "Will you also drive it on track days?",
+      items: [
+        { id: "q1", label: "Yes, a few a year", text: "Yes, a few track days a year" },
+        { id: "q2", label: "No, roads only", text: "No, roads only" },
+      ],
+    },
+    {
+      type: "suggestions",
+      items: [
+        { id: "s1", label: "Compare insurance costs", request: { kind: "message", text: "Compare insurance costs" } },
+        // left out by the UI while the data panel offers "Find it" (audit F11)
+        { id: "s2", label: "Find reliability data", request: { kind: "find", text: "Find reliability data", focus_cars: keys, areas: ["reliability"] } },
+      ],
+    },
   ];
 }
 
@@ -235,15 +255,40 @@ export function challengeFlow(carId: string, attribute: string): Step[] {
   ];
 }
 
-export function errorFlow(kind: "error" | "limit"): Step[] {
+export type ErrorScenario = "error" | "limit" | "busy" | "overloaded";
+
+/** The server's error messages as they arrive (api/ws.py, orchestration/runner.py); each gets its own next step. */
+const ERRORS: Record<ErrorScenario, Record<string, unknown>> = {
+  error: { type: "error", text: "Something went wrong on my side. Please try again." },
+  limit: { type: "error", code: "daily_cap", text: "Today's research budget is used up. Questions about cars already researched still work." },
+  busy: { type: "error", text: "busy: a turn is already running in this chat" },
+  overloaded: { type: "error", text: "The AI service is overloaded or out of quota right now. Nothing is lost: send the message again in a minute." },
+};
+
+export function errorFlow(kind: ErrorScenario): Step[] {
   return [
     { delay: 300, msg: st("understanding", "Understanding your message") },
-    {
-      delay: 400,
-      msg:
-        kind === "limit"
-          ? { type: "error", code: "daily_cap", text: "Today's research budget is used up. Questions about cars already researched still work." }
-          : { type: "error", text: "Something went wrong on my side. Please try again." },
-    },
+    { delay: 400, msg: ERRORS[kind] },
   ];
+}
+
+/** A message that opens a scenario in mock mode (`?mock=1&scenario=…`, audit F15). */
+export function scenarioText(scenario: string | null): string | null {
+  switch (scenario) {
+    case "limit":
+    case "error":
+    case "busy":
+    case "overloaded":
+      return `show me the ${scenario}`;
+    case "report":
+      return "Compare Golf GTI and i30 N for mountain roads";
+    default:
+      return null;
+  }
+}
+
+/** Which error a mock message asks for, if any. */
+export function errorScenario(text: string): ErrorScenario | null {
+  for (const k of ["limit", "busy", "overloaded", "error"] as const) if (new RegExp(`\\b${k}\\b`, "i").test(text)) return k;
+  return null;
 }

@@ -62,6 +62,24 @@ PHRASES: dict[str, dict[str, str]] = {
         "ru": "Чтобы уточнить: сколько километров в год вы проезжаете? (Я принял {km} км.)",
         "es": "Para afinar: ¿cuántos km al año conduces? (He supuesto {km} km.)",
     },
+    # chat 5821ac77: an assumed mileage or period is said once, with the value, and the user may correct it
+    "assumed_km": {
+        "en": "Assumed {km} km/year — tell me your mileage and I will recount the costs.",
+        "ru": "Принято {km} км в год — напишите свой пробег, и я пересчитаю расходы.",
+        "es": "He supuesto {km} km al año — dime tu kilometraje y recalculo los costes.",
+    },
+    "assumed_years": {
+        "en": "Assumed {years} years of ownership — tell me how long you will keep the car.",
+        "ru": "Принят срок владения {years} лет — напишите, сколько вы будете ездить на машине.",
+        "es": "He supuesto {years} años de uso — dime cuánto tiempo tendrás el coche.",
+    },
+    "assumed_km_years": {
+        "en": "Assumed {km} km/year and {years} years of ownership — tell me your mileage and period and I will "
+        "recount the costs.",
+        "ru": "Принято {km} км в год и {years} лет владения — напишите свой пробег и срок, и я пересчитаю расходы.",
+        "es": "He supuesto {km} km al año y {years} años de uso — dime tu kilometraje y cuánto lo tendrás y "
+        "recalculo los costes.",
+    },
     "profile_FAMILY_SIZE": {
         "en": "To sharpen this: who usually travels in the car?",
         "ru": "Чтобы уточнить: кто обычно ездит в машине?",
@@ -282,6 +300,16 @@ PHRASES: dict[str, dict[str, str]] = {
         "en": "You did not name a car, so I picked candidates for your need and budget:",
         "ru": "Вы не назвали машину, поэтому я подобрал кандидатов под вашу задачу и бюджет:",
         "es": "No nombraste un coche, así que elegí candidatos para tu necesidad y presupuesto:",
+    },
+    "cand_intro_make": {
+        "en": "You did not name a {make} model, so I picked {make} candidates{replaces}:",
+        "ru": "Вы не назвали модель {make}, поэтому я подобрал кандидатов {make}{replaces}:",
+        "es": "No nombraste un modelo de {make}, así que elegí candidatos de {make}{replaces}:",
+    },
+    "cand_replaces": {
+        "en": " to replace your {car} (I compare them with it)",
+        "ru": " на замену вашему {car} (сравню их с ним)",
+        "es": " para sustituir tu {car} (los comparo con él)",
     },
     "cand_price": {"en": "from €{eur}", "ru": "от {eur} €", "es": "desde {eur} €"},
     "cand_price_check": {"en": "price to check", "ru": "цену нужно уточнить", "es": "precio por confirmar"},

@@ -87,7 +87,7 @@ export function Composer({
           disabled={disabled}
           placeholder={narrow && shortPlaceholder ? shortPlaceholder : placeholder}
           aria-label={t("composer.aria")}
-          className="max-h-[180px] min-h-[24px] flex-1 resize-none bg-transparent py-2 text-[15px] text-fg placeholder:text-muted/70 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
+          className="max-h-[180px] min-h-[24px] flex-1 resize-none bg-transparent py-2 text-[15px] text-fg placeholder:text-muted focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
         />
         <button
           type="submit"

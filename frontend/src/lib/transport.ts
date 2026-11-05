@@ -1,16 +1,23 @@
 import type { ClientMsg } from "./protocol";
 
-export type ConnState = "connecting" | "open" | "closed" | "mock";
+/** `gone`: the server refused this chat for good (deleted, another browser's, cross-site): no reconnect (audit F8). */
+export type ConnState = "connecting" | "open" | "closed" | "gone" | "mock";
 
 export interface TransportHandlers {
   onMessage: (raw: unknown) => void;
-  onState: (s: ConnState) => void;
+  /** `attempt`: reconnect attempts since the connection was lost (0 when connected) */
+  onState: (s: ConnState, attempt?: number) => void;
 }
 
 export interface Transport {
   send: (msg: ClientMsg) => boolean;
   close: () => void;
+  /** Reconnect now instead of waiting for the next backoff step ("Retry now", audit F8). */
+  reconnect?: () => void;
 }
+
+/** WebSocket close codes after which the chat cannot be opened again (api/ws.py, api/app.py). */
+export const GONE_CODES = new Set([4403, 4404, 4410]);
 
 const seqKey = (chatId: string) => `automind:last_seq:${chatId}`;
 
@@ -55,7 +62,7 @@ export function createWsTransport(chatId: string, h: TransportHandlers, initialS
 
   const connect = () => {
     if (closed) return;
-    h.onState("connecting");
+    h.onState("connecting", attempt);
     let sock: WebSocket;
     try {
       sock = new WebSocket(url);
@@ -90,13 +97,13 @@ export function createWsTransport(chatId: string, h: TransportHandlers, initialS
       if (ws !== sock) return;
       ws = null;
       if (closed) return;
-      if (ev.code === 4410 || ev.code === 4404 || ev.code === 4403) {
+      if (GONE_CODES.has(ev.code)) {
         closed = true; // deleted, another browser's chat, or refused: do not reconnect
-        h.onState("closed");
+        h.onState("gone");
         return;
       }
-      h.onState("closed");
       schedule();
+      h.onState("closed", attempt);
     };
     sock.onerror = () => {
       /* onclose follows */
@@ -117,6 +124,12 @@ export function createWsTransport(chatId: string, h: TransportHandlers, initialS
       if (!ws || ws.readyState !== WebSocket.OPEN) return false;
       ws.send(JSON.stringify(msg));
       return true;
+    },
+    reconnect() {
+      if (closed || ws) return;
+      if (timer) clearTimeout(timer);
+      timer = null;
+      connect();
     },
     close() {
       closed = true;

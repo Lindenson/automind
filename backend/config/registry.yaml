@@ -26,6 +26,12 @@ lifecycle:
   retire_after_days: 21
   retired_retry_days: 30
 candidate_slots: 1         # candidates tried per research job (exploration)
+# `site:` queries to registry sources (active by score, then surveyed candidates) per research job, on the area's
+# markets in round 0 and on the other European markets (and beyond, except prices) in a follow-up round. Allowed
+# whatever `autonomy` says: a query is an attempt, never a status change.
+site_queries_per_area: 4        # at most this many queries per job
+site_query_domains_per_query: 3 # `site:a OR site:b OR site:c`
+site_query_pages_per_job: 3     # pages read from them, besides the favourites' pages
 recheck_days: {active: 90, blocked: 180}
 discovery:
   eur_per_day: 0.20

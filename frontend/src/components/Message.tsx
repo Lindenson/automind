@@ -18,7 +18,7 @@ import { RatingControl } from "./RatingControl";
 import { buildCarColors, CarColorContext } from "./carColors";
 import { Logo } from "./Logo";
 import { MessageIdContext } from "./badges";
-import { WarnIcon } from "./icons";
+import { ErrorNotice } from "./ErrorNotice";
 
 export const Message = memo(function Message({ m }: { m: UiMessage }) {
   if (m.role === "user") {
@@ -36,20 +36,7 @@ export const Message = memo(function Message({ m }: { m: UiMessage }) {
     );
   }
   if (m.role === "note") return <Note m={m} />;
-  if (m.role === "error") {
-    return (
-      <div
-        id={messageDomId(m.message_id)}
-        className="flex animate-fadeUp items-start gap-2 rounded-xl border border-bad/40 bg-bad/10 px-3.5 py-2.5 text-sm"
-        role="alert"
-      >
-        <span className="mt-0.5 text-bad">
-          <WarnIcon />
-        </span>
-        <span>{m.text}</span>
-      </div>
-    );
-  }
+  if (m.role === "error") return <ErrorNotice m={m} />;
   const agreed = m.blocks.length > 0 && m.blocks.every((b) => b.type === "agreed");
   if (agreed)
     return (
@@ -147,6 +134,7 @@ function AssistantMessage({ m }: { m: ChatMessage }) {
           </div>
         )}
         <CarColorContext.Provider value={colors}>
+          <DataPanelPresent.Provider value={hasPanel}>
           {groupSections(rest).map((g, i) =>
             g.section ? (
               <details key={i} open={g.open} className="group rounded-xl border border-line/40 p-2 sm:p-3">
@@ -163,6 +151,7 @@ function AssistantMessage({ m }: { m: ChatMessage }) {
               g.blocks.map((b, j) => <BlockView key={`${i}-${j}`} block={b} />)
             ),
           )}
+          </DataPanelPresent.Provider>
         </CarColorContext.Provider>
         {lead.length > 0 && <RatingControl messageId={m.message_id} />}
       </div>

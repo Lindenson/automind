@@ -9,6 +9,7 @@ import re
 import unicodedata
 from collections import defaultdict
 from dataclasses import dataclass, field
+from typing import Any
 from urllib.parse import urlparse
 
 from .sense import gearbox_conflict
@@ -278,23 +279,51 @@ def _clusters(attr_key: str, claims: list[ClaimIn]) -> list[list[ClaimIn]]:
 MAJORITY_OVER_AUTHORITY = 3  # independent domains that agree and outweigh a single higher-authority value
 
 
+def _value_key(v: float | str) -> tuple[int, float, str]:
+    """Values in a fixed order: numbers ascending (a tie keeps the base configuration: 5 seats before 7), then
+    texts."""
+    if isinstance(v, int | float):
+        return (0, float(v), "")
+    return (1, 0.0, str(v).strip().lower())
+
+
+def _order(c: ClaimIn) -> tuple[Any, ...]:
+    """The order claims are read in: authority, then the value, then the site; the claim id (random, new on every
+    research run) only last (009 FR-024: two reports of one chat showed different seats and boot volume)."""
+    return (AUTHORITY.index(c.source_type), _value_key(c.value), c.domain, c.claim_id)
+
+
+def _value_of(cl: list[ClaimIn]) -> float | str:
+    """The value a cluster stands for: the one most sites give, then most claims, then the first in value order."""
+    by: dict[tuple[int, float, str], list[ClaimIn]] = defaultdict(list)
+    for c in cl:
+        by[_value_key(c.value)].append(c)
+    best = min(by.items(), key=lambda kv: (-len({c.domain for c in kv[1]}), -len(kv[1]), kv[0]))
+    return best[1][0].value
+
+
+def _strength(cl: list[ClaimIn]) -> tuple[Any, ...]:
+    """Clusters compared by the sites behind them, then their claims, then their value (never by read order)."""
+    return (-len({c.domain for c in cl}), -len(cl), _value_key(_value_of(cl)))
+
+
 def select_value(attr_key: str, claims: list[ClaimIn]) -> Selected:
     """FR-017 resolution + FR-018 confidence for one attribute of one variant."""
     if not claims:
         return Selected(attr_key, available=False)
-    claims = sorted(claims, key=lambda c: (AUTHORITY.index(c.source_type), c.claim_id))
+    claims = sorted(claims, key=_order)
     all_clusters = _clusters(attr_key, claims)
     conflict = len(all_clusters) > 1
     top_rank = claims[0].source_type
     top = [c for c in claims if c.source_type == top_rank]
-    top_clusters = sorted(_clusters(attr_key, top), key=lambda cl: -len({c.domain for c in cl}))
+    top_clusters = sorted(_clusters(attr_key, top), key=_strength)
     rule: str | None = None
-    crowd = max(all_clusters, key=lambda cl: len({c.domain for c in cl}))
+    crowd = min(all_clusters, key=_strength)
     crowd_n, top_n = len({c.domain for c in crowd}), len({c.domain for c in top_clusters[0]})
     if (
         crowd_n >= MAJORITY_OVER_AUTHORITY
         and crowd_n >= 2 * top_n
-        and not _agree(attr_key, crowd[0].value, top_clusters[0][0].value)
+        and not _agree(attr_key, _value_of(crowd), _value_of(top_clusters[0]))
     ):
         # chat fcf5b3b8: kia.com's engine-only torque (265 Nm) beat three sources agreeing on 350 Nm. Several
         # independent sites that agree outweigh one page, whatever its authority.
@@ -308,11 +337,11 @@ def select_value(attr_key: str, claims: list[ClaimIn]) -> Selected:
         winner = top_clusters[0]
         rule = "MAJORITY_SAME_RANK"
     else:
-        alts = [cl[0].value for cl in all_clusters]
+        alts = [_value_of(cl) for cl in all_clusters]
         return Selected(
             attr_key,
             True,
-            value=top_clusters[0][0].value,
+            value=_value_of(top_clusters[0]),
             provenance=assign_provenance(top_rank, attr_key),
             confidence="LOW",
             confidence_rule="LOW:UNRESOLVED_CONFLICT",
@@ -320,7 +349,7 @@ def select_value(attr_key: str, claims: list[ClaimIn]) -> Selected:
             conflict=True,
             alternatives=alts,
         )
-    value = winner[0].value
+    value = _value_of(winner)
     supporting = [c for c in claims if _agree(attr_key, c.value, value)]
     domains = {c.domain for c in supporting}
     if all(c.scope != "VARIANT" for c in winner):
@@ -331,7 +360,7 @@ def select_value(attr_key: str, claims: list[ClaimIn]) -> Selected:
         conf, crule = "HIGH", "HIGH:2_INDEPENDENT_AGREE"
     else:
         conf, crule = "MEDIUM", "MEDIUM:SINGLE_SOURCE"
-    alts = [cl[0].value for cl in all_clusters if not _agree(attr_key, cl[0].value, value)]
+    alts = [_value_of(cl) for cl in all_clusters if not _agree(attr_key, _value_of(cl), value)]
     return Selected(
         attr_key,
         True,

@@ -140,16 +140,21 @@ function CarCost({
           )}
         </span>
         <span className="ml-auto text-right">
+          {/* chat 5821ac77: the total over the period with depreciation is the comparison; the yearly running
+              cost is secondary and says it leaves depreciation out */}
           <span className="font-display text-xl font-bold tabular">
-            {eur(car.annual_total)}
+            {eur(car.five_year_total)}
           </span>
-          <span className="text-xs text-muted">/yr</span>
-          <span className="block text-xs text-muted sm:inline">
-            <span className="hidden sm:inline"> · </span>
-            {eur(car.five_year_total)} {over}
-            {car.depreciation_left_out && (
-              <span className="block text-[11px] text-warn">{t("tco.depreciation_left_out")}</span>
-            )}
+          <span className="text-xs text-muted">
+            {" "}
+            {over}
+            {!car.depreciation_left_out && <>, {t("tco.inclDepreciation")}</>}
+          </span>
+          {car.depreciation_left_out && (
+            <span className="block text-[11px] text-warn">{t("tco.depreciation_left_out")}</span>
+          )}
+          <span className="block text-xs text-muted" data-testid="tco-running">
+            {eur(car.annual_total)}/yr · {t("tco.running")}
           </span>
         </span>
       </div>
@@ -231,7 +236,13 @@ export function Tco({ b }: { b: BlockOf<"tco"> }) {
     <BlockCard
       title={useBlockTitle(b.type, b.title)}
       icon={<WrenchIcon />}
-      right={<span className="chip">{fmtNum(b.annual_km, 0)} km/yr</span>}
+      right={
+        <span className="chip">
+          {b.annual_km_assumed
+            ? t("tco.assumedKm", { km: fmtNum(b.annual_km, 0) })
+            : `${fmtNum(b.annual_km, 0)} km/yr`}
+        </span>
+      }
     >
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         {b.cars.map((c) => (

@@ -47,9 +47,10 @@ export function EmptyState({
           <button
             key={e.text}
             type="button"
-            disabled={disabled}
-            onClick={() => onPick(e.text)}
-            className="card group flex flex-col items-start gap-2 p-4 text-left transition hover:-translate-y-0.5 hover:border-accent/60 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
+            // aria-disabled, not disabled: the examples stay reachable by keyboard while offline (audit F14)
+            aria-disabled={disabled}
+            onClick={() => !disabled && onPick(e.text)}
+            className="card group flex flex-col items-start gap-2 p-4 text-left transition hover:-translate-y-0.5 hover:border-accent/60 aria-disabled:cursor-not-allowed aria-disabled:opacity-50 aria-disabled:hover:translate-y-0"
           >
             <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent/10 text-accent">
               {e.icon}

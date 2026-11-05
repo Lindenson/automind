@@ -1,0 +1,9 @@
+{
+  "queries": [
+    {"match": ["site:valuer.example"],
+     "results": [{"url": "https://www.valuer.example/regmake/cruiser/2016", "title": "RegMake Cruiser J1 2016: cote occasion", "doc": "valuer_2016.txt"}]},
+    {"match": ["site:forbidden.example"],
+     "results": [{"url": "https://forbidden.example/regmake/cruiser", "title": "RegMake Cruiser", "doc": "valuer_2016.txt"}]}
+  ],
+  "default": []
+}

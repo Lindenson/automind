@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import { useT } from "../i18n";
 import type { ProgressMsg } from "../lib/protocol";
 import { cx, sentence } from "../lib/util";
@@ -18,35 +17,30 @@ const STATE: Record<ProgressMsg["state"], { icon: string; cls: string }> = {
 /** The glyphs explained in one line (audit F7), in reading order of a research. */
 const LEGEND: ProgressMsg["state"][] = ["searching", "reading", "done", "partial", "failed"];
 
-/** Research progress as a car × area grid (spec 004 FR-023), with a legend and the elapsed time. */
+/**
+ * Research progress as a car × area grid (spec 004 FR-023), shown inside the status timeline under the stage rail
+ * (audit F7). The grid scrolls sideways inside its own box with the car column pinned, so it fits 390 px.
+ */
 export function ProgressGrid({ pending }: { pending: PendingTurn }) {
   const t = useT();
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(id);
-  }, []);
   const cells = Object.values(pending.grid ?? {});
   if (!cells.length) return null;
   const cars = [...new Map(cells.map((c) => [c.car_key, c.car])).entries()];
   const areas = [...new Set(cells.map((c) => c.area))];
-  const last = pending.statuses[pending.statuses.length - 1];
-  const elapsed = Math.max(0, Math.round((now - pending.startedAt) / 1000));
   return (
-    <div className="card space-y-2 p-3" aria-label={t("progress.aria")}>
-      <div className="flex items-center justify-between gap-2 text-sm font-medium">
-        <span>{t("progress.title")}</span>
-        <span className="tabular text-xs font-normal text-muted" data-testid="progress-elapsed">
-          {t("progress.seconds", { s: elapsed })}
-        </span>
-      </div>
-      <div className="-mx-1 overflow-x-auto scroll-thin" tabIndex={0} role="region" aria-label={t("progress.title")}>
-        <table className="w-full border-separate border-spacing-1 text-xs">
+    <div className="space-y-1.5" data-testid="progress-grid">
+      <div
+        className="scroll-thin overflow-x-auto rounded-lg border border-line/40"
+        tabIndex={0}
+        role="region"
+        aria-label={t("progress.aria")}
+      >
+        <table className="min-w-full border-separate border-spacing-0 text-xs">
           <thead>
             <tr>
-              <th className="text-left font-normal text-muted" />
+              <th className="sticky left-0 z-10 bg-panel" />
               {areas.map((a) => (
-                <th key={a} className="px-1 text-left font-normal text-muted">
+                <th key={a} className="whitespace-nowrap px-1.5 py-1 text-left font-normal text-muted">
                   {sentence(a)}
                 </th>
               ))}
@@ -55,14 +49,20 @@ export function ProgressGrid({ pending }: { pending: PendingTurn }) {
           <tbody>
             {cars.map(([key, label]) => (
               <tr key={key}>
-                <th className="max-w-[9rem] truncate pr-2 text-left font-medium">{label}</th>
+                <th
+                  scope="row"
+                  className="sticky left-0 z-10 max-w-[8rem] truncate bg-panel px-2 py-1 text-left font-medium"
+                  title={label}
+                >
+                  {label}
+                </th>
                 {areas.map((a) => {
                   const c = pending.grid?.[`${key}|${a}`];
                   if (!c) return <td key={a} />;
                   const st = STATE[c.state];
                   const what = `${t(`progress.${c.state}` as "progress.done")}${c.accepted ? ` · ${c.accepted}` : ""}`;
                   return (
-                    <td key={a}>
+                    <td key={a} className="px-1.5 py-1">
                       <Reveal
                         reason={what}
                         what={`${label}, ${sentence(a)}`}
@@ -80,10 +80,10 @@ export function ProgressGrid({ pending }: { pending: PendingTurn }) {
           </tbody>
         </table>
       </div>
+      {areas.length > 2 && <p className="text-[11px] text-muted sm:hidden">{t("progress.scroll")} →</p>}
       <p className="text-[11px] text-muted" data-testid="progress-legend">
         {LEGEND.map((s) => `${STATE[s].icon} ${t(`progress.${s}` as "progress.done")}`).join(" · ")}
       </p>
-      {last && <p className="truncate text-xs text-muted">{last.text}</p>}
     </div>
   );
 }

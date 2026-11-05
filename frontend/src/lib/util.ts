@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, type RefObject } from "react";
 
 export function uuid(): string {
   try {
@@ -123,6 +123,47 @@ export function yearsLabel(n: number, lang: string, fallback: string): string {
         ? "года"
         : "лет";
   return `${n} ${word}`;
+}
+
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/** The element Tab moves to from `active` inside a dialog: wraps around at both ends (focus trap, audit F14). */
+export function trapTarget<T>(items: T[], active: T | null, back: boolean): T | null {
+  if (!items.length) return null;
+  const i = active === null ? -1 : items.indexOf(active);
+  if (back) return i <= 0 ? items[items.length - 1]! : null;
+  return i === -1 || i === items.length - 1 ? items[0]! : null;
+}
+
+/**
+ * A modal dialog's focus (audit F14): moves focus into `panel` when it opens, keeps Tab inside it, and gives focus
+ * back to the control that opened it when it closes.
+ */
+export function useDialogFocus(open: boolean, panel: RefObject<HTMLElement>): void {
+  useEffect(() => {
+    // a dialog hidden at this width (the case sheet on a wide screen) must not take the focus
+    if (!open || !panel.current || panel.current.getClientRects().length === 0) return;
+    const opener = document.activeElement as HTMLElement | null;
+    const items = () => [...(panel.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? [])];
+    items()[0]?.focus();
+    const key = (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+      const list = items();
+      const active = document.activeElement as HTMLElement | null;
+      const inside = active !== null && list.includes(active);
+      const next = trapTarget(list, inside ? active : null, e.shiftKey);
+      if (next) {
+        e.preventDefault();
+        next.focus();
+      }
+    };
+    document.addEventListener("keydown", key);
+    return () => {
+      document.removeEventListener("keydown", key);
+      opener?.focus?.();
+    };
+  }, [open, panel]);
 }
 
 /** Escape closes a dialog while it is open (audit F14). */

@@ -128,7 +128,7 @@ def questions_i18n() -> dict[str, Any]:
 
 
 def _query_areas() -> dict[str, Any]:
-    return {k: v for k, v in load_yaml("queries.yaml").items() if k != "version"}
+    return {k: v for k, v in load_yaml("queries.yaml").items() if isinstance(v, dict)}
 
 
 def open_queries() -> dict[str, list[str]]:
@@ -140,6 +140,11 @@ def favourite_queries() -> dict[str, str]:
     for k, v in _query_areas().items():  # per-market wording: favourite_by_market: {DE: '…'}
         for market, tpl in (v.get("favourite_by_market") or {}).items():
             out[f"{k}@{str(market).upper()}"] = str(tpl)
+        if v.get("registry"):  # spec 010: `site:` queries to the registry's sources of the area
+            out[f"registry:{k}"] = str(v["registry"])
+    top = load_yaml("queries.yaml").get("registry")
+    if isinstance(top, str):
+        out["registry"] = top
     return out
 
 
