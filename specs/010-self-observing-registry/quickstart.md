@@ -19,20 +19,17 @@ Expected: all green; the scenario test `fixtures/scenarios/registry` shows class
 4. `select role, model, primary_model, fallback, prompt_name, prompt_version from llm_calls order by created_at desc limit 5` → filled.
 
 ## 3. Admin page
-1. Open `http://127.0.0.1:8000/admin`, enter the token.
-2. Overview shows the index per kind of request and the class shares; without the token the API answers 403.
-3. Issues: run the analysis now (`POST` not exposed; use `uv run python -m automind.insight.loop --once`) → seeded 009 issues and any new groups appear; "copy for Claude Code" gives a markdown task with examples and a verify step.
-4. Mark an issue fixed; feed two more failures of the same key (test helper) and run once more → status `regression`.
+1. Open `http://127.0.0.1:8000/admin`, enter the token; without it the API answers 403.
+2. Run the analysis now: `uv run python -m automind.insight.loop --once` → **Top problems** lists at most 10 issues by impact (seeded 009 issues included), each with a fix marked `code` or `config` (config fixes name an existing file and key); opening one gives examples and "copy for Claude Code".
+3. Mark an issue fixed; feed two more failures of the same key (test helper) and run once more → status `regression`.
 
 ## 4. Registry
 1. `uv run python -m automind.acquisition.registry.application.seed` (idempotent) → Sources tab lists ~200 sites; classifieds/terms-forbid are `blocked` with quotes.
 2. With `registry.autonomy: false` run a research chat → same favourites order as before (compare `research_jobs.queries`).
-3. Set `registry.autonomy: true`, run `uv run python -m automind.acquisition.registry.application.review --once` → Changes tab lists changes with reasons; freeze a source, re-run → its change shows "held: frozen"; revert a change → capability returns to its previous status.
+3. Set `registry.autonomy: true`, run `uv run python -m automind.acquisition.registry.application.review --once` → **Sources** shows scores per kind of data and recent changes with reasons; freeze a source, re-run → its change shows "held: frozen"; revert a change → capability returns to its previous status.
 
-## 5. Metrics and alerts
-1. `curl -H "Authorization: Bearer $METRICS_TOKEN" http://127.0.0.1:8000/metrics | grep automind_` → counters and gauges of `contracts/metrics.md`; without the token from outside the local network → 403.
-2. Admin: Complaints, Inaccuracies, Self-diagnostics and Sources tabs show daily series (`/api/v1/admin/series`).
-3. Test helper `uv run python -m automind.insight.alerts.evaluate --once` after seeding a complaint spike and a degraded source → two firing alerts, badge on every tab; webhook (e.g. `ALERT_WEBHOOK_URL=http://127.0.0.1:9999` with `nc -l 9999`) receives two JSON posts; clearing the seed and re-running resolves both.
-4. Stop the insight loop (test flag) for > 2 intervals → `loop_stale` fires in-app and `AutomindLoopStale` fires in Prometheus.
-5. `docker compose --profile monitoring up -d` → Prometheus on :9090 shows the target UP and the rules loaded from `deploy/prometheus/automind-rules.yml`.
-6. `uv run pytest tests/unit/test_alert_rules_sync.py` → generated rules equal the committed file.
+## 5. Prometheus
+1. `curl -H "Authorization: Bearer $METRICS_TOKEN" http://127.0.0.1:8000/metrics | grep automind_` → metrics of `contracts/metrics.md`; without the token from outside the local network → 403.
+2. `uv run pytest tests/unit/test_prom_rules.py` → rules parse; every metric they use is exported.
+3. `docker compose --profile monitoring up -d` → Prometheus on :9090: target `automind` UP, rules loaded.
+4. Seed a complaint spike and a demoted source → `AutomindComplaintSpike` and `AutomindSourceDegraded` fire; stop the insight loop (test flag) for > 2 intervals → `AutomindLoopStale` fires.

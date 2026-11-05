@@ -69,7 +69,8 @@ Rules: one row per turn; created in `_done/_fail/cancel`; patched by the next tu
 | count_7d | int | |
 | first_seen, last_seen | timestamptz | |
 | examples | jsonb | `[{chat_id, turn_id, quote, url, claim_id}]` ≤ 10 |
-| diagnosis | jsonb null | `{summary, likely_cause, direction, likely_files[], verify}` |
+| diagnosis | jsonb null | `{summary, likely_cause, fix: {kind: code|config, files[], config_file, config_key, suggested_value, direction}, verify}` |
+| impact | real | failing turns 7d × class severity + 2 × chats affected; recomputed each run |
 | diagnosed_at | timestamptz null | |
 | status | text | `open, acknowledged, fixed, wontfix, regression` |
 | fixed_at | timestamptz null | |
@@ -131,46 +132,11 @@ Append-only: `id, created_at, capability_id, job_id, variant_id, url, outcome (a
 ### `registry_runs`
 `id, started_at, finished_at, kind (daily|early), changes int, discovery_queries int, cost_eur, error`.
 
-## Migration 0017 — metrics and alerts
-
-### `metric_daily`
-| Column | Type | Note |
-|---|---|---|
-| metric | text | e.g. `satisfaction_index`, `wrong_values`, `capability_score` |
-| labels | jsonb | e.g. `{"kind":"compare","lang":"ru"}`, `{"domain":"km77.com","area":"specs","market":"ES"}` |
-| labels_key | text | canonical sorted `k=v,…` for the unique key |
-| day | date | Europe/Madrid day |
-| value | double | |
-| samples | int | turns, attempts or signals behind the value |
-| PK (metric, labels_key, day) | | upsert; today recomputed each run; retention 400 days |
-
-### `loop_heartbeats`
-`name PK (insight|registry|metrics|alerts|retention), last_start, last_ok, last_error, last_error_text, fails_in_row, next_due`.
-
-### `alerts`
-| Column | Type | Note |
-|---|---|---|
-| id | uuid PK | |
-| rule_id | text | from `config/alerts.yaml` |
-| subject | text | e.g. `kind=compare`, `domain=km77.com/specs/ES`, `loop=insight` |
-| severity | text | warning, critical |
-| title | text | rendered |
-| value, threshold | double | at last evaluation |
-| started_at | timestamptz | |
-| last_seen_at | timestamptz | |
-| resolved_at | timestamptz null | null = firing |
-| acknowledged_at | timestamptz null | |
-| link | text | admin route, e.g. `/admin/sources/km77.com` |
-| notified | jsonb | `{firing_at, resolved_at}` webhook sends |
-| unique (rule_id, subject) where resolved_at is null | | one firing instance |
-
-### `alert_mutes`
-`id, rule_id, subject null (all subjects), until timestamptz, created_at, note`.
-
 ## Validation rules (code, `acquisition/registry/domain/limits.py`)
 
 - a capability of a source with `access ∈ {classifieds, terms_forbid, robots_blocked}` or on the deny-list is always `blocked`; the system never writes another status for it;
 - `frozen` sources: no system change, the change is journalled with `held=true`;
 - a change reverted by the owner is not re-applied for that capability until a newer signal or attempt exists (`created_at > revert time`);
+- loop health (last success, failures in a row) is kept in memory and exported to Prometheus; no table;
 - discovery spend per day ≤ `registry.discovery_eur_per_day`; insight spend ≤ `insight.budget_eur`; both counted in `DAILY_CAP_EUR`;
 - no code path writes YAML config or prompts (checked by a test scanning the packages for file writes).
