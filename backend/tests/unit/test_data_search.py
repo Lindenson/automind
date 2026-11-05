@@ -7,8 +7,8 @@ from __future__ import annotations
 from types import SimpleNamespace
 from typing import Any
 
+from automind.acquisition.pipeline import persist
 from automind.acquisition.registry.application.service import RegistryService, rank_queryable
-from automind.application import research
 from automind.domain import research_plan, search_plan, used
 from automind.domain.identity import Aliases
 from automind.domain.search_plan import Identity
@@ -182,11 +182,11 @@ def test_used_prices_rejects_whole_generation_range_for_a_car_with_a_year() -> N
         SimpleNamespace(min=30000, max=34000, currency="EUR", model_year_from=2016, model_year_to=2016,
                         market="ES", quoted_on=None, excerpt="cuesta 30.000-34.000 €"),
     ])  # fmt: skip
-    s, k = _Session(), research._Counter(text)
-    research._used_prices(s, SimpleNamespace(id="v"), SimpleNamespace(id="e"), out, k, {"EUR": 1.0}, car_year=2016)
+    s, k = _Session(), persist._Counter(text)
+    persist._used_prices(s, SimpleNamespace(id="v"), SimpleNamespace(id="e"), out, k, {"EUR": 1.0}, car_year=2016)
     assert [r.status for r in s.added] == ["REJECTED_OTHER_YEAR", "ACCEPTED"]
     assert (k.accepted, k.rejected) == (1, 1)
     s2 = _Session()
-    research._used_prices(s2, SimpleNamespace(id="v"), SimpleNamespace(id="e"), out, research._Counter(text),
+    persist._used_prices(s2, SimpleNamespace(id="v"), SimpleNamespace(id="e"), out, persist._Counter(text),
                           {"EUR": 1.0})  # fmt: skip
     assert [r.status for r in s2.added] == ["ACCEPTED", "ACCEPTED"]  # no year: the generation range is kept

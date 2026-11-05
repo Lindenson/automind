@@ -468,7 +468,7 @@ class Fetcher:
         """Fetch and convert to plain text (pasted URLs; the page store does its own extraction)."""
         raw = await self.fetch_raw(url)
         if raw.content_type == "application/pdf":
-            from automind.infrastructure.pages import pdf_text  # noqa: PLC0415
+            from automind.acquisition.infrastructure.pages import pdf_text  # noqa: PLC0415
 
             return WebDoc(url=raw.url, title=url, text=pdf_text(raw.body)[: self.max_chars], snippet_only=False)
         text_ = raw.text()

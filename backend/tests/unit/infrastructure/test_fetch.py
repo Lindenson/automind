@@ -5,7 +5,7 @@ import time
 import httpx
 import pytest
 
-from automind.infrastructure.fetch import Fetcher, FetchPolicy, FetchRefused
+from automind.acquisition.infrastructure.fetch import Fetcher, FetchPolicy, FetchRefused
 
 PAGE = "<html><head><title>Prado 150</title><script>x=1</script></head><body><p>Power: 173 PS</p></body></html>"
 

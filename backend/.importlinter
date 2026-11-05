@@ -41,8 +41,6 @@ forbidden_modules =
 ignore_imports =
     automind.application.compose -> automind.infrastructure.**
     automind.application.compose -> sqlalchemy
-    automind.application.research -> automind.infrastructure.**
-    automind.application.research -> sqlalchemy
     automind.application.resolve -> automind.infrastructure.**
     automind.application.resolve -> sqlalchemy
     # one-off data repair after the 004 verification fixes; uses the research persistence directly
@@ -165,3 +163,33 @@ forbidden_modules =
     automind.orchestration
     automind.infrastructure
     automind.api
+
+[importlinter:contract:chat-uses-acquire-only]
+name = The chat orders data only through acquisition.api (spec 011 FR-005, FR-006, constitution XIII)
+type = forbidden
+source_modules =
+    automind.application
+    automind.orchestration
+    automind.domain
+forbidden_modules =
+    automind.infrastructure.search
+    automind.acquisition.agents
+    automind.acquisition.domain
+    automind.acquisition.drift
+    automind.acquisition.engine
+    automind.acquisition.facade
+    automind.acquisition.gates
+    automind.acquisition.gold
+    automind.acquisition.infrastructure
+    automind.acquisition.parsing
+    automind.acquisition.pipeline
+    automind.acquisition.ports
+    automind.acquisition.read
+    automind.acquisition.recheck
+    automind.acquisition.replay
+    automind.acquisition.reputation
+    automind.acquisition.snapshots
+    automind.acquisition.worker
+# direct imports, no ignore_imports: acquisition.api loads the engine at call time; the legacy compose ->
+# infrastructure.config edge (application-ports exception) would otherwise reach the snapshot store indirectly
+allow_indirect_imports = True

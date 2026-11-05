@@ -56,7 +56,7 @@ def test_acceptance_through_its_own_learned_query_is_neutral():
 async def test_only_searched_pages_count_and_learned_only_hits_are_not_independent():
     from types import SimpleNamespace
 
-    from automind.application import research
+    from automind.acquisition.pipeline import job as research
 
     got = []
 

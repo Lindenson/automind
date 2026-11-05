@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 from rapidfuzz import fuzz
 from sqlalchemy import func, select
 
-from automind.application import research
+from automind.acquisition import api as acquisition
 from automind.application.ports import Ports, Reference
 from automind.config import settings
 from automind.domain import identification, identity, sense
@@ -353,30 +353,14 @@ def _context(car: CaseCar, current: tuple[str, int] | None, level: str) -> list[
 async def _resolver_docs(ports: Ports, car: CaseCar, lineup: Any = None) -> list[tuple[str, str, str]]:
     """Search results for the resolver: generations and engines, and (new cars) the Spanish price list of versions.
     A model of the make's line-up (spec 005) brings the line-up page that lists it."""
+    if ports.acquisition is None:
+        return []
     query = " ".join(x for x in (car.make, car.model, car.constraints.generation_hint) if x) or car.request_text
-    docs: list[tuple[str, str, str]] = []  # (url, title, text)
-    store = ports.page_store
-    for m in getattr(lineup, "models", None) or []:
-        if car.model and m.model.lower() == car.model.lower() and m.source_url:
-            page = await store.get(m.source_url, area="price")
-            if page:
-                docs.append((page.url, page.title, page.text))
-            break
-    if car.constraints.url:
-        page = await store.get(car.constraints.url, area="specs")
-        if page:
-            docs.append((page.url, page.title, page.text))
-    hits = await ports.search.search(f"{query} generation years engines specifications", market="EN", area="specs")
-    docs += [(h.url, h.title, h.snippet) for h in hits[:5]]
-    # the snippets alone rarely give production years: read the top two pages too (cache-first)
-    for h in hits[:2]:
-        page = await store.get(h.url, area="specs")
-        if page:
-            docs.append((page.url, page.title, page.text))
-    if car.condition != "USED":  # versions and official prices, for the equal-level comparison (FR-029)
-        prices = await ports.search.search(f"{query} precio versiones acabados España", market="ES", area="price")
-        docs += [(h.url, h.title, h.snippet) for h in prices[:3]]
-    return docs
+    listed = (m.source_url for m in getattr(lineup, "models", None) or []
+              if car.model and m.model.lower() == car.model.lower() and m.source_url)  # fmt: skip
+    hints = await ports.acquisition.generation_hints(query, lineup_url=next(listed, None), user_url=car.constraints.url,
+                                                     prices=car.condition != "USED")  # fmt: skip
+    return [(h.url, h.title, h.text) for h in hints]
 
 
 async def _check_known(ref: Reference, car: CaseCar, ident: VariantIdentity, lineup: Any = None) -> None:
@@ -577,7 +561,7 @@ async def gearbox_mixed(variant_id: str) -> bool:
     v = await get_variant(variant_id)
     if v is None or v.transmission:
         return False
-    return research.mixed_families(await research.accepted_gearboxes(variant_id))
+    return await acquisition.gearbox_families_mixed(variant_id)
 
 
 async def split_by_gearbox(car: CaseCar, ref: Reference) -> str | None:

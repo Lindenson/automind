@@ -3,7 +3,7 @@
 import httpx
 import pytest
 
-from automind.infrastructure.fetch import Fetcher, FetchPolicy, FetchRefused, public_ip
+from automind.acquisition.infrastructure.fetch import Fetcher, FetchPolicy, FetchRefused, public_ip
 
 PAGE = "<html><head><title>T</title></head><body><p>" + "text " * 200 + "</p></body></html>"
 

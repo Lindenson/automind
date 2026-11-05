@@ -38,7 +38,7 @@ def fuel_of_variant(v: Any) -> str | None:
     pt = (v.powertrain or "").upper()
     if pt in _FUEL_BY_POWERTRAIN:
         return _FUEL_BY_POWERTRAIN[pt]
-    from automind.application.research import fuel_of  # noqa: PLC0415 - the research-time rule (moves in S5)
+    from automind.acquisition.pipeline.validate import fuel_of  # noqa: PLC0415 - the research-time rule
 
     return fuel_of(v.variant_name, v.powertrain)
 

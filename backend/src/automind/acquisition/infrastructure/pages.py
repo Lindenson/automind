@@ -18,11 +18,11 @@ from urllib.parse import urlsplit, urlunsplit
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 
+from automind.acquisition.infrastructure.fetch import Fetcher, FetchPolicy, FetchRefused, RawPage, html_to_text
 from automind.acquisition.snapshots import store as snapshots
 from automind.application.ports import Page
 from automind.domain.research_plan import FRESHNESS_DAYS
 from automind.infrastructure.db import Document, sessionmaker, uid
-from automind.infrastructure.fetch import Fetcher, FetchPolicy, FetchRefused, RawPage, html_to_text
 
 log = logging.getLogger(__name__)
 

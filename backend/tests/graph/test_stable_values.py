@@ -1,11 +1,11 @@
 """009 FR-024 (chat 20b5b7f9): the seats and the boot volume of one car differed between two reports of one chat.
 The second report re-read the same pages: the same values came back as new claims with new ids, and the claim ids
-decided the tie. The values are recomputed from the database (research.reselect) as each report does."""
+decided the tie. The values are recomputed from the database (merge.reselect) as each report does."""
 
 import pytest
 from sqlalchemy import select
 
-from automind.application import research
+from automind.acquisition.pipeline import merge
 from automind.infrastructure.db import models as m
 from automind.infrastructure.db.session import sessionmaker
 
@@ -51,12 +51,12 @@ async def test_seats_and_boot_are_the_same_in_the_second_report():
     # first report: the 5-seat and the 604-litre claims happen to have the smaller ids
     await _read_pages(vid, {"km77.com": _id("1", 1), "auto-data.net": _id("2", 1), "autopista.es": _id("2", 2),
                             "motor.es": _id("1", 2)})  # fmt: skip
-    await research.reselect(vid)
+    await merge.reselect(vid)
     first = await _values(vid)
     # second report of the same chat, the same car: the same pages again, new ids in the other order
     await _read_pages(vid, {"km77.com": _id("3", 1), "auto-data.net": _id("0", 1), "autopista.es": _id("0", 2),
                             "motor.es": _id("3", 2)})  # fmt: skip
-    await research.reselect(vid)
+    await merge.reselect(vid)
     second = await _values(vid)
     assert first == second, (first, second)
     assert first == {"seats": 5.0, "boot_volume": 604.0}

@@ -17,8 +17,7 @@ from typing import Any
 from langgraph.runtime import Runtime
 from langgraph.types import Send
 
-from automind.application import research
-from automind.application.research import JobSpec
+from automind.acquisition import api as acquisition
 from automind.application.usage import BudgetExceeded
 from automind.domain import research_plan as rp
 from automind.orchestration.phrases import t, yes_or_no
@@ -64,6 +63,16 @@ async def plan_research(state: TurnState, runtime: Runtime[TurnContext]) -> dict
     return {"jobs": await _create(c, plan), "round": 0, "research_results": [RESET]}
 
 
+def _need(job: dict[str, Any]) -> acquisition.Need:
+    """ "Find it" (fresh: past the search cache, wider queries); an area left short before (escalate: the
+    registry's other markets too); a gap round; or a first round."""
+    if job.get("fresh"):
+        return acquisition.Need.FRESH
+    if job.get("escalate"):
+        return acquisition.Need.ESCALATE
+    return acquisition.Need.FOLLOW_UP if job.get("round") else acquisition.Need.STANDARD
+
+
 def fan_out(state: TurnState) -> list[Send] | str:
     sends = [Send("research_job", job) for job in state.get("jobs", [])]
     return sends or "after_research"
@@ -99,19 +108,18 @@ async def research_job(job: dict[str, Any], runtime: Runtime[TurnContext]) -> di
     await progress("searching")
     try:
         async with asyncio.timeout(c.budget.limits.job_timeout_s):
-            res = await research.run_job(
-                c.ports,
-                JobSpec(
-                    job["job_id"],
-                    job["variant_id"],
-                    job["area"],
-                    job["round"],
+            got = await c.ports.acquisition.acquire(  # type: ignore[union-attr]
+                acquisition.AcquireRequest(
+                    job_id=job["job_id"],
+                    variant_id=job["variant_id"],
+                    kinds=[job["area"]],
+                    need=_need(job),
+                    round=job["round"],
                     car_year=car.year if car else None,
-                    fresh=bool(job.get("fresh")),  # "find it": past the search cache, wider queries
-                    escalate=bool(job.get("escalate")),  # left short before: the registry's other markets too
                 ),
                 emit,
             )
+            res = got.kinds[0]
     except BudgetExceeded as e:
         await progress("paused")
         await c.ports.jobs.mark(job["job_id"], "FAILED", error=str(e))

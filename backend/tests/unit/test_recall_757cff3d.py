@@ -9,7 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from automind.application.research import queries_for
+from automind.acquisition.pipeline.plan import queries_for
 from automind.infrastructure.config import reference
 
 GOLF = SimpleNamespace(make="Volkswagen", model="Golf", generation="Mk8.5",

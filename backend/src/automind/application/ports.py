@@ -256,6 +256,22 @@ class OutcomeStore(Protocol):
     async def feedback(self, chat_id: str, kind: str, **fields: Any) -> str: ...
 
 
+class AcquisitionPort(Protocol):
+    """The acquisition engine bound to its ports (spec 011 contracts/acquire.md, strangler S8): the chat orders data
+    and identity look-ups here and never searches, fetches or reads pages itself. Graph tests fake it. The models are
+    those of `automind.acquisition.api`; its port-free read model is called on that module directly."""
+
+    async def acquire(self, req: Any, emit: Callable[[str, str], Awaitable[None]] | None = None) -> Any: ...
+
+    async def lineup(self, make: str, *, official: str | None, max_pages: int) -> Any: ...
+
+    async def versions(self, make: str, model: str, generation: str | None, *, year: int | None, queries: list[str],
+                       limits: dict[str, Any], done: set[str] | None = None) -> Any: ...  # fmt: skip
+
+    async def generation_hints(self, query: str, *, lineup_url: str | None = None, user_url: str | None = None,
+                               prices: bool = False) -> list[Any]: ...  # fmt: skip
+
+
 Emit = Callable[[str, dict[str, Any]], Awaitable[None]]
 """Progress/event callback: (type, payload)."""
 
@@ -263,7 +279,6 @@ Emit = Callable[[str, dict[str, Any]], Awaitable[None]]
 @dataclass
 class Ports:
     llm: LLM
-    search: Searcher
     cases: CaseRepo
     turns: TurnRepo
     events: EventBus
@@ -272,11 +287,9 @@ class Ports:
     ref: Reference
     messages: MessageRepo
     estimator: Estimator
-    pages: PageStore | None = None  # None → `search` also implements PageStore (test fakes)
-    readers: SiteReaders = field(default_factory=NoReaders)
+    acquisition: AcquisitionPort | None = None  # spec 011 S8: the engine (search, pages, readers live there)
     feasibility: Any = None  # application.feasibility.FeasibilityStore (spec 003 US3)
     lineup: Any = None  # async (ports, make) -> application.lineup.Lineup | None (spec 005); None: no lookup
-    learned: LearnedSources | None = None  # spec 007 FR-022; None: no learned sources (test fakes)
     # spec 006 US5: market facts (incentives): upsert(rows, evidence_id), done() -> datetime | None, load(); None: none
     market_facts: Any = None
     # spec 007 US7: async () -> [(make, domain.intake.LineupModel)] sold in ES, known without a search; None: none
@@ -285,7 +298,3 @@ class Ports:
     outcomes: OutcomeStore | None = None  # spec 010 US1/US2; None: not recorded (test fakes)
     metrics: Any = None  # spec 010: inc(name, **labels) for Prometheus counters; None: not counted
     registry: Any = None  # spec 010 US6-US8: acquisition.registry.api.RegistryPort; None: config order only
-
-    @property
-    def page_store(self) -> PageStore:
-        return self.pages if self.pages is not None else self.search  # type: ignore[return-value]
