@@ -112,7 +112,7 @@ Paths are relative to `backend/` unless they start with `frontend/`, `deploy/`, 
 
 **Independent test**: the queue lists every 009 item with its chat and a copy text.
 
-- [ ] T046 [US5] Add `config/seed_issues.yaml` with one entry per 009 flaw and per UX finding F1–F8 of `docs/ux-audit-2026-11-05.md` (component `ui`, fix kind `code`, files from the report) (spec US5 list; chats 20b5b7f9, 8c6a2a58; component, class, title, examples as quotes from spec 009, proposed fix: code (files from docs/baseline.md) or config (`sense.yaml`/`plausibility.yaml`/`queries.yaml` keys where they apply), verify step) and an idempotent seeder `src/automind/insight/application/seed.py` (`source=seed:009`, fingerprint `seed:<slug>`), run from the insight loop on start.
+- [ ] T046 [US5] Add `config/seed_issues.yaml` with one entry per 009 flaw and per UX finding F7–F15 of `docs/ux-audit-2026-11-05.md` not covered by US10 (component `ui`, fix kind `code`, files from the report) (spec US5 list; chats 20b5b7f9, 8c6a2a58; component, class, title, examples as quotes from spec 009, proposed fix: code (files from docs/baseline.md) or config (`sense.yaml`/`plausibility.yaml`/`queries.yaml` keys where they apply), verify step) and an idempotent seeder `src/automind/insight/application/seed.py` (`source=seed:009`, fingerprint `seed:<slug>`), run from the insight loop on start.
 - [ ] T047 [US5] Test `tests/integration/test_seed_issues.py`: seeding twice gives one row per item; seeded issues appear in `GET /problems` ranked by a fixed seed impact.
 
 ## Phase 9: User Story 8 — registry seeded, same behaviour (P2)
@@ -195,6 +195,23 @@ Owner's requirement (2026-11-05): the whole project runs in Docker and moves to 
 - [ ] T086 Monitoring profile (T073) and the bundle (T080) include Prometheus/Alertmanager config; `deploy.sh up --monitoring` starts both profiles. Document a full move in `docs/deploy.md`: export → move → verify `/api/v1/health`, `/metrics`, admin login → `down` on the old host.
 - [ ] T087 Rehearse a move on a throwaway target (local VM or a second compose project name on the same host via `COMPOSE_PROJECT_NAME=automind-move`): export → import → the same chats, issues and registry visible; record the result in `docs/deploy.md`.
 
+## Phase 15: User Story 10 — the user sees what was understood and corrects it cheaply (P1)
+
+**Goal**: UI audit F1–F6 + quick wins + English interface (`docs/ux-audit-2026-11-05.md`). Independent of the backend phases except T090 (car edit endpoint).
+
+**Independent test**: see spec US10; plus an axe scan with no critical/serious issues and light-theme badge contrast ≥ 4.5:1.
+
+- [ ] T088 [P] [US10] Quick wins (audit list 1–13): scroll a new answer to its start (`frontend/src/App.tsx`), theme tokens `--prov-*`/`--basis-*` with light variants in `frontend/src/index.css` used by `IntakeCard.tsx`, `CasePanel/CasePanel.tsx`, `badges.tsx`; composer keeps text on failed send (`Composer.tsx`, `onSend` returns boolean); connection banner on phones (`Header.tsx`); short mobile placeholder; remove `capitalize` (`Message.tsx`, `ProgressGrid.tsx`); intake option `aria-pressed` + selected style; accessibility fixes (persona select label, `role="img"` on the confidence dot, sources button `aria-label`, Escape on CaseSheet/ChatList); rating scale anchors + three reason chips on ratings ≤ 2 (sent as the note); one "find the missing data" action per report; hide `UsageBadge` outside debug; progress grid legend + elapsed time.
+- [ ] T089 [US10] English interface (FR-042): pin the UI language to `en` in `frontend/src/i18n` (`useLang`), keep reply language untouched; move the ~50 hard-coded strings the audit lists into the i18n table so a later decision can re-enable translation in one place.
+- [ ] T090 [US10] Backend structured car edit (FR-037): WS message `car_edit {car_key, field: generation|engine|gearbox|trim|not_this_car|remove, value?}` in `api/ws.py` → `runner.run_turn(..., preset={"kind": "car_edit", ...})` stored with role `edit`; in `orchestration/nodes/understand.py` a `car_edit` preset builds the `CaseDelta` by code (`replace_cars` / `set_car_context` / remove) with no interpreter call, then the normal identify → assess → policy path re-researches or recomputes. Offer the choices from the cached version ladder (`application/versions.py`). Graph test `tests/graph/test_car_edit.py`: no `interpreter` call recorded; case file changed; `intake_events` gets `CARD_EDITED`; outcome class `wrong_car` recorded on the previous turn.
+- [ ] T091 [US10] "Agreed" entry (FR-035): when a confirm/intake request is answered, the runner saves an assistant message of kind `agreed` (blocks: cars with version line and basis) so it survives reloads; render it collapsed in `frontend/src/components/Message.tsx` (new `blocks/Agreed.tsx`). Add `variant_label` (engine · gearbox · trim · year) to `case_file.cars` and `case_summary.cars` in the backend payload (`application/compose.py`, case file serialisation) and show it in `blocks/CaseSummary.tsx`, the case panel car row and a subtitle under the verdict headline (FR-036).
+- [ ] T092 [US10] "Change" action (FR-037) in the case panel car row and the spec-table column header: chips for generation/engine/gearbox/trim from the payload's options, plus "Not this car" and "Remove"; `PROPOSED`/`UNKNOWN_MODEL` badges become buttons; inline text edit for intake fields without options. Sends `car_edit`. Tests in `frontend/src/components/__tests__/carEdit.test.tsx`.
+- [ ] T093 [US10] Case panel speaks up (FR-038): auto-open on ≥1280 px on the first case file (`store/case.ts`), unseen-changes badge on "Your case" (`Header.tsx`), a one-line "Noted: … — Edit" transcript entry per `case_file.changes` set that opens the panel at the field.
+- [ ] T094 [US10] "Based on: …" strip above the verdict with an Edit link (FR-039): render `case_summary` slim before `Verdict` in `Message.tsx`.
+- [ ] T095 [US10] Legible data quality (FR-040): confidence as text (high/med/low) next to the dot; tap/keyboard-expandable reasons replacing `title` in `DataPanel.tsx`, `IntakeCard.tsx`, `Verdict.tsx`, `ProgressGrid.tsx`; legend line above the spec table (`SpecTable.tsx`).
+- [ ] T096 [US10] "wrong?" with reason and in-cell result (FR-041): mini menu (wrong for this version / outdated / wrong value / note) in `ChallengeButton.tsx`, reason sent as `text` and stored in feedback (US2); store `challenge_result` by `car_id|attribute` in `store/chat.ts` and render it in the cell (old value struck, new value, "re-checked"), row label instead of key, reset "checking…".
+- [ ] T097 [US10] Extend the mock transport (`frontend/src/mock/`) with intake card, case file, progress grid, verdict, error and limit messages (audit F15), and add a Playwright smoke script `frontend/scripts/ux-smoke.mjs` (screenshots at 1280/390, light/dark, axe scan; fails on critical/serious) runnable in Docker (`scripts/check.sh --docker`, T084).
+
 ## Dependencies & execution order
 
 - Phase 1 → Phase 2 → stories.
@@ -214,6 +231,7 @@ Setup → Foundational → US1 → US2 → US9a → US3 → US4 → US5
 - Within each story, the [P] test tasks are written together before implementation (T012; T021; T027; T031–T033; T048; T055–T056; T062).
 - After Phase 2, the registry track (US8 → US6 → US7) can run in parallel with the observation track (US1 → US2 → US9a → US3 → US4 → US5): they meet only in T060 (truth signals from challenge/bad source) and T068–T069 (admin shell).
 - T071 and T072 in parallel; T075 and T076 in parallel.
+- Phase 15 (US10) is a third independent track (frontend), meeting the backend only in T090/T091 and in T096 (feedback reason, US2).
 
 ## Implementation strategy
 

@@ -275,6 +275,33 @@ Shipped alert rules:
 
 ---
 
+### User Story 10 - The user sees what was understood and corrects it cheaply (Priority: P1)
+
+Source: UI audit of 2026-11-05 (`docs/ux-audit-2026-11-05.md`, findings F1–F6 and its quick wins). The owner's first complaint, "the assistant loses the dialogue and picks the wrong version", is partly a UI problem: what the system understood disappears or is hidden, and correcting it costs a free-text turn that the model must reinterpret.
+
+- **Agreed version stays visible**: after the user confirms the cars, a compact read-only "Agreed" entry stays in the chat with the final values and their basis. The full version line (engine · gearbox · trim · year) is shown in the case summary, in the case panel and under the verdict headline.
+- **Cheap structured correction**: each car in the case panel and in the report's spec-table header has a "Change" action offering the same choices as the intake card (generation, engine, gearbox, trim) plus "Not this car" and "Remove"; the change is applied by code, not reinterpreted by the model. Intake-card fields without choices get an inline edit.
+- **Case panel speaks up**: on wide screens it opens on the first case file; a badge on "Your case" shows unseen changes; each set of changes leaves a one-line "Noted: … — Edit" entry in the chat.
+- **Answer starts at the top**: a new answer scrolls to its start; a slim "Based on: …" strip with an Edit link sits above the verdict.
+- **Data quality is legible**: provenance and basis badges are readable in both themes; confidence is shown as text, not only colour; reasons are visible on tap, not only on hover; a one-line legend sits above the spec table.
+- **"wrong?" says why and answers in place**: it offers "wrong for this version", "outdated", "wrong value" and a note; the result is shown in the table cell (old value struck, new value, "re-checked"), using the row's label.
+- **Interface language**: the interface is English (as in the product vision); replies stay in the user's language. Mixed-language screens disappear.
+- **Quick wins of the audit**: composer keeps text when sending fails; connection state visible on phones; accessibility fixes (labels, roles, Escape); rating with scale anchors and reason chips on low scores; one "find the missing data" action per report; legend and elapsed time in the progress grid.
+
+**Why this priority**: it attacks the main complaint directly and cheaply, and the outcome measurements of US1 will show whether "wrong car" and "did not understand" fall.
+
+**Independent Test**: In the browser with the chat store fed the stored messages of a chat: after confirming, the "Agreed" entry stays; the version line is visible in three places; "Change" on a car switches the version without a free-text turn (the case file changes, the model is not called for interpretation); badges pass contrast AA in the light theme; the accessibility scan has no critical or serious issues.
+
+**Acceptance Scenarios**:
+
+1. **Given** the user confirms the proposed cars, **When** the card closes, **Then** an "Agreed" entry with the versions remains in the chat after a reload.
+2. **Given** a report for the wrong version, **When** the user presses "Change" on that car and picks another engine, **Then** the case file changes by code, the affected results are recomputed or re-researched, and the interpreter is not called for that edit.
+3. **Given** a long report arrives, **When** it renders, **Then** the view is at the start of the answer and "Based on: …" is above the verdict.
+4. **Given** the light theme, **When** provenance, basis and confidence are shown, **Then** each has contrast ≥ 4.5:1 and a text form.
+5. **Given** a "wrong?" with reason "wrong for this version", **When** the re-check corrects the value, **Then** the cell shows the corrected value and the reason is stored in the feedback (US2).
+
+---
+
 ### Edge Cases
 
 - **Alert storm.** Many sources degrade at once because the search provider is down: the provider alert names the common cause; grouping and rate limits are Alertmanager's job.
@@ -340,6 +367,18 @@ Shipped alert rules:
 - **FR-033**: Every background loop MUST export its last success time and failures in a row, so that a silent stop is caught by Prometheus.
 - **FR-034**: The project MUST ship a Prometheus scrape configuration and an optional local monitoring setup (Prometheus and Alertmanager); the application MUST work without them.
 
+**Interface (US10)**
+
+- **FR-035**: After a confirmation, the chat MUST keep a persisted read-only "Agreed" entry with each car's final version and basis.
+- **FR-036**: The full version line (engine, gearbox, trim, year) MUST appear in the case summary, the case panel and under the verdict headline.
+- **FR-037**: The user MUST be able to change a car's generation, engine, gearbox or trim, mark it "not this car" or remove it, from the case panel and the report, as a structured edit applied by code without an interpretation call.
+- **FR-038**: The case panel MUST signal unseen changes, open automatically on wide screens on the first case file, and each change set MUST leave a one-line note in the chat with an edit link.
+- **FR-039**: A new answer MUST scroll to its start, with "Based on: …" above the verdict.
+- **FR-040**: Provenance, basis and confidence MUST be readable in both themes (contrast ≥ 4.5:1), have a text form, and their reasons MUST be reachable by tap and keyboard; a legend MUST precede the spec table.
+- **FR-041**: "wrong?" MUST let the user choose a reason, and its result MUST be shown in the challenged cell with the row's label.
+- **FR-042**: The interface text MUST be English in every screen; replies remain in the user's language.
+- **FR-043**: The audit's quick wins listed in US10 MUST be implemented, and the accessibility scan MUST report no critical or serious issues.
+
 ### Key Entities
 
 - **Turn outcome**: one per turn; kind of request, action, path, duration, cost, relation of the next message, failure classes, signals, score.
@@ -365,6 +404,7 @@ Shipped alert rules:
 - **SC-008**: After one month, the share of "no data" for kinds of data with an existing open source falls, and the accuracy of shown values does not fall, compared with the baseline.
 - **SC-009**: Background analysis and discovery stay within their daily budgets on every day.
 - **SC-010**: A degraded source, a complaint wave or a stopped background loop makes a shipped Prometheus rule fire within 10 minutes.
+- **SC-012**: After US10, the share of turns with class "wrong car" or "did not understand" falls compared with the baseline of US1.
 - **SC-011**: Every proposed fix in Top problems is marked code or configuration, and every configuration fix names an existing file and key.
 
 ## Assumptions
