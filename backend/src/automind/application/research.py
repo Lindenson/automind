@@ -74,6 +74,15 @@ def target_of(v: db.Variant, car_year: int | None = None) -> str:
 
 
 MAX_LLM_RELEVANCE_PER_JOB = 4
+SERVICE_AREAS = ("maintenance",)  # brand-wide service pages count (spec 009 FR-020); warranty is a BRAND_AREA
+
+
+def known_makes(ports: Ports) -> list[str]:
+    """Canonical makes (config/makes.yaml), so a brand page about another make is not taken for ours."""
+    makes = getattr(ports.ref, "makes", None)
+    return list(getattr(makes, "makes", None) or [])
+
+
 LLM_PER_JOB = 6  # default; config/search.yaml concurrency.llm_per_job
 
 
@@ -95,12 +104,18 @@ class _PageJudge:
     """Relevance of one page: rules first, the relevance role for uncertain pages (at most
     MAX_LLM_RELEVANCE_PER_JOB per job). Safe to call concurrently: the budget is taken before any await."""
 
-    def __init__(self, ports: Ports, v: db.Variant, tgt: rel.Target, gens: list[rel.GenerationInfo], target: str):
+    def __init__(self, ports: Ports, v: db.Variant, tgt: rel.Target, gens: list[rel.GenerationInfo], target: str,
+                 area: str | None = None):  # fmt: skip
         self.ports, self.v, self.tgt, self.gens, self.target = ports, v, tgt, gens, target
+        self.service = area in SERVICE_AREAS
         self.llm_left = MAX_LLM_RELEVANCE_PER_JOB if "relevance" in ports.ref.prompts else 0
 
     async def __call__(self, p: Page) -> rel.Relevance:
-        r = rel.judge(rel.PageFacts(p.url, p.title, p.text), self.tgt, self.gens)
+        facts = rel.PageFacts(p.url, p.title, p.text)
+        if self.service:  # spec 009 FR-020: the brand's service and warranty pages apply to the car
+            r = rel.judge_service(facts, self.tgt, self.gens, known_makes(self.ports))
+        else:
+            r = rel.judge(facts, self.tgt, self.gens)
         method = "RULES"
         if r.verdict == "UNCERTAIN" and self.llm_left > 0:
             self.llm_left -= 1
@@ -349,7 +364,8 @@ async def _run(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
     # Pages run concurrently; the model calls are bounded per job here and in total by the gateway.
     await emit("reading", f"{job.area}: reading {len(pages)} sources ({stats['pages_cached']} from cache)")
     tgt, gens = _relevance_target(v, ports)
-    judge = _PageJudge(ports, v, tgt, gens, target)
+    judge = _PageJudge(ports, v, tgt, gens, target, job.area)
+    makes = known_makes(ports)
     sem = asyncio.Semaphore(_llm_per_job(ports))
     known = await _known_values(v.id)
     readings = await _read_tables(ports, v, pages) if job.area in ex.SPEC_AREAS else {}
@@ -362,7 +378,7 @@ async def _run(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
     brand = job.area in research_plan.BRAND_AREAS
 
     async def one(p: Page) -> None:
-        r = rel.judge_brand(rel.PageFacts(p.url, p.title, p.text), v.make) if brand else await judge(p)
+        r = rel.judge_brand(rel.PageFacts(p.url, p.title, p.text), v.make, makes) if brand else await judge(p)
         if r.verdict in ("OTHER_VARIANT", "NOT_ABOUT_CAR"):
             gate[r.verdict.lower()] += 1
             outcome_by_url[p.url] = ("rejected", r.verdict.lower(), 0)
@@ -804,7 +820,7 @@ def _variant_gearbox(v: db.Variant) -> str | None:
     name = f" {v.variant_name} ".lower()
     if re.search(r"\b\d\s?(at|a/t)\b|automatic|automático|automatica", name):
         return "automatic"
-    if re.search(r"\b\d\s?(mt|m/t)\b|manual", name):
+    if re.search(r"\b\d\s?(mt|m/t)\b", name) or sense.says_manual(name):
         return "manual"
     return sense.gearbox_family(name)
 
