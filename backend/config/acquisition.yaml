@@ -30,6 +30,8 @@ schedule:
   reputation_signals: {every_s: 900, key: repsig, loop: reputation}  # US3 T070: gold/physics/agreement/replacement
   rollup: {daily: "00:30", key: rollup, loop: rollup}                # US3 T072: acq_daily, exploration reset, fade
   baseline: {daily: "00:45", key: baseline}                          # US3 T073: open KPI baselines
+  parser_daily: {daily: "00:15", key: parserday, loop: parsers}      # US4 T089: yesterday's parser metrics
+  drift: {daily: "00:20", key: drift, loop: drift}                   # US4 T089: drift → degraded + parser doctor
 
 prefetch:
   enabled: false        # the handler slot completes with {"skipped": "disabled"} while false

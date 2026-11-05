@@ -4,7 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from automind.acquisition.parsing.legacy import Registry, read_pairs, value_and_unit
+from automind.acquisition.parsing.legacy import read_pairs, value_and_unit
+from automind.acquisition.parsing.registry import ParserRegistry
 from automind.application.ports import Page
 from automind.domain import specs
 from automind.infrastructure.config import load_yaml
@@ -79,7 +80,7 @@ def test_value_and_unit(text, spec, expected):
 def test_registry_runs_only_for_reviewed_favourites():
     favs = [{"domain": "km77.com", "reader": "km77", "tos_checked": "2026-11-02"},
             {"domain": "ultimatespecs.com", "reader": "ultimatespecs", "tos_checked": None}]  # fmt: skip
-    reg = Registry(CONF, favs)
+    reg = ParserRegistry.from_yaml(favs)
     html = (FIX / "km77_bmw_520d_g30.html").read_text(encoding="utf-8")
     assert reg.read(Page(url="https://www.km77.com/x/datos", title="t", text="", html=html), {}) is not None
     us = (FIX / "ultimatespecs_bmw_g30_520d.html").read_text(encoding="utf-8")

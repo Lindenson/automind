@@ -181,10 +181,17 @@ async def _engine(snap: prom.Snapshot) -> None:
         snap.set("claims_without_producer", (), int(n))
 
 
-def _readers(snap: prom.Snapshot) -> None:
-    from automind.acquisition.parsing.legacy import STREAKS  # noqa: PLC0415
+async def _readers(snap: prom.Snapshot) -> None:
+    """Zero streaks of the running parser versions (spec 011 US4: kept in parser_versions, so every process's
+    pages count), and this process's own count for readers not stored yet (the YAML fallback)."""
+    from automind.acquisition.parsing.registry import STREAKS  # noqa: PLC0415
 
-    for reader, n in sorted(STREAKS.items()):
+    streaks = dict(STREAKS)
+    for reader, n in await _rows(
+        "SELECT reader, zero_streak FROM parser_versions WHERE status IN ('active', 'degraded')"
+    ):
+        streaks[str(reader)] = max(int(n), streaks.get(str(reader), 0))
+    for reader, n in sorted(streaks.items()):
         snap.set("reader_zero_streak", (reader,), n)
 
 
@@ -201,13 +208,13 @@ async def refresh() -> prom.Snapshot:
         _spend(snap),
         _issues(snap),
         _engine(snap),
+        _readers(snap),
     )
     for part in parts:
         try:
             await part
         except Exception:  # noqa: BLE001 - one failing query leaves its series empty, never the whole snapshot
             log.exception("metrics.snapshot_part_failed")
-    _readers(snap)
     return snap
 
 

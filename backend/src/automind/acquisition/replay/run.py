@@ -3,8 +3,9 @@ contracts/replay-cli.md, research R4).
 
 Readers run offline: the CLI builds no search, fetch or model port and the socket guard is on while pages are read;
 any network attempt aborts the replay. Rows are validated with the same pure checks research uses (imported from
-`acquisition/pipeline/validate.py`, never copied). Before US4 a reader version is the legacy reader of
-`config/site_readers.yaml` (`km77@v1`) or one legacy-format block from a file (`<id>@test`).
+`acquisition/pipeline/validate.py`, never copied). A reader version is a stored parser spec (`parser_versions`,
+`km77@v2`; `km77@v1` falls back to config/site_readers.yaml while the database has no parser) or a candidate spec
+from a JSON file, validated first (`<reader>@v<N>` as the file names it). Both run in the fixed interpreter.
 Extractor replay needs model calls: only with `allow_llm`, at most `replay.extractor_max_pages` pages, outputs cached
 in `extraction_cache` so a second replay of the same version costs nothing.
 """
@@ -18,7 +19,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-import yaml
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
@@ -26,6 +26,7 @@ from sqlalchemy.dialects.postgresql import insert
 from automind.acquisition.domain import replay as scoring
 from automind.acquisition.domain.versions import parse_key, prompt_key
 from automind.acquisition.gold import repo as gold_repo
+from automind.acquisition.parsing.spec import ParserSpec
 from automind.acquisition.replay.offline import NetworkForbidden, no_network
 from automind.acquisition.snapshots import store
 from automind.acquisition.snapshots.store import SnapshotRef
@@ -62,7 +63,7 @@ class NetworkAttempt(ReplayError):
 
 class ReplayRequest(BaseModel):
     reader: str | None = None  # "km77@v1"
-    reader_file: str | None = None  # one legacy-format reader block (YAML) -> "<id>@test"
+    reader_spec: str | None = None  # a candidate ParserSpec (JSON file), validated first
     extractor: str | None = None  # "extract_specs@v2"
     model: str | None = None
     since: datetime | None = None
@@ -99,43 +100,37 @@ class ReplayReport(BaseModel):
         return self.model_dump(by_alias=True, mode="json")
 
 
-# --- reader versions (before US4: legacy readers) -----------------------------------------------------------------
+# --- reader versions (spec 011 US4: parser specs) ------------------------------------------------------------------
 
 
-def _check_block(reader_id: str, conf: Any) -> dict[str, Any]:
-    if not isinstance(conf, dict) or not isinstance(conf.get("labels"), dict) or not conf["labels"]:
-        raise InvalidSpec(f"{reader_id}: a reader needs `labels`")
-    for label, spec in conf["labels"].items():
-        if not isinstance(spec, dict) or spec.get("attribute") not in specs.ATTRS:
-            raise InvalidSpec(f"{reader_id}: label {label!r} maps to an unknown attribute")
-    if conf.get("pairs", "table") not in ("table", "divrow"):
-        raise InvalidSpec(f"{reader_id}: unknown layout {conf.get('pairs')!r}")
-    return conf
+async def resolve_reader(req: ReplayRequest) -> tuple[str, ParserSpec]:
+    """(version key, spec): a stored version, its YAML v1 before the seed, or a validated candidate file."""
+    from automind.acquisition.parsing import spec as ps  # noqa: PLC0415
+    from automind.acquisition.parsing import store  # noqa: PLC0415
+    from automind.acquisition.parsing.migrate_v1 import denylist, yaml_specs  # noqa: PLC0415
 
-
-def resolve_reader(req: ReplayRequest) -> tuple[str, str, dict[str, Any]]:
-    """(version key, reader id, legacy reader block)."""
-    if req.reader_file:
+    if req.reader_spec:
         try:
-            data = yaml.safe_load(Path(req.reader_file).read_text(encoding="utf-8"))
-        except (OSError, yaml.YAMLError) as e:
-            raise InvalidSpec(f"{req.reader_file}: {e}") from e
-        if isinstance(data, dict) and "labels" not in data and len(data) == 1:
-            ((rid, conf),) = data.items()
-        else:
-            rid, conf = Path(req.reader_file).stem, data
-        return f"{rid}@test", str(rid), _check_block(str(rid), conf)
+            body = Path(req.reader_spec).read_text(encoding="utf-8")
+        except OSError as e:
+            raise InvalidSpec(f"{req.reader_spec}: {e}") from e
+        errors = ps.check(body, denylist=denylist())
+        if errors:
+            raise InvalidSpec(f"{req.reader_spec}: " + "; ".join(errors))
+        spec, _ = ps.parse(body)
+        assert spec is not None
+        return spec.key, spec
     assert req.reader is not None
     try:
         rid, version = parse_key(req.reader)
+        stored = await store.version(req.reader)
     except ValueError as e:
         raise InvalidSpec(str(e)) from e
-    readers = {k: v for k, v in config.load_yaml("site_readers.yaml").items() if k != "version"}
-    if rid not in readers:
-        raise InvalidSpec(f"no reader {rid!r} in config/site_readers.yaml")
-    if version != 1:
-        raise InvalidSpec(f"{req.reader}: only version 1 (today's readers) exists before parser specs (US4)")
-    return req.reader, rid, _check_block(rid, readers[rid])
+    if stored is not None:
+        return stored.key, stored.spec
+    if version == 1 and rid in (v1 := yaml_specs()):  # the database has no parser yet: today's YAML reader
+        return req.reader, v1[rid]
+    raise InvalidSpec(f"no parser version {req.reader!r}")
 
 
 # --- validation: the research-time rules ------------------------------------------------------------------------
@@ -166,17 +161,17 @@ def _values(
 
 
 def read_page(
-    ref: SnapshotRef, raw: bytes, conf: dict[str, Any], reader_id: str, variants: dict[str, Variant],
-    rules: dict[str, Any], attributes: list[str] | None = None,
+    ref: SnapshotRef, raw: bytes, spec: ParserSpec, variants: dict[str, Variant], rules: dict[str, Any],
+    attributes: list[str] | None = None,
 ) -> scoring.PageResult:  # fmt: skip
-    """One stored page through the reader and the live checks (pure apart from the research rule imports)."""
+    """One stored page through the parser spec and the live checks (pure apart from the research rule imports)."""
     from automind.acquisition.infrastructure.fetch import decode_body  # noqa: PLC0415
-    from automind.acquisition.parsing.legacy import read_pairs  # noqa: PLC0415
+    from automind.acquisition.parsing import interpreter  # noqa: PLC0415
     from automind.acquisition.pipeline import validate as rs  # noqa: PLC0415
 
     url = ref.final_url or ref.url
     try:
-        reading = read_pairs(decode_body(raw, None), conf, reader_id)
+        reading = interpreter.read(spec, decode_body(raw, None), url)
     except NetworkForbidden:
         raise
     except Exception:  # noqa: BLE001 - a broken page reads as nothing, as live
@@ -256,7 +251,7 @@ async def _corpus(req: ReplayRequest, domains: list[str] | None, limit: int | No
 
 
 async def _reader_pages(req: ReplayRequest) -> tuple[str, list[scoring.PageResult], int]:
-    key, rid, conf = resolve_reader(req)
+    key, spec = await resolve_reader(req)
     rules = config.plausibility_rules()
     attempts = 0
 
@@ -267,7 +262,7 @@ async def _reader_pages(req: ReplayRequest) -> tuple[str, list[scoring.PageResul
             try:
                 for r in refs:
                     if r.blob_sha256 in bodies:
-                        out.append(read_page(r, bodies[r.blob_sha256], conf, rid, variants, rules, req.attributes))
+                        out.append(read_page(r, bodies[r.blob_sha256], spec, variants, rules, req.attributes))
             except NetworkForbidden as e:
                 raise NetworkAttempt(str(e)) from e
         attempts += guard.attempts
@@ -275,7 +270,7 @@ async def _reader_pages(req: ReplayRequest) -> tuple[str, list[scoring.PageResul
             raise NetworkAttempt(f"{guard.attempts} network attempt(s) while reading: {guard.last}")
         return out
 
-    domains = req.domains or [str(d) for d in conf.get("domains") or []]
+    domains = req.domains or list(spec.domains)
     return key, await _corpus(req, domains, req.limit_pages, per_batch), attempts
 
 
@@ -356,8 +351,8 @@ async def _extractor_pages(req: ReplayRequest) -> tuple[str, list[scoring.PageRe
 
 async def run(req: ReplayRequest) -> ReplayReport:
     """Replay one version over the stored pages of the period; raises `ReplayError` (with its exit code)."""
-    if sum(x is not None for x in (req.reader, req.reader_file, req.extractor)) != 1:
-        raise InvalidSpec("give exactly one of reader, reader_file, extractor")
+    if sum(x is not None for x in (req.reader, req.reader_spec, req.extractor)) != 1:
+        raise InvalidSpec("give exactly one of reader, reader_spec, extractor")
     started, t0 = datetime.now(UTC), time.monotonic()
     key, pages, attempts = await (_extractor_pages(req) if req.extractor else _reader_pages(req))
     if not pages:
