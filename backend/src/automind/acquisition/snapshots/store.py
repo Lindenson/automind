@@ -114,6 +114,21 @@ async def load(snapshot_id: str) -> tuple[bytes, str]:
     return await asyncio.to_thread(codec.decompress, bytes(body)), final_url or url
 
 
+async def load_bodies(shas: list[str]) -> dict[str, bytes]:
+    """Raw bodies of several blobs at once (replay reads in batches)."""
+    if not shas:
+        return {}
+    async with sessionmaker()() as s:
+        rows = (
+            await s.execute(select(SnapshotBlob.sha256, SnapshotBlob.body).where(SnapshotBlob.sha256.in_(shas)))
+        ).all()
+
+    def unpack() -> dict[str, bytes]:
+        return {sha: codec.decompress(bytes(body)) for sha, body in rows}
+
+    return await asyncio.to_thread(unpack)
+
+
 async def latest_for_document(document_id: str) -> str | None:
     """The newest snapshot of a cached page (a cache hit reuses the snapshot of its last fetch)."""
     async with sessionmaker()() as s:

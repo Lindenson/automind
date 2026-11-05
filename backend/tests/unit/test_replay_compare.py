@@ -94,3 +94,12 @@ def test_wilson_lower_bound():
     assert wilson_lb(0, 0) is None
     assert 0.86 < wilson_lb(48, 50) < 0.87
     assert wilson_lb(50, 50) < 1.0
+
+
+def test_reader_accuracy_is_scored_on_every_row_read():
+    """A reader that puts a wrong number under a label is wrong even when the checks reject the value."""
+    accepted = [val("max_power", 140.0)]
+    read = [val("max_power", 140.0), val("curb_mass", None, text="400 Nm")]
+    r = report("km77@test", [PageResult("s1", "u", ("v1",), 2, accepted, scored=read)], GOLD, TOL)
+    assert r["rows_accepted"] == 1 and r["gold_covered"] == 2 and r["gold_match"] == 1
+    assert r["mismatches"][0]["attribute"] == "curb_mass" and r["mismatches"][0]["ours"] == "400 Nm"

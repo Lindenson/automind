@@ -49,7 +49,10 @@ class PageResult:
     url: str
     variant_ids: tuple[str, ...]
     rows_read: int
-    values: list[Value]  # accepted values only
+    values: list[Value]  # accepted values only (yield, pass rate)
+    # what accuracy is scored on: for a reader, every row it read (unit layer only, the raw text when even that
+    # fails), so a reader that puts the wrong number under a label is wrong even when the checks catch it
+    scored: list[Value] | None = None
 
 
 @dataclass(frozen=True)
@@ -153,7 +156,7 @@ def report(
     n = len(pages)
     rows_read = sum(p.rows_read for p in pages)
     values = [v for p in pages for v in p.values]
-    c = compare(values, gold, tolerances)
+    c = compare([v for p in pages for v in (p.values if p.scored is None else p.scored)], gold, tolerances)
     covered, matched = c.covered, c.matched
     return {
         "version": version,
