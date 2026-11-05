@@ -205,3 +205,39 @@ def outlier(f: Facts, cfg: Mapping[str, Any]) -> Outlier:
     if len(suspects) == 1:
         return Outlier(suspects.pop(), "suspect", incs)
     return Outlier(None, "tie", incs)
+
+
+BUCKETS = (4.0, 6.0, 8.0, 10.0, 12.0, 15.0, 20.0, 99.0)  # kg/kW upper bounds of the envelope's buckets
+
+
+@dataclass(frozen=True)
+class Point:
+    group: str  # envelope key: "<powertrain>|<drivetrain>", "<powertrain>" or "default"
+    kg_per_kw: float
+    seconds: float  # 0-100 km/h
+
+
+def _pct(xs: list[float], q: float) -> float:
+    s = sorted(xs)
+    i = (len(s) - 1) * q
+    lo, hi = math.floor(i), math.ceil(i)
+    return s[lo] + (s[hi] - s[lo]) * (i - lo)
+
+
+def fit_envelope(points: list[Point], min_points: int = 3, q: float = 0.05) -> dict[str, list[list[float]]]:
+    """The power-mass-acceleration envelope (R8 check 1): per group and kg/kW bucket, the q and 1-q quantiles of the
+    0-100 times; buckets with fewer than `min_points` points are left out. A person reviews it before it is pasted
+    into config/physics.yaml (T076)."""
+    out: dict[str, list[list[float]]] = {}
+    for group in sorted({p.group for p in points} | {"default"}):
+        mine = [p for p in points if group == "default" or p.group == group]
+        rows = []
+        lower = 0.0
+        for upto in BUCKETS:
+            xs = [p.seconds for p in mine if lower < p.kg_per_kw <= upto]
+            if len(xs) >= min_points:
+                rows.append([upto, round(_pct(xs, q), 2), round(_pct(xs, 1 - q), 2)])
+            lower = upto
+        if rows:
+            out[group] = rows
+    return out

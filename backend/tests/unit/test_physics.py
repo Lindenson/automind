@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from automind.acquisition.domain.physics import Facts, check_all, outlier
+from automind.acquisition.domain.physics import Facts, Point, check_all, fit_envelope, outlier
 from automind.infrastructure.config import physics_config
 
 CFG = {
@@ -97,3 +97,12 @@ def test_missing_inputs_skip_the_check() -> None:
     assert check_all(Facts({"max_power": 100, "curb_mass": 1500, "claimed_0_100": 4.0}), {**CFG,
                      "power_mass_accel": {"slack": 0.15, "envelope": {}}}) == []  # fmt: skip  # no envelope yet
     assert outlier(Facts({}), CFG).attribute is None
+
+
+def test_fit_envelope_quantiles_per_bucket() -> None:
+    pts = [Point("ICE|FWD", 12.0 + i * 0.2, 9.0 + i * 0.3) for i in range(10)] + [Point("BEV", 5.0, 4.0)]
+    env = fit_envelope(pts, min_points=3)
+    assert "BEV" not in env  # one point is not an envelope
+    (row,) = env["ICE|FWD"]
+    assert row[0] == 15.0 and 9.0 <= row[1] < row[2] <= 11.7
+    assert env["default"] and all(len(r) == 3 for r in env["default"])
