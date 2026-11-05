@@ -20,6 +20,9 @@ AREAS: tuple[Area, ...] = (
     "used_price", "depreciation", "incentives",
 )  # fmt: skip
 MARKET_AREAS = ("incentives",)  # one job per market, not per car (spec 006 US5)
+BRAND_AREAS = ("manufacturer",)  # pages about the make (warranty, network, results), not about one version
+# spec 008 FR-023/FR-027: a used car is costed from its used price and its warranty status (the brand's terms)
+USED_AREAS: tuple[str, ...] = ("used_issues", "used_price", "manufacturer")
 
 FRESHNESS_DAYS: dict[str, int] = {
     "specs": 365,
@@ -116,7 +119,7 @@ def areas_for(persona: str, criteria: Iterable[str], condition: str, budget_used
     for c in criteria:
         out |= CRITERION_AREAS.get(c, set())
     if condition == "USED":
-        out.add("used_issues")
+        out |= set(USED_AREAS)
     if budget_used:  # a budget check may need used prices (spec 003 FR-022): price and editorial ranges
         out |= {"price", "used_price"}
     return out

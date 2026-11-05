@@ -10,6 +10,7 @@ listed on the page; the target generation or one of its years named. Pages with 
 from __future__ import annotations
 
 import re
+import unicodedata
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Literal
@@ -185,6 +186,20 @@ def _engine_body_signals(title_url: str, head: str, target: Target) -> Relevance
     if len(head_powers) >= 3 and not (want and any(_same_power(p, want) for p in title_powers)):
         return Relevance("MULTI_VARIANT", f"the page lists {len(head_powers)} engines; only the matching one is used")
     return None
+
+
+def _fold(text: str) -> str:
+    return unicodedata.normalize("NFKD", text.lower()).encode("ascii", "ignore").decode()
+
+
+def judge_brand(page: PageFacts, make: str) -> Relevance:
+    """A page for a brand area (warranty, dealer network, results) is about the make, never one version: it is
+    relevant when it names the make, whatever model or engine it shows."""
+    words = [w for w in re.split(r"[\s\-]+", _fold(make)) if len(w) >= 2]
+    text = _fold(f"{page.title}\n{page.url}\n{page.text[:HEAD_CHARS]}")
+    if words and re.search(rf"(?<![a-z0-9]){re.escape(words[0])}(?![a-z0-9])", text):
+        return Relevance("RELEVANT", f"names the make {make}")
+    return Relevance("NOT_ABOUT_CAR", f"the page does not name {make}")
 
 
 def judge(page: PageFacts, target: Target, generations: Sequence[GenerationInfo]) -> Relevance:

@@ -62,6 +62,8 @@ manufacturer:
     - '{make} concesionarios talleres red oficial España'
     - '{make} garantía años kilómetros garantía batería España'
     - '{make} número de concesionarios y puntos de servicio en España'
+manufacturer_warranty:  # spec 008 FR-027: one open search in round 0 of the manufacturer area
+  favourite: '{make} garantía oficial coche nuevo años kilómetros España'
 incentives:  # spec 006 US5: market-level, once per market; no car names in the queries
   favourite: 'ayudas compra coche eléctrico plazo importe {sites}'
   open:
@@ -87,6 +89,7 @@ used_price:
   favourite: '{make} {model} {years} precio segunda mano {sites}'
   favourite_by_market: {ES: '{make} {model} {years} precio segunda mano {sites}', EN: '{make} {model} {years} used price {sites}'}
   open:
+    - '{make} {model} {years} segunda mano precio valor de mercado'
     - '{make} {model} {generation} segunda mano precio cuánto cuesta guía de compra'
     - '{make} {model} {generation} used buying guide how much to pay'
 # spec 006 R10: extra favourite queries for electric and plug-in cars (one search each, first site group).

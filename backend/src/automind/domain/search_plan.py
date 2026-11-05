@@ -221,6 +221,17 @@ def ev_queries(base: Sequence[PlannedQuery], car: Identity, powertrain: str | No
     return out
 
 
+def warranty_query(base: Sequence[PlannedQuery], area: str, round_: int, car: Identity,
+                   templates: Mapping[str, str]) -> list[PlannedQuery]:  # fmt: skip
+    """Spec 008 FR-027: the brand's warranty terms, searched on the open web in the first round of the
+    manufacturer area (its favourite sites are market analysts, which do not publish warranties)."""
+    t = templates.get("manufacturer_warranty")
+    if area != "manufacturer" or round_ != 0 or not t:
+        return []
+    text = _render(t, car)
+    return [] if text in {q.text for q in base} else [PlannedQuery(text, "OPEN", area, "ES")]
+
+
 def retry_queries(
     empty: Sequence[PlannedQuery], car: Identity, favourite_templates: Mapping[str, str]
 ) -> list[PlannedQuery]:

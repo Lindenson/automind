@@ -27,7 +27,9 @@ def test_used_price_for_the_year() -> None:
     assert p is not None and p.eur == 26000 and p.exact_year and p.url == "b"
     near = used.used_price_for(rs, 2021)  # one year from 2020 and from 2022: the nearest range, not exact
     assert near is not None and not near.exact_year
-    assert used.used_price_for(rs, 2010) is not None and used.used_price_for(rs, 2010).url == "c"  # type: ignore[union-attr]
+    # chat 8c6a2a58: "from £10,500 for older cars to over £20,000" is no price for a 2023 car
+    assert used.used_price_for(rs, 2010) is None
+    assert used.used_price_for(rs, None) is not None and used.used_price_for(rs, None).url == "c"  # type: ignore[union-attr]
     assert used.used_price_for([], 2023) is None
 
 
