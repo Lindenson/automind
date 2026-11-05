@@ -13,7 +13,7 @@ from langgraph.runtime import Runtime
 from langgraph.types import interrupt
 
 from automind.application import ask as asking
-from automind.application import candidates, intake_card, resolve
+from automind.application import candidates, car_view, intake_card, resolve
 from automind.config import settings
 from automind.domain import intake
 from automind.domain.casefile import Choice, Pending
@@ -180,7 +180,6 @@ async def apply_variants(state: TurnState, runtime: Runtime[TurnContext]) -> dic
             "action": "CONFIRM_VARIANTS",
             "reply_text": t("variants_skipped", state.get("language")),
         }
-    changes = []
     if choice.startswith("remove:"):
         key = choice.split(":", 1)[1]
         case.cars = [x for x in case.cars if x.key != key]
@@ -193,13 +192,21 @@ async def apply_variants(state: TurnState, runtime: Runtime[TurnContext]) -> dic
         v = await resolve.get_variant(vid)
         if v is not None:
             car.variant_id, car.label = v.id, v.label
+    changes = _confirm_proposed(case)
+    case.pending = None
+    version = await save_case(c, case, changes)
+    if changes:
+        await agreed(c, case, state.get("language"))
+    return {"route": "assess", "confirm_payload": None, "resume": None, "case_version": version}
+
+
+def _confirm_proposed(case: Any) -> list[str]:
+    changes = []
     for car in case.cars:
         if car.resolution == "PROPOSED" and car.variant_id:
             car.resolution = "CONFIRMED"
             changes.append(f"{car.key} confirmed: {car.label}")
-    case.pending = None
-    version = await save_case(c, case, changes)
-    return {"route": "assess", "confirm_payload": None, "resume": None, "case_version": version}
+    return changes
 
 
 # --- cost ----------------------------------------------------------------------------------------
@@ -388,7 +395,43 @@ async def apply_intake(state: TurnState, runtime: Runtime[TurnContext]) -> dict[
     await record_intake(c, "CONFIRMED")
     if choice in ("yes", "run", "confirm", "continue"):
         await save_case(c, case, ["cars and research confirmed"])
+        await agreed(c, case, state.get("language"))
         return {**done, "route": "assess", "cost_approved": True}
     case.declined_plan = (state.get("research_plan") or {}).get("key")  # "not now": the cars stay, no research
     await save_case(c, case, ["cars confirmed, research declined"])
+    await agreed(c, case, state.get("language"))
     return {**done, "route": "assess", "research_declined": True}
+
+
+# --- the "Agreed" entry (spec 010 FR-035) ---------------------------------------------------------------------
+
+
+def _basis(car: Any) -> str:
+    """How the version was settled: the user's words, chosen by me, or looked up."""
+    origin = car.ladder.origin if car.ladder else {}
+    if car.chosen_for_me or any(v in ("CHOSEN", "LIMIT") for v in origin.values()):
+        return "ASSUMED"
+    k = car.constraints
+    if (k.engine_hint and not k.engine_hint.empty()) or k.trim_hint or k.gearbox_hint or k.version_hint:
+        return "STATED"
+    return "LOOKED_UP"
+
+
+async def agreed(c: TurnContext, case: Any, lang: str | None) -> None:
+    """After a confirmation, a read-only "Agreed" message with each car's version line and its basis stays in the
+    chat (persisted, so it survives a reload). Never fails the turn."""
+    try:
+        views = await car_view.view(case)
+        cars = [{"key": x.key, "label": x.label or x.request_text,
+                 "variant_label": (views.get(x.key) or {}).get("variant_label"), "basis": _basis(x)}
+                for x in case.cars if x.variant_id]  # fmt: skip
+        if not cars:
+            return
+        names = "; ".join(f"{x['label']}" + (f" ({x['variant_label']})" if x["variant_label"] else "") for x in cars)
+        text = t("agreed", lang, cars=names)
+        blocks = [{"type": "agreed", "cars": cars}]
+        msg = await c.ports.messages.save(c.chat_id, "assistant", text, blocks, turn_id=c.turn_id)
+        await c.emit("agreed", {"message_id": msg.id, "created_at": msg.created_at.isoformat(), "text": text,
+                                "blocks": blocks, "role": "assistant"})  # fmt: skip
+    except Exception:  # noqa: BLE001 - the entry is a trace, the turn goes on
+        return
