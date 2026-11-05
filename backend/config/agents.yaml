@@ -21,6 +21,14 @@ gates:                     # research R14
     guards: {coverage_drop: 0.02, cost_rise: 0.10}
     min_accuracy_lb: 0.8   # for a degraded object (old yield about 0)
     wait_days: 7           # insufficient evidence: wait this long, then abandon
+  relevance:               # relevance keyword levers: the relevance stage re-run on stored pages (gap "manuales")
+    window_days: 30        # pages judged by the rules in the last N days that name the changed words
+    max_pages: 400
+    min_flipped: 3         # pages flipped to relevant, else insufficient evidence (wait, then abandon)
+    min_checked: 6         # their values with gold or agreement of >= 2 families
+    min_precision: 0.90    # newly accepted values that are right
+    max_junk_rate: 0.05    # correct rejections (values wrong for the variant) the change would accept
+    max_lost_right: 0      # right values on pages the change would newly reject
   watch:
     accuracy_lb_drop: 0.03
     yield_drop: 0.20
@@ -34,6 +42,13 @@ levers:
       - "plausibility.by_powertrain.*.*.min"
       - "plausibility.by_powertrain.*.*.max"
       - "relevance.keywords.*"
+      - "sense.magnitude.*.min"
+      - "sense.magnitude.*.max"
+    relevance:             # clusters of relevance rejections later contradicted (rule auditor)
+      min_cluster: 3       # pages rejected by one rule on one trigger word
+      min_families: 2      # independent families that later confirmed the variant's values
+      min_values: 2        # confirmed values the rejected page writes itself
+      min_share: 0.75      # ... and this share of the variant's confirmed attributes
   extractor_tuner:
     prompts: [extract_specs, extract_maintenance, extract_reliability, extract_reviews, extract_used_price,
               extract_depreciation, extract_manufacturer, extract_incentives]

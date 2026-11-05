@@ -152,9 +152,10 @@ _AWD_WORDS = ("4x4", "awd", "4wd", "quattro", "xdrive", "4motion", "all wheel", 
               "tracción total", "traccion total", "allrad")  # fmt: skip
 _TWO_WD_WORDS = ("fwd", "4x2", "2wd", "front wheel", "tracción delantera", "traccion delantera")
 # Extra keywords layered by the infrastructure from accepted `rule_overrides` (spec 011 US5, `relevance.keywords.*`):
-# `auto`, `awd`, `two_wd` add words to the lists above; `not_manual` lists phrases that do not mean a manual gearbox
-# ("manuales"). Empty unless a gated change was accepted.
-KEYWORD_LISTS = ("auto", "awd", "two_wd", "not_manual")
+# `auto`, `awd`, `two_wd` add words to the lists above; `not_manual`, `not_auto` and `not_awd` list phrases that do
+# not mean a manual gearbox ("manual del vehículo"), an automatic one or all-wheel drive (stop phrases, removed from
+# the title/URL before the words are looked for). Empty unless a gated change was accepted.
+KEYWORD_LISTS = ("auto", "awd", "two_wd", "not_manual", "not_auto", "not_awd")
 KEYWORDS: dict[str, tuple[str, ...]] = {}
 
 
@@ -167,13 +168,18 @@ def _words(base: tuple[str, ...], name: str) -> tuple[str, ...]:
     return base + KEYWORDS.get(name, ())
 
 
-def _manual(t: str) -> bool:
-    for w in KEYWORDS.get("not_manual", ()):
+def _without(t: str, stop_list: str) -> str:
+    for w in KEYWORDS.get(stop_list, ()):
         t = re.sub(rf"(?<!\w){re.escape(w)}(?!\w)", " ", t)
-    return sense.says_manual(t)
+    return t
+
+
+def _manual(t: str) -> bool:
+    return sense.says_manual(_without(t, "not_manual"))
 
 
 def _automatic(t: str) -> bool:
+    t = _without(t, "not_auto")
     return sense.says_automatic(t) or sense.has_word(t, _words(_AUTO_WORDS, "auto"))
 
 
@@ -187,7 +193,8 @@ def _gearbox_drive_signal(title_url: str, target: Target) -> Relevance | None:
     if gb and gb != "manual" and _manual(t) and not _automatic(t):
         return Relevance("OTHER_VARIANT", f"other gearbox: manual (wanted {gb})", "manual")
     dr = (target.drive or "").upper()
-    awd, two = sense.has_word(t, _words(_AWD_WORDS, "awd")), sense.has_word(t, _words(_TWO_WD_WORDS, "two_wd"))
+    awd = sense.has_word(_without(t, "not_awd"), _words(_AWD_WORDS, "awd"))
+    two = sense.has_word(t, _words(_TWO_WD_WORDS, "two_wd"))
     if dr in ("FWD", "RWD") and awd and not two:
         return Relevance("OTHER_VARIANT", f"other drive: AWD (wanted {dr})", "AWD")
     if dr == "AWD" and two and not awd:
