@@ -4,10 +4,10 @@ from pathlib import Path
 
 import pytest
 
+from automind.acquisition.parsing.legacy import Registry, read_pairs, value_and_unit
 from automind.application.ports import Page
 from automind.domain import specs
 from automind.infrastructure.config import load_yaml
-from automind.infrastructure.site_readers import Registry, read_pairs, value_and_unit
 
 FIX = Path(__file__).resolve().parents[2] / "fixtures" / "html"
 CONF = load_yaml("site_readers.yaml")

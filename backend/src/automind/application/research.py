@@ -23,16 +23,19 @@ from typing import Any
 from pydantic import BaseModel
 from sqlalchemy import delete, func, select, text
 
+from automind.acquisition.pipeline import extract as ex
 from automind.acquisition.pipeline import stamp
 from automind.acquisition.pipeline.locate import favourite_priority, pages_for
+from automind.acquisition.pipeline.parse import _read_tables
 from automind.acquisition.pipeline.plan import (
     _plan,
     _variant,
     current_plan,
     known_makes,
 )
+from automind.acquisition.pipeline.relevance import _llm_per_job, _PageJudge, _relevance_target
+from automind.acquisition.pipeline.validate import _variant_gearbox, fuel_of
 from automind.acquisition.registry.api import Attempt
-from automind.application import extraction as ex
 from automind.application import incentives_research
 from automind.application.ports import Page, Ports, WebDoc
 from automind.application.usage import BudgetExceeded, current_job
@@ -83,87 +86,6 @@ def target_of(v: db.Variant, car_year: int | None = None) -> str:
     body = f", body {v.body_class.lower()}" if v.body_class else ""
     year = f", the user's car is from ~{car_year}" if car_year else ""
     return f"{v.label}{years}, powertrain {v.powertrain}{body}, market ES{year}"
-
-
-MAX_LLM_RELEVANCE_PER_JOB = 4
-SERVICE_AREAS = ("maintenance",)  # brand-wide service pages count (spec 009 FR-020); warranty is a BRAND_AREA
-
-
-LLM_PER_JOB = 6  # default; config/search.yaml concurrency.llm_per_job
-
-
-def _llm_per_job(ports: Ports) -> int:
-    return int(((ports.ref.search or {}).get("concurrency") or {}).get("llm_per_job", LLM_PER_JOB))
-
-
-def _relevance_target(v: db.Variant, ports: Ports) -> tuple[rel.Target, list[rel.GenerationInfo]]:
-    gens = [rel.GenerationInfo(g, a, b) for g, a, b in ports.ref.generations.get(f"{v.make}|{v.model}", [])]
-    if v.generation and not any(g.code == v.generation for g in gens):
-        gens.append(rel.GenerationInfo(v.generation, v.generation_years_from, v.generation_years_to))
-    tgt = rel.Target(v.make, v.model, v.generation, v.generation_years_from, v.generation_years_to,
-                     v.variant_name, fuel_of(v.variant_name, v.powertrain), v.body_class,
-                     v.transmission or _variant_gearbox(v), v.drive)  # fmt: skip
-    return tgt, gens
-
-
-class _PageJudge:
-    """Relevance of one page: rules first, the relevance role for uncertain pages (at most
-    MAX_LLM_RELEVANCE_PER_JOB per job). Safe to call concurrently: the budget is taken before any await."""
-
-    def __init__(self, ports: Ports, v: db.Variant, tgt: rel.Target, gens: list[rel.GenerationInfo], target: str,
-                 area: str | None = None):  # fmt: skip
-        self.ports, self.v, self.tgt, self.gens, self.target = ports, v, tgt, gens, target
-        self.service = area in SERVICE_AREAS
-        self.llm_left = MAX_LLM_RELEVANCE_PER_JOB if "relevance" in ports.ref.prompts else 0
-
-    async def __call__(self, p: Page) -> rel.Relevance:
-        facts = rel.PageFacts(p.url, p.title, p.text)
-        if self.service:  # spec 009 FR-020: the brand's service and warranty pages apply to the car
-            r = rel.judge_service(facts, self.tgt, self.gens, known_makes(self.ports))
-        else:
-            r = rel.judge(facts, self.tgt, self.gens)
-        method = "RULES"
-        if r.verdict == "UNCERTAIN" and self.llm_left > 0:
-            self.llm_left -= 1
-            try:
-                out = await ex.judge_relevance(
-                    self.ports.llm, self.ports.ref.prompts["relevance"], self.target, p.as_doc()
-                )
-                r, method = rel.Relevance(out.verdict, out.reason or "relevance check", out.other), "LLM"
-            except BudgetExceeded:
-                raise
-            except Exception:  # noqa: BLE001 - no answer: stays uncertain, the validator decides per claim
-                pass
-        await _store_relevance(p, self.v.id, r, method)
-        return r
-
-
-async def _store_relevance(p: Page, variant_id: str, r: rel.Relevance, method: str) -> None:
-    if p.document_id is None:
-        return
-    from sqlalchemy.dialects.postgresql import insert  # noqa: PLC0415
-
-    values = {"document_id": p.document_id, "variant_id": variant_id, "verdict": r.verdict,
-              "other": (r.other or "")[:80] or None, "reason": r.reason, **stamp.relevance(method)}  # fmt: skip
-    async with db.sessionmaker()() as s:
-        stmt = insert(db.PageRelevance).values(**values)
-        await s.execute(stmt.on_conflict_do_update(index_elements=["document_id", "variant_id"], set_=values))
-        await s.commit()
-
-
-def fuel_of(variant_name: str, powertrain: str | None) -> str | None:
-    if (powertrain or "").upper() == "BEV":
-        return "electric"
-    n = f" {variant_name.lower()} "
-    diesel = (" d ", "tdi", "dci", "cdi", "d-4d", "hdi", "crdi", "diesel", "jtd", "multijet", "tdci", "bluehdi",
-              "skyactiv-d", "i-dtec", "ecoblue")  # fmt: skip
-    if any(k in n for k in diesel) or re_diesel_suffix(n):
-        return "diesel"
-    return "petrol"
-
-
-def re_diesel_suffix(n: str) -> bool:
-    return re.search(r"\b\d{3}d\b|\b\d\.\dd\b|\b\d{3} d\b", n) is not None  # 520d, 2.0d, E 220 d
 
 
 async def _known_values(variant_id: str) -> dict[str, float]:
@@ -364,19 +286,6 @@ async def _run_market(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
                      rejected=totals["rejected"], minimum_met=met, hits=hits)  # fmt: skip
 
 
-async def _read_tables(ports: Ports, v: db.Variant, pages: list[Page]) -> dict[str, Any]:
-    """Deterministic site readers for favourite spec sites; ambiguous or unknown layouts go to the LLM."""
-    readings: dict[str, Any] = {}
-    for p in pages:
-        r = ports.readers.read(p, {"variant_id": v.id})
-        if r is not None and not r.ambiguous:
-            readings[p.url] = r
-    flush = getattr(ports.readers, "flush_stats", None)
-    if flush is not None:
-        await flush()
-    return readings
-
-
 async def _job_metrics(job_id: str, planned: list[search_plan.PlannedQuery], stats: dict[str, Any]) -> None:
     async with db.sessionmaker()() as s:
         cost = (
@@ -468,16 +377,6 @@ def _plausibility_ctx(v: db.Variant, known: dict[str, float]) -> plausibility.Co
         powertrain=v.powertrain, fuel=fuel_of(v.variant_name, v.powertrain), known=known,
         transmission=v.transmission or _variant_gearbox(v), drive=v.drive,
     )  # fmt: skip
-
-
-def _variant_gearbox(v: db.Variant) -> str | None:
-    """The gearbox named in the variant name ("… 6AT", "… manual", "… e-CVT"), when the column is empty."""
-    name = f" {v.variant_name} ".lower()
-    if re.search(r"\b\d\s?(at|a/t)\b|automatic|automático|automatica", name):
-        return "automatic"
-    if re.search(r"\b\d\s?(mt|m/t)\b", name) or sense.says_manual(name):
-        return "manual"
-    return sense.gearbox_family(name)
 
 
 MONEY_ATTRS = ("official_price_es",)

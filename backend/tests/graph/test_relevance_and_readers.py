@@ -7,11 +7,11 @@ import uuid
 import pytest
 from sqlalchemy import delete, select
 
+from automind.acquisition.parsing.legacy import Registry
 from automind.infrastructure.config import load_yaml
 from automind.infrastructure.db import models as m
 from automind.infrastructure.db.repositories import MessageRepo
 from automind.infrastructure.db.session import sessionmaker
-from automind.infrastructure.site_readers import Registry
 from automind.orchestration.graph import build_graph
 from automind.orchestration.runner import ChatRunner
 from tests.fakes.fake_llm import FakeLLM

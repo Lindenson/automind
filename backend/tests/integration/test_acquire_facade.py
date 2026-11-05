@@ -8,12 +8,12 @@ from tests.fakes.fixture_search import FixtureSearch
 from tests.graph.conftest import make_ports, open_web_reference
 
 from automind.acquisition import api as acquisition
+from automind.acquisition.parsing.legacy import Registry
 from automind.acquisition.registry.application.service import RegistryService
 from automind.acquisition.registry.infrastructure.repo import RegistryRepo
 from automind.infrastructure import db
 from automind.infrastructure.config import load_yaml
 from automind.infrastructure.db import models as m
-from automind.infrastructure.site_readers import Registry
 
 KM77 = {"domain": "km77.com", "source_type": "SPEC_DATABASE", "areas": ["specs"], "markets": ["ES"], "priority": 1,
         "reader": "km77", "tos_checked": "2026-11-02"}  # fmt: skip

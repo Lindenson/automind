@@ -171,8 +171,8 @@ def read_page(
 ) -> scoring.PageResult:  # fmt: skip
     """One stored page through the reader and the live checks (pure apart from the research rule imports)."""
     from automind.acquisition.infrastructure.fetch import decode_body  # noqa: PLC0415
+    from automind.acquisition.parsing.legacy import read_pairs  # noqa: PLC0415
     from automind.application import research as rs  # noqa: PLC0415
-    from automind.infrastructure.site_readers import read_pairs  # noqa: PLC0415
 
     url = ref.final_url or ref.url
     try:
@@ -281,7 +281,7 @@ async def _reader_pages(req: ReplayRequest) -> tuple[str, list[scoring.PageResul
 
 def _prompt(key: str) -> tuple[str, str, str]:
     """(prompt name, prompt text, area) of an extraction prompt version; only the file's version before US5."""
-    from automind.application.extraction import PROMPT_FOR_AREA  # noqa: PLC0415
+    from automind.acquisition.pipeline.extract import PROMPT_FOR_AREA  # noqa: PLC0415
 
     try:
         name, _ = parse_key(key)
@@ -298,7 +298,7 @@ def _prompt(key: str) -> tuple[str, str, str]:
 
 
 async def _extract_cached(doc: WebDoc, sha: str, name: str, text: str, area: str, model: str, target: str) -> Any:
-    from automind.application import extraction  # noqa: PLC0415
+    from automind.acquisition.pipeline import extract as extraction  # noqa: PLC0415
     from automind.infrastructure.adapters import LiveLLM  # noqa: PLC0415
 
     schema = extraction.schema_for(area)

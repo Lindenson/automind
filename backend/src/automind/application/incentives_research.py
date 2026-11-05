@@ -11,7 +11,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from automind.application import extraction as ex
+from automind.acquisition.pipeline import extract as ex
 from automind.application.ports import WebDoc
 
 MARKET = "ES"

@@ -8,6 +8,7 @@ from typing import Any, TypeVar
 from langchain.agents import create_agent
 from pydantic import BaseModel
 
+from automind.acquisition.parsing.legacy import live_readers
 from automind.acquisition.registry.application.service import RegistryService
 from automind.acquisition.registry.infrastructure.repo import RegistryRepo
 from automind.application.lineup import get_lineup
@@ -35,7 +36,6 @@ from automind.infrastructure.search.cache import CachedSearcher
 from automind.infrastructure.search.serpapi import SerpApiProvider
 from automind.infrastructure.search.serper import SerperProvider
 from automind.infrastructure.search.tavily import TavilyProvider
-from automind.infrastructure.site_readers import live_readers
 from automind.insight.metrics import prom
 
 T = TypeVar("T", bound=BaseModel)

@@ -183,7 +183,7 @@ async def _engine(snap: prom.Snapshot) -> None:
 
 
 def _readers(snap: prom.Snapshot) -> None:
-    from automind.infrastructure.site_readers import STREAKS  # noqa: PLC0415
+    from automind.acquisition.parsing.legacy import STREAKS  # noqa: PLC0415
 
     for reader, n in sorted(STREAKS.items()):
         snap.set("reader_zero_streak", (reader,), n)
