@@ -104,3 +104,37 @@ def test_no_identification_state_loops() -> None:
         assert max(asks.values(), default=0) <= LIMIT
     assert ends["SETTLED"] + ends["REMOVED"] == 1500
     assert worst <= len(ladder.ITEMS) * LIMIT + 1  # every level at most `LIMIT` asks
+
+
+def _ended(v: Version, vs: list[Version], year: int) -> bool:
+    end = ladder.sold_until(v, vs)
+    return end is not None and end < year
+
+
+def test_a_year_offers_only_versions_sold_in_it_and_a_new_car_only_versions_on_sale() -> None:
+    """009 FR-023: with a year, every option of the first question is a version sold in that year (±1; its own end
+    year or the facelift that replaced it) whenever one is; a new car never gets a version that ended."""
+    rnd = random.Random(23)
+    for _ in range(400):
+        vs = _versions(rnd)
+        year = rnd.randint(2014, 2027)
+        sold = [v for v in vs if ladder.sold_in(v, vs, year)]
+        pool = ladder.narrow(vs, Wanted(year=year)).versions
+        assert pool and all(v in (sold or vs) for v in pool)
+        step = ladder.next_step(ladder.Narrowed(pool), Wanted(year=year))
+        assert {o.engine for o in step.options if o.engine} <= {v.engine for v in pool}
+        now = ladder.on_sale(vs, year)
+        assert now == ([v for v in vs if not _ended(v, vs, year)] or vs)
+
+
+def test_a_facelift_ends_the_open_ended_version_it_replaced() -> None:
+    old = Version("1.6 T-GDi PHEV 265 CV", "phev", 1598, 195, years_from=2020)
+    new = Version("1.6 T-GDi PHEV 288 CV", "phev", 1598, 212, years_from=2024)
+    diesel = Version("2.2 CRDi 193 CV", "diesel", 2151, 142, years_from=2020)
+    other = Version("1.0 TSI 110 CV", "petrol", 999, 81, years_from=2022)
+    big = Version("1.5 TSI 150 CV", "petrol", 1498, 110, years_from=2020)
+    vs = [old, new, diesel, other, big]
+    assert ladder.sold_until(old, vs) == 2023 and ladder.sold_until(new, vs) is None
+    assert ladder.sold_until(diesel, vs) is None  # no later diesel: still on sale
+    assert ladder.sold_until(big, vs) is None  # a smaller engine added beside it is not its facelift
+    assert ladder.on_sale(vs, 2026) == [new, diesel, other, big]

@@ -4,6 +4,8 @@
 
 - `narrow`: the versions that fit what the user said and the year; what the user said that no version has is
   reported (`missing`) and not used for filtering, so the question shows what exists (FR-004).
+- `sold_until` / `on_sale`: a facelift is a version boundary — an open-ended version is replaced by a later one of
+  the same engine (009 FR-023, chat 5821ac77: the 2020 265 CV PHEV offered for a new 2026 Sorento sold at 288 CV).
 - `next_step`: the coarsest level at which the fitting versions still differ (FR-006, FR-007).
 - `decide`: the step to ask, or the settled version; "choose for me" and the ask limit settle levels by the base
   version rule (sources list the base version first), so no state can loop (FR-009…FR-011).
@@ -186,10 +188,42 @@ def _cv(kw: int) -> str:
     return f"{round(kw / 0.7355)} CV"
 
 
+def _replaces(new: Version, old: Version) -> bool:
+    """`new` is the facelift of `old`: the same engine (fuel, family, ±0.3 l) first sold in a later year, while
+    the source gives `old` no end year."""
+    if old.years_to is not None or old.years_from is None or new.years_from is None:
+        return False
+    if new.years_from <= old.years_from or (new.fuel or "") != (old.fuel or ""):
+        return False
+    if (_family_word(new) or "").lower() != (_family_word(old) or "").lower():
+        return False
+    return new.engine_cc is None or old.engine_cc is None or abs(new.engine_cc - old.engine_cc) <= 300
+
+
+def sold_until(v: Version, versions: Sequence[Version]) -> int | None:
+    """The last year the version was sold: its own end year, else the year before a facelift replaced it (None:
+    still on sale)."""
+    if v.years_to is not None:
+        return v.years_to
+    later = [n.years_from for n in versions if n.years_from is not None and _replaces(n, v)]
+    return min(later) - 1 if later else None
+
+
+def sold_in(v: Version, versions: Sequence[Version], year: int, tolerance: int = 1) -> bool:
+    """Was the version sold in `year`? A version without years is sold in every year of its generation."""
+    return v.years_from is None or generation_matches(year, v.years_from, sold_until(v, versions), tolerance)
+
+
+def on_sale(versions: Sequence[Version], year: int) -> list[Version]:
+    """The versions a new car bought in `year` can be: the latest of the generation (a version that ended, or that
+    a facelift replaced, is not on sale). All of them when the list says nothing about it."""
+    now = [v for v in versions if (end := sold_until(v, versions)) is None or end >= year]
+    return now or list(versions)
+
+
 def narrow(versions: Sequence[Version], w: Wanted) -> Narrowed:
     """Filter from the top level down; a statement that no version has is reported and skipped."""
-    pool = [v for v in versions if w.year is None or v.years_from is None
-            or generation_matches(w.year, v.years_from, v.years_to, tolerance=1)] or list(versions)  # fmt: skip
+    pool = [v for v in versions if w.year is None or sold_in(v, versions, w.year)] or list(versions)
     named = line_of(w.words)
     lined = [v for v in pool if (line_of(v.engine) or None) == named] if named else []
     if named and lined:

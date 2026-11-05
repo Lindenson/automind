@@ -150,7 +150,7 @@ async def _fallback(ports: Ports, case: CaseFile, car: CaseCar, current_year: in
     if a.candidates:
         # the user's words already pick one row (the ranker): that row; rows the words do not tell apart
         # ("2.0 diesel" with 115 and 150 CV rows) are asked level by level, never taken by being first
-        rows = a.candidates if a.state.ambiguous else a.candidates[:1]
+        rows = _base_first(a.candidates) if a.state.ambiguous else a.candidates[:1]
         pool = [_catalog_version(c) for c in rows]
         d = _decide(ports, case, car, pool, memo, events)
         events.append({"kind": "identity_less_certain"})
@@ -168,6 +168,14 @@ async def _fallback(ports: Ports, case: CaseFile, car: CaseCar, current_year: in
     if o.outcome == "IDENTIFIED":
         o.events.append({"kind": "identity_less_certain"})
     return o
+
+
+def _base_first(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Catalog rows the words do not tell apart, in the base version order (the least power first, then the label):
+    the database returns them in any order, and "choose for me" or the ask limit takes the first (FR-009; a
+    test database where the 150 CV row came back first took it)."""
+    return sorted(rows, key=lambda c: (c.get("power_kw") is None, c.get("power_kw") or 0, c.get("engine_cc") or 0,
+                                       str(c.get("label") or "")))  # fmt: skip
 
 
 def _classify_url(car: CaseCar, reg: Any) -> str | None:
@@ -468,21 +476,24 @@ async def _ladder(ports: Ports, case: CaseFile, car: CaseCar, year: int) -> Iden
     memo.certainty, memo.generation = "SOURCED", g.generation
     memo.generation_from, memo.generation_to = g.years_from, g.years_to
     car.ladder = memo
-    d = _decide(ports, case, car, g.versions, memo, events)
+    # a new car is one of the versions on sale now (the facelift's, not the first years', chat 5821ac77); a used
+    # one, of the versions sold in its year (`_wanted` carries the year, FR-023)
+    pool = ladder.on_sale(g.versions, year) if new else g.versions
+    d = _decide(ports, case, car, pool, memo, events)
     if d.done and d.step.version is not None:
         v = await _store_version(ports, car, g, d.step)
         car.variant_id, car.label, car.resolution = v.id, v.label, _proposed(car)
         memo.source_url = d.step.version.source_url or None
-        memo.others = _others(g, car.year, d.step.version)
+        memo.others = _others(pool, car.year if not new else None, d.step.version)
         if d.missing and not d.auto:  # the user named something this generation has not: said, the one there is
             events.append({"kind": "ladder_missing", "missing": ", ".join(d.missing), "label": v.label})
         return _done(car, IdentifyOutcome(outcome="IDENTIFIED", missing=d.missing, events=events))
     return _asked(car, d, events)
 
 
-def _others(g: ladder.Generation, year: int | None, chosen: ladder.Version) -> list[str]:
+def _others(versions: list[ladder.Version], year: int | None, chosen: ladder.Version) -> list[str]:
     """Up to four other versions of the same generation (and year) for the card's engine chips."""
-    pool = ladder.narrow(g.versions, ladder.Wanted(year=year)).versions
+    pool = ladder.narrow(versions, ladder.Wanted(year=year)).versions
     out: list[str] = []
     for v in pool:
         if v.engine_key != chosen.engine_key and v.engine not in out:
