@@ -125,6 +125,7 @@ class TcoCar:
     consumption_ev_real: float | None = None
     ev_real_meter: str | None = None
     consumption_cs: float | None = None
+    consumption_weighted: float | None = None  # PHEV official WLTP weighted l/100 km (spec 009 FR-014 estimate)
     battery_kwh: float | None = None
     range_wltp: float | None = None
     range_real: float | None = None
@@ -269,6 +270,7 @@ def _energy_car(car: TcoCar) -> en.EnergyCar:
         consumption_real=car.consumption_real, consumption_nedc=car.consumption_nedc,
         consumption_ev=car.consumption_ev, consumption_ev_real=car.consumption_ev_real,
         ev_real_meter=car.ev_real_meter, consumption_cs=car.consumption_cs, battery_kwh=car.battery_kwh,
+        consumption_weighted=car.consumption_weighted,
         range_wltp=car.range_wltp, range_real=car.range_real, stated=car.stated,
     )  # fmt: skip
 

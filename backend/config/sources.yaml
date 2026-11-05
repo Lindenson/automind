@@ -30,7 +30,10 @@ denylist: [coches.net, cochesnet, wallapop.com, milanuncios.com, autoscout24., m
   auto-data.net, autobild.es, drive.co.uk, honestjohn.co.uk, buyacar.co.uk, parkers.co.uk, bauerlegal.co.uk,
   largus.fr, alvolante.it, autoweek.nl, spritmonitor.de, drom.ru, zr.ru, cap-hpi.com, ocu.org, zapmap.com,
   nextgreencar.com, ncts.ie, webuyanycar.com, motorway.co.uk, leboncoin.fr, lacentrale.fr, blocket.se, carzone.ie,
-  automobile.it, willhaben.at]
+  automobile.it, willhaben.at,
+  # chat fcf5b3b8 (2026-11-05): listing aggregators are classifieds too (12gebrauchtwagen gave a junk Prado price)
+  12gebrauchtwagen.de, autouncle., kleinanzeigen.de, pkw.de, heycar., autotrader., cargurus., truecar.com,
+  carvago.com, autohero.com, coches.com/coches-segunda-mano, autocasion., motor.es/segunda-mano]
 fetch:
   timeout_s: 15
   max_bytes: 3000000
