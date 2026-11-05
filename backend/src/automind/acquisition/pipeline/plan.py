@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import dataclasses
 from collections import defaultdict
+from contextvars import ContextVar
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
@@ -191,3 +192,7 @@ async def _ai_queries(
         if len(accepted) < limit and search_plan.accept_ai_query(q, [*tried, *(a.text for a in accepted)]):
             accepted.append(search_plan.PlannedQuery(" ".join(q.split()), "AI", area, "ES"))
     return accepted
+
+
+# spec 010 US6-US8: the registry's plan for the running job (source order and the domains never to read)
+current_plan: ContextVar[Plan | None] = ContextVar("current_plan", default=None)

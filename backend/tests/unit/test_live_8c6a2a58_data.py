@@ -75,6 +75,7 @@ class _Web:
 async def test_blocked_analyst_sites_never_crowd_out_the_warranty_page():
     from types import SimpleNamespace
 
+    from automind.acquisition.pipeline import locate
     from automind.application import research
     from automind.infrastructure.config import reference
     from automind.orchestration.prompts import load_all
@@ -88,7 +89,7 @@ async def test_blocked_analyst_sites_never_crowd_out_the_warranty_page():
     async def emit(*_):
         return None
 
-    _, pages, _ = await research._search_pages(ports, v, job, [], set(), emit)  # type: ignore[arg-type]
+    _, pages, _ = await locate.pages_for(ports, v, job, [], set(), emit)  # type: ignore[arg-type]
     assert [p.url for p in pages] == [WARRANTY_URL]
 
 
