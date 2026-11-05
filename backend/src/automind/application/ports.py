@@ -57,6 +57,9 @@ class Reference:
     regions: dict[str, Any] = field(default_factory=dict)  # config/regions.yaml (spec 005)
     profile_defaults: dict[str, Any] = field(default_factory=dict)  # config/profile_defaults.yaml (spec 007)
     gearboxes: dict[str, list[str]] = field(default_factory=dict)  # "Make|Model|generation" -> gearboxes sold new
+    outcome: dict[str, Any] = field(default_factory=dict)  # config/outcome.yaml (spec 010 US1)
+    insight: dict[str, Any] = field(default_factory=dict)  # config/insight.yaml (spec 010 US3)
+    registry: dict[str, Any] = field(default_factory=dict)  # config/registry.yaml (spec 010 US6-US8)
 
 
 @dataclass

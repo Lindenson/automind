@@ -1,0 +1,27 @@
+# Spec 010 US1: how a turn is scored (domain/outcome.py). The system never changes this file (constitution XII).
+version: 1
+start: 0.6            # score of a turn with no rating and no signals
+rating_wins: true     # an explicit rating (1..5) maps to (r-1)/4 and ignores the signals
+weights:              # added to `start` per signal, then clamped to [0, 1]
+  thanks: 0.3
+  continues: 0.1
+  report_reached: 0.1
+  rephrase: -0.4
+  correction: -0.3
+  complaint: -0.5
+  wrong_value: -0.4
+  bad_source: -0.3
+  process_failure: -0.5
+  no_data: -0.2
+  guard_removed: -0.1
+  wrong_car: -0.3
+  too_costly: -0.2
+  left_after_answer: -0.1
+severity:             # class severity for the impact of an issue (spec 010 R15)
+  process_failure: 3
+  wrong_data: 3
+  not_understood: 2
+  wrong_car: 2
+  no_data: 2
+  bad_text: 1
+  too_costly: 1
