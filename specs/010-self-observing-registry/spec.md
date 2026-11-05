@@ -282,7 +282,7 @@ Shipped alert rules:
 - **Copying sites.** Mirror sites agree with each other: agreement counts by family, so copies do not raise each other's accuracy.
 - **Our own fault, not the source's.** A value was wrong because our parser or extractor misread a correct page: when the page quote holds the right number, the error is attributed to the parser/extractor and goes to the issue queue, and the source's accuracy is not lowered.
 - **Outcome of a turn the user never answers.** The last turn of a chat has no following message: its score comes from the rating and its own signals only.
-- **Fallback storms.** A provider quota runs out mid-day and every call goes to a weaker model: the fallback share shows on the overview, and a model issue is created if it passes the threshold.
+- **Fallback storms.** A provider quota runs out mid-day and every call goes to a weaker model: the fallback share shows in Prometheus (and its alert fires), and a model issue is created if it passes the threshold.
 - **Diagnosis prompt injection.** Examples in an issue contain page or user text: the analysis treats it as data; the analysis has no tools that change anything.
 - **Owner reverts a change the system then repeats.** A reverted change is not repeated for the same capability until new evidence arrives; the owner can also forbid similar changes by freezing the source.
 - **A site's terms change.** A re-check finds a new forbidding clause on an active source: it becomes blocked at once with the clause quoted.
