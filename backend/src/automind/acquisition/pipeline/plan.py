@@ -20,7 +20,7 @@ from automind.domain import research_plan, search_plan, specs
 from automind.infrastructure import db
 
 if TYPE_CHECKING:
-    from automind.application.research import JobSpec
+    from automind.acquisition.pipeline.job import JobSpec
 
 VERSION = "plan@1"
 

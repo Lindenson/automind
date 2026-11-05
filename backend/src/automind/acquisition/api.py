@@ -134,31 +134,31 @@ async def acquire(req: AcquireRequest, emit: Emit | None = None, *, ports: Any =
 
 
 async def missing_critical(variant_id: str, powertrain: str | None = None) -> list[str]:
-    return await _engine("acquisition.facade").missing_critical(variant_id, powertrain)  # type: ignore[no-any-return]
+    return await _engine("acquisition.read").missing_critical(variant_id, powertrain)  # type: ignore[no-any-return]
 
 
 async def last_done(variant_ids: list[str]) -> dict[str, dict[str, Any]]:
     """variant_id -> area -> completed_at (input to the planner's freshness check)."""
-    return await _engine("acquisition.facade").last_done(variant_ids)  # type: ignore[no-any-return]
+    return await _engine("acquisition.read").last_done(variant_ids)  # type: ignore[no-any-return]
 
 
 async def ev_counts(variant_ids: list[str]) -> dict[str, Any]:
     """EV values rejected per rule, and weighted plug-in figures kept out of the energy cost (spec 006 FR-022)."""
-    return await _engine("acquisition.facade").ev_counts(variant_ids)  # type: ignore[no-any-return]
+    return await _engine("acquisition.read").ev_counts(variant_ids)  # type: ignore[no-any-return]
 
 
 async def powertrains(variant_ids: list[str]) -> dict[str, str | None]:
-    return await _engine("acquisition.facade").powertrains(variant_ids)  # type: ignore[no-any-return]
+    return await _engine("acquisition.read").powertrains(variant_ids)  # type: ignore[no-any-return]
 
 
 async def registry_done(variant_ids: list[str]) -> dict[str, dict[str, Any]]:
     """variant_id -> area -> when its research last tried the registry's sources with the escalation."""
-    return await _engine("acquisition.facade").registry_done(variant_ids)  # type: ignore[no-any-return]
+    return await _engine("acquisition.read").registry_done(variant_ids)  # type: ignore[no-any-return]
 
 
 async def unmet_areas(variant_ids: list[str]) -> dict[str, set[str]]:
     """variant_id -> areas researched before whose evidence minimum was not reached."""
-    return await _engine("acquisition.facade").unmet_areas(variant_ids)  # type: ignore[no-any-return]
+    return await _engine("acquisition.read").unmet_areas(variant_ids)  # type: ignore[no-any-return]
 
 
 async def gearbox_families_mixed(variant_id: str) -> bool:

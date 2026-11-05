@@ -11,7 +11,6 @@ CHAT = ("application", "orchestration")
 # step removes the files it emptied; T051 leaves it empty.
 ALLOWED_DURING_STRANGLER: set[str] = {
     "application/lineup.py",
-    "application/research.py",
     "application/resolve.py",
     "application/versions.py",
 }

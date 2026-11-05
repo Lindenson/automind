@@ -2,7 +2,7 @@
 it replaced, lists the domains it tried, and `Need.CACHED` never searches."""
 
 import pytest
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from tests.fakes.fake_llm import FakeLLM
 from tests.fakes.fixture_search import FixtureSearch
 from tests.graph.conftest import make_ports, open_web_reference
@@ -86,6 +86,15 @@ async def test_acquire_equals_the_research_job_and_lists_what_it_tried(bmw):
     assert {t.domain: t.outcome for t in k.tried} == {"km77.com": "accepted", "example-specs.com": "rejected"}
     assert fx.queries == ["BMW 5 Series G30 520d 190 CV site:bmw.es OR site:km77.com"]
     assert "searching" in stages and "validating" in stages
+    # spec 011 FR-002: the versions of the stages that ran, on the result, every attempt and the research run
+    assert k.stage_versions["plan"] == "plan@1" and k.stage_versions["merge"] == "merge@1"
+    async with db.sessionmaker()() as s:
+        runs = (await s.execute(select(m.ResearchRun.stage_versions).where(m.ResearchRun.variant_id == bmw))).scalars()
+        attempts = (
+            await s.execute(select(m.RegistryAttempt.stage_versions).where(m.RegistryAttempt.job_id == req.job_id))
+        ).scalars()
+        assert [r for r in runs] == [k.stage_versions]
+        assert all(a == k.stage_versions for a in attempts)
 
 
 async def test_cached_need_never_searches(bmw):

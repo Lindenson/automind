@@ -16,11 +16,11 @@ from automind.acquisition.domain.versions import prompt_key_from_header
 from automind.acquisition.infrastructure.fetch import Fetcher, FetchPolicy
 from automind.acquisition.infrastructure.pages import DbPageStore
 from automind.acquisition.parsing.legacy import Registry
+from automind.acquisition.pipeline import job as research
 from automind.acquisition.registry.application.service import RegistryService
 from automind.acquisition.registry.infrastructure.repo import RegistryRepo
 from automind.acquisition.snapshots import codec, store
 from automind.acquisition.snapshots.retention import run_snapshot_retention
-from automind.application import research
 from automind.infrastructure import db
 from automind.infrastructure.config import load_yaml
 from automind.infrastructure.db import models as m

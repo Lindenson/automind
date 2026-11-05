@@ -5,8 +5,8 @@ from datetime import date, timedelta
 
 from sqlalchemy import delete
 
+from automind.acquisition.pipeline import market as ir
 from automind.acquisition.pipeline.extract import IncentiveEntry, IncentiveFacts
-from automind.application import incentives_research as ir
 from automind.application.ports import WebDoc
 from automind.domain import incentives, research_plan
 from automind.infrastructure import db

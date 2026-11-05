@@ -321,7 +321,7 @@ async def _extractor_pages(req: ReplayRequest) -> tuple[str, list[scoring.PageRe
     if not req.allow_llm:
         raise Refused("extractor replay calls models: run it in the worker or pass --allow-llm")
     from automind.acquisition.infrastructure.pages import main_content  # noqa: PLC0415
-    from automind.application import research as rs  # noqa: PLC0415
+    from automind.acquisition.pipeline import job as rs  # noqa: PLC0415
     from automind.infrastructure import llm_gateway  # noqa: PLC0415
 
     key = str(req.extractor)

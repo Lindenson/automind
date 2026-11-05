@@ -75,8 +75,8 @@ class _Web:
 async def test_blocked_analyst_sites_never_crowd_out_the_warranty_page():
     from types import SimpleNamespace
 
+    from automind.acquisition.pipeline import job as research
     from automind.acquisition.pipeline import locate
-    from automind.application import research
     from automind.infrastructure.config import reference
     from automind.orchestration.prompts import load_all
 

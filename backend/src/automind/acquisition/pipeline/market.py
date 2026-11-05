@@ -1,4 +1,5 @@
-"""Market-level incentives (spec 006 US5, FR-016; research R11): what is stored, and the view the report reads.
+"""Market-level incentives (spec 006 US5, FR-016; research R11): what is stored. The view the report reads is
+`domain.incentives.view` (spec 011 S0); moved from `application/incentives_research.py` (S7).
 
 A fact is stored only with a verbatim excerpt that contains its amount or percent, once per market and key (the
 newest reading replaces the older; storage is the `market_facts` port). The status is never stored as truth: it
@@ -14,6 +15,7 @@ from typing import Any
 from automind.acquisition.pipeline import extract as ex
 from automind.application.ports import WebDoc
 
+VERSION = "market@1"
 MARKET = "ES"
 
 
