@@ -33,7 +33,7 @@ def test_upgrade_downgrade_roundtrip():
 
 
 # spec 011: each migration task adds its (target, base) here
-ROUNDTRIPS: list[tuple[str, str]] = []
+ROUNDTRIPS: list[tuple[str, str]] = [("0018", "0017"), ("0019", "0018")]
 
 
 @pytest.mark.parametrize(("target", "base"), ROUNDTRIPS)

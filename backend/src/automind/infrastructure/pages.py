@@ -18,6 +18,7 @@ from urllib.parse import urlsplit, urlunsplit
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert
 
+from automind.acquisition.snapshots import store as snapshots
 from automind.application.ports import Page
 from automind.domain.research_plan import FRESHNESS_DAYS
 from automind.infrastructure.db import Document, sessionmaker, uid
@@ -77,6 +78,25 @@ def _expiry(area: str | None, now: datetime) -> datetime:
     return now + timedelta(days=FRESHNESS_DAYS.get(area or "", 30))
 
 
+async def _snapshot(url: str, raw: RawPage | None, status: str, document_id: str | None) -> str | None:
+    """Spec 011 FR-001: keep the fetch for replay. A snapshot error is logged and never fails a fetch."""
+    try:
+        return await snapshots.write(url, raw.url if raw else None, raw.body if raw and status == "OK" else None,
+                                     raw.content_type if raw else None, 200 if raw else None, status,
+                                     document_id)  # fmt: skip
+    except Exception:  # noqa: BLE001
+        log.warning("snapshot.write_failed url=%s", url, exc_info=True)
+        return None
+
+
+async def _latest_snapshot(document_id: str) -> str | None:
+    try:
+        return await snapshots.latest_for_document(document_id)
+    except Exception:  # noqa: BLE001
+        log.warning("snapshot.lookup_failed document=%s", document_id, exc_info=True)
+        return None
+
+
 class DbPageStore:
     def __init__(self, fetcher: Fetcher | None = None, policy: FetchPolicy | None = None) -> None:
         self.fetcher = fetcher or Fetcher(policy or FetchPolicy())
@@ -106,20 +126,23 @@ class DbPageStore:
                 return None
             return Page(url=row.final_url or row.url, title=row.title or url, text=row.text,
                         content_type=row.content_type or "text/html", reader=row.reader or "main_content",
-                        fetched_at=row.fetched_at, from_cache=True, document_id=row.id)  # fmt: skip
+                        fetched_at=row.fetched_at, from_cache=True, document_id=row.id,
+                        snapshot_id=await _latest_snapshot(row.id))  # fmt: skip
         try:
             raw = await self.fetcher.fetch_raw(url)
         except FetchRefused as e:
             self._reasons[url] = e.reason
             # 429/5xx after the retries: remembered briefly like network errors, not for a month
             status, ttl = ("ERROR", ERROR_TTL) if e.transient else ("REFUSED", REFUSED_TTL)
-            await self._store(url, title=None, text="", status=status, fail_reason=e.reason,
-                              expires_at=now + ttl)  # fmt: skip
+            doc_id = await self._store(url, title=None, text="", status=status, fail_reason=e.reason,
+                                       expires_at=now + ttl)  # fmt: skip
+            await _snapshot(url, None, status, doc_id)
             return None
         except Exception as e:  # noqa: BLE001 - network errors: remember briefly, never fail the job
             self._reasons[url] = f"{type(e).__name__}"
-            await self._store(url, title=None, text="", status="ERROR", fail_reason=type(e).__name__,
-                              expires_at=now + ERROR_TTL)  # fmt: skip
+            doc_id = await self._store(url, title=None, text="", status="ERROR", fail_reason=type(e).__name__,
+                                       expires_at=now + ERROR_TTL)  # fmt: skip
+            await _snapshot(url, None, "ERROR", doc_id)
             return None
         return await self._from_raw(url, raw, area, now)
 
@@ -137,10 +160,13 @@ class DbPageStore:
                   "content_sha256": hashlib.sha256(text.encode()).hexdigest()}  # fmt: skip
         if len(text) < MIN_CONTENT_CHARS:
             self._reasons[url] = "no content (page needs JavaScript or is empty)"
-            await self._store(url, title=title, text=text, status="NO_CONTENT", fail_reason=self._reasons[url],
-                              expires_at=now + REFUSED_TTL, **common)  # fmt: skip
+            doc_id = await self._store(url, title=title, text=text, status="NO_CONTENT",
+                                       fail_reason=self._reasons[url], expires_at=now + REFUSED_TTL,
+                                       **common)  # fmt: skip
+            await _snapshot(url, raw, "NO_CONTENT", doc_id)
             return None
         doc_id = await self._store(url, title=title, text=text, status="OK", fail_reason=None,
                                    expires_at=_expiry(area, now), **common)  # fmt: skip
+        sid = await _snapshot(url, raw, "OK", doc_id)
         return Page(url=raw.url, title=title or url, text=text, content_type=raw.content_type, reader=reader,
-                    fetched_at=now, from_cache=False, html=html, document_id=doc_id)  # fmt: skip
+                    fetched_at=now, from_cache=False, html=html, document_id=doc_id, snapshot_id=sid)  # fmt: skip

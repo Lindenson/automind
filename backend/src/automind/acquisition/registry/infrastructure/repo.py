@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Iterable, Mapping
 from typing import Any
 
@@ -10,8 +11,10 @@ from sqlalchemy import select
 from automind.acquisition.registry.api import Attempt, TruthSignalIn
 from automind.acquisition.registry.domain.model import Capability, Source
 from automind.acquisition.registry.domain.score import Counts, decay, score_of
+from automind.acquisition.snapshots import store
 from automind.infrastructure.db.models import (
     CapabilityRow,
+    Claim,
     RegistryAttempt,
     RegistryChange,
     SourceRow,
@@ -21,7 +24,19 @@ from automind.infrastructure.db.models import (
 from automind.infrastructure.db.session import sessionmaker
 from automind.insight.metrics import prom
 
+log = logging.getLogger(__name__)
 RECENT = 20  # last outcomes kept per capability
+
+
+async def _producer_of(s: Any, a: Attempt) -> tuple[str | None, str | None]:
+    """Spec 011 FR-002: an attempt names the producer version and model of the values read from its page."""
+    if a.producer_version is not None or a.snapshot_id is None:
+        return a.producer_version, a.model
+    q = select(Claim.producer_version, Claim.model).where(Claim.snapshot_id == a.snapshot_id)
+    if a.variant_id:
+        q = q.where(Claim.variant_id == a.variant_id)
+    row = (await s.execute(q.order_by(Claim.created_at.desc()).limit(1))).first()
+    return (row[0], row[1]) if row else (None, None)
 
 
 def _cap_dict(r: CapabilityRow) -> dict[str, Any]:
@@ -211,6 +226,7 @@ class RegistryRepo:
                 cap.recent = [*(cap.recent or []), ok][-RECENT:]
                 cap.last_used = now()
                 _refresh(cap, await self._type(s, a.domain, types), self.cfg)
+                version, model = await _producer_of(s, a)
                 s.add(
                     RegistryAttempt(
                         capability_id=cap.id,
@@ -221,10 +237,15 @@ class RegistryRepo:
                         reason=a.reason,
                         values=a.values,
                         cost_eur=a.cost_eur,
+                        snapshot_id=a.snapshot_id,
+                        producer_version=version,
+                        model=model,
+                        stage_versions=a.stage_versions,
                     )
                 )
                 prom.inc("registry_attempts", area=a.area, outcome=a.outcome)
             await s.commit()
+        await _mark_snapshots(attempts)
 
     async def signal(self, sig: TruthSignalIn, weight: float) -> None:
         async with sessionmaker()() as s:
@@ -255,3 +276,14 @@ class RegistryRepo:
                 )
             )
             await s.commit()
+
+
+async def _mark_snapshots(attempts: list[Attempt]) -> None:
+    """Spec 011 T021: a page that gave accepted values is kept longer and remembers the variant it served."""
+    for a in attempts:
+        if a.snapshot_id is None:
+            continue
+        try:
+            await store.mark(a.snapshot_id, a.values if a.outcome == "accepted" else 0, a.variant_id)
+        except Exception:  # noqa: BLE001 - bookkeeping never fails a job
+            log.warning("snapshot.mark_failed id=%s", a.snapshot_id, exc_info=True)

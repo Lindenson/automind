@@ -8,6 +8,7 @@ from typing import Any
 
 import yaml
 
+from automind.acquisition.snapshots.codec import RetentionCfg
 from automind.application.makes import MakeRegistry
 from automind.application.ports import Reference
 from automind.config import settings
@@ -211,6 +212,11 @@ def physics_config() -> dict[str, Any]:
 def agents_config() -> dict[str, Any]:
     """config/agents.yaml: agent budgets, gates, levers, allowed models (research R13, R14)."""
     return load_yaml("agents.yaml")
+
+
+def snapshot_retention() -> RetentionCfg:
+    """Typed snapshot retention settings (research R1)."""
+    return RetentionCfg.from_config(acquisition_config().get("snapshots") or {})
 
 
 def gold_tolerances() -> dict[str, tuple[str, float]]:

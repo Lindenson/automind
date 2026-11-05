@@ -107,6 +107,7 @@ class ChatSocket:
         self._background(self.runner.run_turn(self.chat_id, text, msg.get("message_id"), preset=preset))
 
     async def _challenge(self, msg: dict[str, Any]) -> None:
+        from automind.acquisition import api as acquisition  # noqa: PLC0415
         from automind.application import challenge  # noqa: PLC0415
 
         ref = getattr(getattr(self.runner, "ports", None), "ref", None)
@@ -115,7 +116,7 @@ class ChatSocket:
         registry = getattr(getattr(self.runner, "ports", None), "registry", None)
         result = await challenge.recheck(ref, self.chat_id, str(msg.get("car_id") or ""),
                                          str(msg.get("attribute") or ""), str(msg.get("text") or ""),
-                                         registry=registry)  # fmt: skip
+                                         registry=registry, gold=acquisition.record_challenge_gold)  # fmt: skip
         await self._challenge_feedback(msg, result)
         await self.bus.publish(self.chat_id, None, "challenge_result", result)
 

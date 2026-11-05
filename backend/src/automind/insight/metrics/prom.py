@@ -40,11 +40,15 @@ FETCH = Counter(P + "fetch_total", "Page fetches by outcome", ["outcome"])
 RESEARCH_JOBS = Counter(P + "research_jobs_total", "Research jobs by area and status", ["area", "status"])
 REGISTRY_ATTEMPTS = Counter(P + "registry_attempts_total", "Source attempts", ["area", "outcome"])
 REGISTRY_CHANGES = Counter(P + "registry_changes_total", "Registry changes", ["change", "author"])
+# spec 011 T031: raw page snapshots (FR-001)
+SNAPSHOTS = Counter(P + "snapshots_total", "Page snapshots written, by fetch status", ["status"])
+SNAPSHOT_BYTES = Counter(P + "snapshot_bytes_total", "Snapshot bytes, raw and stored (compressed)", ["kind"])
 
 _COUNTERS: dict[str, Any] = {
     "turns": TURNS, "turn_failures": TURN_FAILURES, "feedback": FEEDBACK, "wrong_values": WRONG_VALUES,
     "llm_calls": LLM_CALLS, "llm_errors": LLM_ERRORS, "search_calls": SEARCH_CALLS, "fetch": FETCH,
     "research_jobs": RESEARCH_JOBS, "registry_attempts": REGISTRY_ATTEMPTS, "registry_changes": REGISTRY_CHANGES,
+    "snapshots": SNAPSHOTS, "snapshot_bytes": SNAPSHOT_BYTES,
 }  # fmt: skip
 
 
@@ -109,6 +113,10 @@ GAUGES: dict[str, tuple[str, tuple[str, ...]]] = {
     "loop_fails_in_row": ("Consecutive failed runs of a background loop", ("loop",)),
     "loop_interval_seconds": ("Expected interval between runs of a background loop", ("loop",)),
     "issues": ("Insight issues by component and status", ("component", "status")),
+    # spec 011 T031
+    "snapshot_store_bytes": ("Stored (compressed) bytes of page snapshot bodies", ()),
+    "gold_values": ("Gold values by dataset", ("dataset",)),
+    "claims_without_producer": ("Claims whose producer version is unknown (should be 0, SC-002)", ()),
 }
 
 
