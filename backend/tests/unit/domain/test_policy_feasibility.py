@@ -98,6 +98,7 @@ def test_unmet_areas_are_retried_after_12_hours():
     cars = [CarToPlan("car#1", "v1", "NEW")]
     recent = {"v1": {a: now - timedelta(hours=2) for a in ("specs", "price", "maintenance", "reliability", "reviews")}}
     older = {"v1": {a: now - timedelta(hours=13) for a in ("specs", "price", "maintenance", "reliability", "reviews")}}
-    kw = dict(persona="BUYER", criteria=[], depth="STANDARD", now=now, unmet={"v1": {"specs"}})
+    tried = {"v1": {"specs": now - timedelta(hours=2)}}  # the registry's sources were tried (spec 010 FR-022)
+    kw = dict(persona="BUYER", criteria=[], depth="STANDARD", now=now, unmet={"v1": {"specs"}}, registry_done=tried)
     assert plan(cars, last_done=recent, **kw).jobs == []
     assert [j.area for j in plan(cars, last_done=older, **kw).jobs] == ["specs"]

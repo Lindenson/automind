@@ -31,7 +31,8 @@ from .common import ctx, load_case, notice, record_intake, save_case
 
 def _plan(state: TurnState) -> rp.ResearchPlan:
     p = state.get("research_plan") or {}
-    jobs = [rp.Job(j[0], j[1], j[2], fresh=bool(j[3]) if len(j) > 3 else False) for j in p.get("jobs", [])]
+    jobs = [rp.Job(j[0], j[1], j[2], fresh=bool(j[3]) if len(j) > 3 else False,
+                   escalate=bool(j[4]) if len(j) > 4 else False) for j in p.get("jobs", [])]  # fmt: skip
     return rp.ResearchPlan(jobs=jobs, rounds=int(p.get("rounds", 0)))
 
 
@@ -41,7 +42,7 @@ async def _create(c: TurnContext, jobs: list[rp.Job]) -> list[dict[str, Any]]:
         row = await c.ports.jobs.create(c.chat_id, c.turn_id, j.variant_id, j.area, j.round)
         out.append(
             {"job_id": row.id, "car_key": j.car_key, "variant_id": j.variant_id, "area": j.area, "round": j.round,
-             "fresh": j.fresh}
+             "fresh": j.fresh, "escalate": j.escalate}
         )  # fmt: skip
     _, case = await load_case(c)
     for j in jobs:  # spec 004 FR-023: every cell of the grid appears at once, as queued
@@ -107,6 +108,7 @@ async def research_job(job: dict[str, Any], runtime: Runtime[TurnContext]) -> di
                     job["round"],
                     car_year=car.year if car else None,
                     fresh=bool(job.get("fresh")),  # "find it": past the search cache, wider queries
+                    escalate=bool(job.get("escalate")),  # left short before: the registry's other markets too
                 ),
                 emit,
             )
@@ -157,7 +159,8 @@ async def collect_round(state: TurnState, runtime: Runtime[TurnContext]) -> dict
     stopped = [r for r in results if r.get("limit") and r.get("job_id") in current]
     if stopped:  # a limit was reached in this round: ask the user (continue or answer with what exists)
         reasons = sorted({str(r["limit"]) for r in stopped if r["limit"] is not True} or {"calls"})
-        todo = [{k: r.get(k) for k in ("car_key", "variant_id", "area", "round", "fresh")} for r in stopped]
+        keys = ("car_key", "variant_id", "area", "round", "fresh", "escalate")
+        todo = [{k: r.get(k) for k in keys} for r in stopped]
         return {"jobs": [], "limit_hit": {"reasons": reasons, "jobs": todo}}
     gaps = rp.gaps(_plan(state), _met(results), round_done=int(state.get("round", 0)))
     if not gaps:
@@ -215,8 +218,8 @@ async def apply_limit(state: TurnState, runtime: Runtime[TurnContext]) -> dict[s
         n = int(state.get("limit_extensions") or 0) + 1
         c.budget.extend(n)
         await c.status("researching", f"Continuing: {len(hit.get('jobs', []))} research task(s) left")
-        jobs = [rp.Job(j["car_key"], j["variant_id"], j["area"], int(j["round"]), bool(j.get("fresh")))
-                for j in hit.get("jobs", [])]  # fmt: skip
+        jobs = [rp.Job(j["car_key"], j["variant_id"], j["area"], int(j["round"]), bool(j.get("fresh")),
+                       bool(j.get("escalate"))) for j in hit.get("jobs", [])]  # fmt: skip
         return {"jobs": await _create(c, jobs), "limit_hit": None, "limit_extensions": n, "confirm_payload": None,
                 "resume": None, "route": None}  # fmt: skip
     # "stop", a typed reply or anything else: answer with what was collected (nothing is lost)

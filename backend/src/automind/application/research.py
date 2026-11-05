@@ -18,6 +18,7 @@ from collections import defaultdict
 from collections.abc import Awaitable, Callable
 from contextvars import ContextVar
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel
@@ -49,6 +50,12 @@ class JobSpec:
     round: int = 0
     car_year: int | None = None  # the user's car year (validator compares claims with the case, FR-016)
     fresh: bool = False  # the user asked to search again: bypass the search cache and widen the queries
+    escalate: bool = False  # an area left short: round 0 also queries the registry's other markets (010 FR-022)
+
+    @property
+    def escalated(self) -> bool:
+        """The job queries the registry's sources of the other markets (a follow-up round, "find it", a retry)."""
+        return self.round > 0 or self.fresh or self.escalate
 
 
 @dataclass
@@ -217,7 +224,8 @@ async def registry_queries(ports: Ports, v: db.Variant, job: JobSpec,
                            planned: list[search_plan.PlannedQuery]) -> list[search_plan.PlannedQuery]:  # fmt: skip
     """`site:` queries to the registry's sources of the area (spec 010; 009 FR-009), whatever the autonomy flag:
     round 0 on the area's own markets, a follow-up round (an area below its minimum) on the other European markets
-    and, except for prices, beyond. "Find it" (fresh) tries both at once. Sites already queried are skipped."""
+    and, except for prices, beyond. "Find it" (fresh) and the retry of an area an earlier run left short (escalate)
+    try both at once. Sites already queried are skipped."""
     reg = getattr(ports, "registry", None)
     if reg is None or not hasattr(reg, "sources_for") or job.area in research_plan.MARKET_AREAS:
         return []
@@ -226,7 +234,7 @@ async def registry_queries(ports: Ports, v: db.Variant, job: JobSpec,
     per_query = int(cfg.get("site_query_domains_per_query", SITE_QUERY_DOMAINS))
     own = area_markets(ports, job.area)
     markets = research_plan.registry_markets(job.area, own, job.round)
-    if job.fresh and job.round == 0:
+    if (job.fresh or job.escalate) and job.round == 0:
         markets += [m for m in research_plan.registry_markets(job.area, own, 1) if m not in markets]
     if not markets or per_area <= 0:
         return []
@@ -409,7 +417,7 @@ async def _run(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
         await reselect(v.id)
     hits = await area_hits(v, job.area)
     met = await _area_met(v, job.area, hits)
-    await _mark_run(v.id, job.area, totals["docs"], accepted, rejected, job.round, met)
+    await _mark_run(v.id, job.area, totals["docs"], accepted, rejected, job.round, met, registry=job.escalated)
     await _job_metrics(job.job_id, planned, stats)
     await emit("validating", f"{job.area}: {accepted} accepted, {rejected} rejected by validation")
     return JobResult(
@@ -1321,8 +1329,15 @@ async def area_hits(v: db.Variant, area: str) -> list[dict[str, Any]]:
     return [{"domain": d, "source_type": t, "items": n} for (d, t), n in counts.items()]
 
 
-async def _mark_run(variant_id: str, area: str, docs: int, acc: int, rej: int, round_: int, met: bool) -> None:
+async def _mark_run(variant_id: str, area: str, docs: int, acc: int, rej: int, round_: int, met: bool,
+                    *, registry: bool = False) -> None:  # fmt: skip
+    """`registry`: the job tried the registry's sources with the escalation to the other markets (kept otherwise)."""
     async with db.sessionmaker()() as s:
+        old = await s.execute(
+            select(db.ResearchRun.registry_at).where(db.ResearchRun.variant_id == variant_id,
+                                                     db.ResearchRun.area == area)
+        )  # fmt: skip
+        tried = datetime.now(UTC) if registry else old.scalars().first()
         await s.execute(
             delete(db.ResearchRun).where(db.ResearchRun.variant_id == variant_id, db.ResearchRun.area == area)
         )
@@ -1335,6 +1350,7 @@ async def _mark_run(variant_id: str, area: str, docs: int, acc: int, rej: int, r
                 claims_rejected=rej,
                 rounds_used=round_,
                 minimum_met=met,
+                registry_at=tried,
             )
         )
         if area == "manufacturer":
@@ -1419,6 +1435,21 @@ async def powertrains(variant_ids: list[str]) -> dict[str, str | None]:
     async with db.sessionmaker()() as s:
         rows = await s.execute(select(db.Variant.id, db.Variant.powertrain).where(db.Variant.id.in_(variant_ids)))
         return {vid: pt for vid, pt in rows.all()}
+
+
+async def registry_done(variant_ids: list[str]) -> dict[str, dict[str, Any]]:
+    """variant_id -> area -> when its research last tried the registry's sources with the escalation (spec 010
+    FR-022); areas that never did are absent."""
+    out: dict[str, dict[str, Any]] = defaultdict(dict)
+    async with db.sessionmaker()() as s:
+        rows = await s.execute(
+            select(db.ResearchRun.variant_id, db.ResearchRun.area, db.ResearchRun.registry_at).where(
+                db.ResearchRun.variant_id.in_(variant_ids), db.ResearchRun.registry_at.is_not(None)
+            )
+        )
+        for vid, area, at in rows.all():
+            out[str(vid)][str(area)] = at
+    return out
 
 
 async def unmet_areas(variant_ids: list[str]) -> dict[str, set[str]]:

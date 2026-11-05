@@ -40,6 +40,10 @@ FRESHNESS_DAYS: dict[str, int] = {
 }
 ROUNDS: dict[str, int] = {"QUICK": 0, "STANDARD": 1, "DEEP": 2}
 RETRY_UNMET_HOURS = 12  # an area that missed its evidence minimum is tried again after this, not after months
+# spec 010 FR-022: an area below its minimum whose research never tried the registry's sources with the escalation
+# to the other European markets (or tried them longer ago than this) gets that round in the first research of a
+# turn, whatever the retry window says: "no data" is shown only after the registry's sources were tried
+REGISTRY_RETRY_DAYS = 7
 OLD_CAR_YEARS = 25
 
 PERSONA_AREAS: dict[str, set[str]] = {
@@ -90,6 +94,7 @@ class Job:
     area: str
     round: int = 0
     fresh: bool = False  # the user asked to search again: skip the search cache, wider queries
+    escalate: bool = False  # round 0 also queries the registry's sources of the other markets (spec 010 FR-022)
 
 
 @dataclass(frozen=True)
@@ -129,6 +134,11 @@ def is_fresh(area: str, last_done: datetime | None, now: datetime) -> bool:
     return last_done is not None and now - last_done <= timedelta(days=FRESHNESS_DAYS[area])
 
 
+def registry_tried(at: datetime | None, now: datetime, days: int = REGISTRY_RETRY_DAYS) -> bool:
+    """The registry's sources (with the escalation) were tried for an area within the window."""
+    return at is not None and now - at < timedelta(days=days)
+
+
 def plan(
     cars: list[CarToPlan],
     *,
@@ -140,8 +150,12 @@ def plan(
     budget_used: bool = False,
     force: Mapping[str, set[str]] | None = None,
     unmet: Mapping[str, set[str]] | None = None,
+    registry_done: Mapping[str, Mapping[str, datetime]] | None = None,
+    registry_days: int = REGISTRY_RETRY_DAYS,
 ) -> ResearchPlan:
-    """`force`: variant_id -> areas to research again although cached (the user asked to find missing data)."""
+    """`force`: variant_id -> areas to research again although cached (the user asked to find missing data).
+    `registry_done`: variant_id -> area -> when its research last tried the registry's sources with the escalation
+    to the other markets; an unmet area without that (within `registry_days`) is retried now, escalated."""
     crit = list(criteria)
     jobs: list[Job] = []
     warnings: list[Warning] = []
@@ -150,11 +164,17 @@ def plan(
         for area in AREAS:  # stable order
             wanted = areas_for(persona, crit, car.condition, budget_used)
             forced = area in (force or {}).get(car.variant_id, set())
-            retry = area in (unmet or {}).get(car.variant_id, set()) and (
-                done.get(area) is None or now - done[area] >= timedelta(hours=RETRY_UNMET_HOURS)
+            short = area in (unmet or {}).get(car.variant_id, set())
+            escalate = (
+                short
+                and not forced
+                and area not in MARKET_AREAS
+                and not registry_tried((registry_done or {}).get(car.variant_id, {}).get(area), now, registry_days)
             )
-            if (area in wanted or forced) and (forced or retry or not is_fresh(area, done.get(area), now)):
-                jobs.append(Job(car.key, car.variant_id, area, fresh=forced))
+            retry = short and (done.get(area) is None or now - done[area] >= timedelta(hours=RETRY_UNMET_HOURS))
+            again = forced or retry or escalate or not is_fresh(area, done.get(area), now)
+            if (area in wanted or forced) and again:
+                jobs.append(Job(car.key, car.variant_id, area, fresh=forced, escalate=escalate))
         # only alongside new or stale research of this car: not for "find it" or a retry of a missed minimum
         has_jobs = any(j.car_key == car.key and not j.fresh and j.area not in (unmet or {}).get(car.variant_id, set())
                        for j in jobs)  # fmt: skip
