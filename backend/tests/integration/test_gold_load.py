@@ -33,11 +33,19 @@ FIX = Path(__file__).resolve().parents[1] / "fixtures" / "gold"
 
 @pytest.fixture(autouse=True)
 def _offline(monkeypatch: pytest.MonkeyPatch) -> None:
-    def refuse(*_a: Any, **_k: Any) -> None:
+    real_connect = socket.socket.connect
+
+    def refuse(self: socket.socket, address: Any, *a: Any, **k: Any) -> Any:
+        host = address[0] if isinstance(address, tuple) else address
+        if host in ("127.0.0.1", "::1", "localhost") or isinstance(address, str):  # the test database only
+            return real_connect(self, address, *a, **k)
+        raise AssertionError("network access in a gold loader test")
+
+    def refuse_create(*_a: Any, **_k: Any) -> None:
         raise AssertionError("network access in a gold loader test")
 
     monkeypatch.setattr(socket.socket, "connect", refuse)
-    monkeypatch.setattr(socket, "create_connection", refuse)
+    monkeypatch.setattr(socket, "create_connection", refuse_create)
 
 
 def _cfg(name: str) -> dict[str, Any]:
@@ -251,12 +259,72 @@ def test_dataset_meta_ids() -> None:
 
 
 async def test_load_writes_gold() -> None:
-    pytest.importorskip(
-        "automind.acquisition.gold.repo",
-        reason="needs T016 (migration 0019), T022 (match.match) and T023 (gold.repo) from the US1 core branch",
-    )
-    from automind.acquisition.gold.domain import match
+    """T035: the three loaders, matched and written for a seeded Kia Sorento MQ4 PHEV and Toyota Land Cruiser J150."""
+    import uuid
 
-    if not hasattr(match, "match"):
-        pytest.skip("needs T022 match.match from the US1 core branch")
-    pytest.skip("TODO at merge with the US1 core: seed variants, run load for the three fixtures, assert gold rows")
+    from automind.infrastructure import db
+    from automind.infrastructure.db.models import GoldValueRow
+
+    async with db.sessionmaker()() as s:
+        kia = db.Variant(
+            canonical_key=f"kia|sorento|mq4|phev|{uuid.uuid4().hex[:6]}",
+            make="Kia",
+            model="Sorento",
+            generation="MQ4",
+            variant_name="1.6 T-GDi PHEV 4x4",
+            powertrain="PHEV",
+            body_class="SUV",
+            generation_years_from=2020,
+            generation_years_to=None,
+            engine_cc=1598,
+            power_kw=195,
+            fuel="phev",
+        )
+        prado = db.Variant(
+            canonical_key=f"toyota|lc|j150|{uuid.uuid4().hex[:6]}",
+            make="Toyota",
+            model="Land Cruiser Prado",
+            generation="J150",
+            variant_name="2.8 D-4D AWD",
+            powertrain="ICE",
+            body_class="SUV",
+            generation_years_from=2009,
+            generation_years_to=2023,
+            engine_cc=2755,
+            power_kw=130,
+            fuel="diesel",
+        )
+        s.add_all([kia, prado])
+        await s.commit()
+        variants = [kia, prado]
+    try:
+        await _load_and_check(kia, prado, variants)
+    finally:  # real makes would leak into other tests' catalog (Kia candidates, Prado identification)
+        from sqlalchemy import delete
+
+        async with db.sessionmaker()() as s:
+            await s.execute(delete(GoldValueRow).where(GoldValueRow.variant_id.in_([kia.id, prado.id])))
+            await s.execute(delete(db.Variant).where(db.Variant.id.in_([kia.id, prado.id])))
+            await s.commit()
+
+
+async def _load_and_check(kia: Any, prado: Any, variants: list[Any]) -> None:
+    from sqlalchemy import select
+
+    from automind.acquisition.gold.load import load_dataset
+    from automind.infrastructure import db
+    from automind.infrastructure.db.models import GoldValueRow
+
+    written = {
+        "eea_co2": await load_dataset("eea_co2", variants, transport=_discodata([])),
+        "rdw": await load_dataset("rdw", variants, transport=_soda([])),
+        "eea_obfcm": await load_dataset("eea_obfcm", variants, transport=_datashare()),
+    }
+    assert written["eea_co2"] and written["eea_obfcm"], {k: len(v) for k, v in written.items()}
+    async with db.sessionmaker()() as s:
+        rows = list((await s.execute(select(GoldValueRow).where(GoldValueRow.variant_id.in_([kia.id, prado.id]))))
+                    .scalars())  # fmt: skip
+    attrs = {(r.variant_id, r.attribute) for r in rows}
+    assert (kia.id, "max_power") not in attrs  # engine kW of a plug-in is never the system power
+    assert any(v == kia.id for v, _ in attrs)
+    # the 2016 Prado (130 kW) is older than the EEA final tables (2021+, 150 kW only): no gold is expected for it
