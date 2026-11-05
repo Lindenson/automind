@@ -195,6 +195,14 @@ PHRASES: dict[str, dict[str, str]] = {
         "ru": "{car}: список версий не найден в источниках — точная версия менее надёжна, проверьте её в карточке.",
         "es": "{car}: ninguna fuente lista sus versiones; la versión exacta es menos segura, revísala en la ficha.",
     },
+    "version_uncertain": {
+        "en": "{car}: no source lists its current versions; the only one I have is {label} (sold since {since}) and "
+        "the current model may differ. Is it yours? Tap it or tell me the power.",
+        "ru": "{car}: актуальный список версий в источниках не найден; у меня есть только {label} (продаётся с "
+        "{since}), а текущая модель может отличаться. Это ваша? Нажмите её или напишите мощность.",
+        "es": "{car}: ninguna fuente lista sus versiones actuales; solo tengo {label} (a la venta desde {since}) y el "
+        "modelo actual puede ser distinto. ¿Es la tuya? Tócala o dime la potencia.",
+    },
     "ladder_missing": {
         "en": "{car} has no «{missing}» — the version there is: {label}.",
         "ru": "У {car} нет «{missing}» — есть версия: {label}.",

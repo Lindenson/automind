@@ -32,6 +32,10 @@ candidate_slots: 1         # candidates tried per research job (exploration)
 site_queries_per_area: 4        # at most this many queries per job
 site_query_domains_per_query: 3 # `site:a OR site:b OR site:c`
 site_query_pages_per_job: 3     # pages read from them, besides the favourites' pages
+# An area an earlier run left below its minimum without trying these sources on the other European markets (or
+# longer ago than this) gets one such round in the first research of a turn (spec 010 FR-022), then waits for the
+# usual 12-hour retry window.
+unmet_registry_retry_days: 7
 recheck_days: {active: 90, blocked: 180}
 discovery:
   eur_per_day: 0.20

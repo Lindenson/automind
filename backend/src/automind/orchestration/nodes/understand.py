@@ -387,7 +387,7 @@ async def assess_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[s
         a["state"]["data_fresh"] = bool(car.variant_id) and not any(j.car_key == key for j in plan.jobs)
     out["assessments"] = assessments
     out["research_plan"] = {
-        "jobs": [[j.car_key, j.variant_id, j.area, j.fresh] for j in plan.jobs],
+        "jobs": [[j.car_key, j.variant_id, j.area, j.fresh, j.escalate] for j in plan.jobs],
         "rounds": plan.rounds,
     }
     out["cost_estimate"] = await c.ports.estimator.estimate([(j.variant_id, j.area) for j in plan.jobs], plan.rounds)
@@ -435,9 +435,11 @@ async def _plan(
         keys = set(focus or []) or {x.key for x in cars}
         wanted = set(areas or [])  # "find it" for named areas: research them even if their minimum was met
         force = {x.variant_id: (wanted or unmet.get(x.variant_id, set())) for x in cars if x.key in keys}
+    days = int((c.ports.ref.registry or {}).get("unmet_registry_retry_days", research_plan.REGISTRY_RETRY_DAYS))
     return research_plan.plan(
         cars, persona=case.persona, criteria=criteria, depth="DEEP" if research_more else case.depth, last_done=last,
         now=c.ports.clock.now(), budget_used=budget_used, force=force, unmet=unmet,
+        registry_done=await research.registry_done([x.variant_id for x in cars]), registry_days=days,
     )  # fmt: skip
 
 

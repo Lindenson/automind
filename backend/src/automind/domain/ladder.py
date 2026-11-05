@@ -6,6 +6,8 @@
   reported (`missing`) and not used for filtering, so the question shows what exists (FR-004).
 - `sold_until` / `on_sale`: a facelift is a version boundary — an open-ended version is replaced by a later one of
   the same engine (009 FR-023, chat 5821ac77: the 2020 265 CV PHEV offered for a new 2026 Sorento sold at 288 CV).
+- `stale`: an unsourced catalog version first sold long ago may have been replaced with no newer row to say so; a new
+  car is asked about it once rather than given it silently (chat 5821ac77).
 - `next_step`: the coarsest level at which the fitting versions still differ (FR-006, FR-007).
 - `decide`: the step to ask, or the settled version; "choose for me" and the ask limit settle levels by the base
   version rule (sources list the base version first), so no state can loop (FR-009…FR-011).
@@ -195,9 +197,26 @@ def _replaces(new: Version, old: Version) -> bool:
         return False
     if new.years_from <= old.years_from or (new.fuel or "") != (old.fuel or ""):
         return False
-    if (_family_word(new) or "").lower() != (_family_word(old) or "").lower():
+    if _family_key(new) != _family_key(old):
         return False
     return new.engine_cc is None or old.engine_cc is None or abs(new.engine_cc - old.engine_cc) <= 300
+
+
+_FUEL_WORDS = {"phev", "hev", "mhev", "hybrid", "híbrido", "hibrido", "plug-in", "diesel", "diésel", "gasolina",
+               "petrol", "ev", "bev", "electric", "eléctrico"}  # fmt: skip
+
+
+def _family_key(v: Version) -> str:
+    """The engine family without fuel words: "T-GDi PHEV" and "T-GDi" are one family (catalog rows write it either
+    way)."""
+    words = [w for w in (_family_word(v) or "").lower().split() if w not in _FUEL_WORDS]
+    return words[0] if words else ""
+
+
+def stale(v: Version, year: int, years: int) -> bool:
+    """A version (an unsourced catalog row) a new car bought in `year` may no longer be: first sold `years` or more
+    years before, so a facelift may have replaced it without a newer row to say so."""
+    return v.years_from is not None and year - v.years_from >= years
 
 
 def sold_until(v: Version, versions: Sequence[Version]) -> int | None:
