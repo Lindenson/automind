@@ -22,7 +22,7 @@ from prometheus_client.registry import Collector
 log = logging.getLogger(__name__)
 
 P = "automind_"
-disable_created_metrics()  # type: ignore[no-untyped-call] - no *_created samples: they double the series without use here
+disable_created_metrics()  # type: ignore[no-untyped-call]  # no *_created samples
 
 TURNS = Counter(P + "turns_total", "Turns by kind of request, status and action", ["kind", "status", "action"])
 TURN_DURATION = Histogram(
