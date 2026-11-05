@@ -11,9 +11,7 @@ Constitution I (evidence first), III (code normalizes numbers), VIII (untrusted 
 from __future__ import annotations
 
 import asyncio
-import dataclasses
 import hashlib
-import re
 from collections import defaultdict
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -34,20 +32,27 @@ from automind.acquisition.pipeline.plan import (
     known_makes,
 )
 from automind.acquisition.pipeline.relevance import _llm_per_job, _PageJudge, _relevance_target
-from automind.acquisition.pipeline.validate import _variant_gearbox, fuel_of
+from automind.acquisition.pipeline.validate import (
+    CRITICAL,
+    MONEY_ATTRS,
+    VALIDATOR_REJECTS,
+    ReaderClaim,
+    check,
+    known_values,
+    plausibility_ctx,
+    sense_before,
+)
 from automind.acquisition.registry.api import Attempt
 from automind.application import incentives_research
 from automind.application.ports import Page, Ports, WebDoc
 from automind.application.usage import BudgetExceeded, current_job
 from automind.domain import evidence as ev
-from automind.domain import identity, plausibility, research_plan, search_plan, sense, sense_ev, specs, used
+from automind.domain import identity, research_plan, search_plan, sense, sense_ev, specs, used
 from automind.domain import learned as learned_rules
 from automind.domain import relevance as rel
 from automind.infrastructure import db
 
 Emit = Callable[[str, str], Awaitable[None]]
-
-CRITICAL = ("max_power", "max_torque", "curb_mass", "drivetrain", "claimed_0_100", "top_speed")
 
 
 @dataclass
@@ -86,16 +91,6 @@ def target_of(v: db.Variant, car_year: int | None = None) -> str:
     body = f", body {v.body_class.lower()}" if v.body_class else ""
     year = f", the user's car is from ~{car_year}" if car_year else ""
     return f"{v.label}{years}, powertrain {v.powertrain}{body}, market ES{year}"
-
-
-async def _known_values(variant_id: str) -> dict[str, float]:
-    async with db.sessionmaker()() as s:
-        rows = await s.execute(
-            select(db.SpecValue.attribute, db.SpecValue.value_num).where(
-                db.SpecValue.variant_id == variant_id, db.SpecValue.available, db.SpecValue.value_num.is_not(None)
-            )
-        )
-        return {a: float(n) for a, n in rows.all()}
 
 
 async def _record_learned(ports: Ports, area: str, pages: list[Page], accepted_by_url: dict[str, int],
@@ -167,7 +162,7 @@ async def _run(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
     judge = _PageJudge(ports, v, tgt, gens, target, job.area)
     makes = known_makes(ports)
     sem = asyncio.Semaphore(_llm_per_job(ports))
-    known = await _known_values(v.id)
+    known = await known_values(v.id)
     readings = await _read_tables(ports, v, pages) if job.area in ex.SPEC_AREAS else {}
     gate: dict[str, int] = defaultdict(int)
     values_rejected: dict[str, int] = defaultdict(int)
@@ -372,126 +367,6 @@ async def _persist(
     return a, r
 
 
-def _plausibility_ctx(v: db.Variant, known: dict[str, float]) -> plausibility.Context:
-    return plausibility.Context(
-        powertrain=v.powertrain, fuel=fuel_of(v.variant_name, v.powertrain), known=known,
-        transmission=v.transmission or _variant_gearbox(v), drive=v.drive,
-    )  # fmt: skip
-
-
-MONEY_ATTRS = ("official_price_es",)
-
-
-def _check(
-    c: Any,
-    d: WebDoc,
-    ctx: plausibility.Context | None = None,
-    rules: dict[str, Any] | None = None,
-    *,
-    excerpt_checked: bool = False,
-) -> tuple[str, float | None, str | None, str | None]:
-    """(status, number, text, reject_rule): excerpt → unit → plausibility (FR-014) → sense (004 FR-027)."""
-    if (
-        not excerpt_checked
-        and specs.RANGE_RE.search(c.raw_value) is None
-        and not ev.validate_excerpt(c.excerpt, c.raw_value, d.text)
-    ):
-        return "REJECTED_UNSUPPORTED", None, None, None
-    if c.attribute in MONEY_ATTRS and not (r := sense.money_marked(c.raw_value, c.excerpt)).ok:
-        return "REJECTED_IMPLAUSIBLE", None, None, r.rule_id  # a number without a currency is not a price
-    try:
-        val = specs.normalize(specs.ATTRS[c.attribute], c.raw_value, c.unit, excerpt=c.excerpt, domain=d.url)
-    except Exception:
-        return "REJECTED_UNIT", None, None, None
-    if ctx is not None and rules:
-        p = plausibility.check(c.attribute, val, ctx, rules)
-        if not p.ok:
-            return "REJECTED_IMPLAUSIBLE", None, None, p.rule_id
-    if ctx is not None:
-        bad = _sense_after(c.attribute, val, ctx)
-        if bad is not None:
-            return bad
-    return ("ACCEPTED", val, None, None) if isinstance(val, float) else ("ACCEPTED", None, str(val), None)
-
-
-def _litres(raw: str) -> float | None:
-    """ "611", "1.642" (Spanish thousands) or "611 l" as litres; None when there is no number."""
-    m = re.search(r"\d[\d.,\u202f ]*", raw or "")
-    if not m:
-        return None
-    digits = (
-        re.sub(r"[.,\u202f ]", "", m.group(0)) if re.fullmatch(r"\d{1,2}[.,]\d{3}", m.group(0).strip()) else m.group(0)
-    )
-    try:
-        return float(digits.strip().replace(",", "."))
-    except ValueError:
-        return None
-
-
-def _sense_before(
-    c: Any, v: db.Variant, source_type: str | None, url: str = ""
-) -> tuple[Any, tuple[str, None, None, str] | None]:
-    """Re-file a claim under the attribute its value really is (WLTP / NEDC / real-world consumption); a boot
-    volume with the seats folded, or of another body style, is not the boot volume."""
-    if c.attribute == "boot_volume" and not (b := sense.boot_seats_up(c.raw_value, c.excerpt)).ok:
-        return c, ("REJECTED_IMPLAUSIBLE", None, None, b.rule_id or "sense.boot")
-    if c.attribute == "boot_volume" and not (b := sense.boot_fits_body(_litres(c.raw_value), v.body_class, url)).ok:
-        return c, ("REJECTED_IMPLAUSIBLE", None, None, b.rule_id or "sense.boot")
-    if (v.powertrain or "").upper() in sense_ev.PLUG_IN or c.attribute in _EV_CLAIMS:
-        return _sense_ev_before(c, v)
-    if c.attribute != "consumption":
-        return c, None
-    r = sense.classify_consumption(c.raw_value, c.excerpt, v.generation_years_from, source_type)
-    if not r.ok:
-        return c, ("REJECTED_IMPLAUSIBLE", None, None, r.rule_id or "sense.consumption")
-    return _refile(c, r.attribute, r.value), None
-
-
-_EV_CLAIMS = ("battery_kwh", "battery_gross_kwh", "charge_ac_kw", "charge_dc_peak_kw", "charge_dc_10_80_min",
-              *sense_ev.EV_ATTRS, "consumption_cs", "consumption_weighted")  # fmt: skip
-
-
-def _refile(c: Any, attribute: str | None, raw_value: Any) -> Any:
-    update = {"attribute": attribute, "raw_value": raw_value}
-    return c.model_copy(update=update) if hasattr(c, "model_copy") else dataclasses.replace(c, **update)
-
-
-def _sense_ev_before(c: Any, v: db.Variant) -> tuple[Any, tuple[str, None, None, str] | None]:
-    """Electric values (spec 006 R4): a plug-in's consumption by its words; gross vs usable; kWh vs kW."""
-    plug_in = (v.powertrain or "").upper() in sense_ev.PLUG_IN
-    if plug_in and c.attribute in (*sense_ev.FUEL_ATTRS, *sense_ev.EV_ATTRS):
-        r = sense_ev.plug_in_consumption(c.attribute, c.raw_value, c.unit, c.excerpt)
-        if not r.ok:
-            return c, ("REJECTED_IMPLAUSIBLE", None, None, r.rule_id or "sense.phev")
-        c = _refile(c, r.attribute, r.value)
-    elif c.attribute in ("consumption_cs", "consumption_weighted"):  # only plug-ins have these
-        return c, ("REJECTED_IMPLAUSIBLE", None, None, "sense.phev.not_plug_in")
-    if c.attribute in ("battery_kwh", "battery_gross_kwh"):
-        c = _refile(c, sense_ev.battery_kind(c.raw_value, c.excerpt), c.raw_value)
-    r = sense_ev.check_claim(c.attribute, c.raw_value, c.unit, c.excerpt)
-    if not r.ok:
-        return c, ("REJECTED_IMPLAUSIBLE", None, None, r.rule_id or "sense.ev")
-    return c, None
-
-
-def _sense_after(attribute: str, val: Any, ctx: plausibility.Context) -> tuple[str, None, None, str] | None:
-    """Meaning rules on a normalised value: gear counts of e-CVTs, another gearbox or drive than the variant."""
-    if attribute == "gear_count" and isinstance(val, float):
-        r = sense.gear_count(val, ctx.transmission, ctx.powertrain)
-        if not r.ok:
-            return "REJECTED_IMPLAUSIBLE", None, None, r.rule_id or "sense.gear_count"
-    if attribute == "transmission" and sense.gearbox_conflict(ctx.transmission, str(val)):
-        return "REJECTED_OTHER_VARIANT", None, None, "sense.transmission.other_gearbox"
-    if attribute == "drivetrain" and sense.drive_conflict(ctx.drive, str(val)):
-        return "REJECTED_OTHER_VARIANT", None, None, "sense.drivetrain.other_drive"
-    if isinstance(val, float) and not (p := sense_ev.pair_check(attribute, val, ctx.known)).ok:
-        return "REJECTED_IMPLAUSIBLE", None, None, p.rule_id or "sense.ev"
-    return None
-
-
-VALIDATOR_REJECTS = ("OTHER_VARIANT", "OTHER_MARKET", "OTHER_YEAR", "UNCLEAR")
-
-
 async def _spec_claims(
     ports: Ports,
     s: Any,
@@ -505,11 +380,11 @@ async def _spec_claims(
     known: dict[str, float],
     values_rejected: dict[str, int],
 ) -> tuple[int, int]:
-    ctx = _plausibility_ctx(v, known)
+    ctx = plausibility_ctx(v, known)
     checked = []
     for c0 in out.claims:
-        c, bad = _sense_before(c0, v, ev.classify_source(d.url), d.url)
-        checked.append((c, *(bad or _check(c, d, ctx, ports.ref.plausibility))))
+        c, bad = sense_before(c0, v, ev.classify_source(d.url), d.url)
+        checked.append((c, *(bad or check(c, d, ctx, ports.ref.plausibility))))
     conflicting = {
         i for i, (c, st, num, _, _) in enumerate(checked)
         if st == "ACCEPTED" and num is not None and c.attribute in known
@@ -553,14 +428,6 @@ async def _spec_claims(
     return accepted, rejected
 
 
-@dataclass
-class _ReaderClaim:
-    attribute: str
-    raw_value: str
-    unit: str | None
-    excerpt: str
-
-
 async def _persist_reading(
     ports: Ports,
     v: db.Variant,
@@ -573,20 +440,20 @@ async def _persist_reading(
 ) -> tuple[int, int]:
     """Values read from a favourite site's table without AI (FR-009, FR-010): same provenance and checks
     (unit layer, plausibility); the excerpt is the table row the reader read."""
-    ctx = _plausibility_ctx(v, known)
+    ctx = plausibility_ctx(v, known)
     accepted = rejected = 0
     async with db.sessionmaker()() as s:
         e = await _evidence(s, v, d, page, favourite_priority(ports, v, d.url))
         for row in reading.rows:
             if row.attribute not in specs.ATTRS:
                 continue
-            c, bad = _sense_before(
-                _ReaderClaim(row.attribute, row.raw_value, row.raw_unit, row.excerpt),
+            c, bad = sense_before(
+                ReaderClaim(row.attribute, row.raw_value, row.raw_unit, row.excerpt),
                 v,
                 ev.classify_source(d.url),
                 d.url,
             )
-            status, num, txt, rule = bad or _check(c, d, ctx, ports.ref.plausibility, excerpt_checked=True)
+            status, num, txt, rule = bad or check(c, d, ctx, ports.ref.plausibility, excerpt_checked=True)
             if status == "ACCEPTED":
                 accepted += 1
             else:

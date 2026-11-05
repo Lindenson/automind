@@ -3,7 +3,7 @@ contracts/replay-cli.md, research R4).
 
 Readers run offline: the CLI builds no search, fetch or model port and the socket guard is on while pages are read;
 any network attempt aborts the replay. Rows are validated with the same pure checks research uses (imported from
-`application/research.py` until S5 moves them, never copied). Before US4 a reader version is the legacy reader of
+`acquisition/pipeline/validate.py`, never copied). Before US4 a reader version is the legacy reader of
 `config/site_readers.yaml` (`km77@v1`) or one legacy-format block from a file (`<id>@test`).
 Extractor replay needs model calls: only with `allow_llm`, at most `replay.extractor_max_pages` pages, outputs cached
 in `extraction_cache` so a second replay of the same version costs nothing.
@@ -142,13 +142,13 @@ def resolve_reader(req: ReplayRequest) -> tuple[str, str, dict[str, Any]]:
 
 
 def _validate(c: Any, v: Variant | None, d: WebDoc, rules: dict[str, Any], excerpt_checked: bool) -> tuple[Any, ...]:
-    from automind.application import research as rs  # noqa: PLC0415 - the live rules (S5 moves them)
+    from automind.acquisition.pipeline import validate as rs  # noqa: PLC0415 - the live rules
 
     if v is None:
-        return c, *rs._check(c, d, None, None, excerpt_checked=excerpt_checked)  # noqa: SLF001
-    c, bad = rs._sense_before(c, v, ev.classify_source(d.url), d.url)  # noqa: SLF001
-    ctx = rs._plausibility_ctx(v, {})  # noqa: SLF001
-    return c, *(bad or rs._check(c, d, ctx, rules, excerpt_checked=excerpt_checked))  # noqa: SLF001
+        return c, *rs.check(c, d, None, None, excerpt_checked=excerpt_checked)
+    c, bad = rs.sense_before(c, v, ev.classify_source(d.url), d.url)
+    ctx = rs.plausibility_ctx(v, {})
+    return c, *(bad or rs.check(c, d, ctx, rules, excerpt_checked=excerpt_checked))
 
 
 def _values(
@@ -172,7 +172,7 @@ def read_page(
     """One stored page through the reader and the live checks (pure apart from the research rule imports)."""
     from automind.acquisition.infrastructure.fetch import decode_body  # noqa: PLC0415
     from automind.acquisition.parsing.legacy import read_pairs  # noqa: PLC0415
-    from automind.application import research as rs  # noqa: PLC0415
+    from automind.acquisition.pipeline import validate as rs  # noqa: PLC0415
 
     url = ref.final_url or ref.url
     try:
@@ -184,7 +184,7 @@ def read_page(
     if reading is None or reading.ambiguous:  # live: an ambiguous reading goes to the extractor instead
         return scoring.PageResult(ref.id, url, ref.variant_ids, 0, [])
     rows = [r for r in reading.rows if not attributes or r.attribute in attributes]
-    claims = [rs._ReaderClaim(r.attribute, r.raw_value, r.raw_unit, r.excerpt) for r in rows]  # noqa: SLF001
+    claims = [rs.ReaderClaim(r.attribute, r.raw_value, r.raw_unit, r.excerpt) for r in rows]
     d = WebDoc(url, "", "", False)
     accepted = _values(ref, claims, variants, d, rules, True)
     return scoring.PageResult(ref.id, url, ref.variant_ids, len(rows), accepted, _read(ref, claims, d))
@@ -193,12 +193,12 @@ def read_page(
 def _read(ref: SnapshotRef, claims: list[Any], d: WebDoc) -> list[scoring.Value]:
     """Every row as the reader read it, through the unit layer only (no sense or plausibility rule); a row the unit
     layer cannot read keeps its raw text, so it counts as wrong where gold exists."""
-    from automind.application import research as rs  # noqa: PLC0415
+    from automind.acquisition.pipeline import validate as rs  # noqa: PLC0415
 
     out = []
     for vid in ref.variant_ids or ("",):
         for c in claims:
-            status, num, txt, _ = rs._check(c, d, None, None, excerpt_checked=True)  # noqa: SLF001
+            status, num, txt, _ = rs.check(c, d, None, None, excerpt_checked=True)
             if status != "ACCEPTED":
                 num, txt = None, " ".join(x for x in (c.raw_value, c.unit) if x)
             out.append(scoring.Value(ref.id, d.url, vid, c.attribute, num, txt, specs.ATTRS[c.attribute].unit,

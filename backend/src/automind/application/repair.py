@@ -40,16 +40,16 @@ async def repair_claims(ref: Any) -> dict[str, int]:
             if c.attribute not in rs.specs.ATTRS and c.attribute != "consumption":
                 continue
             doc = WebDoc(e.url, d.title or "", d.text or "", bool(e.snippet_only))
-            claim, bad = rs._sense_before(  # noqa: SLF001 - the same rules as at research time
-                rs._ReaderClaim(c.attribute, c.raw_value, c.raw_unit, c.excerpt),
+            claim, bad = rs.sense_before(
+                rs.ReaderClaim(c.attribute, c.raw_value, c.raw_unit, c.excerpt),
                 v,
-                e.source_type,  # noqa: SLF001
+                e.source_type,
                 e.url,
             )
             if v.id not in known:  # pair checks (battery vs range, usable vs gross) need the car's other values
-                known[v.id] = await rs._known_values(v.id)  # noqa: SLF001
-            ctx = rs._plausibility_ctx(v, known[v.id])  # noqa: SLF001
-            status, num, txt, rule = bad or rs._check(claim, doc, ctx, ref.plausibility)  # noqa: SLF001
+                known[v.id] = await rs.known_values(v.id)
+            ctx = rs.plausibility_ctx(v, known[v.id])
+            status, num, txt, rule = bad or rs.check(claim, doc, ctx, ref.plausibility)
             wrong_market = not sense.market_fits(e.url, "price").ok
             if status == "ACCEPTED" and claim.attribute == "official_price_es" and wrong_market:
                 status, rule = "REJECTED_OTHER_MARKET", "sense.price.other_market"

@@ -52,11 +52,11 @@ async def recheck(
         rejected, kept = [], []
         judged: list[tuple[str, str, str, str | None, str | None, bool]] = []  # (domain, area, claim, excerpt, by, ok)
         claim_id = rows[0][0].id if rows else None  # spec 010 FR-006: the claim behind the shown value
-        ctx = rs._plausibility_ctx(v, {})  # noqa: SLF001 - the research-time rules
+        ctx = rs.plausibility_ctx(v, {})
         for c, e, d in rows:
-            claim = rs._ReaderClaim(c.attribute, c.raw_value, c.raw_unit, c.excerpt)  # noqa: SLF001
+            claim = rs.ReaderClaim(c.attribute, c.raw_value, c.raw_unit, c.excerpt)
             doc = WebDoc(e.url, d.title or "", d.text or "", bool(e.snippet_only))
-            status, _, _, rule = rs._check(claim, doc, ctx, ref.plausibility)  # noqa: SLF001
+            status, _, _, rule = rs.check(claim, doc, ctx, ref.plausibility)
             if status != "ACCEPTED":
                 c.status, c.reject_rule = status, rule or "challenge"
                 rejected.append({"source": e.domain, "value": c.raw_value, "why": status.lower()})
