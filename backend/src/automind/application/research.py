@@ -233,11 +233,16 @@ async def _record_learned(ports: Ports, area: str, pages: list[Page], accepted_b
 
 async def run_job(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
     token = current_job.set((job.job_id, job.area))
+    count = ports.metrics or (lambda *a, **k: None)  # spec 010: Prometheus counters through the port
     try:
-        return await (_run_market if job.area in research_plan.MARKET_AREAS else _run)(ports, job, emit)
+        result = await (_run_market if job.area in research_plan.MARKET_AREAS else _run)(ports, job, emit)
+        count("research_jobs", area=job.area, status="ok" if result.ok else "failed")
+        return result
     except BudgetExceeded:
+        count("research_jobs", area=job.area, status="budget")
         raise
     except Exception as e:  # one failing job never fails the turn (FR-023)
+        count("research_jobs", area=job.area, status="error")
         await emit("researching", f"{job.area}: failed ({type(e).__name__})")
         return JobResult(job.job_id, job.variant_id, job.area, job.round, ok=False, error=f"{type(e).__name__}: {e}")
     finally:

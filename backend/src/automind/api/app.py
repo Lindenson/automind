@@ -33,6 +33,7 @@ from automind.infrastructure.db.repositories import CaseRepo, ChatRepo, EventRep
 from automind.infrastructure.events import EventBus
 from automind.infrastructure.llm_gateway import new_budget
 from automind.infrastructure.retention import retention_loop
+from automind.insight.metrics.snapshot import metrics_loop
 from automind.orchestration import graph as hub
 from automind.orchestration.prompts import load_all as load_prompts
 from automind.orchestration.runner import ChatRunner
@@ -81,6 +82,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         )
         retention = asyncio.create_task(retention_loop())  # spec 003 FR-026; heartbeat "retention" (spec 010)
         stack.callback(retention.cancel)
+        metrics = asyncio.create_task(metrics_loop())  # spec 010 US9: Prometheus snapshot every minute
+        stack.callback(metrics.cancel)
         resumed = await app.state.runner.resume_incomplete()
         if resumed:
             print(f"resuming {len(resumed)} interrupted turn(s)")

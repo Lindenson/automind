@@ -27,6 +27,7 @@ import httpx
 
 from automind.application.ports import WebDoc
 from automind.domain.evidence import is_denied
+from automind.insight.metrics import prom
 
 log = logging.getLogger(__name__)
 
@@ -287,6 +288,8 @@ class Fetcher:
         kind = f"http_{status}" if status is not None else reason.split(" ")[0] if reason else "refused"
         by = self.refusals.setdefault(domain, {})
         by[kind] = by.get(kind, 0) + 1
+        prom.inc("fetch", outcome="robots" if "robots" in reason else "denied" if "deny" in reason else
+                 "error" if status is not None else "refused")  # fmt: skip
         log.info("fetch.refused domain=%s status=%s reason=%s", domain, status, reason,
                  extra={"event": "fetch.refused", "domain": domain, "status": status, "reason": reason})  # fmt: skip
         return FetchRefused(reason, transient=status is not None and _retryable_status(status))
@@ -391,6 +394,7 @@ class Fetcher:
             await self._check(current)
             result = await self._get_with_retries(current)
             if isinstance(result, RawPage):
+                prom.inc("fetch", outcome="ok")
                 return result
             current = result  # a redirect: the next hop is checked again
         raise self._refused(url, f"more than {self.policy.max_redirects} redirects")
