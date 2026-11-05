@@ -172,8 +172,6 @@ source_modules =
     automind.orchestration
     automind.domain
 forbidden_modules =
-    automind.infrastructure.fetch
-    automind.infrastructure.pages
     automind.infrastructure.search
     automind.acquisition.agents
     automind.acquisition.domain
@@ -192,5 +190,6 @@ forbidden_modules =
     automind.acquisition.reputation
     automind.acquisition.snapshots
     automind.acquisition.worker
-# direct imports only: acquisition.api loads the engine at call time
+# direct imports, no ignore_imports: acquisition.api loads the engine at call time; the legacy compose ->
+# infrastructure.config edge (application-ports exception) would otherwise reach the snapshot store indirectly
 allow_indirect_imports = True

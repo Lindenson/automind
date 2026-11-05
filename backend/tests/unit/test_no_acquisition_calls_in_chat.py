@@ -7,8 +7,7 @@ from pathlib import Path
 SRC = Path(__file__).resolve().parents[2] / "src" / "automind"
 CHAT = ("application", "orchestration")
 
-# Files still doing acquisition work while the strangler moves it into the engine. Only shrinks: every strangler
-# step removes the files it emptied; T051 leaves it empty.
+# Files still doing acquisition work while the strangler moved it into the engine: emptied by T051 (SC-004).
 ALLOWED_DURING_STRANGLER: set[str] = set()
 
 ROLES = {"extractor", "relevance", "validator", "lineup", "versions", "terms_reader"}
@@ -55,6 +54,10 @@ def test_the_chat_makes_no_acquisition_calls():
     found = _scan()
     new = {f: h for f, h in found.items() if f not in ALLOWED_DURING_STRANGLER}
     assert not new, f"acquisition calls in the chat (order data through acquisition.api instead): {new}"
+
+
+def test_the_strangler_is_finished():
+    assert not ALLOWED_DURING_STRANGLER
 
 
 def test_the_strangler_allow_list_only_names_files_that_still_need_it():
