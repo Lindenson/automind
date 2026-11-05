@@ -128,6 +128,7 @@ def _cap_out(c: CapabilityRow, rank: int | None, src: SourceRow | None) -> dict[
     return {
         "capability_id": c.id,
         "domain": c.domain,
+        "area": c.area,
         "market": c.market,
         "status": c.status,
         "rank": rank,
