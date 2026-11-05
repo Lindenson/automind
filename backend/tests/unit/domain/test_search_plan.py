@@ -18,10 +18,10 @@ FAV = [
         "markets": ["ANY"],
         "priority": 1,
     },
-    {"domain": "auto-data.net", "source_type": "SPEC_DATABASE", "areas": ["specs"], "markets": ["ANY"], "priority": 1},
+    {"domain": "cars-data.com", "source_type": "SPEC_DATABASE", "areas": ["specs"], "markets": ["ANY"], "priority": 1},
     {"domain": "fichasmotor.com", "source_type": "SPEC_DATABASE", "areas": ["specs"], "markets": ["ES"], "priority": 3},
     {"domain": "motor.es", "source_type": "PUBLICATION", "areas": ["specs"], "markets": ["ES"], "priority": 2},
-    {"domain": "parkers.co.uk", "source_type": "PUBLICATION", "areas": ["specs"], "markets": ["EN"], "priority": 2},
+    {"domain": "autoexpress.co.uk", "source_type": "PUBLICATION", "areas": ["specs"], "markets": ["EN"], "priority": 2},
     {
         "domain": "caranddriver.com",
         "source_type": "INSTRUMENTED_TEST",
@@ -48,20 +48,20 @@ def test_round0_groups_favourites_by_priority_and_market():
     assert all(isinstance(q, PlannedQuery) and q.kind == "FAVOURITE" for q in qs)
     # ES + ANY sites for specs, priority order, ≤ 4 per query
     first = qs[0]
-    assert first.sites == ("km77.com", "ultimatespecs.com", "auto-data.net", "motor.es")
+    assert first.sites == ("km77.com", "ultimatespecs.com", "cars-data.com", "motor.es")
     assert (
         first.text
-        == "BMW 5 Series G30 520d site:km77.com OR site:ultimatespecs.com OR site:auto-data.net OR site:motor.es"
+        == "BMW 5 Series G30 520d site:km77.com OR site:ultimatespecs.com OR site:cars-data.com OR site:motor.es"
     )
     assert qs[1].sites == ("fichasmotor.com",)
     assert {q.market for q in qs} == {"ES"}
-    assert "parkers.co.uk" not in {s for q in qs for s in q.sites}
+    assert "autoexpress.co.uk" not in {s for q in qs for s in q.sites}
 
 
 def test_market_any_matches_every_market_and_each_market_gets_its_queries():
     qs = _plan("specs", markets=("ES", "EN"))
     en = [q for q in qs if q.market == "EN"]
-    assert en and en[0].sites == ("parkers.co.uk",)  # ANY sites were already queried for ES
+    assert en and en[0].sites == ("autoexpress.co.uk",)  # ANY sites were already queried for ES
     # a site already queried for another market is not queried twice
     sites = [s for q in qs for s in q.sites]
     assert len(sites) == len(set(sites))

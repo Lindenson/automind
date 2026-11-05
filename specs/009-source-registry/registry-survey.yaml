@@ -1,0 +1,3328 @@
+- domain: alvolante.it
+  section: /listino_auto/, /listino_auto/usato/{marca}/{modello}/{anno}
+  country: IT
+  lang: it
+  kinds:
+  - new_price
+  - used_price
+  - owner_reviews
+  gives: New price list and used quotations by model year (dealer vs private range, e.g. RAV4 2022 '30.300–54.000 €').
+  sample_url: https://www.alvolante.it/listino_auto/usato/toyota/rav4/2022
+  robots: 'allowed (Crawl-delay: 10)'
+  tos: '''Sono vietate sia l''estrazione che il reimpiego della totalità o di una parte del contenuto del presente sito con qualsiasi mezzo''
+    (https://www.alvolante.it/condizioni_uso)'
+  limits: sui generis database right reserved (art. 102 l.d.a.).
+  classifieds: false
+  verdict: tos_forbids
+  checked: 2026-11-05
+  survey: south_eu
+- domain: auto-data.net
+  section: /en/<model>-model-<id>
+  country: BG/global
+  lang: en
+  kinds:
+  - specs
+  - consumption_real
+  gives: Specs per generation and engine for EU, JDM and CN models (WLTP/NEDC consumption, dimensions, weights).
+  sample_url: https://www.auto-data.net/en/toyota-rav4-model-1426
+  robots: allowed (User-agent * Allow /)
+  tos: '''Automated collection, extraction, copying or monitoring of content and data by means of bots, scripts, crawlers or other automated tools
+    is prohibited without prior written permission'' (https://www.auto-data.net/en/terms-of-use, re-checked 2026-11-05)'
+  limits: Static HTML (200). The guessed id 1426 resolves to a Lada, so the correct RAV4 id is needed.
+  classifieds: false
+  verdict: tos_forbids
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: auto-data.net
+  section: /en/
+  country: EU
+  lang: en
+  kinds:
+  - specs
+  gives: Spec database for all generations/versions.
+  sample_url: https://www.auto-data.net/en/volkswagen-golf-model-2001
+  robots: allowed
+  tos: '''Automated collection, extraction, copying or monitoring of content and data by means of bots, scripts, crawlers or other automated tools
+    is prohibited without prior written permission'' (https://www.auto-data.net/en/terms-of-use, re-checked 2026-11-05)'
+  limits: —
+  classifieds: false
+  verdict: tos_forbids
+  checked: 2026-11-05
+  survey: south_eu
+- domain: autobild.es
+  section: whole site
+  country: ES
+  lang: es
+  kinds:
+  - specs
+  - new_price
+  - measured
+  gives: Reviews and buyer guides (Henneo).
+  sample_url: https://www.autobild.es/coches/volkswagen/golf
+  robots: allowed
+  tos: '''la reproducción y utilización de los contenidos ... mediante técnicas de minería de textos y datos, web scraping, crawling u otros procedimientos
+    automatizados ... está expresamente reservada'' (https://www.autobild.es/estaticos/aviso-legal-condiciones-uso.html)'
+  limits: TDM opt-out under RDL 24/2021 art. 67.3.
+  classifieds: false
+  verdict: tos_forbids
+  checked: 2026-11-05
+  survey: south_eu
+- domain: autovisie.nl
+  section: ''
+  country: NL
+  lang: nl
+  kinds:
+  - measured
+  - owner_reviews
+  gives: Dutch car magazine tests
+  sample_url: https://www.autovisie.nl/
+  robots: allowed (robots.txt 200) but terms page 403 (DPG Media WAF)
+  tos: not readable (403); same publisher as AutoWeek whose ToS forbids robots
+  limits: WAF blocks our UA on pages
+  classifieds: false
+  verdict: tos_forbids
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: autoweek.nl
+  section: /autodatabase/
+  country: NL
+  lang: nl
+  kinds:
+  - specs
+  - new_price
+  - used_price
+  - owner_reviews
+  gives: Dutch autodatabase (specs, list prices per version), kenteken check, reviews
+  sample_url: https://www.autoweek.nl/autodatabase/merk/volkswagen/golf/
+  robots: allowed (but '*?*' disallowed — no query URLs)
+  tos: geen robots, spiders, toepassingen voor het doorzoeken van websites of andere middelen voor het zoeken of indexeren — https://www.autoweek.nl/gebruiksvoorwaarden/
+  limits: DPG Media; ToS forbids robots/spiders
+  classifieds: false
+  verdict: tos_forbids
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: carmagazine.co.uk
+  section: /car-reviews/
+  country: GB
+  lang: en
+  kinds:
+  - specs
+  - measured
+  - new_price
+  gives: CAR magazine reviews and specs.
+  sample_url: https://www.carmagazine.co.uk/car-reviews/volkswagen/vw-golf-15-tsi-evo-150-dsg-2017-review/
+  robots: allowed (/premium-content/ disallowed)
+  tos: '"The use of any automated system or software to extract Content ... (\"screen scraping\") ... is prohibited unless express written agreement"
+    — https://www.bauerlegal.co.uk/website-terms-of-use'
+  limits: Bauer Media; premium content
+  classifieds: false
+  verdict: tos_forbids
+  checked: 2026-11-05
+  survey: uk
+- domain: clickmechanic.com
+  section: repair prices
+  country: GB
+  lang: en
+  kinds:
+  - maintenance
+  gives: Instant repair/service price quotes per car and job.
+  sample_url: none fetched
+  robots: allowed (query-string filters disallowed)
+  tos: '"You must not use a bot or an automated program (including any crawling, scraping technique) to collect any pricing or other information"
+    — https://www.clickmechanic.com/terms'
+  limits: quote flow
+  classifieds: false
+  verdict: tos_forbids
+  checked: 2026-11-05
+  survey: uk
+- domain: coches.net
+  section: listings
+  country: ES
+  lang: es
+  kinds:
+  - used_price
+  gives: Used-car listings.
+  sample_url: https://www.coches.net/
+  robots: SEO listing pages 1–6 and /fichas_tecnicas/ allowed
+  tos: condiciones-de-uso clause j forbids robots, scraping and impersonation
+  limits: classifieds
+  classifieds: true
+  verdict: tos_forbids
+  checked: 2026-11-05
+  survey: south_eu
+- domain: drive.co.uk
+  section: /cars/<make>/<model>/review
+  country: GB
+  lang: en
+  kinds:
+  - specs
+  - new_price
+  - warranty
+  - maintenance
+  - measured
+  - used_price
+  gives: Heycar-owned site that now absorbs HonestJohn and BuyaCar; reviews with 0-62, warranty/servicing; used listings.
+  sample_url: https://drive.co.uk/cars/volkswagen/golf/review
+  robots: allowed for * (/auto/ PDPs and query strings disallowed; ClaudeBot disallowed)
+  tos: '"you are not allowed to: ''scrape'' content or store content of the Site on a server ... or create an electronic database by syste[matically]..."
+    — https://drive.co.uk/terms-conditions'
+  limits: HJ Real MPG and used-price guides no longer present; also sells used cars
+  classifieds: false
+  verdict: tos_forbids
+  checked: 2026-11-05
+  survey: uk
+- domain: drom.ru
+  section: /reviews/ (отзывы владельцев)
+  country: RU
+  lang: ru
+  kinds:
+  - owner_reviews
+  - consumption_real
+  - used_issues
+  - reliability
+  gives: Thousands of owner reviews per model (RAV4 has 821) with mileage, real consumption, faults and ratings.
+  sample_url: https://www.drom.ru/reviews/toyota/rav4/
+  robots: 'allowed. NOTE: robots.txt DOES have a ''User-Agent: *'' section; it blocks only query patterns, /my/, /search/ and similar paths. The
+    brief said there was none.'
+  tos:
+    quote: 6. Любое извлечение, сбор, переработка, копирование ... информации, представленной на данном портале ... строго запрещается без предварительного
+      письменного разрешения ООО «Амаяма Авто»
+    en: '[Any extraction, collection, processing or copying of information presented on this portal ... is strictly prohibited without prior written
+      permission of Amayama Avto LLC]'
+    url: https://www.drom.ru/about/reprint
+  limits: Encoded in windows-1251. Static HTML (the sample returned 200 and 67 KB). Russian-market trims.
+  classifieds: false
+  verdict: tos_forbids
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: drom.ru
+  section: /catalog/ (каталог)
+  country: RU
+  lang: ru
+  kinds:
+  - specs
+  gives: Generations, chassis codes and trims by market (JDM, RU), with full specs per trim.
+  sample_url: https://www.drom.ru/catalog/toyota/rav4/
+  robots: allowed
+  tos:
+    quote: Любое извлечение, сбор, переработка, копирование ... строго запрещается без предварительного письменного разрешения
+    en: '[Any extraction, collection, processing or copying ... is strictly prohibited without prior written permission]'
+    url: https://www.drom.ru/about/reprint
+  limits: windows-1251. Specs for the RU and JDM markets.
+  classifieds: false
+  verdict: tos_forbids
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: fleetnews.co.uk
+  section: /car-reviews/ and /car-running-costs-calculator
+  country: GB
+  lang: en
+  kinds:
+  - residual_value
+  - maintenance
+  - consumption_real
+  - specs
+  - new_price
+  gives: Fleet reviews with RV %, pence-per-mile running costs, real-world mpg; running-cost calculator.
+  sample_url: https://www.fleetnews.co.uk/car-reviews/vw-golf-ehybrid
+  robots: allowed
+  tos: 'Bauer terms: "The use of any automated system or software to extract Content ... is prohibited" — https://www.bauerlegal.co.uk/website-terms-of-use'
+  limits: Bauer Media; most valuable depreciation data in the region but contractually closed
+  classifieds: false
+  verdict: tos_forbids
+  checked: 2026-11-05
+  survey: uk
+- domain: greencarguide.co.uk
+  section: /car-reviews-and-road-tests/
+  country: GB
+  lang: en
+  kinds:
+  - consumption_real
+  - phev_ev_consumption
+  - specs
+  gives: EV/hybrid reviews with test-observed efficiency.
+  sample_url: https://www.greencarguide.co.uk/
+  robots: allowed (empty Disallow)
+  tos: '"scrape, crawl, harvest, spider, index or otherwise systematically extract content from the site ... except ... generally-available search
+    engines" — https://www.greencarguide.co.uk/terms/terms-and-conditions/'
+  limits: also forbids AI use explicitly
+  classifieds: false
+  verdict: tos_forbids
+  checked: 2026-11-05
+  survey: uk
+- domain: largus.fr
+  section: cote occasion
+  country: FR
+  lang: fr
+  kinds:
+  - used_price
+  - residual_value
+  - specs
+  - reliability
+  gives: La Cote L'argus used values by version/year/mileage.
+  sample_url: https://www.largus.fr/cote-voiture-occasion/volkswagen/golf.html
+  robots: allowed
+  tos: '''L''argus s''oppose à toutes opérations de moissonnage et de fouille de textes et de données au sens de l''article L.122-5-3 ... y compris
+    par des dispositifs de collecte automatisée'' (https://www.largus.fr/cgu)'
+  limits: Explicit TDM/automated-collection opposition covering the whole site; cote is also partly paid.
+  classifieds: false
+  verdict: tos_forbids
+  checked: 2026-11-05
+  survey: south_eu
+- domain: ncts.ie
+  section: /statistics/test-statistics-by-vehicle-manufacturer/
+  country: IE
+  lang: en
+  kinds:
+  - reliability
+  gives: Irish NCT pass/fail statistics by manufacturer, model and year of first registration.
+  sample_url: https://www.ncts.ie/statistics/test-statistics-by-vehicle-manufacturer/
+  robots: robots fetch error (404 = no robots)
+  tos: '"You agree not to copy, modify, ... scrape or harvest data, create derivative works from ... any information" — https://www.ncts.ie/legal/'
+  limits: published as yearly files; manual download/permission request may be acceptable
+  classifieds: false
+  verdict: tos_forbids
+  checked: 2026-11-05
+  survey: uk
+- domain: pistonheads.com
+  section: forums, reviews
+  country: GB
+  lang: en
+  kinds:
+  - owner_reviews
+  - used_issues
+  gives: Enthusiast forums and buying guides; mainly a classifieds site.
+  sample_url: none fetched
+  robots: allowed
+  tos: '"you may not ... ''scrape,'' data mine ... " — https://www.pistonheads.com/terms-and-conditions'
+  limits: mostly classifieds
+  classifieds: true
+  verdict: tos_forbids
+  checked: 2026-11-05
+  survey: uk
+- domain: speakev.com
+  section: forums
+  country: GB
+  lang: en
+  kinds:
+  - phev_ev_consumption
+  - owner_reviews
+  - used_issues
+  gives: Largest UK EV owners forum (real range, battery health, faults).
+  sample_url: none fetched
+  robots: allowed for * (ClaudeBot, anthropic-ai, ChatGPT-User etc. disallowed)
+  tos: '"Access, search, or collect data from the Web Site by any means (automated or otherwise, including web scraping ...)" — https://www.speakev.com/help/terms/'
+  limits: forum, unstructured
+  classifieds: false
+  verdict: tos_forbids
+  checked: 2026-11-05
+  survey: uk
+- domain: spritmonitor.de
+  section: /de/uebersicht/<make>/<model>.html
+  country: DE
+  lang: de/en
+  kinds:
+  - consumption_real
+  - phev_ev_consumption
+  gives: Largest crowd-sourced real fuel/kWh database (per model/engine, averages & distributions)
+  sample_url: https://www.spritmonitor.de/de/uebersicht/50-Volkswagen/1078-Golf.html
+  robots: 'allowed for * (Content-Signal: search=yes, ai-train=no, use=reference); ClaudeBot/anthropic-ai disallowed'
+  tos: Insbesondere sind das automatisierte Auslesen der Datenbank und Webseiten (durch z. B. Scraping) ... nur mit ... Zustimmung — https://www.spritmonitor.de/de/impressum.html#termsofuse
+  limits: Explicit ban on automated reading; would need written permission
+  classifieds: false
+  verdict: tos_forbids
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: tekniikanmaailma.fi
+  section: autot
+  country: FI
+  lang: fi
+  kinds:
+  - measured
+  - owner_reviews
+  gives: Finnish tech/car magazine tests (Otavamedia)
+  sample_url: https://tekniikanmaailma.fi/
+  robots: allowed
+  tos: Bottien, tiedonkeruuohjelmien, hakurobottien tai muiden automatisoitujen järjestelmien käyttö Verkkopalveluissa on kielletty ilman Otavamedian
+    etukäteistä kirjallista lupaa — https://otavamedia.fi/tilaus-ja-kayttoehdot/
+  limits: Bots banned without written permission; paywall
+  classifieds: false
+  verdict: tos_forbids
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: zapmap.com
+  section: EV guides (nextgreencar.com now redirects here)
+  country: GB
+  lang: en
+  kinds:
+  - phev_ev_consumption
+  - specs
+  gives: Charging map plus EV model guides; Next Green Car merged into Zapmap.
+  sample_url: none fetched
+  robots: allowed
+  tos: '"attempt or undertake any activity involving text or data mining, web scraping or the use of any bot, spider, scraper or automated device"
+    (6.5.3) — https://www.zapmap.com/terms-of-use'
+  limits: charging-focused; nextgreencar.com is gone
+  classifieds: false
+  verdict: tos_forbids
+  checked: 2026-11-05
+  survey: uk
+- domain: zr.ru
+  section: /cars/, /content/articles/ (tests, «Вопросы про качество», used guides)
+  country: RU
+  lang: ru
+  kinds:
+  - measured
+  - used_issues
+  - reliability
+  - maintenance
+  gives: 'За рулём: instrumented tests, long-term tests, used-car guides, ''Разборка недели'' teardown series.'
+  sample_url: https://www.zr.ru/cars/toyota/
+  robots: allowed (blocks /search, /print, /archive/ subpaths)
+  tos:
+    quote: 5.3.9. использовать без специального на то разрешения Администрации автоматизированные скрипты (программы) для сбора информации на
+      Сайте
+    en: '[(the user may not) use automated scripts (programs) to collect information on the Site without special permission of the Administration]'
+    url: https://www.zr.ru/legal-terms-of-use/
+  limits: /cars/toyota/rav4/ redirects to the brand page.
+  classifieds: false
+  verdict: tos_forbids
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: auto.drom.ru
+  section: /<city>/<make>/<model>/ (продажа)
+  country: RU
+  lang: ru
+  kinds:
+  - used_price
+  gives: Used-car listings (classifieds); not fetched.
+  sample_url: https://auto.drom.ru/toyota/rav4/
+  robots: fetched (200, 9 KB); listing pages not fetched by rule
+  tos:
+    quote: '...и/или из «Базы данных продажи транспортных средств на портале Drom.ru» ... строго запрещается'
+    en: '[... and/or from the ''Drom.ru vehicle sales database'' ... is strictly prohibited]'
+    url: https://www.drom.ru/about/reprint
+  limits: Classifieds; Russian prices are not applicable.
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: auto.ru
+  section: /cars/
+  country: RU
+  lang: ru
+  kinds:
+  - used_price
+  - new_price
+  gives: Yandex classifieds; not fetched.
+  sample_url: https://auto.ru/moskva/cars/toyota/rav_4/all/
+  robots: allowed for '*' (blocks only /history/, phone and chat paths, and some params)
+  tos: 'not read: yandex.ru/legal/autoru_terms_of_service returned 429 to our UA'
+  limits: Classifieds; RU prices.
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: autocasion.com
+  section: listings
+  country: ES
+  lang: es
+  kinds:
+  - used_price
+  gives: Used-car listings (Vocento).
+  sample_url: https://www.autocasion.com/
+  robots: robots.txt fetched (blocks specific bots)
+  tos: none found on https://www.autocasion.com/aviso-legal
+  limits: classifieds
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: south_eu
+- domain: automobile.it
+  section: listings
+  country: IT
+  lang: it
+  kinds:
+  - used_price
+  gives: Listings (Marktplaats/Adevinta).
+  sample_url: https://www.automobile.it/
+  robots: robots.txt fetched
+  tos: '''utilizzare qualsiasi robot, spider, scraper o altri strumenti automatici per accedere al Sito ... e raccogliere contenuti'' is forbidden
+    (https://www.automobile.it/policies/condizioni)'
+  limits: classifieds
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: south_eu
+- domain: autoscout24.ch
+  section: ''
+  country: CH
+  lang: de/fr/it
+  kinds:
+  - used_price
+  gives: Largest CH car classifieds
+  sample_url: https://www.autoscout24.ch/de/autos/vw--golf
+  robots: allowed
+  tos: AGB 403 to our UA
+  limits: classifieds; WAF on terms
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: autoscout24.de
+  section: ''
+  country: DE (also .at/.ch/.nl/.be)
+  lang: de
+  kinds:
+  - used_price
+  gives: Pan-EU classifieds
+  sample_url: https://www.autoscout24.de/lst/volkswagen/golf
+  robots: allowed for /lst/ ('/ergebnisse?' disallowed); ClaudeBot has its own group
+  tos: none fetched (AGB URL 404; .ch AGB 403)
+  limits: classifieds
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: autoscout24.it
+  section: listings
+  country: IT
+  lang: it
+  kinds:
+  - used_price
+  gives: Listings.
+  sample_url: https://www.autoscout24.it/
+  robots: robots.txt fetched
+  tos: no robots clause found in https://www.autoscout24.it/azienda/condizioni-generali/ (dealer contract)
+  limits: classifieds
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: south_eu
+- domain: autotrader.co.uk
+  section: all (also has reviews and owner reviews)
+  country: GB
+  lang: en
+  kinds:
+  - used_price
+  - owner_reviews
+  gives: Largest UK classifieds; valuation tool.
+  sample_url: none (classifieds)
+  robots: robots.txt 200; * group only disallows */owner-reviews/third-party-reviews*
+  tos: none found on automated access — https://www.autotrader.co.uk/terms-and-conditions/terms-of-use
+  limits: classifieds
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: uk
+- domain: autotrader.com
+  section: listings
+  country: US
+  lang: en
+  kinds:
+  - used_price
+  gives: US classifieds; not fetched.
+  sample_url: https://www.autotrader.com/
+  robots: fetched (200, 20 KB)
+  tos: not checked
+  limits: Classifieds.
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: avito.ru
+  section: /transport/avtomobili
+  country: RU
+  lang: ru
+  kinds:
+  - used_price
+  gives: General classifieds; not fetched.
+  sample_url: https://www.avito.ru/rossiya/avtomobili/toyota/rav4
+  robots: fetched (200, 15 KB)
+  tos: 'not read: /legal/rules/terms returned 403 to our UA'
+  limits: Classifieds; anti-bot (403 on the terms page).
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: bilbasen.dk
+  section: /brugt/bil/
+  country: DK
+  lang: da
+  kinds:
+  - used_price
+  gives: Largest DK car classifieds
+  sample_url: https://www.bilbasen.dk/brugt/bil/vw/golf
+  robots: allowed
+  tos: terms URL 404
+  limits: classifieds
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: blocket.se
+  section: /annonser/
+  country: SE
+  lang: sv
+  kinds:
+  - used_price
+  gives: Largest SE classifieds
+  sample_url: https://www.blocket.se/annonser/hela_sverige/fordon/bilar
+  robots: allowed
+  tos: Användning av automatiserade tjänster såsom robotar, spindlar, indexering eller liknande, samt andra metoder för systematisk användning
+    ... — https://www.blocket.se/villkor/villkor-privat/anvandarvillkor
+  limits: classifieds; ToS bans robots
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: bytbil.com
+  section: ''
+  country: SE
+  lang: sv
+  kinds:
+  - used_price
+  gives: SE dealer car classifieds (Blocket group)
+  sample_url: https://www.bytbil.com/
+  robots: allowed
+  tos: not checked
+  limits: classifieds
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: cargurus.com
+  section: listings
+  country: US
+  lang: en
+  kinds:
+  - used_price
+  gives: US classifieds and price analysis; not fetched.
+  sample_url: https://www.cargurus.com/
+  robots: fetch error (406, empty)
+  tos: not checked
+  limits: Classifieds; anti-bot.
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: cars.com
+  section: listings
+  country: US
+  lang: en
+  kinds:
+  - used_price
+  - new_price
+  gives: US classifieds; not fetched.
+  sample_url: https://www.cars.com/
+  robots: fetch error (403)
+  tos: not checked
+  limits: Classifieds; anti-bot.
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: cars.ie
+  section: all
+  country: IE
+  lang: en
+  kinds:
+  - used_price
+  gives: Irish car classifieds.
+  sample_url: none (classifieds)
+  robots: robots.txt 200
+  tos: none found
+  limits: classifieds; EUR
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: uk
+- domain: carsensor.net
+  section: /usedcar/
+  country: JP
+  lang: ja
+  kinds:
+  - used_price
+  gives: Japanese used-car classifieds; not fetched.
+  sample_url: https://www.carsensor.net/usedcar/
+  robots: fetched (200)
+  tos: not checked
+  limits: Classifieds.
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: carsireland.ie
+  section: all
+  country: IE
+  lang: en
+  kinds:
+  - used_price
+  gives: Irish dealer classifieds.
+  sample_url: none (classifieds)
+  robots: robots.txt 200
+  tos: none found
+  limits: classifieds; EUR
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: uk
+- domain: carzone.ie
+  section: all
+  country: IE
+  lang: en
+  kinds:
+  - used_price
+  - specs
+  gives: Irish car classifieds with some reviews.
+  sample_url: none (classifieds)
+  robots: robots.txt 200
+  tos: '"use any robot, spider, scraper or automated tool to access the Website without our prior written permission" (prohibited) — https://www.carzone.ie/terms-and-conditions'
+  limits: classifieds; EUR
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: uk
+- domain: cazoo.co.uk
+  section: all
+  country: GB
+  lang: en
+  kinds:
+  - used_price
+  gives: Used-car marketplace.
+  sample_url: none (classifieds)
+  robots: robots fetch error (429)
+  tos: not checked
+  limits: classifieds
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: uk
+- domain: che168.com
+  section: listings
+  country: CN
+  lang: zh
+  kinds:
+  - used_price
+  gives: Autohome used-car classifieds; not fetched.
+  sample_url: https://www.che168.com/
+  robots: fetch error (robots.txt returned an obfuscated JS cookie challenge)
+  tos: not checked
+  limits: Classifieds; JS anti-bot.
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: cinch.co.uk
+  section: all
+  country: GB
+  lang: en
+  kinds:
+  - used_price
+  gives: Online used-car retailer.
+  sample_url: none (classifieds)
+  robots: robots.txt 200
+  tos: none found on automated access — https://www.cinch.co.uk/policies/terms-and-conditions
+  limits: classifieds-like retailer
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: uk
+- domain: dba.dk
+  section: ''
+  country: DK
+  lang: da
+  kinds:
+  - used_price
+  gives: DK general classifieds
+  sample_url: https://www.dba.dk/
+  robots: allowed
+  tos: not checked
+  limits: classifieds
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: donedeal.ie
+  section: /cars
+  country: IE
+  lang: en
+  kinds:
+  - used_price
+  gives: Largest Irish classifieds.
+  sample_url: none (classifieds)
+  robots: robots.txt 200
+  tos: none found
+  limits: classifieds; EUR
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: uk
+- domain: encar.com
+  section: /dc/ listings
+  country: KR
+  lang: ko
+  kinds:
+  - used_price
+  gives: Korean used-car classifieds; not fetched.
+  sample_url: https://www.encar.com/
+  robots: fetched; disallows /cars/, /catalog/ and listing endpoints
+  tos: not checked
+  limits: Classifieds.
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: es.wallapop.com
+  section: listings
+  country: ES
+  lang: es
+  kinds:
+  - used_price
+  gives: C2C listings.
+  sample_url: https://es.wallapop.com/
+  robots: robots.txt fetched (www redirects to es.)
+  tos: '''no se permite (i) el uso de herramientas o robots de búsqueda, ni (ii) la extracción de datos'' (https://about.wallapop.com/condiciones-de-uso/)'
+  limits: classifieds
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: south_eu
+- domain: finn.no
+  section: /car/
+  country: false
+  lang: false
+  kinds:
+  - used_price
+  gives: Largest NO classifieds
+  sample_url: https://www.finn.no/car/used/search.html
+  robots: allowed for *; ClaudeBot and anthropic-ai have dedicated groups
+  tos: terms URL 404
+  limits: classifieds
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: flexicar.es
+  section: listings
+  country: ES
+  lang: es
+  kinds:
+  - used_price
+  gives: Dealer used-car stock.
+  sample_url: https://www.flexicar.es/
+  robots: robots.txt fetched (/api/, /search/ disallowed)
+  tos: none found (https://www.flexicar.es/aviso-legal/)
+  limits: classifieds
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: south_eu
+- domain: gaspedaal.nl
+  section: ''
+  country: NL
+  lang: nl
+  kinds:
+  - used_price
+  gives: NL car classifieds aggregator (DPG Media)
+  sample_url: https://www.gaspedaal.nl/
+  robots: fetch error (403, DPG Media WAF)
+  tos: not readable
+  limits: classifieds; WAF
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: guazi.com
+  section: /car-detail/
+  country: CN
+  lang: zh
+  kinds:
+  - used_price
+  gives: Used-car classifieds; not fetched.
+  sample_url: https://www.guazi.com/
+  robots: allowed for '*' except '?' queries; explicitly allows ClaudeBot and GPTBot; offers llms.txt and .md listings
+  tos: not checked
+  limits: Classifieds; CN prices are not applicable.
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: gumtree.com
+  section: /cars
+  country: GB
+  lang: en
+  kinds:
+  - used_price
+  gives: General classifieds.
+  sample_url: none (classifieds)
+  robots: robots.txt 200
+  tos: none found
+  limits: classifieds
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: uk
+- domain: kvd.se
+  section: ''
+  country: SE
+  lang: sv
+  kinds:
+  - used_price
+  - used_issues
+  gives: SE car auctions with condition reports and hammer prices
+  sample_url: https://www.kvd.se/
+  robots: allowed
+  tos: not quoted (villkor page fetched, no crawl clause matched)
+  limits: auction/classifieds
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: lacentrale.fr
+  section: listings, cote
+  country: FR
+  lang: fr
+  kinds:
+  - used_price
+  gives: Listings and La Centrale cote.
+  sample_url: https://www.lacentrale.fr/
+  robots: robots.txt fetched
+  tos: CGU page returned 403 to our UA
+  limits: classifieds
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: south_eu
+- domain: leboncoin.fr
+  section: listings
+  country: FR
+  lang: fr
+  kinds:
+  - used_price
+  gives: C2C listings.
+  sample_url: https://www.leboncoin.fr/
+  robots: 'header: ''It''s forbidden to use search robots or other automatic methods to access Leboncoin.fr.'''
+  tos: robots.txt states access only with special permission
+  limits: classifieds
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: south_eu
+- domain: marktplaats.nl
+  section: /l/auto-s/
+  country: NL
+  lang: nl
+  kinds:
+  - used_price
+  gives: NL general classifieds
+  sample_url: https://www.marktplaats.nl/l/auto-s/volkswagen/
+  robots: allowed
+  tos: terms URL redirected to homepage; none found
+  limits: classifieds
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: milanuncios.com
+  section: listings
+  country: ES
+  lang: es
+  kinds:
+  - used_price
+  gives: C2C listings (Adevinta).
+  sample_url: https://www.milanuncios.com/
+  robots: robots.txt fetched
+  tos: terms page returned 403
+  limits: classifieds
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: south_eu
+- domain: mobile.de
+  section: ''
+  country: DE
+  lang: de
+  kinds:
+  - used_price
+  gives: Largest DE classifieds
+  sample_url: https://www.mobile.de/
+  robots: allowed for listing paths ('*' blocks /api/ etc.)
+  tos: AGB returned 403 to our UA (bot wall)
+  limits: classifieds; WAF
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: motors.co.uk
+  section: all
+  country: GB
+  lang: en
+  kinds:
+  - used_price
+  gives: Used-car classifieds.
+  sample_url: none (classifieds)
+  robots: robots.txt 200
+  tos: none found
+  limits: classifieds
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: uk
+- domain: motorway.co.uk
+  section: all
+  country: GB
+  lang: en
+  kinds:
+  - used_price
+  gives: Sell-your-car dealer auction with valuation flow.
+  sample_url: none (classifieds-like)
+  robots: robots.txt 200 (/api/ and sale flow disallowed)
+  tos: '"use an automated program (including ... web-crawling or screen-scraping software ...) to view or access the Platform" (prohibited) —
+    https://motorway.co.uk/terms'
+  limits: valuation needs registration plate
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: uk
+- domain: nettiauto.com
+  section: ''
+  country: FI
+  lang: fi
+  kinds:
+  - used_price
+  gives: Largest FI car classifieds
+  sample_url: https://www.nettiauto.com/
+  robots: fetch error (403 WAF)
+  tos: not readable
+  limits: classifieds; WAF
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: olx.pt
+  section: listings
+  country: PT
+  lang: pt
+  kinds:
+  - used_price
+  gives: C2C listings.
+  sample_url: https://www.olx.pt/
+  robots: robots.txt fetched
+  tos: terms URL not found
+  limits: classifieds
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: south_eu
+- domain: standvirtual.com
+  section: listings
+  country: PT
+  lang: pt
+  kinds:
+  - used_price
+  gives: Listings (OLX group).
+  sample_url: https://www.standvirtual.com/
+  robots: robots.txt fetched
+  tos: terms URL not found
+  limits: classifieds
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: south_eu
+- domain: subito.it
+  section: listings
+  country: IT
+  lang: it
+  kinds:
+  - used_price
+  gives: C2C listings.
+  sample_url: https://www.subito.it/
+  robots: fetch error (HTTP 403 Access Denied on robots.txt)
+  tos: not readable
+  limits: classifieds; edge-blocked
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: south_eu
+- domain: webuyanycar.com
+  section: all
+  country: GB
+  lang: en
+  kinds:
+  - used_price
+  gives: Instant trade-in valuation by registration.
+  sample_url: none (classifieds-like)
+  robots: robots.txt 200; /valuation/* and /vehicle/* disallowed
+  tos: '"use any automated software, process, program, robot, web crawler, spider, data mining ... ''screen scraping''" (prohibited) — https://www.webuyanycar.com/terms-and-conditions/'
+  limits: valuation path disallowed
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: uk
+- domain: willhaben.at
+  section: /iad/gebrauchtwagen/
+  country: AT
+  lang: de
+  kinds:
+  - used_price
+  gives: Largest AT classifieds
+  sample_url: https://www.willhaben.at/iad/gebrauchtwagen/auto/gebrauchtwagenboerse
+  robots: allowed (query filters disallowed)
+  tos: 'Nutzungsvorbehalt gem. § 42h Abs 6 UrhG: ... für Text- und Data Mining ... für die Zwecke der Anlernung bzw. des Trainings von KI-Modellen
+    — https://www.willhaben.at/iad/agb'
+  limits: classifieds; TDM reserved
+  classifieds: true
+  verdict: classifieds
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: 5koleso.ru
+  section: /*/Otzivi-vladeltsev/ and /catalogue/
+  country: RU
+  lang: ru
+  kinds:
+  - owner_reviews
+  - specs
+  - measured
+  gives: Пятое колесо magazine. Its owner-review and catalogue sections are the valuable parts, and both are disallowed.
+  sample_url: https://www.5koleso.ru/catalogue/
+  robots: 'disallowed (Disallow: /*/Otzivi-vladeltsev/, Disallow: /catalogue/)'
+  tos: none checked
+  limits: Articles and tests are allowed but low value.
+  classifieds: false
+  verdict: blocked_robots
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: autocar.co.uk
+  section: all
+  country: GB
+  lang: en
+  kinds:
+  - measured
+  - specs
+  - new_price
+  gives: Road tests with instrumented figures (not reachable).
+  sample_url: none
+  robots: robots fetch error (202 with empty body — WAF challenge)
+  tos: not checked
+  limits: bot challenge on every request
+  classifieds: false
+  verdict: blocked_robots
+  checked: 2026-11-05
+  survey: uk
+- domain: autostat.ru
+  section: /residualvalue/
+  country: RU
+  lang: ru
+  kinds:
+  - residual_value
+  gives: Russian residual-value index and market statistics.
+  sample_url: https://www.autostat.ru/residualvalue/
+  robots: disallowed (only /residualvalue/$ itself is allowed; every subpage is disallowed)
+  tos: none checked
+  limits: Russian market only, so the data is not applicable to Spain anyway.
+  classifieds: false
+  verdict: blocked_robots
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: carfueldata.vehicle-certification-agency.gov.uk
+  section: all (vcacarfueldata.org.uk no longer answers)
+  country: GB
+  lang: en
+  kinds:
+  - specs
+  gives: VCA official type-approval fuel/CO2 data.
+  sample_url: none
+  robots: disallowed (User-agent * Disallow /)
+  tos: not checked
+  limits: official WLTP only
+  classifieds: false
+  verdict: blocked_robots
+  checked: 2026-11-05
+  survey: uk
+- domain: check-mot.service.gov.uk
+  section: /
+  country: GB
+  lang: en
+  kinds:
+  - reliability
+  gives: MOT history web lookup by registration.
+  sample_url: https://www.check-mot.service.gov.uk/
+  robots: robots fetch error (404 page); content returns 403 Incapsula block to our UA (check.mot.service.gov.uk is NXDOMAIN)
+  tos: OGL (GOV.UK)
+  limits: blocked web UI; use the MOT history API instead
+  classifieds: false
+  verdict: blocked_robots
+  checked: 2026-11-05
+  survey: uk
+- domain: diariomotor.com
+  section: /catalogo/
+  country: ES
+  lang: es
+  kinds:
+  - specs
+  - new_price
+  gives: New-car catalogue with prices/specs.
+  sample_url: https://www.diariomotor.com/catalogo/volkswagen/golf/
+  robots: disallowed by /catalogo/ (news/reviews paths allowed)
+  tos: none found (https://www.diariomotor.com/aviso-legal/)
+  limits: Catalogue blocked; only editorial reviews readable.
+  classifieds: false
+  verdict: blocked_robots
+  checked: 2026-11-05
+  survey: south_eu
+- domain: it.motor1.com
+  section: /reviews/
+  country: IT
+  lang: it
+  kinds:
+  - specs
+  - measured
+  gives: Reviews (Motorsport Network).
+  sample_url: https://it.motor1.com/reviews/
+  robots: allowed by robots.txt, but HTTP 403 to our UA (also terms page)
+  tos: unreadable (403)
+  limits: Bot-UA blocked; fr.motor1.com robots similar.
+  classifieds: false
+  verdict: blocked_robots
+  checked: 2026-11-05
+  survey: south_eu
+- domain: parkers.co.uk
+  section: /<make>/<model>/<body>-<year>/ (used-prices, specs, mpg)
+  country: GB
+  lang: en
+  kinds:
+  - used_price
+  - new_price
+  - specs
+  - residual_value
+  - consumption_real
+  - owner_reviews
+  gives: Used valuations and full specs by version (previously used).
+  sample_url: https://www.parkers.co.uk/volkswagen/golf/hatchback-2020/
+  robots: allowed for * — but server returns 403 "Access denied" (Bauer/CloudFront) to our UA
+  tos: 'Bauer: "The use of any automated system or software to extract Content ... is prohibited" — https://www.bauerlegal.co.uk/website-terms-of-use'
+  limits: now actively blocks our UA; terms also forbid
+  classifieds: false
+  verdict: blocked_robots
+  checked: 2026-11-05
+  survey: uk
+- domain: quattroruote.it
+  section: /listino/, /auto-usate/quotazioni/
+  country: IT
+  lang: it
+  kinds:
+  - new_price
+  - used_price
+  - specs
+  - measured
+  gives: Listino and Quattroruote used quotations.
+  sample_url: https://www.quattroruote.it/auto-usate/quotazioni/volkswagen/golf
+  robots: allowed by robots.txt, but every page (incl. terms) returns HTTP 403 to our UA
+  tos: unreadable (403)
+  limits: Bot-UA blocked at edge; do not bypass.
+  classifieds: false
+  verdict: blocked_robots
+  checked: 2026-11-05
+  survey: south_eu
+- domain: schwacke.de
+  section: ''
+  country: DE
+  lang: de
+  kinds:
+  - used_price
+  - residual_value
+  gives: Schwacke used values / residuals (B2B)
+  sample_url: https://www.schwacke.de/
+  robots: fetch error (403 WAF on robots.txt)
+  tos: not checked (blocked)
+  limits: B2B paid product; bot wall
+  classifieds: false
+  verdict: blocked_robots
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: topgear.com
+  section: all
+  country: GB
+  lang: en
+  kinds:
+  - specs
+  - measured
+  - new_price
+  gives: Reviews (not reachable).
+  sample_url: none
+  robots: robots fetch error (403, Akamai Access Denied)
+  tos: not checked (site blocks our UA)
+  limits: blocked at edge
+  classifieds: false
+  verdict: blocked_robots
+  checked: 2026-11-05
+  survey: uk
+- domain: whatcar.com
+  section: all
+  country: GB
+  lang: en
+  kinds:
+  - reliability
+  - used_price
+  - new_price
+  - specs
+  - consumption_real
+  gives: Reliability survey, True MPG, valuations (not reachable).
+  sample_url: none
+  robots: robots fetch error (403, CloudFront "Request blocked")
+  tos: not checked (site blocks our UA)
+  limits: blocked at edge
+  classifieds: false
+  verdict: blocked_robots
+  checked: 2026-11-05
+  survey: uk
+- domain: cap-hpi.com
+  section: all
+  country: GB
+  lang: en
+  kinds:
+  - used_price
+  - residual_value
+  gives: Trade valuation and RV forecasting (B2B products).
+  sample_url: none (no consumer valuation pages)
+  robots: allowed (Crawl-delay 10)
+  tos: '"Create any database in electronic or structured manual form by systematically downloading or storing any of the Content." (prohibited)
+    — https://www.cap-hpi.com/terms/'
+  limits: paid B2B data; terms forbid systematic download
+  classifieds: false
+  verdict: paywall
+  checked: 2026-11-05
+  survey: uk
+- domain: cartell.ie
+  section: /car_check/
+  country: IE
+  lang: en
+  kinds:
+  - reliability
+  gives: Paid Irish vehicle history checks.
+  sample_url: none
+  robots: allowed
+  tos: not checked
+  limits: paid per check
+  classifieds: false
+  verdict: paywall
+  checked: 2026-11-05
+  survey: uk
+- domain: consumerreports.org
+  section: /cars/<make>/<model>/
+  country: US
+  lang: en
+  kinds:
+  - reliability
+  - measured
+  - owner_reviews
+  gives: Predicted reliability and road tests (already used in the project).
+  sample_url: https://www.consumerreports.org/cars/toyota/rav4/
+  robots: allowed for * (blocks /data/*, /search*); GPTBot and CCBot fully blocked
+  tos: not checked
+  limits: Ratings are behind a paywall and login.
+  classifieds: false
+  verdict: paywall
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: dataforce.de
+  section: data products
+  country: EU
+  lang: en
+  kinds:
+  - residual_value
+  - new_price
+  gives: Commercial registration/RV data.
+  sample_url: https://www.dataforce.de/
+  robots: allowed
+  tos: n/a
+  limits: B2B licence.
+  classifieds: false
+  verdict: paywall
+  checked: 2026-11-05
+  survey: south_eu
+- domain: eurotax.es
+  section: valoraciones (Autovista / J.D. Power)
+  country: ES
+  lang: es
+  kinds:
+  - used_price
+  - residual_value
+  gives: Eurotax/Autovista trade valuations.
+  sample_url: https://www.eurotax.es/
+  robots: fetch error (redirects to https://www.jdpower.com/business, HTTP 403)
+  tos: n/a
+  limits: Domain now redirects to J.D. Power business site; B2B licence only.
+  classifieds: false
+  verdict: paywall
+  checked: 2026-11-05
+  survey: south_eu
+- domain: ganvam.es
+  section: valoraciones VO
+  country: ES
+  lang: es
+  kinds:
+  - used_price
+  gives: Ganvam used-car values are offered via a mobile app ('aplicación Ganvam valores VO'), not a public web page.
+  sample_url: https://ganvam.es/servicios/aplicacion-ganvam-valores-vo-dispositivos-moviles/
+  robots: allowed
+  tos: none found (https://ganvam.es/aviso-legal/)
+  limits: No public web tasación (/tasacion-vehiculos/ 404); app-only, likely paid.
+  classifieds: false
+  verdict: paywall
+  checked: 2026-11-05
+  survey: south_eu
+- domain: jato.com
+  section: data products
+  country: EU
+  lang: en
+  kinds:
+  - new_price
+  - specs
+  - residual_value
+  gives: Commercial specs/price/registration data.
+  sample_url: https://www.jato.com/
+  robots: allowed
+  tos: n/a
+  limits: B2B licence.
+  classifieds: false
+  verdict: paywall
+  checked: 2026-11-05
+  survey: south_eu
+- domain: ocu.org
+  section: /coches/ (fiabilidad, pruebas)
+  country: ES
+  lang: es
+  kinds:
+  - reliability
+  - owner_reviews
+  - measured
+  gives: Reliability survey by brand/model and car tests (Euroconsumers).
+  sample_url: https://www.ocu.org/coches/coches/calculadora/fiabilidad-coches
+  robots: allowed
+  tos: '''Los usuarios reconocen que la reproducción, modificación, distribución ... de cualquier otro medio para obtener...'' (https://www.ocu.org/info/aviso-legal)'
+  limits: Sample redirected to /coches/coches landing; model results behind membership.
+  classifieds: false
+  verdict: paywall
+  checked: 2026-11-05
+  survey: south_eu
+- domain: quechoisir.org
+  section: comparatif voitures, fiabilité
+  country: FR
+  lang: fr
+  kinds:
+  - reliability
+  - measured
+  gives: UFC-Que Choisir car tests and reliability survey.
+  sample_url: https://www.quechoisir.org/comparatif-voiture-n4/
+  robots: allowed
+  tos: not found (mentions URL redirected to an article)
+  limits: Results for members; guessed URL 404.
+  classifieds: false
+  verdict: paywall
+  checked: 2026-11-05
+  survey: south_eu
+- domain: test.de
+  section: Auto tests (Stiftung Warentest)
+  country: DE
+  lang: de
+  kinds:
+  - measured
+  - maintenance
+  gives: Stiftung Warentest car-related tests (with ADAC), tyres, insurance
+  sample_url: https://www.test.de/
+  robots: allowed for * (anthropic-ai and many AI bots disallowed)
+  tos: none found in fetched pages
+  limits: Paywall on test results
+  classifieds: false
+  verdict: paywall
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: vibilagare.se
+  section: tests, Bilregistret-like owner reports
+  country: SE
+  lang: sv
+  kinds:
+  - measured
+  - owner_reviews
+  - used_issues
+  - consumption_real
+  gives: Swedish consumer car magazine; tests, real consumption, used-car fault reports
+  sample_url: https://www.vibilagare.se/test
+  robots: allowed
+  tos: none found
+  limits: Guessed listing path 404; much content paywalled for subscribers
+  classifieds: false
+  verdict: paywall
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: which.co.uk
+  section: /reviews/new-and-used-cars
+  country: GB
+  lang: en
+  kinds:
+  - reliability
+  - owner_reviews
+  - consumption_real
+  - specs
+  gives: Which? car survey reliability by model/year and own-lab mpg tests.
+  sample_url: https://www.which.co.uk/reviews/new-and-used-cars
+  robots: allowed for * (Claude-* agents disallowed from some pages)
+  tos: none found (https://www.which.co.uk/help/terms-and-conditions-a7w0U9p3Udzr renders via JS)
+  limits: model-level reliability and test data are member-only
+  classifieds: false
+  verdict: paywall
+  checked: 2026-11-05
+  survey: uk
+- domain: autoevolution.com
+  section: /<make>/<model>/ (specs)
+  country: RO/global
+  lang: en
+  kinds:
+  - specs
+  gives: Spec sheets per generation and engine, including EU engines.
+  sample_url: https://www.autoevolution.com/toyota/rav4/
+  robots: allowed (blocks only utility scripts)
+  tos: not checked
+  limits: Cloudflare JS challenge (403). Not bypassed.
+  classifieds: false
+  verdict: js_only
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: automobile-catalog.com
+  section: /make/<make>/<model>.html
+  country: global
+  lang: en
+  kinds:
+  - specs
+  - measured
+  gives: Very detailed specs, with calculated performance and consumption.
+  sample_url: https://www.automobile-catalog.com/make/toyota/rav4.html
+  robots: allowed; Content-Signal ai-train=no, use=reference
+  tos: not checked
+  limits: Cloudflare JS challenge (403). Not bypassed.
+  classifieds: false
+  verdict: js_only
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: car.autohome.com.cn
+  section: /config/series/<id>.html (参数配置)
+  country: CN
+  lang: zh
+  kinds:
+  - specs
+  - new_price
+  gives: Full spec and equipment table per trim, with CN MSRP.
+  sample_url: https://car.autohome.com.cn/config/series/770.html
+  robots: allowed (blocks only /zhaoche/advanced* and /price/list-* patterns)
+  tos:
+    quote: 不得为商业目的而复制、出售、转售或利用本服务的任何部分
+    en: '[must not copy, sell, resell or exploit any part of the service for commercial purposes]'
+    url: https://www.autohome.com.cn/about/falv.html
+  limits: 'The page returns 98 KB, but the table is built by JS: no spec values (e.g. 油耗) appear in the HTML text. Autohome is known for obfuscated
+    config fonts. Chinese-spec only.'
+  classifieds: false
+  verdict: js_only
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: car.yiche.com
+  section: /<series>/
+  country: CN
+  lang: zh
+  kinds:
+  - specs
+  - new_price
+  - owner_reviews
+  gives: 易车 (Bitauto) specs, prices and reviews.
+  sample_url: https://car.yiche.com/rav4rongfang/
+  robots: fetch error (robots.txt answered with a Tencent captcha page); www.yiche.com robots allows '*'
+  tos: not reachable
+  limits: TencentCaptcha anti-bot on every car.yiche.com path.
+  classifieds: false
+  verdict: js_only
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: carfolio.com
+  section: specs
+  country: global
+  lang: en
+  kinds:
+  - specs
+  gives: Historical spec database.
+  sample_url: https://www.carfolio.com/
+  robots: fetch error (403 on robots.txt)
+  tos: not reachable
+  limits: Anti-bot 403.
+  classifieds: false
+  verdict: js_only
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: dongchedi.com
+  section: /auto/series/<id> (tests, winter range, real consumption)
+  country: CN
+  lang: zh
+  kinds:
+  - measured
+  - phev_ev_consumption
+  - consumption_real
+  - specs
+  - owner_reviews
+  gives: 懂车帝 instrumented tests, including winter EV/PHEV range, plus specs and owner scores.
+  sample_url: https://www.dongchedi.com/auto/series/535
+  robots: allowed (robots.txt is empty, 0 bytes)
+  tos: 'not readable: /user_agreement returned an empty 200 body'
+  limits: Every page, including the sample and the terms, returns an empty 200 body to a non-browser UA. Content needs JS or a browser UA, which
+    we do not fake.
+  classifieds: false
+  verdict: js_only
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: drive2.ru
+  section: /r/<make>/<model>/ (бортжурналы)
+  country: RU
+  lang: ru
+  kinds:
+  - owner_reviews
+  - consumption_real
+  - used_issues
+  - maintenance
+  gives: Owner logbooks with repairs, real consumption and mileage.
+  sample_url: https://www.drive2.ru/r/toyota/rav4/
+  robots: fetch error (403 on robots.txt for our UA)
+  tos: not reachable
+  limits: Anti-bot 403 before any content.
+  classifieds: false
+  verdict: js_only
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: ec.europa.eu
+  section: /safety-gate-alerts/
+  country: EU
+  lang: en
+  kinds:
+  - recalls
+  gives: EU Safety Gate (RAPEX) alerts incl. motor vehicle recalls.
+  sample_url: https://ec.europa.eu/safety-gate-alerts/screen/webReport
+  robots: allowed
+  tos: EC reuse policy (not fetched)
+  limits: Page is a JS app (72 chars of text without JS); weekly report export may exist.
+  classifieds: false
+  verdict: js_only
+  checked: 2026-11-05
+  survey: south_eu
+- domain: fuelly.com
+  section: /car/<make>/<model>
+  country: US
+  lang: en
+  kinds:
+  - consumption_real
+  gives: Owner fill-up logs and real MPG per model and year.
+  sample_url: https://www.fuelly.com/car/toyota/rav4
+  robots: allowed (User-Agent * Allow /)
+  tos: not checked
+  limits: Cloudflare 'Just a moment' JS challenge (403) on content pages. Not bypassed.
+  classifieds: false
+  verdict: js_only
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: ofv.no
+  section: /bilsalget (OFV registration stats)
+  country: false
+  lang: false
+  kinds:
+  - specs
+  gives: Monthly new-car registration stats by make/model (Norway)
+  sample_url: https://ofv.no/bilsalget
+  robots: allowed (/api/ disallowed)
+  tos: none found
+  limits: Guessed path 404 (JS app, page body ~empty); market stats only
+  classifieds: false
+  verdict: js_only
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: repairpal.com
+  section: /reliability, /estimator
+  country: US
+  lang: en
+  kinds:
+  - maintenance
+  - reliability
+  gives: Repair-cost estimates and reliability ratings.
+  sample_url: https://repairpal.com/toyota/rav4
+  robots: fetch error (403 on robots.txt and the home page)
+  tos: not reachable
+  limits: Anti-bot 403. US labour rates.
+  classifieds: false
+  verdict: js_only
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: truedelta.com
+  section: /<Model>/problems-<id>
+  country: US
+  lang: en
+  kinds:
+  - reliability
+  - used_issues
+  gives: Owner-panel repair-frequency statistics.
+  sample_url: https://www.truedelta.com/Toyota-RAV4/problems-1022
+  robots: 'allowed; Content-Signal: search=yes, ai-train=no, use=reference'
+  tos: not checked
+  limits: Cloudflare JS challenge (403). Not bypassed.
+  classifieds: false
+  verdict: js_only
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: buyacar.co.uk
+  section: all
+  country: GB
+  lang: en
+  kinds:
+  - new_price
+  - used_price
+  gives: Nothing now — 301 to drive.co.uk.
+  sample_url: https://www.buyacar.co.uk/
+  robots: allowed
+  tos: see drive.co.uk
+  limits: merged into drive.co.uk
+  classifieds: false
+  verdict: dead
+  checked: 2026-11-05
+  survey: uk
+- domain: coches.idae.es
+  section: base de datos consumo
+  country: ES
+  lang: es
+  kinds:
+  - consumption_real
+  - phev_ev_consumption
+  - specs
+  gives: IDAE guide of official consumption/CO2 per new model.
+  sample_url: https://coches.idae.es/base-datos/marca-y-modelo
+  robots: fetch error (HTTP 500 on robots.txt; www.idae.es also 500)
+  tos: not reachable
+  limits: Server errors at check time; EEA/ADEME datasets cover the same WLTP data.
+  classifieds: false
+  verdict: dead
+  checked: 2026-11-05
+  survey: south_eu
+- domain: e-nenpi.com
+  section: model pages (owner fuel logs)
+  country: JP
+  lang: ja
+  kinds:
+  - consumption_real
+  - phev_ev_consumption
+  gives: Japanese owners' real fuel economy (very good for Toyota/Honda/Mazda hybrids).
+  sample_url: https://e-nenpi.com/
+  robots: 'fetch error: robots.txt returns a maintenance page'
+  tos: not reachable
+  limits: 'Site suspended: ''セキュリティ対策の強化を実施…サービス再開は11/9（月）を予定'' [security hardening after unauthorized-access incidents; service expected to resume
+    9 Nov]. Recheck after 2026-11-09.'
+  classifieds: false
+  verdict: dead
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: glass.co.uk
+  section: all
+  country: GB
+  lang: en
+  kinds:
+  - used_price
+  - residual_value
+  gives: Glass's guide now redirects to J.D. Power business site (403).
+  sample_url: none
+  robots: robots fetch error (redirect to jdpower.com/business, 403)
+  tos: none found
+  limits: B2B only
+  classifieds: false
+  verdict: dead
+  checked: 2026-11-05
+  survey: uk
+- domain: goo-net.com
+  section: /catalog/ (specs)
+  country: JP
+  lang: ja
+  kinds:
+  - specs
+  gives: JDM catalogue specs (goo-net also runs classifieds).
+  sample_url: https://www.goo-net.com/catalog/TOYOTA/RAV4/
+  robots: fetch error (connection timeout over both https and http)
+  tos: not reachable
+  limits: Unreachable from this network, possibly geo-blocked.
+  classifieds: false
+  verdict: dead
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: honestjohn.co.uk
+  section: all (Real MPG, used prices, Good/Bad, car-by-car)
+  country: GB
+  lang: en
+  kinds:
+  - consumption_real
+  - used_price
+  - used_issues
+  - owner_reviews
+  gives: Nothing now — every path 301s to https://drive.co.uk/?from=hj.
+  sample_url: https://www.honestjohn.co.uk/realmpg/
+  robots: allowed (robots.txt still served)
+  tos: see drive.co.uk
+  limits: Real MPG dataset no longer public
+  classifieds: false
+  verdict: dead
+  checked: 2026-11-05
+  survey: uk
+- domain: reliabilityindex.com
+  section: all
+  country: GB
+  lang: en
+  kinds:
+  - reliability
+  gives: Former Warranty Direct reliability index; host resolves but does not answer.
+  sample_url: none
+  robots: robots fetch error (connection failed)
+  tos: none found
+  limits: warrantydirect.co.uk now only sells warranties
+  classifieds: false
+  verdict: dead
+  checked: 2026-11-05
+  survey: uk
+- domain: samr.gov.cn
+  section: 缺陷产品召回 (recall announcements); dpac.samr.gov.cn recall DB
+  country: CN
+  lang: zh
+  kinds:
+  - recalls
+  gives: Official Chinese recall notices from SAMR.
+  sample_url: https://www.samr.gov.cn/
+  robots: 'no robots.txt (404) = allowed; dpac.samr.gov.cn: fetch error (DNS failure)'
+  tos: none found
+  limits: Covers CN-built vehicles only. The recall DB host could not be resolved from here. NHTSA/EU recalls are more relevant.
+  classifieds: false
+  verdict: dead
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: 12365auto.com
+  section: /zlts/ (complaints), /series/<id>/, 投诉销量比 (complaints-to-sales ratio)
+  country: CN
+  lang: zh
+  kinds:
+  - reliability
+  - used_issues
+  - recalls
+  gives: '车质网: per-model complaint list with fault codes (e.g. M313), complaint rankings, complaints-to-sales ratio and recall news. Static HTML
+    tables.'
+  sample_url: https://www.12365auto.com/zlts/
+  robots: allowed (blocks /user/, /server/, /searchindex, /wap/ and similar)
+  tos:
+    quote: 任何媒体、网站或其他任何形式的法律实体和个人未经车质网书面授权，不得出于商业目的复制、转载、摘编、修改、链接、镜像
+    en: '[No media, site, entity or individual may, without written authorisation, copy, repost, excerpt, modify, link or mirror for commercial
+      purposes]'
+    url: https://www.12365auto.com/copyright.shtml
+  limits: Chinese-market models and faults (many apply to shared Toyota/Honda/Nissan hybrid platforms). Fault codes need a code legend. Non-commercial
+    use only.
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: aci.gov.it (ex aci.it)
+  section: /servizio/costi-chilometrici-di-esercizio/
+  country: IT
+  lang: it
+  kinds:
+  - maintenance
+  - consumption_real
+  - residual_value
+  gives: 'Official ACI per-km running cost per model (fuel, maintenance, tyres, insurance, depreciation); tables published yearly in Gazzetta
+    Ufficiale (2026: GU n.297, 23-12-2025).'
+  sample_url: https://aci.gov.it/servizio/costi-chilometrici-di-esercizio/
+  robots: allowed (aci.it 'Disallow:' empty; aci.gov.it robots 404 = no rules)
+  tos: not found (aci.it/note-legali 404)
+  limits: Web page is a calculator launcher; bulk tables are PDF/XLS (Agenzia Entrate / GU). Italian cost basis.
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: south_eu
+- domain: acp.pt
+  section: veículos / testes
+  country: PT
+  lang: pt
+  kinds:
+  - measured
+  - maintenance
+  gives: Automóvel Club de Portugal tests and motoring advice.
+  sample_url: https://www.acp.pt/veiculos/testes-e-ensaios
+  robots: allowed (/*.pdf$ disallowed)
+  tos: '''A reprodução, transferência ... ou armazenamento dos conteúdos do ACP, pelo utilizador, para quaisquer fins não estritamente pessoais''
+    is forbidden (https://www.acp.pt/termos-e-condicoes)'
+  limits: Guessed URL 404; personal-use only; PDFs disallowed.
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: south_eu
+- domain: adac.de
+  section: /rund-ums-fahrzeug/autokatalog/ (+ /autokosten/, /tests/ecotest/, adac-pannenstatistik)
+  country: DE
+  lang: de
+  kinds:
+  - specs
+  - new_price
+  - maintenance
+  - residual_value
+  - reliability
+  - measured
+  - consumption_real
+  - phev_ev_consumption
+  - recalls
+  gives: Autokatalog specs+prices per variant, Autokosten (monthly running cost incl. Wertverlust), Ecotest measured consumption, Pannenstatistik
+    breakdowns per model/year, EV Autobahn range tests
+  sample_url: https://www.adac.de/rund-ums-fahrzeug/autokatalog/marken-modelle/vw/golf/
+  robots: allowed
+  tos: none found on automated access (Impressum only restricts logo/brand use)
+  limits: sample_verified (server-rendered, ~800 words on model page; variant data in sub-pages). German-market spec/prices
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: alternative-fuels-observatory.ec.europa.eu
+  section: vehicle models
+  country: EU
+  lang: en
+  kinds:
+  - phev_ev_consumption
+  - specs
+  gives: EU EAFO list of EV models with battery, kWh/100 km, range.
+  sample_url: https://alternative-fuels-observatory.ec.europa.eu/transport-mode/road/european-union-eu27/vehicle-models
+  robots: allowed
+  tos: EU Commission reuse policy (not fetched)
+  limits: Guessed path 404; data appears sourced from EV Database.
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: south_eu
+- domain: anfac.com
+  section: /estadisticas/
+  country: ES
+  lang: es
+  kinds:
+  - residual_value
+  gives: Registration statistics by brand/model (popularity proxy).
+  sample_url: https://anfac.com/estadisticas/
+  robots: allowed
+  tos: none found (https://anfac.com/aviso-legal/)
+  limits: Market volumes only; low value for a buyer.
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: south_eu
+- domain: anwb.nl
+  section: /auto/autokosten, /auto/autotests, /auto/informatie
+  country: NL
+  lang: nl
+  kinds:
+  - maintenance
+  - residual_value
+  - measured
+  - specs
+  - new_price
+  - consumption_real
+  gives: Autokosten per model (afschrijving, onderhoud, brandstof per maand), autotests, model info
+  sample_url: https://www.anwb.nl/auto/autokosten
+  robots: allowed
+  tos: none found on automated access (checked /over-anwb/copyright, /service-en-contact/voorwaarden)
+  limits: sample_verified (landing). Cost calculator likely interactive/JS; NL tax (BPM/MRB) specific
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: api.iihs.org
+  section: IIHS-HLDI API (ratings)
+  country: US
+  lang: en
+  kinds:
+  - safety
+  - reliability
+  gives: IIHS crash ratings and HLDI insurance-loss data via an official API.
+  sample_url: https://api.iihs.org/
+  robots: 'api.iihs.org robots is ''Disallow: /'' for *; www.iihs.org robots answered 406 (fetch error)'
+  tos:
+    quote: Access to the IIHS-HLDI API is subject to approval and requires that your intended use is consistent with the display requirements
+    en: '[as written]'
+    url: https://api.iihs.org/
+  limits: Needs registration and approval, with display requirements. US crash tests.
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: api.nhtsa.gov
+  section: /recalls/recallsByVehicle, /complaints/complaintsByVehicle, /SafetyRatings/
+  country: US
+  lang: en
+  kinds:
+  - recalls
+  - used_issues
+  - reliability
+  - safety
+  gives: 'Open JSON API: recalls, owner complaints and NCAP star ratings per make/model/year. Tested: the RAV4 2022 recall call returned 200 JSON.'
+  sample_url: https://api.nhtsa.gov/recalls/recallsByVehicle?make=toyota&model=rav4&modelYear=2022
+  robots: fetch error (robots.txt 403 from Akamai); the API itself answers 200 to our UA
+  tos: 'Licence: US federal government data, public domain, no key needed. The terms page www.nhtsa.gov returned 403 to our UA.'
+  limits: US-market model names and years. EU twins (RAV4, CR-V, Tucson) share most recalls and complaints.
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: auto-motor-und-sport.de
+  section: /marken-modelle/, tests, Dauertest
+  country: DE
+  lang: de
+  kinds:
+  - measured
+  - specs
+  - consumption_real
+  - owner_reviews
+  gives: Instrumented tests (Testverbrauch, braking), Dauertests, specs
+  sample_url: https://www.auto-motor-und-sport.de/marken-modelle/vw/golf/
+  robots: allowed
+  tos: behält sich eine Nutzung ihrer Inhalte für kommerzielles Text- und Data-Mining im Sinne von § 44b UrhG ausdrücklich vor — https://www.auto-motor-und-sport.de/impressum/
+  limits: ANB allow private non-commercial use only; TDM reserved; some tests paywalled (ams+)
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: autobild.de
+  section: /marken-modelle/, TÜV-Report & Dauertest articles
+  country: DE
+  lang: de
+  kinds:
+  - measured
+  - specs
+  - reliability
+  - used_issues
+  - owner_reviews
+  gives: Tests, Dauertests (100,000 km), full TÜV-Report per-model tables, Gebrauchtwagen-Checks
+  sample_url: https://www.autobild.de/marken-modelle/vw/golf/
+  robots: allowed
+  tos: Alle Rechte vorbehalten (einschließlich Nutzungen für Text und Data Mining gemäß §44b UrhG) — https://www.autobild.de/impressum/
+  limits: TDM reserved → on-demand single-page reads for the user only, no corpus building; AutoBild+ paywall on many tests
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: autoexpress.co.uk
+  section: /<make>/<model>
+  country: GB
+  lang: en
+  kinds:
+  - specs
+  - new_price
+  - owner_reviews
+  - reliability
+  - recalls
+  - safety
+  - maintenance
+  - warranty
+  - residual_value
+  - measured
+  gives: Model review hubs with UK prices, mpg/0-62, Driver Power owner-satisfaction/reliability results, recalls news, depreciation notes.
+  sample_url: https://www.autoexpress.co.uk/volkswagen/golf
+  robots: allowed
+  tos: none found (carwow group terms https://www.carwowgroup.com/policies/website-terms-and-conditions/ have no automated-access clause)
+  limits: GBP prices, UK spec; very heavy pages (~1.2 MB); now part of carwow group
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: uk
+- domain: automobile-magazine.fr
+  section: essais, fiches techniques
+  country: FR
+  lang: fr
+  kinds:
+  - specs
+  - measured
+  gives: Road tests and specs (Webedia).
+  sample_url: https://www.automobile-magazine.fr/voitures-neuves/volkswagen/golf
+  robots: allowed
+  tos: none found (https://www.automobile-magazine.fr/services/mentions-legales.htm)
+  limits: Guessed sample 404; paywall paths present.
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: south_eu
+- domain: autopista.es
+  section: /coches/{marca}/{modelo} (redirects to datos.autopista.es)
+  country: ES
+  lang: es
+  kinds:
+  - new_price
+  - specs
+  gives: Price per version (e.g. 'Volkswagen Golf desde 31.655€', each version with CV and price).
+  sample_url: https://www.autopista.es/coches/volkswagen/golf
+  robots: 'allowed (Crawl-delay: 5)'
+  tos: none found (https://www.autopista.es/aviso-legal has no automated-access clause)
+  limits: Crawl-delay 5 s; redirect host datos.autopista.es; some Premium content.
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: south_eu
+- domain: autoplenum.de
+  section: /auto/<make>/<model>
+  country: DE
+  lang: de
+  kinds:
+  - specs
+  - maintenance
+  - owner_reviews
+  gives: Specs and running-cost data (credits ADAC as data source) plus owner reviews
+  sample_url: https://www.autoplenum.de/auto/vw/golf
+  robots: 'allowed (note: ''/de'' prefix disallowed for *)'
+  tos: none found on automated access (Impressum)
+  limits: Re-publishes ADAC data — prefer ADAC primary
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: autoplus.fr
+  section: /fiche-technique/
+  country: FR
+  lang: fr
+  kinds:
+  - specs
+  - measured
+  - reliability
+  gives: Tech sheets, tests, reliability articles.
+  sample_url: https://www.autoplus.fr/fiche-technique/volkswagen/golf
+  robots: allowed (Crawl-delay 2; /fiche-technique? disallowed)
+  tos: none found (https://www.autoplus.fr/mentions-legales)
+  limits: Sample redirected to /marque/golf (news hub); much content is premium.
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: south_eu
+- domain: autoreview.ru
+  section: /articles/ (tests, «Б/у» used guides)
+  country: RU
+  lang: ru
+  kinds:
+  - measured
+  - used_issues
+  - reliability
+  gives: Авторевю instrumented tests (acceleration, braking, real consumption) and detailed used-car guides.
+  sample_url: https://autoreview.ru/
+  robots: allowed (Crawl-delay 2; blocks only /profile, /subscribe, /register, /js, /css, /files)
+  tos:
+    quote: загружать (скачивать) с Сайта материалы ... только для личного использования ... не допускается копирование, распространение ... без
+      получения письменного разрешения
+    en: '[materials may be downloaded only for personal use; copying or distribution is not allowed without written permission]'
+    url: https://autoreview.ru/rules
+  limits: No automated-access clause found; personal use only. A /subscribe/ section exists, so full tests may be paywalled (not verified). The
+    model URL I guessed (/articles/toyota) gave a 404, so a sample model page is still needed.
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: autorevue.at
+  section: tests
+  country: AT
+  lang: de
+  kinds:
+  - measured
+  - owner_reviews
+  gives: Austrian car magazine tests (VGN)
+  sample_url: https://www.autorevue.at/test
+  robots: allowed
+  tos: Sämtliche Inhalte dürfen ausschließlich zur persönlichen Information und zum privaten Gebrauch verwendet werden — https://www.autorevue.at/impressum
+  limits: Private-use only; modest data
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: autozeitung.de
+  section: tests, Gebrauchtwagen
+  country: DE
+  lang: de
+  kinds:
+  - measured
+  - specs
+  - used_issues
+  gives: Tests and used-car buying guides with typical faults
+  sample_url: https://www.autozeitung.de/vw-golf-test-12345.html
+  robots: allowed
+  tos: none found on automated access (/nutzungsbedingungen)
+  limits: Sample URL pattern only (not fetched); ad-heavy
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: boe.es
+  section: /diario_boe/txt.php?id=BOE-A-2025-26357 (Orden HAC/1501/2025, precios medios 2026)
+  country: ES
+  lang: es
+  kinds:
+  - used_price
+  - new_price
+  - residual_value
+  gives: Official Hacienda average value of every model/version (ITP/ISD/IEDMT) plus depreciation % table by years of use; full annex inline as
+    HTML tables (~75k rows, 42 MB).
+  sample_url: https://www.boe.es/diario_boe/txt.php?id=BOE-A-2025-26357
+  robots: allowed
+  tos: 'none checked; BOE is an official journal, public-sector reuse (Ley 37/2007). Note: 2026 order is HAC/1501/2025 (BOE 23-12-2025), not an
+    HFP order.'
+  limits: Fiscal valuation (new-price basis x age %), not market price; yearly; huge page — fetch once and cache/parse; PDF also at /boe/dias/2025/12/23/pdfs/BOE-A-2025-26357.pdf.
+    Sample fetched 200, contains 'GOLF 1.4 TSI' rows.
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: south_eu
+- domain: car-recalls.eu
+  section: /common-problems/{brand}/{model}, EU/KBA recalls
+  country: EU
+  lang: en
+  kinds:
+  - recalls
+  - used_issues
+  - reliability
+  gives: EU Safety Gate and German KBA recalls per model plus common-problem summaries.
+  sample_url: https://car-recalls.eu/toyota/rav4/
+  robots: allowed
+  tos: not checked
+  limits: Private aggregator; sample redirected to /common-problems/toyota/rav4/ (200).
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: south_eu
+- domain: car-recalls.eu
+  section: /common-problems/<make>/ and recall posts
+  country: EU
+  lang: en
+  kinds:
+  - recalls
+  - used_issues
+  gives: Aggregated European recalls (Safety Gate etc.) by make/model and a common-problems section.
+  sample_url: https://car-recalls.eu/common-problems/volkswagen/
+  robots: allowed for * (ClaudeBot, CCBot, Amazonbot explicitly disallowed)
+  tos: none found
+  limits: aggregator, data quality unknown; AI crawlers explicitly unwelcome in robots — be conservative
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: uk
+- domain: caradisiac.com
+  section: /avis--modele--*, fiche fiabilité, maxi-fiche occasion
+  country: FR
+  lang: fr
+  kinds:
+  - owner_reviews
+  - reliability
+  - used_issues
+  - specs
+  - measured
+  gives: Owner reviews per generation, reliability sheets and 'maxi-fiche occasion' used-buying guides.
+  sample_url: https://www.caradisiac.com/avis--modele--toyota-rav-4-5e-generation/aab04943cf8da7ddd87bb08dbf22bc6c/
+  robots: allowed for * (the /modele--*, /fiches-techniques/* blocks apply only to Googlebot-news)
+  tos: none found (mentions-légales URLs return 410)
+  limits: Review page body largely JS-rendered ('Votre navigateur ne supporte pas le code JavaScript'); maxi-fiche articles are server-rendered.
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: south_eu
+- domain: carbuyer.co.uk
+  section: /<make>/<model>
+  country: GB
+  lang: en
+  kinds:
+  - new_price
+  - specs
+  - reliability
+  - owner_reviews
+  - consumption_real
+  gives: Buyer-oriented reviews with running costs, reliability (Driver Power) and UK prices.
+  sample_url: https://www.carbuyer.co.uk/volkswagen/golf
+  robots: allowed (GPTBot/Google-Extended disallowed, not *)
+  tos: none found (carwow group website terms)
+  limits: GBP; overlaps heavily with autoexpress content
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: uk
+- domain: carcomplaints.com
+  section: /<Make>/<Model>/<Year>/
+  country: US
+  lang: en
+  kinds:
+  - reliability
+  - used_issues
+  - recalls
+  gives: Owner complaints grouped by model year and problem category ('worst model year', costs and mileage at failure).
+  sample_url: https://www.carcomplaints.com/Toyota/RAV4/
+  robots: allowed (* blocks only /3644031/, /classifieds/ and /cgi-bin/s2.pl)
+  tos:
+    quote: All content displayed on the Site is the property of Autobeef. All information and content is protected by U.S. and international copyright
+      laws.
+    en: '[as written; no automated-access clause found]'
+    url: https://www.carcomplaints.com/termsofuse.shtml
+  limits: US model years. The sample returned 200 but only 8 KB; detail may be thin or lazy-loaded.
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: carlabelling.ademe.fr
+  section: /recherche
+  country: FR
+  lang: fr
+  kinds:
+  - consumption_real
+  - phev_ev_consumption
+  gives: Web UI over the same ADEME data, CO2 rankings by segment.
+  sample_url: https://carlabelling.ademe.fr/recherche
+  robots: allowed (/admin only)
+  tos: public data (ADEME)
+  limits: Prefer the CSV.
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: south_eu
+- domain: carwow.co.uk
+  section: /<make>/<model>
+  country: GB
+  lang: en
+  kinds:
+  - new_price
+  - specs
+  - reliability
+  - warranty
+  - owner_reviews
+  - consumption_real
+  gives: Model reviews with UK list/discount prices, specs, reliability notes, warranty, owner ratings.
+  sample_url: https://www.carwow.co.uk/volkswagen/golf
+  robots: allowed (only /car-chooser/ and /leasey/* disallowed)
+  tos: '"You may print off one copy, and may download extracts, of any page(s) from our sites for your personal use" — https://www.carwow.co.uk/terms-and-conditions'
+  limits: GBP prices; marketplace for new-car deals (not classifieds); personal-use licence
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: uk
+- domain: carwow.es
+  section: /{marca}/{modelo}
+  country: ES
+  lang: es
+  kinds:
+  - new_price
+  - specs
+  - owner_reviews
+  gives: Model pages with price range, versions, expert score.
+  sample_url: https://www.carwow.es/volkswagen/golf
+  robots: allowed (/configura-tu-coche/ disallowed)
+  tos: none found (https://www.carwow.es/terminos-condiciones, /aviso-legal)
+  limits: Prices are dealer-offer driven. Sample 200.
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: south_eu
+- domain: check-vehicle-recalls.service.gov.uk
+  section: /
+  country: GB
+  lang: en
+  kinds:
+  - recalls
+  gives: DVSA official recall lookup by make/model/year (and VIN), with defect and remedy.
+  sample_url: https://www.check-vehicle-recalls.service.gov.uk/recall-type
+  robots: robots fetch error (404 = no robots, allowed)
+  tos: Open Government Licence via GOV.UK terms — https://www.gov.uk/help/terms-conditions
+  limits: form-based multi-step flow; UK-market recalls only
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: uk
+- domain: dat.de
+  section: /report/ (DAT-Report), DAT Marktspiegel, "Was ist der VW Golf noch wert?"
+  country: DE
+  lang: de
+  kinds:
+  - used_price
+  - residual_value
+  gives: DAT-Report market study, Marktspiegel; per-model value pages ("Was ist der VW Golf noch wert?"); actual valuation tool is gated
+  sample_url: https://www.dat.de/report/
+  robots: allowed (but /valuateNG and /fileadmin/ResidualValue disallowed)
+  tos: none found (/unternehmen/rechtliches/, /unternehmen/impressum/)
+  limits: sample_verified. Precise used values behind paid/disallowed tools; free pages give model-level guidance only
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: data.ademe.fr / www.data.gouv.fr
+  section: dataset ademe-car-labelling
+  country: FR
+  lang: fr
+  kinds:
+  - consumption_real
+  - phev_ev_consumption
+  - specs
+  - new_price
+  gives: 'OPEN DATASET: every new car sold in France — WLTP consumption, CO2, electric range/kWh, Euro norm, bonus-malus, annual fuel cost; quarterly
+    CSV (~1.1 MB).'
+  sample_url: https://data.ademe.fr/data-fair/api/v1/datasets/ademe-car-labelling/raw
+  robots: allowed
+  tos: Licence Ouverte / Etalab 2.0 (API reports license 'lov2'); 'Les contenus proposés par l'Éditeur sont sous Licence Ouverte' (https://www.data.gouv.fr/pages/legal/cgu)
+  limits: Current offer only (history in dataset 53ba4c07a3a729219b7bead3); type-approval, not real-world.
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: south_eu
+- domain: data.gov.uk
+  section: /dataset/c63fca52-ae4c-4b75-bab5-8b4735e1a4c9/anonymised-mot-tests-and-results
+  country: GB
+  lang: en
+  kinds:
+  - reliability
+  - used_issues
+  gives: Bulk anonymised MOT results and failure items with make/model/first-use date/mileage since 2005 — compute fail rates per model and age.
+  sample_url: https://www.data.gov.uk/dataset/c63fca52-ae4c-4b75-bab5-8b4735e1a4c9/anonymised-mot-tests-and-results
+  robots: allowed (only /v1 disallowed)
+  tos: Open Government Licence ("Most content on GOV.UK is subject to Crown copyright ... published under the Open Government Licence") — https://www.gov.uk/help/terms-conditions
+  limits: very large ZIP downloads, yearly; needs offline aggregation; UK fleet
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: uk
+- domain: datos.gob.es
+  section: /es/catalogo (vehículos, ITV, matriculaciones)
+  country: ES
+  lang: es
+  kinds:
+  - reliability
+  - consumption_real
+  gives: National open-data catalogue (DGT microdata, regional ITV results).
+  sample_url: https://datos.gob.es/es/catalogo?q=vehiculos
+  robots: allowed
+  tos: 'Open reuse: ''La reutilización autorizada incluye ... la copia, difusión, modificación, adaptación, extracción, reordenación'' (https://datos.gob.es/es/aviso-legal)'
+  limits: Search page returned a 212-byte stub (JS); use CKAN API /apidata. ITV failure rates by model are not consistently published.
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: south_eu
+- domain: dekra.de
+  section: /de/gebrauchtwagenreport/
+  country: DE
+  lang: de
+  kinds:
+  - reliability
+  - used_issues
+  gives: DEKRA Gebrauchtwagenreport — defect rates per model by mileage band, typical faults
+  sample_url: https://www.dekra.de/de/gebrauchtwagenreport/
+  robots: allowed
+  tos: Vervielfältigung ... ist ohne schriftliche Genehmigung von DEKRA ausdrücklich untersagt (reproduction) — https://www.dekra.de/de/impressum/
+    (no crawl clause)
+  limits: Report detail partly in PDF; reproduction restricted (summarise, don't copy)
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: dgt.es
+  section: /menusecundario/dgt-en-cifras/ (microdatos matriculaciones, parque, ITV)
+  country: ES
+  lang: es
+  kinds:
+  - reliability
+  - used_issues
+  gives: 'DGT en cifras: monthly registration/transfer/scrappage microdata files and fleet dashboards; ITV inspection data via datos.gob.es.'
+  sample_url: https://www.dgt.es/menusecundario/dgt-en-cifras/
+  robots: allowed
+  tos: none found (aviso legal page 404; sede.dgt.gob.es/es/aviso-legal/ has no clause)
+  limits: Bulk files, not per-model answers; no recall database (Spanish recalls are not published by DGT per model). Sample 200.
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: south_eu
+- domain: documentation.history.mot.api.gov.uk
+  section: MOT history API (DVSA)
+  country: GB
+  lang: en
+  kinds:
+  - reliability
+  - used_issues
+  gives: Official per-vehicle MOT history (results, mileage, failure/advisory items) by registration, GB + NI.
+  sample_url: https://documentation.history.mot.api.gov.uk/
+  robots: robots fetch error (404 = no robots, allowed)
+  tos: '"All content is available under the Open Government Licence v3.0"; quota 500000 requests/day — https://documentation.history.mot.api.gov.uk/mot-history-api/rate-limits/'
+  limits: free API key registration required; keyed by registration plate, not model; use instead of the check-mot web UI
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: uk
+- domain: eea.europa.eu
+  section: datahub — CO2 emissions from new passenger cars (Regulation 2019/631)
+  country: EU
+  lang: en
+  kinds:
+  - specs
+  - consumption_real
+  - phev_ev_consumption
+  gives: 'OPEN DATASET: every car registered in the EU — make, model, type-approval, mass, power, WLTP CO2, fuel, electric range, kWh/100 km (2000–2024
+    provisional, CSV/XLSX).'
+  sample_url: https://www.eea.europa.eu/en/datahub/datahubitem-view/fa8b1229-3db6-495d-b18e-9c9b3267c02b
+  robots: allowed
+  tos: EEA reuse free with acknowledgement (https://www.eea.europa.eu/en/legal-notice); datasets CC BY 4.0
+  limits: Very large; datahub UI JS; use direct CSV/Discodata. Sample item id not verified.
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: south_eu
+- domain: euroncap.com
+  section: /en/results/
+  country: BE (EU body, Leuven)
+  lang: en
+  kinds:
+  - safety
+  gives: Euro NCAP star ratings and protection percentages per model
+  sample_url: https://www.euroncap.com/en/results/vw/golf/
+  robots: allowed
+  tos: none found (legal page 404)
+  limits: Guessed sample path 404 — real URLs are /en/results/<make>/<model>/<id>; /api/ disallowed
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: euroncap.com
+  section: /en/results/{make}/{model}/{id}
+  country: EU
+  lang: en
+  kinds:
+  - safety
+  gives: Star rating, % scores per area, datasheets PDF, rescue sheets link.
+  sample_url: https://www.euroncap.com/en/results/vw/golf/37845
+  robots: allowed (/api/, /*?id=* disallowed)
+  tos: none found (legal URLs 404)
+  limits: Guessed ID 404; IDs must be found via sitemap.xml.
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: south_eu
+- domain: euroncap.com
+  section: /assessments/<make>/<model>/<id>/
+  country: EU (BE)
+  lang: en
+  kinds:
+  - safety
+  - measured
+  gives: Official star rating, occupant/child/VRU/ADAS scores, test protocol results (AEB braking).
+  sample_url: https://www.euroncap.com/assessments/volkswagen/golf/0805/
+  robots: allowed (/api/ and /*?id=* disallowed)
+  tos: '"Reproduction is not authorised for commercial purposes. Prior permission from Euro NCAP must be obtained for the reproduction" — https://www.euroncap.com/terms-conditions/'
+  limits: pages ~1.3 MB; reproduction needs permission (quote rating, link out)
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: uk
+- domain: ev-database.org
+  section: /car/<id>/<name>
+  country: NL
+  lang: en/de/nl
+  kinds:
+  - phev_ev_consumption
+  - specs
+  - new_price
+  gives: Real-world EV range/kWh per 100 km (mild/cold, city/highway), battery, charging curves, NL/DE/UK prices
+  sample_url: https://ev-database.org/car/1951/Volkswagen-ID3-Pro-S
+  robots: allowed
+  tos: none found (/disclaimer)
+  limits: Guessed id 404 — ids must come from sitemap; EVs only; 'real range' is modelled estimate
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: ev-database.org
+  section: /car/{id}/{name}
+  country: EU
+  lang: en
+  kinds:
+  - phev_ev_consumption
+  - specs
+  - new_price
+  gives: Real-world range and kWh/100 km estimates (mild/cold, city/highway), charging curves, EU prices.
+  sample_url: https://ev-database.org/car/1951/Volkswagen-ID3-Pro
+  robots: allowed (no rules)
+  tos: none found (legal/terms URLs 404)
+  limits: BEV/some PHEV only; guessed ID 404 — use sitemap.xml.
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: south_eu
+- domain: ev-database.org
+  section: /car/<id>/<name> (also /uk/ and /de/ country views)
+  country: NL (covers UK + EU)
+  lang: en
+  kinds:
+  - phev_ev_consumption
+  - specs
+  - new_price
+  - warranty
+  - safety
+  gives: Per-EV real range and Wh/km in cold/mild/city/highway, battery, charging curves, prices for UK/NL/DE.
+  sample_url: https://ev-database.org/car/1203/Volkswagen-ID3-Pro-S
+  robots: allowed (empty * group)
+  tos: 'none found (only a disclaimer: https://ev-database.org/disclaimer)'
+  limits: BEV only (no PHEV charge-sustaining data); estimates are modelled, not owner-measured
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: uk
+- domain: evo.co.uk
+  section: /<make>/<model>
+  country: GB
+  lang: en
+  kinds:
+  - measured
+  - specs
+  - new_price
+  - consumption_real
+  gives: Enthusiast road tests with 0-62, top speed, test mpg, UK prices; strongest on performance cars.
+  sample_url: https://www.evo.co.uk/volkswagen/golf
+  robots: allowed
+  tos: none found (carwow group website terms)
+  limits: GBP; performance focus; magazine subscription prompts but review pages readable
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: uk
+- domain: fdm.dk
+  section: /alt-om-biler/ (biltests, bilpriser, brugtbilstest)
+  country: DK
+  lang: da
+  kinds:
+  - measured
+  - used_issues
+  - maintenance
+  - owner_reviews
+  gives: FDM car tests and used-car (brugtbil) evaluations incl. Danish synsrapport insights
+  sample_url: https://fdm.dk/alt-om-biler/
+  robots: allowed
+  tos: none found on automated access (/forretningsbetingelser)
+  limits: Guessed test path 404; some tests members-only; DK-specific prices (high reg. tax)
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: fiches-auto.fr
+  section: /fiabilite-{marque}/, /avis-{marque}/, /rappels-{marque}/
+  country: FR
+  lang: fr
+  kinds:
+  - reliability
+  - used_issues
+  - owner_reviews
+  - recalls
+  - specs
+  - maintenance
+  gives: Per-model known problems, breakdown counts by component (engine, EGR, FAP, gearbox...), reliability per engine, ADAC index, recalls,
+    thousands of owner reviews.
+  sample_url: https://www.fiches-auto.fr/fiabilite-toyota/fiabilite-633-pannes-toyota-rav4.php
+  robots: allowed (only /tests/index-modeles.php disallowed for *)
+  tos: none found (no mentions/cgu at guessed URLs)
+  limits: ISO-8859-15 encoding; user-reported, self-selected sample. Sample 200, server-rendered.
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: south_eu
+- domain: forococheselectricos.com
+  section: /pruebas
+  country: ES
+  lang: es
+  kinds:
+  - phev_ev_consumption
+  - measured
+  gives: EV range/consumption tests (articles).
+  sample_url: https://forococheselectricos.com/pruebas
+  robots: allowed (/wp-json/ disallowed)
+  tos: 'General: ''Cualquier reproducción, uso, distribución y comunicación ... requieren previamente de la autorización'' (https://forococheselectricos.com/aviso-legal/)'
+  limits: Unstructured articles.
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: south_eu
+- domain: fueleconomy.gov
+  section: /ws/rest/ (web services), /feg/download (CSV), My MPG (ympgDriverVehicle)
+  country: US
+  lang: en
+  kinds:
+  - consumption_real
+  - phev_ev_consumption
+  - specs
+  gives: EPA ratings for 1984–current (city/hwy/combined; PHEV charge-depleting kWh/100mi, electric range, charge-sustaining MPG) plus My MPG
+    real-world owner averages per vehicle. Available as REST JSON/XML and a full CSV.
+  sample_url: https://www.fueleconomy.gov/ws/rest/vehicle/menu/year
+  robots: 'fetch error: robots.txt failed intermittently (HTTP/2 stream error and empty reply), but /ws/ and /feg/ws/ answered 200'
+  tos: 'Licence: US DOE/EPA data, public domain; the documented web services are intended for reuse.'
+  limits: US test cycle (EPA), which differs from WLTP. My MPG samples are small for EU-only models.
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: goca.be
+  section: (GOCA Vlaanderen — Belgian periodic inspection federation)
+  country: BE
+  lang: nl/fr
+  kinds:
+  - reliability
+  gives: Annual keuring statistics (rejection rates); no per-model tables seen
+  sample_url: https://www.gocavlaanderen.be/
+  robots: allowed
+  tos: none found
+  limits: Redirects to gocavlaanderen.be; aggregate only
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: goingelectric.de
+  section: /wiki/, forum
+  country: DE
+  lang: de
+  kinds:
+  - phev_ev_consumption
+  - owner_reviews
+  gives: EV owner forum & wiki — real consumption, charging, faults per EV model
+  sample_url: https://www.goingelectric.de/wiki/
+  robots: allowed
+  tos: not checked
+  limits: sample_verified. UGC, unstructured
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: greenncap.com
+  section: /assessments/
+  country: BE/EU
+  lang: en
+  kinds:
+  - measured
+  - consumption_real
+  - phev_ev_consumption
+  gives: Green NCAP lab+road measured energy/fuel consumption, cold-test range, emissions per model (VW Golf 2.0 TDI listed)
+  sample_url: https://www.greenncap.com/assessments/
+  robots: allowed
+  tos: none found (/disclaimer)
+  limits: sample_verified, server-rendered. Limited model coverage (~a few dozen/year)
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+  notes:
+  - south_eu said candidate
+- domain: gtue.de
+  section: (HU inspection org)
+  country: DE
+  lang: de
+  kinds:
+  - reliability
+  gives: HU inspection operator; occasional Mängelreport press releases, no model DB
+  sample_url: https://www.gtue.de/
+  robots: allowed
+  tos: none found (Impressum)
+  limits: Low data density; /Privatkunden/ disallowed
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: hibridosyelectricos.com
+  section: articles / tests
+  country: ES
+  lang: es
+  kinds:
+  - phev_ev_consumption
+  - measured
+  gives: EV/PHEV news and real-world consumption tests.
+  sample_url: https://www.hibridosyelectricos.com/coches/toyota-rav4
+  robots: allowed
+  tos: none on automated access; trademark/linking clause only (https://www.hibridosyelectricos.com/aviso-legal.html)
+  limits: Guessed model page 404; article-based, no structured model pages.
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: south_eu
+- domain: howmanymiles.co.uk
+  section: /
+  country: GB
+  lang: en
+  kinds:
+  - reliability
+  gives: Free MOT history / mileage check by registration (a front-end on DVSA data).
+  sample_url: https://howmanymiles.co.uk/
+  robots: allowed
+  tos: none found
+  limits: by registration only; prefer DVSA MOT history API directly
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: uk
+- domain: k.autohome.com.cn
+  section: /<seriesId>/ (口碑 owner reviews)
+  country: CN
+  lang: zh
+  kinds:
+  - owner_reviews
+  - consumption_real
+  - used_issues
+  - reliability
+  gives: Owner reviews with ratings, pro and con tags (e.g. 油耗低 'low fuel use' x463) and owner-reported consumption; quality reports (质量评价) come
+    from owners after 2–48 months of ownership.
+  sample_url: https://k.autohome.com.cn/770/
+  robots: allowed (blocks /series/, /ajax/, /frontapi/, /data/ and similar)
+  tos:
+    quote: 7） 不得为商业目的而复制、出售、转售或利用本服务的任何部分
+    en: '[7) must not copy, sell, resell or exploit any part of the service for commercial purposes]'
+    url: https://www.autohome.com.cn/about/falv.html
+  limits: Chinese-spec models (FAW-Toyota RAV4荣放). Detail lists are loaded via AJAX/frontapi, which is disallowed. The server-side HTML has only
+    a summary (score 4.46, tags). No scraping clause; only commercial use is barred.
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: kba.de
+  section: /DE/Statistik/ (FZ statistics), /DE/Service/OpenData/, Rückrufdatenbank
+  country: DE
+  lang: de
+  kinds:
+  - recalls
+  - specs
+  gives: Registration/stock statistics by make/model (FZ tables, XLSX) under open licence; recall database searchable by make/model/type
+  sample_url: https://www.kba.de/DE/Themen/Marktueberwachung/Rueckrufe/rueckrufe_node.html
+  robots: allowed
+  tos: Die Daten des KBA stehen unter der „Datenlizenz Deutschland – Namensnennung – Version 2.0“ — https://www.kba.de/DE/Service/OpenData/opendata_node.html
+  limits: sample_verified. Recall DB query is a form (/DE/Service/ is disallowed in robots → recall-search results may sit under disallowed path);
+    stats are XLSX, not an API
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: km77.com
+  section: /coches/{marca}/{modelo}
+  country: ES
+  lang: es
+  kinds:
+  - specs
+  - new_price
+  - measured
+  - consumption_real
+  gives: Spanish price list per version, full specs, long road tests with own measurements.
+  sample_url: https://www.km77.com/coches/volkswagen/golf
+  robots: allowed (but /coches/mediciones-propias/, /comparador/, /buscador/ disallowed)
+  tos: 'General IP clause only: ''quedan expresamente prohibidas la reproducción, la distribución y la comunicación pública ... de la totalidad
+    o parte de los contenidos'' (https://www.km77.com/aviso-legal). No robots clause.'
+  limits: Own-measurement pages (mediciones-propias) are robots-disallowed; reader use only, no bulk copy. Sample fetched 200 (server-rendered).
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: south_eu
+- domain: kolesa.ru
+  section: /test-drive/
+  country: RU
+  lang: ru
+  kinds:
+  - measured
+  - owner_reviews
+  gives: Колёса.ру test drives and articles. The model catalogue is under /cars*, which is disallowed.
+  sample_url: https://www.kolesa.ru/test-drive/
+  robots: 'allowed for /test-drive/; Disallow: /cars* and *?* (Crawl-delay 2)'
+  tos: none found (not fetched)
+  limits: The catalogue is blocked. Tests are mostly editorial, not instrumented.
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: motor-talk.de
+  section: /forum/
+  country: DE
+  lang: de
+  kinds:
+  - owner_reviews
+  - used_issues
+  gives: Largest German car forum; model sub-forums with recurring faults
+  sample_url: https://www.motor-talk.de/forum/vw-golf-8-b123.html
+  robots: allowed
+  tos: none found (terms URLs tried return 404)
+  limits: Unstructured UGC; GPTBot/ChatGPT-User blocked in robots (signal of AI hostility)
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: motor.es
+  section: /fichas-tecnicas/, /tasar-coche
+  country: ES
+  lang: es
+  kinds:
+  - specs
+  - new_price
+  - used_price
+  - owner_reviews
+  gives: Specs and prices per version; has a 'Tasar coche' valuation tool.
+  sample_url: https://www.motor.es/fichas-tecnicas/volkswagen/golf/
+  robots: allowed (/vercoche/*, /api/*, /ficha/estadisticas_ficha disallowed)
+  tos: none found on automated access (https://www.motor.es/aviso-legal)
+  limits: Guessed sample URL returned 404; tasación is a form (likely lead-gen). Section paths need confirmation.
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: south_eu
+- domain: motor.no
+  section: (NAF member magazine, El Prix results)
+  country: false
+  lang: false
+  kinds:
+  - phev_ev_consumption
+  - measured
+  - owner_reviews
+  gives: El Prix range tables and car tests
+  sample_url: https://www.motor.no/
+  robots: allowed
+  tos: none found (not checked in depth)
+  limits: Some articles paywalled for members
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: motoreasy.com
+  section: /magazine
+  country: GB
+  lang: en
+  kinds:
+  - warranty
+  - maintenance
+  - reliability
+  gives: Warranty/service-plan seller with magazine articles on reliability and repair costs.
+  sample_url: none fetched
+  robots: allowed (/magazine/search disallowed)
+  tos: '"You must not use any part of the materials on our site for commercial purposes without obtaining a licence" — https://www.motoreasy.com/pages/terms-and-conditions'
+  limits: low value; commercial insurer content
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: uk
+- domain: motoringresearch.com
+  section: /car-reviews/
+  country: GB
+  lang: en
+  kinds:
+  - specs
+  - new_price
+  - used_issues
+  gives: Reviews, news and used-buying guides; light on structured data.
+  sample_url: https://www.motoringresearch.com/car-reviews/
+  robots: allowed
+  tos: none found
+  limits: GBP; unstructured articles
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: uk
+- domain: naf.no
+  section: /elbil/ (El Prix winter/summer range test)
+  country: false
+  lang: false
+  kinds:
+  - phev_ev_consumption
+  - measured
+  gives: NAF/Motor El Prix — the largest real winter/summer EV range & kWh test (20-30 EVs each run)
+  sample_url: https://www.naf.no/elbil/
+  robots: allowed
+  tos: none found
+  limits: Guessed deep path 404; EV-only; results often in article tables (also on motor.no)
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: oeamtc.at
+  section: /autotest, /thema/... (Autotests, Autokosten)
+  country: AT
+  lang: de
+  kinds:
+  - measured
+  - specs
+  - maintenance
+  - consumption_real
+  gives: ÖAMTC car tests (ADAC-shared Ecotest data), running costs, AT prices
+  sample_url: https://www.oeamtc.at/autotest/
+  robots: allowed
+  tos: Inhalte ... ausschließlich zum persönlichen und nicht zum gewerblichen bzw. anderweitig kommerziellen Gebrauch — https://www.oeamtc.at/mitgliedschaft/nutzungsbedingungen-fuer-services-der-oeamtc-websites-16186856
+  limits: Personal-use only clause; content largely duplicates ADAC tests; AT-market prices
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: opendata.rdw.nl
+  section: /resource/m9d7-ebf2.json (Gekentekende_voertuigen), a34c-vvps (Geconstateerde Gebreken), plus recall (terugroep) datasets
+  country: NL
+  lang: nl
+  kinds:
+  - specs
+  - reliability
+  - recalls
+  - used_issues
+  gives: Socrata SODA JSON API over every NL-registered vehicle (mass, engine, BPM, APK expiry, first registration) + APK defects found per inspection;
+    filterable by merk/handelsbenaming
+  sample_url: https://opendata.rdw.nl/resource/m9d7-ebf2.json?merk=VOLKSWAGEN&handelsbenaming=GOLF&$limit=2
+  robots: allowed
+  tos: 'Dataset metadata: license ''Public Domain'' (licenseId PUBLIC_DOMAIN), attribution ''Team Open Data RDW'' — https://opendata.rdw.nl/api/views/m9d7-ebf2.json'
+  limits: sample_verified (JSON). Per-plate rows, must aggregate for model-level stats; defects keyed by kenteken, join needed; app token advised
+    for volume; NL-spec fleet
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: price.pcauto.com.cn
+  section: /sg<id>/ (series pages, 参数, 保养)
+  country: CN
+  lang: zh
+  kinds:
+  - specs
+  - new_price
+  - maintenance
+  gives: 太平洋汽车 series pages with spec and price, and a maintenance (保养) tab.
+  sample_url: https://price.pcauto.com.cn/sg4086/
+  robots: allowed (no robots.txt on price.pcauto.com.cn, 404; www robots allows / for *)
+  tos:
+    quote: 您只能复制一份资料 ... 复制件仅可用在私人、非商业用途。未经本网站事先的书面同意，您不得为了任何公共或商业目的 ... 将资料存储于检索系统
+    en: '[You may copy one copy only, for private non-commercial use; without prior written consent you may not, for any public or commercial
+      purpose, ... store material in a retrieval system]'
+    url: https://corp.pcauto.com.cn/terms.html
+  limits: Static HTML works. The sample id sg4086 turned out to be 威麟V8, so the RAV4 id is still to be found. Chinese-spec only. Personal use
+    only.
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: quecochemecompro.com
+  section: /precios/, reviews
+  country: ES
+  lang: es
+  kinds:
+  - new_price
+  - specs
+  - owner_reviews
+  gives: Prices, versions, comparisons, expert scores.
+  sample_url: https://www.quecochemecompro.com/precios/volkswagen/golf/
+  robots: allowed (/api/, /*?page=* disallowed)
+  tos: 'General: ''No se permite la reproducción, distribución, transformación ... sin autorización'' (https://www.quecochemecompro.com/legal/).
+    No robots clause.'
+  limits: Guessed path returned 404 JSON — site likely an SPA with API (API disallowed); may be js_only in practice.
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: south_eu
+- domain: rac.co.uk
+  section: /drive/car-reviews/
+  country: GB
+  lang: en
+  kinds:
+  - specs
+  - new_price
+  - warranty
+  - safety
+  - consumption_real
+  gives: RAC Drive car reviews with mpg, 0-62, warranty, Euro NCAP rating, UK prices.
+  sample_url: https://www.rac.co.uk/drive/car-reviews/volkswagen/golf/golf/
+  robots: allowed (/news-advice and /used-cars/vehicle-list disallowed)
+  tos: '"The Site is for your personal use and is not to be used for any commercial purpose." — https://www.rac.co.uk/legal-information/terms-of-use'
+  limits: personal-use only, no reproduction without permission; GBP
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: uk
+- domain: razaoautomovel.com
+  section: ensaios
+  country: PT
+  lang: pt
+  kinds:
+  - measured
+  - specs
+  gives: Portuguese road tests and news.
+  sample_url: https://www.razaoautomovel.com/ensaios/
+  robots: allowed
+  tos: '''A cópia, alteração, reprodução ... ou utilização dos conteúdos deste site ... sem autorização prévia'' (https://www.razaoautomovel.com/termos-de-utilizacao/)'
+  limits: Article-based; guessed URL 404.
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: south_eu
+- domain: sdi.eea.europa.eu
+  section: real-world CO2 (OBFCM) eea_t_real-world-co2-emission_p_2024_v01_r00
+  country: EU
+  lang: en
+  kinds:
+  - consumption_real
+  - phev_ev_consumption
+  gives: 'OPEN DATASET: OBFCM on-board real fuel/energy use per vehicle (VIN-level raw CSV) + aggregate WLTP-vs-real gap per manufacturer/powertrain,
+    incl. PHEV real l/100 km and electric share.'
+  sample_url: https://sdi.eea.europa.eu/webdav/datastore/public/eea_t_real-world-co2-emission_p_2024_v01_r00/
+  robots: allowed
+  tos: '''may be re-used without prior permission, free of charge, for commercial or non-commercial purposes, provided that the EEA is always
+    acknowledged'' (https://www.eea.europa.eu/en/legal-notice)'
+  limits: Large raw files; must join to model via EEA CO2 dataset fields; reporting years 2021-2024. Listing page is JS (redirected to /datastore/public?path=...).
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: south_eu
+- domain: servicingstop.co.uk
+  section: /
+  country: GB
+  lang: en
+  kinds:
+  - maintenance
+  gives: Fixed-price interim/full/major service prices by car (UK garage network).
+  sample_url: https://www.servicingstop.co.uk/
+  robots: allowed
+  tos: none found on automated access — https://www.servicingstop.co.uk/terms_and_conditions.html (booking terms)
+  limits: prices via registration/quote flow; GBP
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: uk
+- domain: statbel.fgov.be
+  section: /nl/themas/mobiliteit/verkeer/voertuigpark
+  country: BE
+  lang: nl/fr
+  kinds:
+  - specs
+  gives: Belgian vehicle-fleet statistics (fuel, age, make) as open data downloads
+  sample_url: https://statbel.fgov.be/nl/themas/mobiliteit/verkeer/voertuigpark
+  robots: allowed
+  tos: none found on page (Statbel open data is generally published under its own open licence; not confirmed)
+  limits: Aggregate only; marginal value for model comparison
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: tcs.ch
+  section: /de/testberichte-ratgeber/ (Autotests, Kilometerkosten)
+  country: CH
+  lang: de/fr/it
+  kinds:
+  - measured
+  - maintenance
+  - residual_value
+  - consumption_real
+  gives: TCS car tests and Kilometerkosten calculator (CH running costs incl. depreciation)
+  sample_url: https://www.tcs.ch/de/testberichte-ratgeber/tests/autotests/
+  robots: allowed
+  tos: Inhalte dürfen ausschliesslich zu privaten Zwecken benutzt (heruntergeladen, ausgedruckt, aufgezeichnet, kopiert usw.) werden — https://www.tcs.ch/de/benutzungsbedingungen.php
+  limits: Guessed sample path 404 (site restructured); CH prices in CHF; private-use clause
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: teknikensvarld.expressen.se
+  section: tests
+  country: SE
+  lang: sv
+  kinds:
+  - measured
+  - owner_reviews
+  - specs
+  gives: Sweden's largest car magazine (Bonnier/Expressen); tests incl. moose test (älgtest)
+  sample_url: https://teknikensvarld.expressen.se/
+  robots: allowed
+  tos: none found (www.teknikensvarld.se redirects here; användarvillkor 404)
+  limits: Many tests behind Premium paywall
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: thecarexpert.co.uk
+  section: reviews and /expert-advice/
+  country: GB
+  lang: en
+  kinds:
+  - warranty
+  - owner_reviews
+  - reliability
+  - maintenance
+  gives: Expert Rating aggregating UK reviews, warranty comparisons by brand, ownership advice.
+  sample_url: https://www.thecarexpert.co.uk/
+  robots: allowed (empty * Disallow)
+  tos: '"You agree that by using the site you will not copy the Site for your own commercial purposes." — https://www.thecarexpert.co.uk/contact/terms-and-conditions/'
+  limits: GBP; model URLs not predictable (guessed /volkswagen-golf-review/ was 404)
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: uk
+- domain: theicct.org
+  section: /publications/ (PHEV real-world studies)
+  country: global
+  lang: en
+  kinds:
+  - phev_ev_consumption
+  - consumption_real
+  gives: Real-world PHEV fuel use and utility-factor studies (EU/US/CN), by model where available. PDFs.
+  sample_url: https://theicct.org/publication/real-world-phev-use-jun22/
+  robots: allowed (Crawl-delay 10); Content-Signal search=yes, ai-train=no, use=reference
+  tos: none checked
+  limits: Reports, not per-car lookups. Better as reference figures than as per-model data.
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: theicct.org
+  section: /publication/
+  country: EU
+  lang: en
+  kinds:
+  - phev_ev_consumption
+  - consumption_real
+  gives: Reports on PHEV real-world fuel use and utility factors by model/brand (e.g. 2022 update, Plötz et al.).
+  sample_url: https://theicct.org/publication/real-world-phev-use-jun22/
+  robots: 'allowed (Crawl-delay 10; Content-Signal: search=yes, ai-train=no, use=reference)'
+  tos: robots content signals only; terms page 404
+  limits: PDF reports, aggregate rather than per-version.
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: south_eu
+- domain: tieto.traficom.fi
+  section: /fi/tietotraficom/avoin-data (Ajoneuvojen avoin data)
+  country: FI
+  lang: fi
+  kinds:
+  - specs
+  - reliability
+  - consumption_real
+  gives: Bulk CSV of the whole Finnish vehicle register (make/model/variant, power, CO2, mass, mileage at inspection) ~934 MB; Traficom also publishes
+    inspection (katsastus) stats
+  sample_url: https://tieto.traficom.fi/fi/tietotraficom/avoin-data
+  robots: allowed
+  tos: Aineisto on lisensoitu Creative Commons Nimeä 4.0 Kansainvälinen -lisenssillä (CC BY 4.0) — https://tieto.traficom.fi/fi/tietotraficom/avoin-data
+  limits: sample_verified. Bulk download only (no per-model API); large file, needs offline aggregation; odometer readings enable mileage-by-age
+    analysis
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: touring.be
+  section: /nl/artikels (tests, advice)
+  country: BE
+  lang: nl/fr
+  kinds:
+  - owner_reviews
+  - maintenance
+  gives: Belgian club advice articles; few structured tests
+  sample_url: https://www.touring.be/nl/artikels/autotest
+  robots: allowed
+  tos: mogen uitsluitend voor je persoonlijk, niet-commercieel gebruik worden gebruikt — https://www.touring.be/nl/copyright
+  limits: Thin data; personal-use clause
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: trafa.se
+  section: /vagtrafik/fordon/ (Trafikanalys official vehicle statistics)
+  country: SE
+  lang: sv
+  kinds:
+  - specs
+  - reliability
+  gives: Official Swedish fleet/registration statistics (by make/model/fuel), downloadable tables; besiktning results via Transportstyrelsen/inspection
+    firms, not here
+  sample_url: https://www.trafa.se/vagtrafik/fordon/
+  robots: allowed
+  tos: none found (användarvillkor page 404)
+  limits: sample_verified. Aggregate stats tables; no per-model failure rates found here
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: transportstyrelsen.se
+  section: /sv/vagtrafik/fordon/ (fordonsuppgifter, återkallelser)
+  country: SE
+  lang: sv
+  kinds:
+  - specs
+  - recalls
+  gives: Per-vehicle lookup (fordonsuppgifter) and recall info for Sweden
+  sample_url: https://www.transportstyrelsen.se/sv/vagtrafik/fordon/
+  robots: allowed
+  tos: none found
+  limits: Per-plate lookup is an e-service (page said it was temporarily unavailable); not model-level
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: tuev-verband.de
+  section: /mobilitaet/ (TÜV-Report press releases & Mängelstatistiken)
+  country: DE
+  lang: de
+  kinds:
+  - reliability
+  - used_issues
+  gives: Annual TÜV-Report HU failure rates (erhebliche Mängel) by model and age class; press pages carry the top/flop lists
+  sample_url: https://www.tuev-verband.de/mobilitaet/tuev-report-2026
+  robots: allowed
+  tos: Beitrag zu privaten Zwecken zu nutzen und in den Arbeitsspeicher seines Rechners zu kopieren — https://www.tuev-verband.de/agb
+  limits: sample_verified. Full per-model tables are in the paid TÜV-Report booklet / autobild partner pages; free pages give top/flop + summaries
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: vegvesen.no
+  section: /fag/teknologi/apne-data/ (API for tekniske kjøretøyopplysninger, autosys-kjoretoy-api)
+  country: false
+  lang: false
+  kinds:
+  - specs
+  - reliability
+  gives: Per-vehicle technical data API by reg no./VIN incl. EU-kontroll (PKK) dates; NOT model-level
+  sample_url: https://www.vegvesen.no/fag/teknologi/apne-data/et-utvalg-apne-data/api-for-tekniske-kjoretoyopplysninger/
+  robots: allowed
+  tos: Krever at du først bestiller en API-nøkkel (via ID-porten/Altinn) — https://www.vegvesen.no/fag/teknologi/apne-data/et-utvalg-apne-data/
+  limits: sample_verified (info page). API key + Norwegian eID login required; per-plate lookups only; licence not stated on page
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: dach_nordic_benelux
+- domain: vpic.nhtsa.dot.gov
+  section: /api/vehicles/
+  country: US
+  lang: en
+  kinds:
+  - specs
+  gives: 'Open VIN decoder and make/model/year lists (JSON). Tested: GetModelsForMake returned 200.'
+  sample_url: https://vpic.nhtsa.dot.gov/api/vehicles/GetModelsForMake/toyota?format=json
+  robots: no robots.txt (404) = allowed
+  tos: 'Licence: US government public domain.'
+  limits: Decodes only VINs from US-reporting manufacturers well. Basic specs only.
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: wheel-size.com
+  section: /size/<make>/<model>/<year>/
+  country: global
+  lang: en
+  kinds:
+  - specs
+  gives: Wheel/tyre fitment per market and trim (OE sizes, PCD, offset), useful for tyre cost. Also basic engine data.
+  sample_url: https://www.wheel-size.com/size/toyota/rav4/2022/
+  robots: allowed (blocks /api/, /data/, /finder/ and query variants)
+  tos:
+    quote: You may not separately extract and provide or otherwise use data elements from the developer.wheel-size.com Data to enhance the data
+      files of third parties.
+    en: '[API terms; no website-scraping clause found]'
+    url: https://www.wheel-size.com/terms/
+  limits: Static HTML (the sample returned 200, 67 KB). Has a paid API.
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: ru_cn_global
+- domain: whocanfixmycar.com
+  section: /
+  country: GB
+  lang: en
+  kinds:
+  - maintenance
+  - used_issues
+  gives: Garage marketplace with typical repair/service cost guides and common-fault advice.
+  sample_url: https://www.whocanfixmycar.com/
+  robots: allowed (/book/, /workshop/, /services-api/ disallowed)
+  tos: none found — https://www.whocanfixmycar.com/terms (short page)
+  limits: GBP; quotes need registration; guide pages generic
+  classifieds: false
+  verdict: candidate
+  checked: 2026-11-05
+  survey: uk

@@ -22,10 +22,15 @@ official_domains: [seat-cupra-mediacenter.es, seat-mediacenter.com, cupraofficia
 non_manufacturer_hints: [forum, blog, news, magazine, review, wiki]
 instrumented: [caranddriver.com, motortrend.com, auto-motor-und-sport.de, autobild.de, whatcar.com, evo.co.uk]
 encyclopedia: [wikipedia.org]
-spec_db: [ultimatespecs.com, auto-data.net, cars-data.com, fichasmotor.com, automobile-catalog.com, carfolio.com]
+spec_db: [ultimatespecs.com, cars-data.com, fichasmotor.com, automobile-catalog.com, carfolio.com]
 # Classifieds and sites whose terms forbid automated access: never searched, extracted or fetched.
 denylist: [coches.net, cochesnet, wallapop.com, milanuncios.com, autoscout24., mobile.de, autocasion.com,
-  flexicar.es, motor.es/coches-segunda-mano]
+  flexicar.es, motor.es/coches-segunda-mano,
+  # spec 009 source survey 2026-11-05: terms forbid automated access (quotes in specs/009-source-registry/registry-survey.yaml)
+  auto-data.net, autobild.es, drive.co.uk, honestjohn.co.uk, buyacar.co.uk, parkers.co.uk, bauerlegal.co.uk,
+  largus.fr, alvolante.it, autoweek.nl, spritmonitor.de, drom.ru, zr.ru, cap-hpi.com, ocu.org, zapmap.com,
+  nextgreencar.com, ncts.ie, webuyanycar.com, motorway.co.uk, leboncoin.fr, lacentrale.fr, blocket.se, carzone.ie,
+  automobile.it, willhaben.at]
 fetch:
   timeout_s: 15
   max_bytes: 3000000
@@ -44,7 +49,8 @@ fetch:
 # source_type: MANUFACTURER | INSTRUMENTED_TEST | SPEC_DATABASE | PUBLICATION | ENCYCLOPEDIA.
 # markets: ES | EN | DE | ANY. priority: 1 (first) … 3. reader: deterministic table reader id or null.
 # tos_checked: date the operator reviewed the site's terms of use; a reader runs only when it is set.
-# km77, ultimatespecs, auto-data: terms reviewed and readers enabled by the operator on 2026-11-02.
+# km77, ultimatespecs: terms reviewed and readers enabled by the operator on 2026-11-02. auto-data.net removed on
+# 2026-11-05: its terms forbid automated collection (spec 009 survey).
 # robots.txt allowed the sample car pages for our user agent on 2026-11-02 (whatcar.com: robots 403 → never fetched).
 favourites:
   # --- Spain ---
@@ -60,13 +66,10 @@ favourites:
   # Euro NCAP: the safety rating itself; stars of different protocol years are not comparable (store the year).
   - {domain: euroncap.com, source_type: INSTRUMENTED_TEST, areas: [specs], markets: [ANY], priority: 1, reader: null, tos_checked: null}
   - {domain: ultimatespecs.com, source_type: SPEC_DATABASE, areas: [specs, engineering], markets: [ANY], priority: 1, reader: ultimatespecs, tos_checked: 2026-11-02}
-  - {domain: auto-data.net, source_type: SPEC_DATABASE, areas: [specs, engineering], markets: [ANY], priority: 1, reader: auto_data, tos_checked: 2026-11-02}
   - {domain: cars-data.com, source_type: SPEC_DATABASE, areas: [specs], markets: [EN], priority: 3, reader: null, tos_checked: null}
-  - {domain: parkers.co.uk, source_type: PUBLICATION, areas: [specs, maintenance, used_price, reviews, depreciation], markets: [EN], priority: 2, reader: null, tos_checked: null}
   - {domain: caranddriver.com, source_type: INSTRUMENTED_TEST, areas: [measured, reviews], markets: [EN], priority: 1, reader: null, tos_checked: null}
   - {domain: evo.co.uk, source_type: INSTRUMENTED_TEST, areas: [measured, reviews], markets: [EN], priority: 2, reader: null, tos_checked: null}
   - {domain: autoexpress.co.uk, source_type: PUBLICATION, areas: [measured, reviews, reliability], markets: [EN], priority: 2, reader: null, tos_checked: null}
-  - {domain: honestjohn.co.uk, source_type: PUBLICATION, areas: [maintenance, reliability, used_issues, used_price, reviews, depreciation], markets: [EN], priority: 1, reader: null, tos_checked: null}
   - {domain: carwow.co.uk, source_type: PUBLICATION, areas: [reviews], markets: [EN], priority: 3, reader: null, tos_checked: null}
   # --- German ---
   - {domain: auto-motor-und-sport.de, source_type: INSTRUMENTED_TEST, areas: [measured, reviews], markets: [DE], priority: 1, reader: null, tos_checked: null}
@@ -76,7 +79,6 @@ favourites:
   - {domain: autofacil.es, source_type: PUBLICATION, areas: [reviews, measured, maintenance, used_issues, price, depreciation, reliability], markets: [ES], priority: 2, reader: null, tos_checked: null}
   - {domain: motorpasion.com, source_type: PUBLICATION, areas: [reviews, engineering, manufacturer, depreciation, reliability], markets: [ES], priority: 2, reader: null, tos_checked: null}
   - {domain: diariomotor.com, source_type: PUBLICATION, areas: [reviews, price, engineering, manufacturer, depreciation, reliability], markets: [ES], priority: 2, reader: null, tos_checked: null}
-  - {domain: ocu.org, source_type: PUBLICATION, areas: [reliability, maintenance], markets: [ES], priority: 1, reader: null, tos_checked: null}
   - {domain: autocar.co.uk, source_type: INSTRUMENTED_TEST, areas: [measured, reviews, engineering], markets: [EN], priority: 1, reader: null, tos_checked: null}
   - {domain: topgear.com, source_type: PUBLICATION, areas: [reviews], markets: [EN], priority: 2, reader: null, tos_checked: null}
   - {domain: edmunds.com, source_type: INSTRUMENTED_TEST, areas: [measured, reviews, maintenance], markets: [EN], priority: 2, reader: null, tos_checked: null}
@@ -88,7 +90,6 @@ favourites:
   - {domain: consumerreports.org, source_type: PUBLICATION, areas: [reliability], markets: [EN], priority: 2, reader: null, tos_checked: null}
   # --- analysts: residual values, depreciation, market and manufacturer health ---
   - {domain: autovista24.autovistagroup.com, source_type: PUBLICATION, areas: [used_price, manufacturer, depreciation], markets: [ANY], priority: 1, reader: null, tos_checked: null}
-  - {domain: cap-hpi.com, source_type: PUBLICATION, areas: [used_price, depreciation], markets: [EN], priority: 2, reader: null, tos_checked: null}
   - {domain: iseecars.com, source_type: PUBLICATION, areas: [used_price, reliability, depreciation], markets: [EN], priority: 2, reader: null, tos_checked: null}
   - {domain: kbb.com, source_type: PUBLICATION, areas: [used_price, maintenance], markets: [EN], priority: 3, reader: null, tos_checked: null}
   - {domain: jato.com, source_type: PUBLICATION, areas: [manufacturer], markets: [ANY], priority: 1, reader: null, tos_checked: null}
@@ -102,7 +103,6 @@ favourites:
   - {domain: ganvam.es, source_type: PUBLICATION, areas: [depreciation, used_price, manufacturer], markets: [ES], priority: 1, reader: null, tos_checked: null}
   - {domain: anfac.com, source_type: PUBLICATION, areas: [manufacturer], markets: [ES], priority: 1, reader: null, tos_checked: null}
   - {domain: faconauto.com, source_type: PUBLICATION, areas: [manufacturer, depreciation], markets: [ES], priority: 2, reader: null, tos_checked: null}
-  - {domain: autobild.es, source_type: PUBLICATION, areas: [reviews, reliability, depreciation, price], markets: [ES], priority: 2, reader: null, tos_checked: null}
   - {domain: carwow.es, source_type: PUBLICATION, areas: [reviews, price, specs], markets: [ES], priority: 2, reader: null, tos_checked: null}
   - {domain: quecochemecompro.com, source_type: PUBLICATION, areas: [price, reviews, depreciation], markets: [ES], priority: 2, reader: null, tos_checked: null}
   - {domain: eleconomista.es, source_type: PUBLICATION, areas: [manufacturer, depreciation], markets: [ES], priority: 3, reader: null, tos_checked: null}
