@@ -1,0 +1,54 @@
+# Spec 011 T074: gold for the honest-reputation scenario (reference set, HIGH confidence).
+# fastwrong.example states 30 % of these off by +25 % (beyond tolerance); honest.example states them all right.
+wrong_factor: 1.25
+wrong_every: [0, 3, 6]    # value number n (1..120, job-major) is wrong when n % 10 is one of these
+honest_skips_every: 4     # honest.example has nothing for job i when i % 4 == 3 (lower yield)
+extra: {boot_volume: 380, seats: 5}   # fastwrong's values without gold (its yield)
+variants:                 # [max_power kW, curb_mass kg, displacement cm3]
+  - [70, 1150, 1200]
+  - [73, 1162, 1225]
+  - [76, 1174, 1250]
+  - [79, 1186, 1275]
+  - [82, 1198, 1300]
+  - [85, 1210, 1325]
+  - [88, 1222, 1350]
+  - [91, 1234, 1375]
+  - [94, 1246, 1400]
+  - [97, 1258, 1425]
+  - [100, 1270, 1450]
+  - [103, 1282, 1475]
+  - [106, 1294, 1500]
+  - [109, 1306, 1525]
+  - [112, 1318, 1550]
+  - [115, 1330, 1575]
+  - [118, 1342, 1600]
+  - [121, 1354, 1625]
+  - [124, 1366, 1650]
+  - [127, 1378, 1675]
+  - [130, 1390, 1700]
+  - [133, 1402, 1725]
+  - [136, 1414, 1750]
+  - [139, 1426, 1775]
+  - [142, 1438, 1800]
+  - [145, 1450, 1825]
+  - [148, 1462, 1850]
+  - [151, 1474, 1875]
+  - [154, 1486, 1900]
+  - [157, 1498, 1925]
+  - [160, 1510, 1950]
+  - [163, 1522, 1975]
+  - [166, 1534, 2000]
+  - [169, 1546, 2025]
+  - [172, 1558, 2050]
+  - [175, 1570, 2075]
+  - [178, 1582, 2100]
+  - [181, 1594, 2125]
+  - [184, 1606, 2150]
+  - [187, 1618, 2175]
+parser_case:              # km77@v1 read the wrong row of a table that also holds the right mass
+  variant: [110, 1615, 1995]
+  read: 1450
+  excerpt: "Peso máximo autorizado 1450 kg · Peso en orden de marcha 1615 kg"
+physics_case:             # a hybrid's engine-only torque next to its system power (no gold for torque)
+  max_power: 225
+  max_torque: 250

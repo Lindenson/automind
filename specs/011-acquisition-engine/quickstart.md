@@ -45,7 +45,7 @@ uv run pytest tests/unit/test_physics.py tests/unit/test_blame_vector.py tests/u
 uv run pytest tests/integration/test_honest_reputation.py -q
 ```
 **Independent test (US3)**: fixture scenario `tests/fixtures/scenarios/honest/` — source `fastwrong.example` (yield
-0.9, 30 % wrong vs gold) and `honest.example` (yield 0.5, right); after 40 simulated jobs `fastwrong` is never
+0.98, 30 % wrong vs gold) and `honest.example` (yield 0.75, right); after 40 simulated jobs `fastwrong` is never
 `active` and ranks below `honest`; a wrong value whose right number is in the snapshot lowers
 `component_reputation(parser, …)` and leaves the source's `wrong_w` unchanged.
 
