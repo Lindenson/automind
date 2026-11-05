@@ -19,6 +19,7 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Any, Literal
 
 Cycle = Literal["WLTP", "NEDC", "REAL", "EPA"]
@@ -57,6 +58,43 @@ class SenseResult:
 
 def _has(text: str, words: tuple[str, ...]) -> bool:
     return any(w in text for w in words)
+
+
+@lru_cache(maxsize=512)
+def _word_re(word: str) -> re.Pattern[str]:
+    return re.compile(rf"(?<!\w){re.escape(word)}(?!\w)")
+
+
+def has_word(text: str, words: tuple[str, ...]) -> bool:
+    """True when one of the words or phrases appears as a whole word: "manual" is not inside "manuales"
+    (spec 009 FR-018)."""
+    return any(_word_re(w).search(text) for w in words)
+
+
+# A manual that is a document, not a gearbox: "manual de taller", "manuales del propietario", "owner's manual",
+# "manual mode" of an automatic (spec 009 FR-018).
+_DOC_MANUAL = re.compile(
+    r"(?<!\w)manual(?:es)?\s+del?\s+(?:taller|propietario|usuario|instrucciones|servicio|mantenimiento"
+    r"|reparaci[oó]n|uso|conductor|garant[ií]a|a\s+bordo)(?!\w)"
+    r"|(?<!\w)(?:owner'?s?|users?|service|workshop|repair|instruction|drivers?'?|maintenance|online)\s+manuals?(?!\w)"
+    r"|(?<!\w)manual\s+mode(?!\w)|(?<!\w)modo\s+manual(?!\w)"
+)
+MANUAL_WORDS = ("manual", "manuell", "manuelle", "mt", "6mt", "5mt", "schaltgetriebe", "handschaltung")
+# "auto", "automatic", "automático", "automatik" — not "autos", "autoescuela" or "automóvil"
+_AUTO_RE = re.compile(r"(?<!\w)auto(?:mat\w*|m[aá]tic\w*)?(?!\w)")
+
+
+def strip_document_manuals(text: str) -> str:
+    return _DOC_MANUAL.sub(" ", text)
+
+
+def says_manual(text: str) -> bool:
+    """A lower-case text names a manual gearbox (whole words; document manuals and "manual mode" excluded)."""
+    return has_word(strip_document_manuals(text), MANUAL_WORDS)
+
+
+def says_automatic(text: str) -> bool:
+    return _AUTO_RE.search(text) is not None
 
 
 def consumption_cycle(excerpt: str, generation_from: int | None, source_type: str | None = None) -> Cycle:
@@ -143,9 +181,10 @@ def gearbox_family(text: str | None) -> Gearbox | None:
     if _has(t, ("dual clutch", "dct", "dsg", "doble embrague", "s tronic", "edc")):
         return "dct"
     # an automatic with a "manual mode" / paddles is still an automatic
-    if _has(t, ("auto", "steptronic", "tiptronic", "torque converter", " at ", "geartronic", "sportshift")):
+    if says_automatic(t) or _has(t, ("steptronic", "tiptronic", "torque converter", " at ", "geartronic",
+                                     "sportshift")):  # fmt: skip
         return "automatic"
-    if _has(t, ("manual", "manuell", " mt ")):
+    if says_manual(t):
         return "manual"
     return None
 

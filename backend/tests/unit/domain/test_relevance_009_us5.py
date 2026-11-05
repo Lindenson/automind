@@ -113,6 +113,14 @@ def test_bare_year_without_a_known_generation_does_not_reject_nearby_years() -> 
     assert r.verdict != "OTHER_VARIANT"
 
 
+def test_the_sorento_generations_are_known_to_the_config() -> None:
+    from automind.infrastructure.config import generations  # noqa: PLC0415
+
+    gens = [GenerationInfo(g, a, b) for g, a, b in generations()["Kia|Sorento"]]
+    tgt, _ = resolve_generation(SORENTO_2024, gens)
+    assert (tgt.generation, tgt.years_from) == ("MQ4", 2020)
+
+
 def test_a_real_generation_code_is_kept() -> None:
     tgt = Target("Kia", "Sorento", "MQ4", 2020, None, "x")
     assert resolve_generation(tgt, SORENTO_GENS)[0] == tgt
@@ -127,7 +135,9 @@ def test_brand_wide_maintenance_page_naming_the_make_is_relevant() -> None:
     p = page("Plan de mantenimiento Kia: revisiones oficiales", "Kia te ofrece revisiones cada 15.000 km o 1 año.",
              "https://www.kia.com/es/servicios/mantenimiento/")  # fmt: skip
     assert judge_service(p, SORENTO, SORENTO_GENS, MAKES).verdict == "RELEVANT"
-    w = page("Garantía Kia 7 años", "Todos los Kia nuevos tienen 7 años de garantía.", "https://www.kia.com/es/garantia/")
+    w = page(
+        "Garantía Kia 7 años", "Todos los Kia nuevos tienen 7 años de garantía.", "https://www.kia.com/es/garantia/"
+    )
     assert judge_service(w, SORENTO, SORENTO_GENS, MAKES).verdict == "RELEVANT"
 
 

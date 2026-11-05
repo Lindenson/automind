@@ -85,3 +85,7 @@ version: 1
   - {generation: 4th gen, from: 2012, to: 2016}
   - {generation: 5th gen, from: 2017, to: 2022}
   - {generation: 6th gen, from: 2023, to: null, transmissions: [e-cvt], drives: [FWD, AWD]}
+"Kia|Sorento":
+  - {generation: XM, from: 2009, to: 2014}
+  - {generation: UM, from: 2015, to: 2020}
+  - {generation: MQ4, from: 2020, to: null}  # facelift 2024 is the same generation (spec 009 FR-019)

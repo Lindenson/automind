@@ -12,9 +12,10 @@ from __future__ import annotations
 import re
 import unicodedata
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Literal
 
+from automind.domain import sense
 from automind.domain.evidence import _sibling_code
 
 Verdict = Literal["RELEVANT", "OTHER_VARIANT", "MULTI_VARIANT", "NOT_ABOUT_CAR", "UNCERTAIN"]
@@ -144,27 +145,36 @@ def _generation_signals(
     return None, target_in_title, in_range
 
 
-_MANUAL_WORDS = (" manual", "cambio manual", "manuell", " 6mt", " 5mt", " mt ", "schaltgetriebe")
-_AUTO_WORDS = (" automatic", " automático", " automatico", " automatik", " dsg", " cvt", " e-cvt", " ecvt", " auto ",
-               " 6at", " 8at", " steptronic", " tiptronic", " dct", " edc")  # fmt: skip
-_AWD_WORDS = (" 4x4", " awd", " 4wd", " quattro", " xdrive", " 4motion", " all-wheel", " all wheel", " 4matic",
-              " awd-i", " integral")  # fmt: skip
-_TWO_WD_WORDS = (" fwd", " 4x2", " 2wd", " front-wheel", " tracción delantera")
+# Whole words only (spec 009 FR-018): "manuales del propietario" is not a manual gearbox, "integrales" is not
+# "integral". The title/URL has "-" and "_" turned into spaces before matching.
+_AUTO_WORDS = ("dsg", "cvt", "e cvt", "ecvt", "6at", "8at", "steptronic", "tiptronic", "dct", "edc")
+_AWD_WORDS = ("4x4", "awd", "4wd", "quattro", "xdrive", "4motion", "all wheel", "4matic", "integral",
+              "tracción total", "traccion total", "allrad")  # fmt: skip
+_TWO_WD_WORDS = ("fwd", "4x2", "2wd", "front wheel", "tracción delantera", "traccion delantera")
+
+
+def _manual(t: str) -> bool:
+    return sense.says_manual(t)
+
+
+def _automatic(t: str) -> bool:
+    return sense.says_automatic(t) or sense.has_word(t, _AUTO_WORDS)
 
 
 def _gearbox_drive_signal(title_url: str, target: Target) -> Relevance | None:
     """A title or URL that names another gearbox or driven axle than the variant (e.g. a manual CX-5 page for
-    the automatic): another variant (spec 004 FR-028). Only explicit words count."""
-    t = f" {title_url} "
+    the automatic): another variant (spec 004 FR-028). Only explicit whole words count (spec 009 FR-018)."""
+    t = title_url.lower()
     gb = (target.transmission or "").lower()
-    if gb == "manual" and any(w in t for w in _AUTO_WORDS) and not any(w in t for w in _MANUAL_WORDS):
+    if gb == "manual" and _automatic(t) and not _manual(t):
         return Relevance("OTHER_VARIANT", "other gearbox: automatic (wanted manual)", "automatic")
-    if gb and gb != "manual" and any(w in t for w in _MANUAL_WORDS) and not any(w in t for w in _AUTO_WORDS):
+    if gb and gb != "manual" and _manual(t) and not _automatic(t):
         return Relevance("OTHER_VARIANT", f"other gearbox: manual (wanted {gb})", "manual")
     dr = (target.drive or "").upper()
-    if dr in ("FWD", "RWD") and any(w in t for w in _AWD_WORDS) and not any(w in t for w in _TWO_WD_WORDS):
+    awd, two = sense.has_word(t, _AWD_WORDS), sense.has_word(t, _TWO_WD_WORDS)
+    if dr in ("FWD", "RWD") and awd and not two:
         return Relevance("OTHER_VARIANT", f"other drive: AWD (wanted {dr})", "AWD")
-    if dr == "AWD" and any(w in t for w in _TWO_WD_WORDS) and not any(w in t for w in _AWD_WORDS):
+    if dr == "AWD" and two and not awd:
         return Relevance("OTHER_VARIANT", "other drive: 2WD (wanted AWD)", "2WD")
     return None
 
@@ -188,21 +198,89 @@ def _engine_body_signals(title_url: str, head: str, target: Target) -> Relevance
     return None
 
 
+_BARE_YEAR = re.compile(r"\s*(19[89]\d|20[0-3]\d)\s*")
+
+
+def resolve_generation(target: Target, generations: Sequence[GenerationInfo]) -> tuple[Target, list[GenerationInfo]]:
+    """A generation recorded as a bare year ("2024") is mapped to the generation code and years containing that
+    year, so pages of the same generation, its facelift included, stay relevant (spec 009 FR-019). Bare years
+    are dropped from the known generations. Unknown year: no generation, and no single-year range to judge by."""
+    gens = [g for g in generations if not _BARE_YEAR.fullmatch(g.code)]
+    m = _BARE_YEAR.fullmatch(target.generation or "")
+    if m is None:
+        return target, gens
+    year = int(m.group(1))
+    hits = [g for g in gens if g.years_from is not None and g.contains(year)]
+    if hits:  # on a boundary year (G30 to 2023, G60 from 2023) the newer generation
+        g = max(hits, key=lambda h: h.years_from or 0)
+        return replace(target, generation=g.code, years_from=g.years_from, years_to=g.years_to), gens
+    if target.years_from == year and target.years_to in (None, year):
+        return replace(target, generation=None, years_from=None, years_to=None), gens
+    return replace(target, generation=None), gens
+
+
 def _fold(text: str) -> str:
     return unicodedata.normalize("NFKD", text.lower()).encode("ascii", "ignore").decode()
 
 
-def judge_brand(page: PageFacts, make: str) -> Relevance:
-    """A page for a brand area (warranty, dealer network, results) is about the make, never one version: it is
-    relevant when it names the make, whatever model or engine it shows."""
+def _names(word_list: Sequence[str], text: str) -> bool:
+    return any(re.search(rf"(?<![a-z0-9]){re.escape(w)}(?![a-z0-9])", text) for w in word_list)
+
+
+def _make_words(make: str) -> list[str]:
     words = [w for w in re.split(r"[\s\-]+", _fold(make)) if len(w) >= 2]
+    return words[:1]
+
+
+def judge_brand(page: PageFacts, make: str, other_makes: Sequence[str] = ()) -> Relevance:
+    """A page for a brand area (warranty, dealer network, results) is about the make, never one version: it is
+    relevant when it names the make, whatever model or engine it shows. A page whose title or address names
+    another make and not this one is about that make (a comparison text may name ours in passing)."""
+    words = _make_words(make)
     text = _fold(f"{page.title}\n{page.url}\n{page.text[:HEAD_CHARS]}")
-    if words and re.search(rf"(?<![a-z0-9]){re.escape(words[0])}(?![a-z0-9])", text):
-        return Relevance("RELEVANT", f"names the make {make}")
-    return Relevance("NOT_ABOUT_CAR", f"the page does not name {make}")
+    if not words or not _names(words, text):
+        return Relevance("NOT_ABOUT_CAR", f"the page does not name {make}")
+    head = _fold(f"{page.title}\n{page.url}").replace("-", " ").replace("_", " ")
+    if not _names(words, head):
+        own = _fold(make)
+        for other in other_makes:
+            ow = _make_words(other)
+            if _fold(other) != own and len(ow[0] if ow else "") >= 3 and _names(ow, head):
+                return Relevance("NOT_ABOUT_CAR", f"the page is about {other}, not {make}", other)
+    return Relevance("RELEVANT", f"names the make {make}")
+
+
+# Brand-wide after-sales pages (spec 009 FR-020): maintenance plans, service, warranty.
+SERVICE_WORDS = (
+    "mantenimiento", "revision", "revisiones", "servicio", "servicios", "posventa", "postventa", "taller oficial",
+    "garantia", "garantias", "maintenance", "service", "servicing", "warranty", "warranties", "aftersales",
+    "after sales", "wartung", "inspektion", "garantie", "entretien", "manutenzione", "tagliando", "manutencao",
+)  # fmt: skip
+
+
+def is_service_page(page: PageFacts) -> bool:
+    """The title or address speaks of maintenance, service or warranty."""
+    head = _fold(f"{page.title}\n{page.url}").replace("-", " ").replace("_", " ").replace("/", " ")
+    return _names(SERVICE_WORDS, head)
+
+
+def judge_service(
+    page: PageFacts, target: Target, generations: Sequence[GenerationInfo], other_makes: Sequence[str] = ()
+) -> Relevance:
+    """Maintenance and warranty data (spec 009 FR-020): the brand's service, maintenance and warranty pages name
+    the make, not the model, and still apply to the car. Pages naming another generation, engine or gearbox stay
+    rejected by the version rules; pages about another make are not about the car."""
+    r = judge(page, target, generations)
+    if r.verdict in ("RELEVANT", "OTHER_VARIANT", "MULTI_VARIANT") or not is_service_page(page):
+        return r
+    b = judge_brand(page, target.make, other_makes)
+    if b.verdict != "RELEVANT":
+        return b if r.verdict == "NOT_ABOUT_CAR" or b.other else r
+    return Relevance("RELEVANT", f"brand-wide service page that names the make {target.make}")
 
 
 def judge(page: PageFacts, target: Target, generations: Sequence[GenerationInfo]) -> Relevance:
+    target, generations = resolve_generation(target, generations)
     title_url = f"{page.title}\n{page.url}".lower().replace("-", " ").replace("_", " ")
     head = page.text[:HEAD_CHARS].lower()
     everything = f"{title_url}\n{head}"
