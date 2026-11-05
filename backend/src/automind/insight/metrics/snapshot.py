@@ -5,7 +5,6 @@ Missing tables or empty data give empty series, never an error: the snapshot run
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import time
 from collections import defaultdict
@@ -17,11 +16,11 @@ from sqlalchemy import text
 
 from automind.config import settings
 from automind.infrastructure.db.session import sessionmaker
-from automind.insight.metrics import heartbeat, prom
+from automind.insight.metrics import prom
 
 log = logging.getLogger(__name__)
 
-EVERY_S = 60
+EVERY_S = 60  # the worker runs `metrics_snapshot` this often (config/acquisition.yaml schedule)
 WINDOWS = {"7d": 7, "30d": 30}
 COMPLAINT_KINDS = ("wrong_value", "bad_source", "complaint", "rephrase", "correction")
 
@@ -216,15 +215,3 @@ async def run_once() -> prom.Snapshot:
     snap = await refresh()
     prom.publish(snap)
     return snap
-
-
-async def metrics_loop() -> None:
-    heartbeat.register("metrics", EVERY_S)
-    while True:
-        try:
-            await run_once()
-            heartbeat.beat("metrics", True)
-        except Exception:  # noqa: BLE001 - the loop must never stop the service
-            log.exception("metrics.snapshot_failed")
-            heartbeat.beat("metrics", False)
-        await asyncio.sleep(EVERY_S)

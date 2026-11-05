@@ -1,4 +1,5 @@
-"""The insight loop (spec 010 US3): daily, and earlier when failures pile up. In-process, like retention.
+"""The insight loop (spec 010 US3): daily, and earlier when failures pile up. Run by the acquisition worker
+(spec 011 task `insight_run`), never in the API process.
 
 python -m automind.insight.loop --once     # one analysis now (operator, tests)
 """
@@ -20,7 +21,6 @@ from automind.infrastructure.db.models import now
 from automind.infrastructure.db.session import sessionmaker
 from automind.insight.application.analyse import run_once
 from automind.insight.infrastructure.repo import IssueRepo, failures
-from automind.insight.metrics import heartbeat
 
 log = logging.getLogger(__name__)
 PROMPT = Path(__file__).parent / "prompts" / "analyst_issue.md"  # insight owns its prompt (no orchestration import)
@@ -62,22 +62,15 @@ async def _due(repo: IssueRepo, cfg: dict[str, Any]) -> str | None:
     return None
 
 
-async def insight_loop() -> None:
+async def run_if_due(llm: Any = "live") -> dict[str, Any]:
+    """One check of the schedule (spec 011: the worker's `insight_run` task, every `wake_minutes`); runs when due."""
     cfg = load_yaml("insight.yaml")
-    wake = int((cfg.get("schedule") or {}).get("wake_minutes", 10)) * 60
-    heartbeat.register("insight", wake)
-    repo = IssueRepo(cfg)
-    while True:
-        try:
-            kind = await _due(repo, cfg)
-            if kind:
-                stats = await analyse(kind)
-                log.info("insight.run kind=%s %s", kind, stats)
-            heartbeat.beat("insight", True)  # healthy: checked on schedule, ran when due
-        except Exception:  # noqa: BLE001 - the loop must never stop the service
-            log.exception("insight.run_failed")
-            heartbeat.beat("insight", False)
-        await asyncio.sleep(wake)
+    kind = await _due(IssueRepo(cfg), cfg)
+    if not kind:
+        return {"ran": None}
+    stats = await analyse(kind, llm)
+    log.info("insight.run kind=%s %s", kind, stats)
+    return {"ran": kind, **stats}
 
 
 def main() -> None:

@@ -23,10 +23,9 @@ from automind.acquisition.registry.infrastructure.repo import RegistryRepo, _dec
 from automind.infrastructure.config import load_yaml
 from automind.infrastructure.db.models import CapabilityRow, RegistryChange, RegistryRun, SourceRow, now
 from automind.infrastructure.db.session import sessionmaker
-from automind.insight.metrics import heartbeat, prom
+from automind.insight.metrics import prom
 
 log = logging.getLogger(__name__)
-WAKE_S = 600
 TOP_RANKS = 10  # re-ordering is journalled for the first ranks of each kind of data
 
 
@@ -157,23 +156,6 @@ async def review(cfg: dict[str, Any] | None = None, kind: str = "daily", admit_s
         run.changes, run.finished_at = stats["changes"] + stats["reordered"], now()
         await s.commit()
     return stats
-
-
-async def registry_loop() -> None:
-    heartbeat.register("registry", WAKE_S)
-    last_day = None
-    while True:
-        try:
-            cfg = load_yaml("registry.yaml")
-            today = now().date()
-            if cfg.get("autonomy") and last_day != today:
-                log.info("registry.review %s", await review(cfg))
-                last_day = today
-            heartbeat.beat("registry", True)
-        except Exception:  # noqa: BLE001 - the loop must never stop the service
-            log.exception("registry.review_failed")
-            heartbeat.beat("registry", False)
-        await asyncio.sleep(WAKE_S)
 
 
 if __name__ == "__main__":

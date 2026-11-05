@@ -12,9 +12,11 @@ from typing import Any
 import pytest
 import yaml
 
+from automind.acquisition.worker import exporter
 from automind.insight.metrics.prom import metric_names
 
-RULES = Path(__file__).resolve().parents[3] / "deploy" / "prometheus" / "automind-rules.yml"
+DEPLOY = Path(__file__).resolve().parents[3] / "deploy" / "prometheus"
+RULES = DEPLOY / "automind-rules.yml"
 NAME = re.compile(r"automind_[a-z0-9_]+")
 
 # contracts/metrics.md, "Shipped rules"
@@ -23,6 +25,7 @@ EXPECTED = {
     "AutomindSourceDegraded", "AutomindSourcesBelowMin", "AutomindReaderZero", "AutomindNoDataRise",
     "AutomindFallbackHigh", "AutomindProviderDown", "AutomindBudget80", "AutomindBackgroundBudgetUsed",
     "AutomindLoopStale", "AutomindLoopFailing", "AutomindIssueRegression", "AutomindDown",
+    "AutomindWorkerDown",  # spec 011 contracts/task-queue.md
 }  # fmt: skip
 
 
@@ -38,9 +41,20 @@ def test_rules_parse_and_match_the_contract() -> None:
 
 
 def test_every_metric_in_an_expression_is_exported() -> None:
-    exported = metric_names()
+    exported = metric_names() | exporter.metric_names()  # the API and the worker (spec 011)
     unknown = {(r["alert"], m) for r in _rules() for m in NAME.findall(str(r["expr"])) if m not in exported}
-    assert not unknown, f"metrics not exported by automind.insight.metrics.prom: {sorted(unknown)}"
+    assert not unknown, f"metrics not exported by the API or the worker: {sorted(unknown)}"
+
+
+def test_worker_metric_families_and_scrape_job() -> None:
+    """Spec 011 T056: the worker's families exist, WorkerDown watches its beat, Prometheus scrapes worker:9101."""
+    assert {"automind_worker_beat_timestamp_seconds", "automind_acq_tasks", "automind_acq_task_failures_total",
+            "automind_acq_task_duration_seconds_bucket"} <= exporter.metric_names()  # fmt: skip
+    (down,) = [r for r in _rules() if r["alert"] == "AutomindWorkerDown"]
+    assert "automind_worker_beat_timestamp_seconds" in down["expr"] and 'job="automind-worker"' in down["expr"]
+    jobs = {j["job_name"]: j for j in yaml.safe_load((DEPLOY / "prometheus.yml").read_text())["scrape_configs"]}
+    assert jobs["automind-worker"]["static_configs"][0]["targets"] == ["worker:9101"]
+    assert "automind" in jobs  # the API job stays
 
 
 def test_every_rule_has_severity_summary_and_for() -> None:

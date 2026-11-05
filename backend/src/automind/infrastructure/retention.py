@@ -77,10 +77,7 @@ async def run_retention() -> dict[str, int]:
     counts = {"search_cache": n_cache, "documents": n_docs, "page_relevance": n_rel, "site_reader_stats": n_stats,
               "registry_attempts": n_att}  # fmt: skip
     counts |= await prune_checkpoints()
-    # spec 011 T030: raw page snapshots (moves to the worker's retention_snapshots task in T055)
-    from automind.acquisition.snapshots.retention import run_snapshot_retention  # noqa: PLC0415
-
-    counts |= await run_snapshot_retention()
+    # spec 011: raw page snapshots are pruned by the worker's `retention_snapshots` task
     log.info("retention: %s", counts)
     return counts
 
