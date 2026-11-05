@@ -173,6 +173,26 @@ groups:
           summary: '{{ $value }} fixed problem(s) in {{ $labels.component }} came back'
           admin: /admin
 
+      # spec 011 US5 (T110): the engine's agents and gates. Information only: the evaluator already restored the
+      # previous version / the agent waits for tomorrow; the journal (Changes, acq_changes) has the sentence why.
+      - alert: AutomindChangeRolledBack
+        expr: increase(automind_acq_changes_total{status="rolled_back"}[1h]) > 0
+        for: 0m
+        labels: { severity: info }
+        annotations:
+          summary: 'A change by {{ $labels.agent }} degraded in its watch and was rolled back automatically'
+          admin: /admin
+
+      - alert: AutomindAgentBudgetExhausted
+        expr: |
+          automind_agent_spend_today_eur >= automind_agent_budget_eur
+          and automind_agent_budget_eur > 0
+        for: 0m
+        labels: { severity: info }
+        annotations:
+          summary: 'Agent {{ $labels.agent }} used its daily budget ({{ $value | printf "%.2f" }} EUR); it stops until tomorrow'
+          admin: /admin
+
       - alert: AutomindWorkerDown
         expr: |
           time() - automind_worker_beat_timestamp_seconds > 120

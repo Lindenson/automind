@@ -113,7 +113,7 @@ async def test_redesign_is_detected_by_the_daily_drift_task(world, capsys):
     assert day.pages == 15 and day.fields_per_page == 3 and day.structure_sim < 0.6
     assert before.fields_per_page == 16 and before.structure_sim == 1.0
     assert doctor.kind == "parser_doctor" and doctor.state == "queued" and doctor.payload["version"] == KEY
-    assert "parser_doctor" in Worker(worker_config()).skip  # waits for its handler (US5) instead of dying
+    assert "parser_doctor" not in Worker(worker_config()).skip  # US5 T105: the doctor has its handler
 
     (change,) = await _changes(started)
     assert (change.author, change.object_kind, change.status, change.from_version) == ("system", "parser",

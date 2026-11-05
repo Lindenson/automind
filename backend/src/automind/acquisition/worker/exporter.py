@@ -36,6 +36,11 @@ PARSER_FIELDS = Gauge(P + "parser_fields_per_page", "Fields found per page by a 
 PARSER_PASS = Gauge(P + "parser_pass_rate", "Share of a parser version's rows passing the checks, last 7 days",
                     ["reader", "version"])  # fmt: skip
 PARSER_DRIFT = Gauge(P + "parser_drift", "1 while the running version of a parser is degraded by drift", ["reader"])
+# spec 011 US5 (T100, T110): the change journal and the agents' daily spend
+CHANGES = Counter(P + "acq_changes", "Transitions of gated changes by agent and status", ["agent", "status"])
+OPEN_CHANGES = Gauge(P + "acq_open_changes", "Open gated changes by agent and phase", ["agent", "phase"])
+AGENT_SPEND = Gauge(P + "agent_spend_today_eur", "Spend of an engine agent today (its tasks and gates)", ["agent"])
+AGENT_BUDGET = Gauge(P + "agent_budget_eur", "Daily budget of an engine agent (config/agents.yaml)", ["agent"])
 
 _counts: list[tuple[str, str, int]] = []
 
@@ -46,7 +51,8 @@ def metric_names() -> set[str]:
     return {P + "worker_beat_timestamp_seconds", P + "acq_tasks", P + "acq_task_failures_total",
             d + "_bucket", d + "_sum", d + "_count", P + "searches_per_accepted_value", P + "wrong_share",
             P + "wrong_share_baseline", P + "component_acc_lb", P + "parser_fields_per_page", P + "parser_pass_rate",
-            P + "parser_drift"}  # fmt: skip
+            P + "parser_drift", P + "acq_changes_total", P + "acq_open_changes", P + "agent_spend_today_eur",
+            P + "agent_budget_eur"}  # fmt: skip
 
 
 def start(port: int, addr: str = "127.0.0.1") -> Any:
@@ -122,3 +128,14 @@ def set_parsers(
     PARSER_DRIFT.clear()
     for reader, v in drift.items():
         PARSER_DRIFT.labels(reader=reader).set(v)
+
+
+def set_changes(open_changes: dict[tuple[str, str], float], spend: dict[str, float],
+                budgets: dict[str, float] | None = None) -> None:  # fmt: skip
+    OPEN_CHANGES.clear()
+    for (agent, phase), n in open_changes.items():
+        OPEN_CHANGES.labels(agent=agent, phase=phase).set(n)
+    for agent, eur in spend.items():
+        AGENT_SPEND.labels(agent=agent).set(eur)
+    for agent, eur in (budgets or {}).items():
+        AGENT_BUDGET.labels(agent=agent).set(eur)

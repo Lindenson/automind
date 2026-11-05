@@ -1110,3 +1110,90 @@ class AcqChange(Base):
     cost_eur: Mapped[float] = mapped_column(Numeric(10, 4), default=0)
     reverted_by: Mapped[str | None] = mapped_column(String(36))
     closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+# --- spec 011 US5: agents, gates and overrides (migration 0023) -------------------------------------------------------
+
+
+class PromptVersion(Base):
+    """A version of an extraction, relevance or validator prompt (the only prompts agents may change)."""
+
+    __tablename__ = "prompt_versions"
+    __table_args__ = (
+        UniqueConstraint("name", "version", name="uq_prompt_versions_name_version"),
+        Index("uq_prompt_versions_active", "name", unique=True, postgresql_where=text("status = 'active'")),
+    )
+    key: Mapped[str] = mapped_column(String(80), primary_key=True)  # extract_specs@v3
+    name: Mapped[str] = mapped_column(String(40))
+    version: Mapped[int] = mapped_column(Integer)
+    text: Mapped[str] = mapped_column(Text)
+    text_hash: Mapped[str] = mapped_column(String(12))
+    base_key: Mapped[str | None] = mapped_column(String(80))  # the version this one was derived from
+    status: Mapped[str] = mapped_column(String(12))  # candidate | active | superseded | rejected
+    author: Mapped[str] = mapped_column(String(40))  # seed | owner | agent:extractor_tuner
+    change_id: Mapped[str | None] = mapped_column(String(36))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class RoleModelOverride(Base):
+    """The model of an extractor role (extractor | validator | relevance) chosen through the gates. One row per
+    proposal (data-model has `role` as the key; a candidate row next to the active one needs its own id)."""
+
+    __tablename__ = "role_model_overrides"
+    __table_args__ = (Index("uq_role_model_overrides_active", "role", unique=True, postgresql_where=text("active")),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    role: Mapped[str] = mapped_column(String(20))
+    model: Mapped[str] = mapped_column(String(80))
+    change_id: Mapped[str | None] = mapped_column(String(36))
+    active: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class RuleOverride(Base):
+    """A value layered over a whitelisted key path of sense.yaml / plausibility.yaml / the relevance keywords."""
+
+    __tablename__ = "rule_overrides"
+    __table_args__ = (
+        Index("uq_rule_overrides_active", "path", unique=True, postgresql_where=text("status = 'active'")),
+    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    path: Mapped[str] = mapped_column(Text)
+    value: Mapped[Any] = mapped_column(JSONB)
+    status: Mapped[str] = mapped_column(String(12))  # candidate | active | superseded | rejected
+    change_id: Mapped[str | None] = mapped_column(String(36))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class AcqExperiment(Base):
+    """The running gate of a change: its pinned corpus and the old/new metrics (replay, shadow, watch)."""
+
+    __tablename__ = "acq_experiments"
+    change_id: Mapped[str] = mapped_column(String(36), ForeignKey("acq_changes.id", ondelete="CASCADE"),
+                                           primary_key=True)  # fmt: skip
+    phase: Mapped[str] = mapped_column(String(8))  # replay | shadow | watch
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    corpus: Mapped[list[str]] = mapped_column(ARRAY(String(36)), default=list)
+    pages_old: Mapped[int] = mapped_column(Integer, default=0)
+    pages_new: Mapped[int] = mapped_column(Integer, default=0)
+    metrics_old: Mapped[dict | None] = mapped_column(JSONB)
+    metrics_new: Mapped[dict | None] = mapped_column(JSONB)
+    daily: Mapped[dict] = mapped_column(JSONB, default=dict)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    decision: Mapped[str | None] = mapped_column(Text)
+
+
+class ChangeBlock(Base):
+    """The owner's "forbid similar changes on this object" (US6)."""
+
+    __tablename__ = "change_blocks"
+    __table_args__ = (PrimaryKeyConstraint("object_kind", "object_key", "lever"),)
+    object_kind: Mapped[str] = mapped_column(String(20))
+    object_key: Mapped[str] = mapped_column(String(160))
+    lever: Mapped[str] = mapped_column(String(20))
+    until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # null = forever
+    created_by: Mapped[str] = mapped_column(String(40))
+    reason: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
