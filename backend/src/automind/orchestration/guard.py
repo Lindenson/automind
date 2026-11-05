@@ -135,8 +135,30 @@ TOPIC_WORDS: dict[str, tuple[str, ...]] = {
     "ground_clearance": ("ground clearance", "клиренс*", "altura libre"),
     "official_price_es": ("price*", "цена", "цены", "цене", "стоит", "precio*"),
     "tco_per_year": ("ownership cost*", "running cost*", "стоимост*", "владени*", "coste*"),
+    "tco_period": ("ownership cost*", "total cost*", "cost of ownership", "стоимост*", "владени*", "coste*"),
     "value_retention_5y": ("resale", "residual", "depreciation", "остаточн*", "потеря стоимости", "valor residual"),
 }
+
+# Chat 5821ac77: "Sorento … (saving €3,625 a year), pays back in about 3.5 years" while its 5-year total with
+# depreciation was higher. A sentence that calls a car the saving / cheaper to own / paying back, about a car whose
+# total over the period is higher, contradicts the totals.
+_SAVING = ("saving*", "save", "saves", "cheaper", "less expensive", "pays back", "pay back", "pays for itself",
+           "pays off", "more economical",
+           "экономи*", "сэконом*", "дешевле", "выгодне*", "окупа*", "окупит*",
+           "ahorr*", "más barato", "más barata", "más económic*", "amortiza*", "sale a cuenta")  # fmt: skip
+# "cheaper to run (without depreciation)" is a labelled secondary figure, not a claim about the total
+_WITHOUT_DEPRECIATION = ("without depreciation", "excluding depreciation", "before depreciation",
+                         "без учёта потери стоимости", "без учета потери стоимости", "без учёта амортизации",
+                         "без учета амортизации", "без потери стоимости", "sin depreciación", "sin contar la "
+                         "depreciación", "sin la depreciación")  # fmt: skip
+_NEGATION = ("not", "no", "never", "doesn't", "does not", "isn't", "won't", "не", "нет", "ни", "никогда",
+             "nunca", "tampoco")  # fmt: skip
+# "compared with the Prado, the Sorento …": a name right after these words is the reference, not the subject
+_REFERENCE = re.compile(
+    r"(?:\b(?:than|vs\.?|versus|against|with|over|compared to|for)|против|чем|сравнению с|"
+    r"\bс|frente a|\bque|\bcon)\s+(?:the\s+|el\s+|la\s+)?$",
+    re.I,
+)
 
 _SENT = re.compile(r"(?<=[.!?])\s+|\n+")
 
@@ -154,11 +176,14 @@ _ABSENCE_RE = _words(_ABSENCE)
 _COMPARATIVE_RE = _words(_COMPARATIVE)
 _WINNER_RE = _words(_WINNER)
 _TOPIC_RE = {k: _words(v) for k, v in TOPIC_WORDS.items()}
+_SAVING_RE = _words(_SAVING)
+_WITHOUT_DEP_RE = _words(_WITHOUT_DEPRECIATION)
+_NEGATION_RE = _words(_NEGATION)
 
 
 @dataclass(frozen=True)
 class Violation:
-    rule: str  # absence | sub_threshold | tie_winner
+    rule: str  # absence | sub_threshold | tie_winner | saving_costlier
     sentence: str
     topic: str = ""
 
@@ -169,11 +194,44 @@ class CheckInput:
     ties: frozenset[str]  # insight attributes whose cars are about the same
     tie: bool  # the verdict is a tie
     car_names: tuple[str, ...]  # short names of the cars as the text may write them
+    costlier: tuple[str, ...] = ()  # short names of the cars whose total over the period (incl. depreciation) is higher
 
 
 def _mentions(sentence: str, topic: str) -> bool:
     rx = _TOPIC_RE.get(topic)
     return rx is not None and rx.search(sentence) is not None
+
+
+def _aliases(name: str) -> list[str]:
+    """How the text may write a car: "Kia Sorento", "Sorento"; "Toyota Land Cruiser Prado", "Land Cruiser Prado",
+    "Prado"."""
+    words = name.split()
+    out = [name, " ".join(words[1:])] if len(words) > 1 else [name]
+    if len(words) > 2 and len(words[-1]) >= 3:
+        out.append(words[-1])
+    return [a for a in out if len(a) >= 3]
+
+
+def _subject(sentence: str, names: tuple[str, ...]) -> str | None:
+    """The car a sentence is about: the first one named that is not the reference of a comparison."""
+    hits: list[tuple[int, str]] = []
+    for n in names:
+        for a in _aliases(n):
+            for m in re.finditer(r"(?<!\w)" + re.escape(a) + r"(?!\w)", sentence, re.I):
+                hits.append((m.start(), n))
+    for pos, n in sorted(hits):
+        if not _REFERENCE.search(sentence[:pos]):
+            return n
+    return None
+
+
+def saving_for_costlier(sentence: str, ci: CheckInput) -> bool:
+    """A sentence that calls the car whose period total is higher a saving, cheaper or paying back (ru/en/es)."""
+    if not ci.costlier or _WITHOUT_DEP_RE.search(sentence):
+        return False
+    claims = [m for m in _SAVING_RE.finditer(sentence)
+              if not _NEGATION_RE.search(sentence[max(0, m.start() - 30):m.start()])]  # fmt: skip
+    return bool(claims) and _subject(sentence, ci.car_names) in ci.costlier
 
 
 def report_violations(text: str, ci: CheckInput) -> list[Violation]:
@@ -193,6 +251,9 @@ def report_violations(text: str, ci: CheckInput) -> list[Violation]:
             if topic:
                 out.append(Violation("sub_threshold", s, topic))
                 continue
+        if saving_for_costlier(s, ci):
+            out.append(Violation("saving_costlier", s, "tco_period"))
+            continue
         if ci.tie and _WINNER_RE.search(s) and any(n.lower() in low for n in ci.car_names if n):
             out.append(Violation("tie_winner", s))
     return out
@@ -214,6 +275,9 @@ def violations_prompt(bad: list[Violation]) -> str:
         "absence": "says data is missing although the report has it ({topic})",
         "sub_threshold": "presents a difference below the threshold as an advantage ({topic}: about the same)",
         "tie_winner": "names a winner although the verdict is a tie",
+        "saving_costlier": "calls a car a saving or cheaper although its total cost over the ownership period, "
+        "including depreciation, is higher; compare the totals including depreciation, and label running costs "
+        "'without depreciation'",
     }
     lines = [f'- "{v.sentence}" — {why[v.rule].format(topic=v.topic)}' for v in bad]
     return "Rewrite the text. These sentences contradict the validated data:\n" + "\n".join(lines)

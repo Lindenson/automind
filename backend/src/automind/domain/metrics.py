@@ -63,7 +63,9 @@ class CarFacts:
     mileage_km: int | None = None  # spec 008: a used car's mileage (reliability)
     used_price_eur: float | None = None  # spec 008: the sourced used price for its year (purchase price)
     # computed elsewhere
-    annual_cost_eur: float | None = None  # ownership cost per year (TCO)
+    annual_cost_eur: float | None = None  # running cost per year (TCO, without depreciation)
+    period_cost_eur: float | None = None  # total over the ownership period: running + value lost (chat 5821ac77)
+    period_years: int | None = None  # the period `period_cost_eur` covers
     energy_eur_per_100km: float | None = None  # energy cost per 100 km at the user's prices (spec 006 FR-023)
     reliability: ReliabilitySummary | None = None
     reviews: ReviewSummary | None = None

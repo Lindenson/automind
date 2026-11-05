@@ -312,6 +312,9 @@ async def answer_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[s
         + json.dumps(facts, ensure_ascii=False, default=str),
     )
     text, dropped = check_numbers(text, numbers_in(facts), len(case.cars))
+    if comp.check is not None:  # chat 5821ac77: never "the costlier car saves" in a follow-up either
+        wrong = [v for v in report_violations(text, comp.check) if v.rule == "saving_costlier"]
+        text, dropped = drop_sentences(text, wrong), dropped + len(wrong)
     last = case.shown[-1].persona if case.shown else None
     persona_changed = bool(state.get("persona_changed")) or (last is not None and last != case.persona)
     blocks: list[dict[str, Any]] = [] if nothing_new else _changed_blocks(state, comp.blocks, persona_changed)

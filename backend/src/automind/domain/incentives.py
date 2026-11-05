@@ -8,8 +8,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import date
+
+from .tco import payback_years
 
 DGT_SOURCE = "https://www.dgt.es/muevete-con-seguridad/tecnologia-e-innovacion-en-carretera/distintivo-ambiental/"
 ZERO_MIN_RANGE_KM = 40
@@ -83,8 +86,13 @@ class BreakEven:
 
 
 def break_even(price_e: float | None, price_c: float | None, running_e: float | None, running_c: float | None,
-               *, subsidy_eur: float = 0.0, ownership_years: int | None = None) -> BreakEven:  # fmt: skip
-    """The electrified car (e) against the combustion one (c): years until the lower running cost pays back."""
+               *, subsidy_eur: float = 0.0, ownership_years: int | None = None,
+               curve_e: Sequence[float] | None = None,
+               curve_c: Sequence[float] | None = None) -> BreakEven:  # fmt: skip
+    """The electrified car (e) against the combustion one (c): years until e's total cost — running costs plus the
+    value it loses, year by year (`curve_*`, from domain.tco.cost_curve) — drops to c's. Running costs alone never
+    give a payback (chat 5821ac77: a new car losing €5,000 a year "paid back in 3.5 years"): without the curves a
+    dearer car's payback is UNKNOWN."""
     if None in (price_e, price_c, running_e, running_c):
         return BreakEven("UNKNOWN", None, ["price or running cost missing"])
     assert price_e is not None and price_c is not None and running_e is not None and running_c is not None
@@ -92,10 +100,14 @@ def break_even(price_e: float | None, price_c: float | None, running_e: float | 
     saving = running_c - running_e
     inputs = [f"price difference €{extra:,.0f}" + (f" (after €{subsidy_eur:,.0f} active subsidy)" if subsidy_eur
                                                     else " (no active subsidy counted)"),
-              f"running cost €{running_e:,.0f} vs €{running_c:,.0f} a year"]  # fmt: skip
+              f"running cost €{running_e:,.0f} vs €{running_c:,.0f} a year (without depreciation)"]  # fmt: skip
     if extra <= 0:
         return BreakEven("ALREADY_CHEAPER", 0.0, inputs) if saving >= 0 else BreakEven("CHEAPER_TO_BUY", None, inputs)
-    if saving <= 0:
+    if not curve_e or not curve_c:
+        return BreakEven("UNKNOWN", None, [*inputs, "value loss not known for both cars: no payback computed"])
+    inputs.append("total cost per year of ownership includes the value each car loses (depreciation)")
+    e_total = [x - subsidy_eur for x in curve_e]
+    years = payback_years(e_total, curve_c)
+    if years is None:
         return BreakEven("NEVER", None, inputs)
-    years = round(extra / saving * 2) / 2
     return BreakEven("YEARS", years, inputs, bool(ownership_years and years > ownership_years))
