@@ -33,7 +33,25 @@ denylist: [coches.net, cochesnet, wallapop.com, milanuncios.com, autoscout24., m
   automobile.it, willhaben.at,
   # chat fcf5b3b8 (2026-11-05): listing aggregators are classifieds too (12gebrauchtwagen gave a junk Prado price)
   12gebrauchtwagen.de, autouncle., kleinanzeigen.de, pkw.de, heycar., autotrader., cargurus., truecar.com,
-  carvago.com, autohero.com, coches.com/coches-segunda-mano, autocasion., motor.es/segunda-mano]
+  carvago.com, autohero.com, coches.com/coches-segunda-mano, autocasion., motor.es/segunda-mano,
+  # sources revision 2026-11-05 (docs/sources-revision-2026-11-05.md). Matching is a substring of host+path, so these are
+  # full domains or domain/path; auto.ru, cars.com, cars.ie, auto.cz and autohaus.de are left out on purpose (they would
+  # also hit skoda-auto.ru, iseecars.com, bestcars.ie, skoda-auto.cz, dealer sites) — the registry blocks them by entry.
+  # classifieds already in the 009 survey:
+  avito.ru, bilbasen.dk, bytbil.com, carsireland.ie, cazoo.co.uk, che168.com, cinch.co.uk, dba.dk, donedeal.ie,
+  encar.com, finn.no, gaspedaal.nl, guazi.com, gumtree.com, kvd.se, marktplaats.nl, motors.co.uk, nettiauto.com,
+  olx.pt, standvirtual.com, subito.it, carsensor.net, goo-net.com,
+  # classifieds found in this revision (Kazakhstan/CIS, CEE, Middle East, Latin America):
+  kolesa.kz, mycar.kz, drom.kz, auto.ria.com, av.by, avtoelon.uz, myauto.ge, otomoto.pl, sauto.cz, tipcars.com,
+  hasznaltauto.hu, autovit.ro, car.gr/classifieds, sahibinden.com, arabam.com, dubizzle.com, yad2.co.il,
+  webmotors.com.br, icarros.com.br,
+  # listing sections of otherwise usable sites:
+  automoto.it/auto-usate, theaa.com/used-cars, kakaku.com/kuruma/used, carwale.com/used, yallamotor.com/used-cars,
+  bevolt.com/fr-fr/automobile/occasions,
+  # terms forbid automated access (quotes in registry_seed_survey.yaml, survey revision_2026_11_05):
+  autogids.be, moniteurautomobile.be, autokult.pl, autorevue.cz, turbo.fr, tuulilasi.fi, evspecifications.com,
+  autoflotte.de, kfz-betrieb.vogel.de, fairgarage.com, vroomly.com, auto.mail.ru, lada.kz, icar.co.il,
+  autocarindia.com, overdrive.in/, cardekho.com, autoesporte.globo.com]
 fetch:
   timeout_s: 15
   max_bytes: 3000000
@@ -104,6 +122,20 @@ favourites:
   - {domain: europe.autonews.com, source_type: PUBLICATION, areas: [manufacturer], markets: [ANY], priority: 2, reader: null, tos_checked: null}
   # --- any market ---
   - {domain: wikipedia.org, source_type: ENCYCLOPEDIA, areas: [engineering, manufacturer], markets: [ANY], priority: 2, reader: null, tos_checked: null}
+  # --- sources revision 2026-11-05 (docs/sources-revision-2026-11-05.md): European sources for the thin areas whose
+  # robots.txt allows the model pages for our UA and whose terms have no automated-access clause. Non-ES/EN/DE sites get
+  # markets [ANY] and only market-neutral areas (no prices: spec 009 FR-009 prices stay per market). ---
+  - {domain: autocentrum.pl, source_type: PUBLICATION, areas: [reliability, used_issues, measured, reviews, maintenance], markets: [ANY], priority: 2, reader: null, tos_checked: 2026-11-05}
+  - {domain: autotitre.com, source_type: PUBLICATION, areas: [reliability, used_issues, reviews], markets: [ANY], priority: 3, reader: null, tos_checked: 2026-11-05}
+  - {domain: moottori.fi, source_type: PUBLICATION, areas: [reliability, used_issues], markets: [ANY], priority: 3, reader: null, tos_checked: 2026-11-05}
+  - {domain: automobilrevue.ch, source_type: INSTRUMENTED_TEST, areas: [measured, reviews], markets: [DE], priority: 2, reader: null, tos_checked: 2026-11-05}
+  - {domain: totalcar.hu, source_type: INSTRUMENTED_TEST, areas: [measured, reviews], markets: [ANY], priority: 3, reader: null, tos_checked: 2026-11-05}
+  - {domain: elbil.no, source_type: PUBLICATION, areas: [specs, measured], markets: [ANY], priority: 3, reader: null, tos_checked: 2026-11-05}
+  - {domain: bevolt.com, source_type: PUBLICATION, areas: [specs, measured, reviews], markets: [ANY], priority: 3, reader: null, tos_checked: 2026-11-05}
+  - {domain: fixter.co.uk, source_type: PUBLICATION, areas: [maintenance], markets: [EN], priority: 2, reader: null, tos_checked: 2026-11-05}
+  - {domain: theaa.com, source_type: PUBLICATION, areas: [maintenance, reviews], markets: [EN], priority: 2, reader: null, tos_checked: 2026-11-05}
+  - {domain: electrifying.com, source_type: PUBLICATION, areas: [specs, reviews], markets: [EN], priority: 3, reader: null, tos_checked: 2026-11-05}
+  - {domain: carsized.com, source_type: SPEC_DATABASE, areas: [specs], markets: [ANY], priority: 3, reader: null, tos_checked: 2026-11-05}
 
 # Official manufacturer sites by make for the Spanish market (price, specs, maintenance).
   # --- spec 005 (live chat 2026-11-03): Spanish sources for depreciation, prices, market and reliability ---
