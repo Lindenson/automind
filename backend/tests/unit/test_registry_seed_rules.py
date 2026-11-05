@@ -1,11 +1,10 @@
-"""Spec 010 US8 (T048): seeding the registry from favourites, the 009 survey and learned domains. Pure."""
+"""Spec 010 US8 (T048): seeding the registry from favourites and the 009 survey. Pure."""
 
 from __future__ import annotations
 
 from automind.acquisition.registry.domain.seed_rules import (
     AREA_OF_KIND,
     from_favourite,
-    from_learned,
     from_survey,
     market_of,
 )
@@ -69,36 +68,6 @@ def test_favourites_are_active_with_seed_priority():
         ("specs", "ES", "active", 1),
         ("price", "ES", "active", 1),
     }
-
-
-def test_learned_rows_follow_the_spec_007_rule():
-    act = from_learned(
-        {
-            "domain": "x.es",
-            "area": "specs",
-            "market": "ES",
-            "source_type": "PUBLICATION",
-            "accepted_runs": 3,
-            "misses": 0,
-        },
-        DENY,
-        min_runs=3,
-        max_misses=5,
-    )
-    cand = from_learned(
-        {
-            "domain": "y.es",
-            "area": "specs",
-            "market": "ES",
-            "source_type": "PUBLICATION",
-            "accepted_runs": 1,
-            "misses": 0,
-        },
-        DENY,
-        min_runs=3,
-        max_misses=5,
-    )
-    assert act.status == "active" and act.accepted == 3 and cand.status == "candidate"
 
 
 def test_kind_and_market_mapping():

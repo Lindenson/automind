@@ -81,7 +81,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.runner = ChatRunner(
             hub.build_graph(saver, tools), live_ports(bus, load_prompts()), new_budget, messages=messages
         )
-        try:  # spec 010 US8: the source registry starts from favourites, the 009 survey and learned domains
+        try:  # spec 010 US8: the source registry starts from favourites and the 009 survey
             seeded = await seed_if_empty()
             if seeded:
                 print(f"source registry seeded: {seeded}")

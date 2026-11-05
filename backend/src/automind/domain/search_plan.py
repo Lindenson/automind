@@ -33,7 +33,6 @@ class PlannedQuery:
     area: str
     market: str
     sites: tuple[str, ...] = ()
-    learned: bool = False
 
 
 # --- short identity for favourite queries (spec 007 FR-020; chat 757cff3d) -----------------------------------
@@ -213,8 +212,6 @@ def queries(
     *,
     manufacturer_site: str | None = None,
     sites_per_query: int = 4,
-    learned: Mapping[str, Sequence[str]] | None = None,
-    learned_per_area: int = 4,
     market_names: Mapping[str, str] | None = None,
 ) -> list[PlannedQuery]:
     """`market_names`: the model's name per market (the Prado is a "Land Cruiser" in Spain; FR-021)."""
@@ -243,13 +240,6 @@ def queries(
             for i in range(0, len(sites), max(1, sites_per_query)):
                 group = tuple(sites[i : i + sites_per_query])
                 add(PlannedQuery(_render(template, ident, group), "FAVOURITE", area, market, group))
-            # learned sources (FR-022): after the configured ones, never denied, never twice
-            extra = [d for d in dict.fromkeys((learned or {}).get(market, ()))
-                     if d not in used and not is_denied(f"https://{d}/")][: max(0, learned_per_area)]  # fmt: skip
-            used.update(extra)
-            for i in range(0, len(extra), max(1, sites_per_query)):
-                group = tuple(extra[i : i + sites_per_query])
-                add(PlannedQuery(_render(template, ident, group), "FAVOURITE", area, market, group, learned=True))
         return out
     first_market = markets[0] if markets else "ES"
     ident = for_market(car, first_market, market_names)
@@ -272,7 +262,7 @@ def ev_queries(base: Sequence[PlannedQuery], car: Identity, powertrain: str | No
     out: list[PlannedQuery] = []
     seen = {q.text for q in base}
     for q in base:
-        if q.kind != "FAVOURITE" or q.learned:
+        if q.kind != "FAVOURITE":
             continue
         for k in keys:
             t = templates.get(f"{q.area}_{k}@{q.market}") or templates.get(f"{q.area}_{k}")

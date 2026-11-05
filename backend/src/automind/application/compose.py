@@ -13,6 +13,7 @@ from typing import Any
 
 from sqlalchemy import select
 
+from automind.acquisition import api as acquisition
 from automind.domain import dragrace, energy, identity, reliability, reviews, specs, tco, units, used
 from automind.domain import evidence as evidence_rules
 from automind.domain import insights as ins
@@ -154,10 +155,13 @@ async def load_car(variant_id: str) -> dict:
             "excerpt": c.excerpt,
             "favourite": bool(e.favourite),
             "extracted_by": c.extracted_by,
+            # spec 011 FR-022 (010 T059): read from a registry candidate, labelled "unverified source"
+            **({"unverified": True} if e.unverified else {}),
         }
         for c, e in rows
     }
     researched = max((r.completed_at for r in runs), default=v.created_at)
+    tried = await acquisition.tried_by_area(variant_id)
     return {
         "variant": v,
         "values": values,
@@ -165,6 +169,7 @@ async def load_car(variant_id: str) -> dict:
         "rejected_pages": rejected_pages,
         "researched_at": researched.isoformat(),
         "runs": {r.area: r for r in runs},
+        "tried": {a: [t.model_dump() for t in ts] for a, ts in tried.items()},  # area -> sources read (T123)
         "issues": [(i, e) for i, e in issues],
         "reviews": [(r, e) for r, e in reviews],
         "manufacturer_facts": facts_rows,
@@ -485,6 +490,8 @@ def sources_block(cars: list[dict]) -> dict:
                 item = {k: src[k] for k in ("name", "url", "type", "retrieved_at")}
                 item["favourite"] = bool(src.get("favourite"))
                 item["extracted_by"] = "READER" if readers.get(src["url"]) else "LLM"
+                if src.get("unverified"):
+                    item["unverified"] = True
                 items.append(item)
     accepted = len(items)
     for c in cars:
@@ -540,6 +547,14 @@ DATA_AREAS = ("specs", "price", "maintenance", "reliability", "reviews", "measur
 NO_SOURCES_RETRY_H = 12
 
 
+def _tried_of(car: dict, area: str, run: Any) -> dict:
+    """`{"tried": [...]}` for an area researched without an accepted value ("no data", spec 011 FR-022), else {}."""
+    tried = (car.get("tried") or {}).get(area)
+    if not tried or run is None or run.minimum_met or run.claims_accepted:
+        return {}
+    return {"tried": tried}
+
+
 def data_panel_block(
     cars: list[tuple[str, str, dict]],
     areas: dict[str, set[str]],
@@ -552,7 +567,8 @@ def data_panel_block(
     `cars` are (case car key, short name, loaded car); `areas` the areas each car needs (by case key).
     Status per area: COMPLETE (minimum met), PARTIAL (some evidence), MISSING (nothing yet), UNAVAILABLE
     (searched recently and no source found: no "find it" until the retry window). `previous` holds the
-    accepted values per car from the last report, so the panel can say what changed after "find it"."""
+    accepted values per car from the last report, so the panel can say what changed after "find it". An area with
+    no accepted value names the sources its research read, with their outcomes (`tried`, spec 011 FR-022)."""
     out, total_now = [], 0
     for key, name, car in cars:
         runs = car["runs"]
@@ -571,7 +587,8 @@ def data_panel_block(
                 reason, findable = "no usable sources found", not recent
             if findable and area in (tried or {}).get(car["variant"].id, []):
                 reason, findable = "searched deeper: no more independent sources", False
-            rows.append({"area": area, "status": status, "reason": reason, "findable": findable})
+            rows.append({"area": area, "status": status, "reason": reason, "findable": findable,
+                         **_tried_of(car, area, r)})  # fmt: skip
         values = sum(1 for sv in car["values"].values() if sv.available)
         total_now += values
         out.append({"car_id": car["variant"].id, "car_key": key, "label": name, "values": values, "areas": rows})

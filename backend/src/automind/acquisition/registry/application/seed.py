@@ -1,4 +1,5 @@
-"""Seed the registry (spec 010 US8, T050): favourites, the 009 survey and learned domains. Idempotent.
+"""Seed the registry (spec 010 US8, T050): favourites and the 009 survey. Idempotent. (Spec 007's learned domains
+were seeded once; the rule is gone since spec 011 T124 and the `learned_sources` table is no longer read.)
 
 python -m automind.acquisition.registry.application.seed
 """
@@ -8,13 +9,9 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from sqlalchemy import select
-
-from automind.acquisition.registry.domain.seed_rules import from_favourite, from_learned, from_survey
+from automind.acquisition.registry.domain.seed_rules import from_favourite, from_survey
 from automind.acquisition.registry.infrastructure.repo import RegistryRepo
 from automind.infrastructure.config import load_yaml
-from automind.infrastructure.db.models import LearnedSource
-from automind.infrastructure.db.session import sessionmaker
 
 
 async def seed() -> dict[str, int]:
@@ -22,7 +19,6 @@ async def seed() -> dict[str, int]:
     deny = tuple(str(x).lower() for x in sources.get("denylist") or [])
     reg = load_yaml("registry.yaml")
     fam = reg.get("families") or {}
-    learned_cfg = load_yaml("search.yaml").get("learned") or {}
     repo = RegistryRepo()
     out = {
         "favourites": await repo.seed(
@@ -32,27 +28,6 @@ async def seed() -> dict[str, int]:
     }
     survey = _survey_list()  # a YAML list, not a mapping: read directly
     out["survey"] = await repo.seed((from_survey(e, deny, fam) for e in survey), "seed: 009 survey (robots and terms)")
-    async with sessionmaker()() as s:
-        rows = [
-            {
-                "domain": r.domain,
-                "area": r.area,
-                "market": r.market,
-                "source_type": r.source_type,
-                "accepted_runs": r.accepted_runs,
-                "misses": r.misses,
-            }
-            for r in (await s.execute(select(LearnedSource))).scalars()
-        ]
-    items = []
-    for r in rows:
-        cap = from_learned(r, deny, int(learned_cfg.get("min_runs", 3)), int(learned_cfg.get("max_misses", 5)))
-        src, _ = from_favourite(
-            {"domain": r["domain"], "source_type": r["source_type"], "areas": [], "markets": [r["market"]]}, deny, fam
-        )
-        src.access = "unknown"
-        items.append((src, [cap]))
-    out["learned"] = await repo.seed(items, "seed: learned sources (spec 007)")
     return out
 
 

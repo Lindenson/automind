@@ -34,6 +34,8 @@ export const SourceRefSchema = z.object({
   // spec 003 (FR-012): favourite source, values read from the site's table, or rejected for another variant
   favourite: z.boolean().nullish(),
   extracted_by: z.enum(["READER", "LLM"]).nullish(),
+  // spec 011 FR-022 (010 T059): read from a registry candidate; it counts as half an independent source
+  unverified: z.boolean().nullish(),
   rejected: z
     .object({ reason: z.string(), other: z.string().nullish() })
     .nullish(),
@@ -632,6 +634,10 @@ export const DataPanelBlockSchema = z.object({
           status: z.enum(["COMPLETE", "PARTIAL", "MISSING", "UNAVAILABLE"]),
           reason: z.string().nullable(),
           findable: z.boolean(),
+          // spec 011 FR-022 (010 T067): an area without an accepted value names the sources its research read
+          tried: z
+            .array(z.object({ domain: z.string(), outcome: z.string(), reason: z.string().nullish() }))
+            .nullish(),
         }),
       ),
     }),

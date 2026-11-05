@@ -1,6 +1,6 @@
 """The engine's ports (spec 011 contracts/acquire.md "Ports"): what the pipeline needs from outside — model access,
-reference data, search, the page store, site readers, the source registry, metrics, learned sources and the market
-facts store. Built by `acquisition/infrastructure/wiring.py: live_acq_ports()`; tests pass fakes. The chat's
+reference data, search, the page store, site readers, the source registry, metrics and the market facts
+store. Built by `acquisition/infrastructure/wiring.py: live_acq_ports()`; tests pass fakes. The chat's
 `application/ports.py: Ports` has none of search, pages or readers: it reaches the engine through
 `Ports.acquisition` (strangler S8).
 """
@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from automind.application.ports import LLM, LearnedSources, NoReaders, PageStore, Reference, Searcher, SiteReaders
+from automind.application.ports import LLM, NoReaders, PageStore, Reference, Searcher, SiteReaders
 
 
 @dataclass
@@ -22,7 +22,6 @@ class AcqPorts:
     readers: SiteReaders = field(default_factory=NoReaders)
     registry: Any = None  # acquisition.registry.api.RegistryPort; None: config order only
     metrics: Any = None  # inc(name, **labels) for Prometheus counters; None: not counted
-    learned: LearnedSources | None = None  # spec 007 FR-022; None: no learned sources
     market_facts: Any = None  # spec 006 US5: upsert(rows, evidence_id); None: market areas store nothing
     datasets: Any = None  # async (make) -> [gold DatasetRow]: a live open-dataset query; None: stored/cached only
 

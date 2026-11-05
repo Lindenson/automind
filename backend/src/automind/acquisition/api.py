@@ -58,6 +58,7 @@ __all__: list[str] = [
     "registry_done",
     "reselect",
     "revalidate_claims",
+    "tried_by_area",
     "unmet_areas",
 ]
 
@@ -177,6 +178,12 @@ async def registry_done(variant_ids: list[str]) -> dict[str, dict[str, Any]]:
 async def unmet_areas(variant_ids: list[str]) -> dict[str, set[str]]:
     """variant_id -> areas researched before whose evidence minimum was not reached."""
     return await _engine("acquisition.read").unmet_areas(variant_ids)  # type: ignore[no-any-return]
+
+
+async def tried_by_area(variant_id: str) -> dict[str, list[Tried]]:
+    """area -> the sources the latest research of that area read for the car, with their outcomes ("no data" names
+    them, spec 011 FR-022)."""
+    return await _engine("acquisition.facade").tried_by_area(variant_id)  # type: ignore[no-any-return]
 
 
 async def gearbox_families_mixed(variant_id: str) -> bool:

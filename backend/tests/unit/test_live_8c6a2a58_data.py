@@ -81,7 +81,7 @@ async def test_blocked_analyst_sites_never_crowd_out_the_warranty_page():
     from automind.orchestration.prompts import load_all
 
     web = _Web()
-    ports = SimpleNamespace(search=web, page_store=web, ref=reference(load_all()), learned=None)
+    ports = SimpleNamespace(search=web, page_store=web, ref=reference(load_all()))
     v = SimpleNamespace(make="Audi", model="A4", generation="B9", variant_name="35 TFSI 150 CV",
                         generation_years_from=2015, generation_years_to=None, powertrain="MHEV")  # fmt: skip
     job = research.JobSpec("j", "v", "manufacturer")

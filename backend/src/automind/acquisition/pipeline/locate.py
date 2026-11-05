@@ -18,7 +18,6 @@ from automind.acquisition.pipeline.plan import (
     _ai_queries,
     current_plan,
     identity_of,
-    learned_sites,
     market_names,
     queries_for,
     registry_queries,
@@ -78,16 +77,14 @@ WARRANTY_PAGES = 3  # pages read for the brand's warranty terms in round 0 of th
 
 def _rank_hits(
     ports: Ports, v: db.Variant | None, planned: list[search_plan.PlannedQuery], results: list[Any], seen: set[str]
-) -> tuple[dict[str, tuple[int, int, int]], dict[str, str], list[search_plan.PlannedQuery], int, set[str]]:
-    """Favourites first, then by authority and rank; also which market found a URL, which queries were empty and
-    which URLs a normal (not learned) query found."""
+) -> tuple[dict[str, tuple[int, int, int]], dict[str, str], list[search_plan.PlannedQuery], int]:
+    """Favourites first, then by authority and rank; also which market found a URL and which queries were empty."""
     from automind.application.usage import BudgetExceeded as _BE  # noqa: PLC0415
 
     ranked: dict[str, tuple[int, int, int]] = {}
     url_market: dict[str, str] = {}
     empty: list[search_plan.PlannedQuery] = []
     failures = 0
-    independent: set[str] = set()  # found by a normal (not learned) query
     for q, r in zip(planned, results, strict=True):
         if isinstance(r, _BE):
             raise r
@@ -98,26 +95,23 @@ def _rank_hits(
             empty.append(q)
         for h in r:
             url_market.setdefault(h.url, q.market)
-            if not getattr(q, "learned", False):
-                independent.add(h.url)
             if h.url in seen or ev.is_denied(h.url) or _skipped(h.url):
                 continue
             fav = favourite_priority(ports, v, h.url)
             key = (NO_FAVOURITE if fav is None else fav, ev.AUTHORITY.index(ev.classify_source(h.url)), h.rank)
             ranked[h.url] = min(ranked.get(h.url, key), key)
-    return ranked, url_market, empty, failures, independent
+    return ranked, url_market, empty, failures
 
 
 @dataclass
 class Located:
     """What the searches found: URL → rank key (favourite, authority, search rank), the market whose query found a
-    URL first, the queries that found nothing, failed searches, and the URLs a normal (not learned) query found."""
+    URL first, the queries that found nothing and failed searches."""
 
     ranked: dict[str, tuple[int, int, int]]
     url_market: dict[str, str]
     empty: list[search_plan.PlannedQuery]
     failures: int
-    independent: set[str]
 
     @property
     def order(self) -> list[str]:
@@ -162,7 +156,6 @@ async def _collect(
         "search_failures": found.failures,
         "url_market": found.url_market,
         "empty_queries": found.empty,
-        "independent_urls": found.independent,
     }
     return pages, stats
 
@@ -170,8 +163,7 @@ async def _collect(
 async def pages_for(
     ports: Ports, v: db.Variant, job: JobSpec, missing: list[str], seen: set[str], emit: Emit
 ) -> tuple[list[search_plan.PlannedQuery], list[Page], dict[str, Any]]:
-    planned = queries_for(ports, v, job.area, job.round, missing,
-                          await learned_sites(ports, job.area) if job.round == 0 else None, job.car_year)  # fmt: skip
+    planned = queries_for(ports, v, job.area, job.round, missing, car_year=job.car_year)
     if job.fresh and job.round == 0:  # search again: favourites and the open web together, past the cache
         more = queries_for(ports, v, job.area, 1, missing, car_year=job.car_year)
         planned += [q for q in more if q.text not in {p.text for p in planned}]
@@ -226,5 +218,4 @@ def _merge_stats(a: dict[str, Any], b: dict[str, Any]) -> dict[str, Any]:
         "search_failures": a["search_failures"] + b["search_failures"],
         "url_market": {**b.get("url_market", {}), **a.get("url_market", {})},
         "empty_queries": [*a.get("empty_queries", []), *b.get("empty_queries", [])],
-        "independent_urls": set(a.get("independent_urls", ())) | set(b.get("independent_urls", ())),
     }

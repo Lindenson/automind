@@ -235,9 +235,8 @@ class RegistryRepo:
                 cap = await self._capability(s, a.domain, a.area, a.market)
                 _decay(cap, self.hl)
                 ok = a.outcome == "accepted"
-                if not a.via_learned_query or not ok:  # spec 007 rule: no self-reinforcement through own queries
-                    cap.attempts += 1
-                    cap.accepted += 1 if ok else 0
+                cap.attempts += 1
+                cap.accepted += 1 if ok else 0
                 if a.outcome == "robots":
                     cap.robots_refusals += 1
                 if a.outcome == "junk":
