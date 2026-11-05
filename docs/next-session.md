@@ -1,5 +1,25 @@
 # Next session: where to start
 
+## State on 2026-11-05 (night): spec 011 implemented — start here
+
+- **Spec 011 "Acquisition engine"** (`specs/011-acquisition-engine/`, constitution 1.3.0) is on main (PRs #62–#73) and deployed
+  (app :8090, worker, Prometheus :9090 with jobs `automind` + `automind-worker`, migrations to 0025):
+  measurability (snapshots, versions, gold from EEA CO2/OBFCM/RDW, `replay`), separation (`acquire()`, pipeline in
+  `acquisition/pipeline`, `application/research.py` deleted, worker + `acq_tasks`), honest reputation (gold/agreement/
+  physics/replacement signals, vector blame, Thompson sampling), parser versions + drift, agents behind gates (parser
+  doctor, rule auditor, extractor tuner, evaluator, scout), admin tabs Parsers / Changes / Accuracy.
+- **Baseline `pre-autonomy` started 2026-11-05 18:11 UTC** (T076). After ≥ 7 days: `docker compose exec app python -m
+  automind.acquisition.reputation.baseline close --name pre-autonomy`, then the OWNER decides T078:
+  `registry.autonomy: true` in `backend/config/registry.yaml` + redeploy.
+- **Open 011 tasks**: T057 prefetch (handler slot exists, `prefetch.enabled: false`), T059 latency measurement (SC-005),
+  T126 ADR-032, T127 quickstart walk-through, T128 30-day comparison after autonomy; review `fit_physics` envelope
+  before enabling the power–mass–acceleration check (`config/physics.yaml`).
+- **Known gaps**: European used prices / residual values (no open source allows robots); rule auditor proposes only
+  plausibility thresholds (no relevance-keyword replay yet); extractor tuner not run end to end with a real model.
+- **Process**: incidents go through the engine (issue queue → agent change or code task), never back into the chat code.
+- Tests: `scripts/check.sh` green (1400 backend, 161 frontend, 10/10 import contracts). Never run two check.sh on the
+  same test DB; use `TEST_DATABASE_URL=…/automind_test_<name>`.
+
 ## State after spec 010 implementation (2026-11-05, evening): start here
 
 - Spec 010 is implemented except 8 tasks (see `specs/010-self-observing-registry/tasks.md`, unchecked):
