@@ -87,7 +87,7 @@ export function Electric({ b }: { b: BlockOf<"electric"> }) {
   const t = useT();
   return (
     <BlockCard title={useBlockTitle(b.type, b.title)} icon={<GaugeIcon />}>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" tabIndex={0} role="region" aria-label={b.title}>
         <table className="w-full text-xs">
           <thead>
             <tr className="text-left text-muted">

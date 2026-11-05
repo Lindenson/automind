@@ -164,7 +164,7 @@ export function IntakeCard({ req, card }: { req: ConfirmRequest; card: Card }) {
             onClick={() => answer(o.id)}
             className={
               i === 0
-                ? "min-h-11 rounded-full bg-accent px-4 py-1.5 text-sm font-semibold text-bg hover:opacity-90"
+                ? "min-h-11 rounded-full bg-accent-solid px-4 py-1.5 text-sm font-semibold text-on-accent hover:opacity-90"
                 : "min-h-11 rounded-full border border-line/70 px-4 py-1.5 text-sm hover:border-accent/60"
             }
           >

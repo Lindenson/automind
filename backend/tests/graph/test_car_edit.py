@@ -109,10 +109,11 @@ async def test_remove_and_not_this_car_build_the_delta_by_code(saver):
 async def test_case_payload_carries_the_version_line_and_the_choices(saver):
     await _seed_ateca()
     async with db.sessionmaker()() as s:
-        v = (await s.execute(select(db.Variant).where(db.Variant.make == "SEAT", db.Variant.engine_cc == 999)))
+        v = await s.execute(select(db.Variant).where(db.Variant.make == "SEAT", db.Variant.engine_cc == 999))
         row = v.scalar_one()
-    case = CaseFile(cars=[CaseCar(key="car#1", request_text="SEAT Ateca", make="SEAT", model="Ateca",
-                                  condition="NEW", variant_id=row.id, label=row.label, resolution="CONFIRMED")])  # fmt: skip
+    car1 = CaseCar(key="car#1", request_text="SEAT Ateca", make="SEAT", model="Ateca", condition="NEW",
+                   variant_id=row.id, label=row.label, resolution="CONFIRMED")  # fmt: skip
+    case = CaseFile(cars=[car1])
     payload = await car_view.case_payload(case)
     car = payload["cars"][0]
     assert car["variant_label"].startswith("1.0 TSI 110 CV"), car["variant_label"]

@@ -24,10 +24,7 @@ export function SpecLegend() {
     <p className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted" data-testid="spec-legend">
       <span>{t("table.legend")}</span>
       {LEGEND.map((p) => (
-        <span key={p} className="inline-flex items-center gap-1">
-          <ProvenanceBadge p={p} />
-          <span>{t(`prov.${p}.full` as "prov.MEASURED.full")}</span>
-        </span>
+        <ProvenanceBadge key={p} p={p} />
       ))}
       <span>· {t("table.legend.conf")}</span>
     </p>

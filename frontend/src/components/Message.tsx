@@ -68,12 +68,10 @@ function Note({ m }: { m: NoteEntry }) {
   return (
     <p
       id={messageDomId(m.message_id)}
-      className="flex animate-fadeUp flex-wrap items-baseline gap-x-1.5 text-xs text-muted sm:pl-11"
+      className="animate-fadeUp text-xs text-muted sm:pl-11"
       data-testid="note"
     >
-      <span className="font-semibold">{t("note.noted")}</span>
-      <span className="min-w-0">{m.changes.join(" · ")}</span>
-      <span aria-hidden>—</span>
+      <span className="font-semibold">{t("note.noted")}</span> {m.changes.join(" · ")} <span aria-hidden>—</span>{" "}
       <button
         type="button"
         onClick={() => openAt(car)}

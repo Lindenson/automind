@@ -11,6 +11,9 @@
   --muted: 139 150 170;
   --accent: 249 115 22;
   --accent2: 56 189 248;
+  /* a filled accent surface and the text on it (contrast >= 4.5:1 in both themes) */
+  --accent-solid: 249 115 22;
+  --on-accent: 8 11 17;
   --good: 34 197 94;
   --warn: 245 158 11;
   --bad: 239 68 68;
@@ -38,6 +41,8 @@
     --muted: 92 104 124;
     --accent: 234 88 12;
     --accent2: 2 132 199;
+    --accent-solid: 194 65 12; /* orange-700 */
+    --on-accent: 255 255 255;
     --good: 22 163 74;
     --warn: 217 119 6;
     --bad: 220 38 38;

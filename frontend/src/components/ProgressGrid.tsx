@@ -40,7 +40,7 @@ export function ProgressGrid({ pending }: { pending: PendingTurn }) {
           {t("progress.seconds", { s: elapsed })}
         </span>
       </div>
-      <div className="-mx-1 overflow-x-auto scroll-thin">
+      <div className="-mx-1 overflow-x-auto scroll-thin" tabIndex={0} role="region" aria-label={t("progress.title")}>
         <table className="w-full border-separate border-spacing-1 text-xs">
           <thead>
             <tr>

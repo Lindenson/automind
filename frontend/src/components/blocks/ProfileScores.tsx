@@ -46,7 +46,7 @@ export function ProfileScores({ b }: { b: BlockOf<"profile_scores"> }) {
                     {s.label}
                   </span>
                   {win && (
-                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-accent px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white">
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-accent-solid px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-on-accent">
                       🏆 Winner
                     </span>
                   )}
