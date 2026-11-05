@@ -99,8 +99,10 @@ class ChatSocket:
         ref = getattr(getattr(self.runner, "ports", None), "ref", None)
         if ref is None:
             return
+        registry = getattr(getattr(self.runner, "ports", None), "registry", None)
         result = await challenge.recheck(ref, self.chat_id, str(msg.get("car_id") or ""),
-                                         str(msg.get("attribute") or ""), str(msg.get("text") or ""))  # fmt: skip
+                                         str(msg.get("attribute") or ""), str(msg.get("text") or ""),
+                                         registry=registry)  # fmt: skip
         await self._challenge_feedback(msg, result)
         await self.bus.publish(self.chat_id, None, "challenge_result", result)
 
@@ -168,9 +170,12 @@ class ChatSocket:
             if turn_id:
                 await store.add_signal(turn_id, "bad_source")
             sink = getattr(getattr(self.runner, "ports", None), "registry", None)
-            if sink is not None:  # spec 010 T060: a truth signal against the source for that kind of data
-                await sink.bad_source(url=url, area=msg.get("area"), variant_id=msg.get("car_id"),
-                                      attribute=msg.get("attribute"))  # fmt: skip
+            if sink is not None and msg.get("area"):  # spec 010 T060: a truth signal against that kind of data
+                from automind.acquisition.registry.api import TruthSignalIn  # noqa: PLC0415
+
+                await sink.signal(TruthSignalIn(kind="bad_source", verdict="wrong", domain=domain_of(url),
+                                                area=str(msg["area"]), variant_id=str(msg.get("car_id") or "") or None,
+                                                attribute=str(msg.get("attribute") or "") or None))  # fmt: skip
         except Exception:  # noqa: BLE001
             log.exception("feedback.bad_source_failed chat=%s", self.chat_id)
         await self.bus.publish(self.chat_id, None, "feedback_ack", ack)

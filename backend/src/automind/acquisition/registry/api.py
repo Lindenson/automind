@@ -6,6 +6,10 @@ from typing import Literal, Protocol
 
 from pydantic import BaseModel
 
+from automind.acquisition.registry.domain.blame import blame
+
+__all__ = ["Attempt", "Plan", "PlannedSource", "RegistryPort", "TruthSignalIn", "blame"]
+
 
 class PlannedSource(BaseModel):
     domain: str

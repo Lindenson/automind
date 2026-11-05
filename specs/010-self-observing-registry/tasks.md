@@ -137,13 +137,13 @@ Paths are relative to `backend/` unless they start with `frontend/`, `deploy/`, 
 
 **Independent test**: fixture runs where A is confirmed and B corrected → A before B; B's card shows the corrections.
 
-- [ ] T055 [P] [US6] Unit tests `tests/unit/test_registry_score.py`: Wilson bound monotonic in sample size (3 vs 30 signals, same mean → 30 ranks first); decay halves weight at 90 days; priors by type; score formula of R9; per-area independence.
-- [ ] T056 [P] [US6] Unit tests `tests/unit/test_registry_blame.py`: excerpt holds corrected value → blame `parser`/`extractor` (by `extracted_by`), else `source`; agreement counted once per family.
-- [ ] T057 [US6] Implement `src/automind/acquisition/registry/domain/score.py` and `domain/blame.py` (pure).
-- [ ] T058 [US6] Recompute scores in `RegistryRepo` on `record()` and `signal()` (decay to now, add, store `score, acc_mean, acc_lb, yield`); with `autonomy: true` the planner orders by score (seed priority only breaks ties), candidates limited to `candidate_slots`, `unverified=True` for candidates.
+- [X] T055 [P] [US6] Unit tests `tests/unit/test_registry_score.py`: Wilson bound monotonic in sample size (3 vs 30 signals, same mean → 30 ranks first); decay halves weight at 90 days; priors by type; score formula of R9; per-area independence.
+- [X] T056 [P] [US6] Unit tests `tests/unit/test_registry_blame.py`: excerpt holds corrected value → blame `parser`/`extractor` (by `extracted_by`), else `source`; agreement counted once per family.
+- [X] T057 [US6] Implement `src/automind/acquisition/registry/domain/score.py` and `domain/blame.py` (pure).
+- [X] T058 [US6] Recompute scores in `RegistryRepo` on `record()` and `signal()` (decay to now, add, store `score, acc_mean, acc_lb, yield`); with `autonomy: true` the planner orders by score (seed priority only breaks ties), candidates limited to `candidate_slots`, `unverified=True` for candidates.
 - [ ] T059 [US6] Label candidate values "unverified source" and count them as half an independent source towards an area's minimum: pass `unverified` from the plan into evidence in `application/research.py` (`_evidence`) and into the area-minimum count (`_area_met`); show the label in `frontend/src/components/badges.tsx` (`SourceItem`).
-- [ ] T060 [US6] Emit truth signals: in `challenge.py` (CONFIRMED → right, CORRECTED/REMOVED → wrong, blame via `domain/blame.py`; blame ≠ source → no source penalty, counted as a `check`/`parser` failure for insight), WS `bad_source` (wrong, weight 1, blame source), `reselect` in `research.py` when a value is replaced by a more confident one (`replacement`, 0.7, on the old claim's capability), and agreement of ≥ 2 families on an accepted value (`agreement`, 0.3). Increment `automind_wrong_values_total{area, blame}`.
-- [ ] T061 [US6] Fixture scenario `tests/fixtures/scenarios/registry/` (search.json + docs) and test `tests/integration/test_registry_order.py` implementing the independent test.
+- [ ] T060 [US6] (PARTIAL 2026-11-05: challenge and bad-source signals with blame done; replacement and agreement signals remain) Emit truth signals: in `challenge.py` (CONFIRMED → right, CORRECTED/REMOVED → wrong, blame via `domain/blame.py`; blame ≠ source → no source penalty, counted as a `check`/`parser` failure for insight), WS `bad_source` (wrong, weight 1, blame source), `reselect` in `research.py` when a value is replaced by a more confident one (`replacement`, 0.7, on the old claim's capability), and agreement of ≥ 2 families on an accepted value (`agreement`, 0.3). Increment `automind_wrong_values_total{area, blame}`.
+- [X] T061 [US6] Fixture scenario `tests/fixtures/scenarios/registry/` (search.json + docs) and test `tests/integration/test_registry_order.py` implementing the independent test.
 
 ## Phase 11: User Story 7 — autonomous registry and the Sources screen (P1)
 
