@@ -50,6 +50,7 @@ FRESH_AREAS = (
     "reliability",
     "manufacturer",
     "used_issues",
+    "used_price",
 )
 
 

@@ -167,11 +167,14 @@ def queries_for(
     round_: int,
     missing: list[str],
     learned: dict[str, list[str]] | None = None,
+    car_year: int | None = None,
 ) -> list[search_plan.PlannedQuery]:
     """Favourites first (round 0), open web for later rounds or when an area has no favourites (R2)."""
     cfg = ports.ref.search or {}
     markets = list((cfg.get("area_markets") or {}).get(area) or cfg.get("default_markets") or ["ES"])
     ident = identity_of(v)
+    if area == "used_price" and car_year:  # spec 008 FR-023: the price of the car's model year, not the generation's
+        ident = dataclasses.replace(ident, years=str(car_year))
 
     def plan(r: int) -> list[search_plan.PlannedQuery]:
         return search_plan.queries(
@@ -260,8 +263,10 @@ async def _run(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
     totals = {"accepted": 0, "rejected": 0, "reader": 0, "docs": 0}
     accepted_by_url: dict[str, int] = defaultdict(int)
 
+    brand = job.area in research_plan.BRAND_AREAS
+
     async def one(p: Page) -> None:
-        r = await judge(p)
+        r = rel.judge_brand(rel.PageFacts(p.url, p.title, p.text), v.make) if brand else await judge(p)
         if r.verdict in ("OTHER_VARIANT", "NOT_ABOUT_CAR"):
             gate[r.verdict.lower()] += 1
             return
@@ -387,6 +392,9 @@ def favourite_priority(ports: Ports, v: db.Variant | None, url: str) -> int | No
     return best
 
 
+WARRANTY_PAGES = 3  # pages read for the brand's warranty terms in round 0 of the manufacturer area
+
+
 def _rank_hits(
     ports: Ports, v: db.Variant | None, planned: list[search_plan.PlannedQuery], results: list[Any], seen: set[str]
 ) -> tuple[dict[str, tuple[int, int, int]], dict[str, str], list[search_plan.PlannedQuery], int, set[str]]:
@@ -427,6 +435,7 @@ async def _collect(
     v: db.Variant | None = None,
     *,
     fresh: bool = False,
+    limit: int | None = None,
 ) -> tuple[list[Page], dict[str, Any]]:
     """Search (cache-first) → rank favourites first → fetch pages through the page store (R2–R4)."""
     from automind.application.usage import BudgetExceeded as _BE  # noqa: PLC0415
@@ -437,7 +446,7 @@ async def _collect(
     )
     ranked, url_market, empty, failures, independent = _rank_hits(ports, v, planned, results, seen)
     order = sorted(ranked, key=lambda u: ranked[u])
-    limit = int(((ports.ref.search or {}).get("limits") or {}).get("max_pages_per_job", MAX_DOCS_PER_JOB))
+    limit = limit or int(((ports.ref.search or {}).get("limits") or {}).get("max_pages_per_job", MAX_DOCS_PER_JOB))
     store = ports.page_store
     pages: list[Page] = []
     rejected: dict[str, int] = defaultdict(int)
@@ -470,11 +479,21 @@ async def _search_pages(
     ports: Ports, v: db.Variant, job: JobSpec, missing: list[str], seen: set[str], emit: Emit
 ) -> tuple[list[search_plan.PlannedQuery], list[Page], dict[str, Any]]:
     planned = queries_for(ports, v, job.area, job.round, missing,
-                          await learned_sites(ports, job.area) if job.round == 0 else None)  # fmt: skip
+                          await learned_sites(ports, job.area) if job.round == 0 else None, job.car_year)  # fmt: skip
     if job.fresh and job.round == 0:  # search again: favourites and the open web together, past the cache
-        planned += [q for q in queries_for(ports, v, job.area, 1, missing) if q.text not in {p.text for p in planned}]
-    await emit("searching", f"{job.area}: {len(planned)} searches" + (" (follow-up)" if job.round else ""))
+        more = queries_for(ports, v, job.area, 1, missing, car_year=job.car_year)
+        planned += [q for q in more if q.text not in {p.text for p in planned}]
+    warranty = search_plan.warranty_query(planned, job.area, job.round, identity_of(v), ports.ref.favourite_queries)
+    await emit(
+        "searching", f"{job.area}: {len(planned) + len(warranty)} searches" + (" (follow-up)" if job.round else "")
+    )
     pages, stats = await _collect(ports, planned, seen, job.area, v, fresh=job.fresh)
+    if warranty:  # spec 008 FR-027: its own few pages, so blocked analyst sites ranked first cannot crowd it out
+        more, more_stats = await _collect(ports, warranty, seen | {p.url for p in pages}, job.area, v,
+                                          fresh=job.fresh, limit=WARRANTY_PAGES)  # fmt: skip
+        pages += more
+        planned += warranty
+        stats = _merge_stats(stats, more_stats)
     retry_on = bool((ports.ref.search or {}).get("favourite_retry", True))
     retry = search_plan.retry_queries(stats["empty_queries"], identity_of(v), ports.ref.favourite_queries)
     if retry_on and retry:  # a favourite query found nothing: once more, shorter (spec 007 FR-021)

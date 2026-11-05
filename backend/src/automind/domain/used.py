@@ -65,7 +65,7 @@ def used_price_for(ranges: Sequence[UsedRange], year: int | None) -> UsedPrice |
             pick, exact = min(hit, key=lambda r: r.max_eur - r.min_eur), True
         elif near:
             pick = near[0]
-    if pick is None:
+    if pick is None and year is None:  # a price for the whole generation never stands for one model year
         loose = [r for r in ranges if r.year_from is None and r.year_to is None]
         pick = loose[0] if loose else None
     if pick is None or pick.max_eur <= 0:
