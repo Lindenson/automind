@@ -3,6 +3,7 @@ import type { BlockOf } from "../../lib/protocol";
 import { cx } from "../../lib/util";
 import { useChat } from "../../store/chat";
 import { useCarColor } from "../carColors";
+import { Reveal } from "../badges";
 
 const STATUS: Record<string, { cls: string }> = {
   COMPLETE: { cls: "border-good/40 bg-good/10 text-good" },
@@ -58,14 +59,17 @@ export function DataPanel({ b }: { b: BlockOf<"data_panel"> }) {
               {car.areas.map((a) => {
                 const st = STATUS[a.status] ?? STATUS.MISSING!;
                 const label = t(`panel.${a.status}` as "panel.MISSING");
+                // the reason on tap or Enter, not in a hover-only tooltip (spec 010 FR-040)
                 return (
-                  <li
+                  <Reveal
+                    as="li"
                     key={a.area}
-                    title={a.reason ?? label}
+                    reason={a.reason}
+                    what={`${car.label}, ${a.area.replace("_", " ")}`}
                     className={cx("rounded-full border px-2 py-0.5 text-[11px]", st.cls)}
                   >
                     {a.area.replace("_", " ")}: {label}
-                  </li>
+                  </Reveal>
                 );
               })}
             </ul>

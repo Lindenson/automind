@@ -17,7 +17,7 @@ import {
 } from "./lib/transport";
 import { messageDomId, scrollTarget } from "./lib/scroll";
 import { isMockMode } from "./lib/util";
-import { loadCase } from "./store/case";
+import { loadCase, watchCase } from "./store/case";
 import { useChat } from "./store/chat";
 import { useT } from "./i18n";
 
@@ -38,6 +38,9 @@ export default function App() {
   const scroller = useRef<HTMLDivElement>(null);
   const [chatsOpen, setChatsOpen] = useState(false);
   const stick = useRef(true);
+
+  // spec 010 FR-038: the case panel opens by itself on wide screens and counts unseen changes
+  useEffect(() => watchCase(), []);
 
   // One transport per chat id.
   useEffect(() => {

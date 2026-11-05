@@ -10,14 +10,46 @@ import {
 } from "../badges";
 import { useCarColor } from "../carColors";
 import { CacheIcon, TableIcon } from "../icons";
-import { ChallengeButton } from "../ChallengeButton";
+import { ChallengeButton, ChallengedValue } from "../ChallengeButton";
+import { CarChange } from "../CarChange";
+import { useChat } from "../../store/chat";
+import type { Provenance } from "../../lib/protocol";
+
+const LEGEND: Provenance[] = ["MANUFACTURER_CLAIM", "MEASURED", "SIMULATED_ESTIMATE", "ASSUMPTION"];
+
+/** One line above the table (spec 010 FR-040): what the badges and the dot mean. */
+export function SpecLegend() {
+  const t = useT();
+  return (
+    <p className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted" data-testid="spec-legend">
+      <span>{t("table.legend")}</span>
+      {LEGEND.map((p) => (
+        <span key={p} className="inline-flex items-center gap-1">
+          <ProvenanceBadge p={p} />
+          <span>{t(`prov.${p}.full` as "prov.MEASURED.full")}</span>
+        </span>
+      ))}
+      <span>· {t("table.legend.conf")}</span>
+    </p>
+  );
+}
+
+/** "Change" in a column header: the case car with this version (spec 010 FR-037). */
+function ColumnChange({ variantId, name }: { variantId: string; name: string }) {
+  const car = useChat((s) => s.caseFile?.data.cars.find((c) => c.variant_id === variantId));
+  if (!car) return null;
+  return <CarChange car={car} name={name} className="mt-1.5" />;
+}
 
 export function SpecTable({ b }: { b: BlockOf<"spec_table"> }) {
   const color = useCarColor();
   const t = useT();
   return (
     <BlockCard title={useBlockTitle(b.type, b.title)} icon={<TableIcon />}>
-      <div className="-mx-4 -my-4 overflow-x-auto scroll-thin">
+      <div className="-mx-4 -mt-2 mb-2 px-4">
+        <SpecLegend />
+      </div>
+      <div className="-mx-4 -mb-4 overflow-x-auto scroll-thin">
         <table className="w-full min-w-[480px] border-collapse text-sm">
           <thead>
             <tr className="border-b border-line/60 bg-panel2/50">
@@ -48,6 +80,7 @@ export function SpecTable({ b }: { b: BlockOf<"spec_table"> }) {
                       </span>
                     )}
                   </div>
+                  <ColumnChange variantId={c.id} name={c.label} />
                 </th>
               ))}
             </tr>
@@ -91,16 +124,18 @@ export function SpecTable({ b }: { b: BlockOf<"spec_table"> }) {
                   return (
                     <td key={c.id} className="px-3 py-2.5 align-top">
                       <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-                        <span
-                          className={
-                            v.better
-                              ? "tabular font-semibold text-good"
-                              : "tabular font-medium text-fg"
-                          }
-                          title={v.better ? t("table.better") : undefined}
-                        >
-                          {text}
-                        </span>
+                        <ChallengedValue carId={c.id} attribute={row.key}>
+                          <span
+                            className={
+                              v.better
+                                ? "tabular font-semibold text-good"
+                                : "tabular font-medium text-fg"
+                            }
+                            title={v.better ? t("table.better") : undefined}
+                          >
+                            {text}
+                          </span>
+                        </ChallengedValue>
                         {v.confidence && <ConfidenceDot c={v.confidence} />}
                         {v.provenance && <ProvenanceBadge p={v.provenance} />}
                         <SourcesButton
@@ -110,7 +145,7 @@ export function SpecTable({ b }: { b: BlockOf<"spec_table"> }) {
                           attribute={row.key}
                           area="specs"
                         />
-                        <ChallengeButton carId={c.id} attribute={row.key} />
+                        <ChallengeButton carId={c.id} attribute={row.key} label={row.label} />
                       </div>
                     </td>
                   );

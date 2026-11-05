@@ -86,22 +86,33 @@ export function Header({
   );
 }
 
-function CaseToggle() {
+export function CaseToggle() {
   const t = useT();
-  const { open, setOpen } = useCasePanel();
+  const { open, setOpen, unseen } = useCasePanel();
   return (
     <button
       type="button"
       aria-pressed={open}
+      aria-label={unseen > 0 ? `${t("header.case")} — ${t("header.case.unseen", { n: unseen })}` : undefined}
       onClick={() => setOpen(!open)}
       className={cx(
-        "rounded-full border px-2.5 py-1 text-xs font-medium transition sm:px-3",
+        "relative rounded-full border px-2.5 py-1 text-xs font-medium transition sm:px-3",
         open
           ? "border-accent/60 text-accent"
           : "border-line/70 bg-panel/70 text-fg hover:border-accent/60 hover:text-accent",
       )}
     >
       {t("header.case")}
+      {unseen > 0 && !open && (
+        // spec 010 FR-038: changes arrived since the panel was last looked at
+        <span
+          aria-hidden
+          data-testid="case-unseen"
+          className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-white"
+        >
+          {unseen > 9 ? "9+" : unseen}
+        </span>
+      )}
     </button>
   );
 }

@@ -1,7 +1,9 @@
 import { create } from "zustand";
 import {
   parseServerMsg,
+  type CarEditField,
   type CaseFile,
+  type ChallengeResult,
   type ChatMessage,
   type ConfirmRequest,
   type StatusMsg,
@@ -20,7 +22,25 @@ export type ErrorEntry = {
   created_at: string;
   text: string;
 };
-export type UiMessage = ChatMessage | ErrorEntry;
+/** spec 010 FR-038: a one-line "Noted: … — Edit" entry per set of case changes (this browser only). */
+export type NoteEntry = {
+  role: "note";
+  message_id: string;
+  created_at: string;
+  turn_id?: string | null;
+  changes: string[];
+};
+export type UiMessage = ChatMessage | ErrorEntry | NoteEntry;
+
+/** Case changes worth a note in the chat: the bookkeeping of the intake is left out. */
+const QUIET = [/^asked:/, /^confirmation card shown/, /^card edit not applied/, /^comparison level:/, /: (need|choices|not_found)$/];
+export function noteworthy(changes: string[]): string[] {
+  return changes.filter((c) => c.trim() && !QUIET.some((r) => r.test(c)));
+}
+
+/** spec 010 FR-041: "wrong?" on a value: checking, or the result, keyed by `${car_id}|${attribute}`. */
+export type ChallengeState = "checking" | ChallengeResult;
+export const challengeKey = (carId: string, attribute: string) => `${carId}|${attribute}`;
 
 export type TimedStatus = StatusMsg & { at: number };
 
@@ -79,7 +99,11 @@ interface ChatState {
   setLang: (lang: Lang | null) => void;
   find: (focusCars: string[], areas: string[], text: string) => void;
   rate: (messageId: string, rating: number, note: string) => void;
-  challenge: (carId: string, attribute: string) => void;
+  /** spec 010 FR-041: the reason is sent as the text (stored in the feedback) */
+  challenge: (carId: string, attribute: string, reason?: string) => void;
+  challenges: Record<string, ChallengeState>;
+  /** spec 010 FR-037: "Change" on a car; true when it went out */
+  carEdit: (carKey: string, field: CarEditField, value?: string) => boolean;
   /** spec 010 US2: "bad source" marks sent in this chat */
   badSources: Record<string, BadSourceState>;
   /** true when the mark went out */
@@ -112,6 +136,7 @@ export const useChat = create<ChatState>((set, get) => {
     setRescore: (rescore) => set({ rescore }),
     usageByTurn: {},
     badSources: {},
+    challenges: {},
     historyLoading: false,
     transport: null,
 
@@ -168,15 +193,38 @@ export const useChat = create<ChatState>((set, get) => {
           });
           break;
         case "case_file":
+          set((s) => {
+            if (s.caseFile && s.caseFile.version > msg.version) return {};
+            const caseFile = { version: msg.version, data: msg.case, changes: msg.changes };
+            const fresh = !s.caseFile || msg.version > s.caseFile.version;
+            const changes = fresh ? noteworthy(msg.changes) : [];
+            if (!changes.length) return { caseFile };
+            // one note per turn: later change sets of the same turn join it
+            const last = s.messages[s.messages.length - 1];
+            if (last?.role === "note" && (last.turn_id ?? null) === (msg.turn_id ?? null)) {
+              const merged = [...last.changes, ...changes.filter((c) => !last.changes.includes(c))];
+              return { caseFile, messages: [...s.messages.slice(0, -1), { ...last, changes: merged }] };
+            }
+            const note: NoteEntry = { role: "note", message_id: uuid(), created_at: now(), turn_id: msg.turn_id, changes };
+            return { caseFile, messages: [...s.messages, note] };
+          });
+          break;
+        case "agreed":
           set((s) =>
-            s.caseFile && s.caseFile.version > msg.version
+            s.messages.some((m) => m.message_id === msg.message_id)
               ? {}
               : {
-                  caseFile: {
-                    version: msg.version,
-                    data: msg.case,
-                    changes: msg.changes,
-                  },
+                  messages: [
+                    ...s.messages,
+                    {
+                      role: "assistant",
+                      message_id: msg.message_id,
+                      turn_id: msg.turn_id,
+                      created_at: msg.created_at,
+                      text: msg.text,
+                      blocks: msg.blocks,
+                    },
+                  ],
                 },
           );
           break;
@@ -190,24 +238,30 @@ export const useChat = create<ChatState>((set, get) => {
           }
           break;
         case "challenge_result": {
-          const what: Record<string, string> = {
-            CONFIRMED: tr("challenge.CONFIRMED", { sources: msg.sources.join(", ") }),
-            CORRECTED: tr("challenge.CORRECTED", { before: msg.before ?? "—", after: msg.after ?? "—" }),
-            REMOVED: tr("challenge.REMOVED", { why: msg.rejected.map((r) => `${r.source}: ${r.why}`).join("; ") }),
-            UNRESOLVED: tr("challenge.UNRESOLVED"),
-          };
-          set((s) => ({
-            messages: [
-              ...s.messages,
-              {
-                role: "assistant",
-                message_id: uuid(),
-                created_at: now(),
-                text: tr("challenge.result", { attr: msg.attribute.replace(/_/g, " "), what: what[msg.outcome] ?? "" }),
-                blocks: [],
-              },
-            ],
-          }));
+          // shown in the challenged cell (spec 010 FR-041); a result for a value no cell shows still gets a line
+          const key = challengeKey(msg.car_id ?? "", msg.attribute);
+          set((s) => {
+            if (s.challenges[key] !== undefined) return { challenges: { ...s.challenges, [key]: msg } };
+            const what: Record<string, string> = {
+              CONFIRMED: tr("challenge.CONFIRMED", { sources: msg.sources.join(", ") }),
+              CORRECTED: tr("challenge.CORRECTED", { before: msg.before ?? "—", after: msg.after ?? "—" }),
+              REMOVED: tr("challenge.REMOVED", { why: msg.rejected.map((r) => `${r.source}: ${r.why}`).join("; ") }),
+              UNRESOLVED: tr("challenge.UNRESOLVED"),
+            };
+            return {
+              challenges: { ...s.challenges, [key]: msg },
+              messages: [
+                ...s.messages,
+                {
+                  role: "assistant",
+                  message_id: uuid(),
+                  created_at: now(),
+                  text: tr("challenge.result", { attr: msg.attribute.replace(/_/g, " "), what: what[msg.outcome] ?? "" }),
+                  blocks: [],
+                },
+              ],
+            };
+          });
           break;
         }
         case "feedback_ack": {
@@ -352,13 +406,34 @@ export const useChat = create<ChatState>((set, get) => {
       transport?.send({ type: "cancel", turn_id: turnId });
     },
 
-    challenge: (carId, attribute) => {
-      get().transport?.send({
+    challenge: (carId, attribute, reason) => {
+      const ok = get().transport?.send({
         type: "challenge",
         car_id: carId,
         attribute,
-        text: "this is wrong",
+        text: reason?.trim() || "this is wrong",
       });
+      if (ok)
+        set((s) => ({ challenges: { ...s.challenges, [challengeKey(carId, attribute)]: "checking" } }));
+    },
+
+    carEdit: (carKey, field, value) => {
+      const { transport, pending } = get();
+      if (!transport || pending) return false;
+      const message_id = uuid();
+      const ok = transport.send({
+        type: "car_edit",
+        message_id,
+        car_key: carKey,
+        field,
+        ...(value?.trim() ? { value: value.trim() } : {}),
+      });
+      if (ok)
+        set({
+          confirm: null,
+          pending: { userMessageId: message_id, startedAt: Date.now(), statuses: [], kind: "edit" },
+        });
+      return ok;
     },
 
     badSource: ({ messageId, url, carId, attribute, area }) => {
@@ -477,6 +552,7 @@ export const useChat = create<ChatState>((set, get) => {
         caseFile: null,
         usageByTurn: {},
         badSources: {},
+        challenges: {},
       });
     },
 
@@ -491,6 +567,7 @@ export const useChat = create<ChatState>((set, get) => {
         caseFile: null,
         usageByTurn: {},
         badSources: {},
+        challenges: {},
       });
     },
   };

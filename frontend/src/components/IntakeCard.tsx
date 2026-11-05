@@ -1,13 +1,69 @@
+import { useState } from "react";
 import { useT } from "../i18n";
 import type { CardItem, ConfirmRequest, IntakeCard as Card } from "../lib/protocol";
 import { cx } from "../lib/util";
 import { useChat } from "../store/chat";
-import { BASIS_CLS } from "./badges";
+import { BASIS_CLS, Reveal } from "./badges";
 
 /**
  * The intake confirmation card (spec 005 FR-019–FR-021): the cars as resolved, the person, the research cost.
  * Every item shows its basis; option chips edit it (applied by code); one "yes" starts the research.
  */
+
+/** Fields the server can apply from typed text (application/intake_card.apply_edit): an inline edit when they have
+ *  no chips (spec 010 FR-037, audit F2). */
+export const TYPED_FIELDS: Record<"car" | "profile", string[]> = {
+  car: ["engine", "year"],
+  profile: ["annual_km"],
+};
+
+export function typedEdit(it: CardItem, carKey: string | null): boolean {
+  return !(it.options && it.options.length > 0) && TYPED_FIELDS[carKey ? "car" : "profile"].includes(it.field);
+}
+
+function InlineEdit({ it, carKey, label }: { it: CardItem; carKey: string | null; label: string }) {
+  const t = useT();
+  const edit = useChat((s) => s.editIntake);
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  if (!open)
+    return (
+      <button
+        type="button"
+        aria-label={t("card.edit.aria", { field: label })}
+        onClick={() => {
+          setText(it.field === "annual_km" ? it.value.replace(/[^\d]/g, "") : it.value);
+          setOpen(true);
+        }}
+        className="ml-1.5 text-[11px] text-accent underline-offset-2 hover:underline"
+      >
+        {t("card.edit")}
+      </button>
+    );
+  return (
+    <form
+      className="mt-1 flex gap-1.5"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (text.trim() && text.trim() !== it.value) edit(carKey, it.field, text.trim());
+        setOpen(false);
+      }}
+    >
+      <input
+        autoFocus
+        aria-label={t("card.edit.aria", { field: label })}
+        inputMode={it.field === "engine" ? "text" : "numeric"}
+        value={text}
+        onChange={(e) => setText(e.target.value.slice(0, 80))}
+        onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
+        className="min-w-0 flex-1 rounded border border-line/70 bg-panel2 px-1.5 py-1 text-sm"
+      />
+      <button type="submit" className="rounded bg-accent/15 px-2 text-xs font-medium">
+        {t("card.edit.save")}
+      </button>
+    </form>
+  );
+}
 
 function Row({ it, carKey }: { it: CardItem; carKey: string | null }) {
   const t = useT();
@@ -30,12 +86,14 @@ function Row({ it, carKey }: { it: CardItem; carKey: string | null }) {
           ) : (
             it.value
           )}
-          <span
-            title={tip}
+          <Reveal
+            reason={tip}
+            what={label}
             className={`ml-1.5 rounded border px-1 align-middle text-[10px] uppercase ${BASIS_CLS[it.basis]}`}
           >
             {t(`card.basis.${it.basis}` as "card.basis.STATED")}
-          </span>
+          </Reveal>
+          {typedEdit(it, carKey) && <InlineEdit it={it} carKey={carKey} label={label} />}
         </span>
       </div>
       {it.options && it.options.length > 0 && (

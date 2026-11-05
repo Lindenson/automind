@@ -8,8 +8,12 @@ import { messageDomId } from "../lib/scroll";
 import { fmtTime, isDebug, sentence } from "../lib/util";
 import { useChat } from "../store/chat";
 import { BlockView } from "./blocks/BlockView";
-import { DataPanelPresent } from "./blocks/Verdict";
-import type { Block } from "../lib/protocol";
+import { DataPanelPresent, Verdict } from "./blocks/Verdict";
+import { Agreed } from "./blocks/Agreed";
+import { BasedOn, carLine } from "./blocks/CaseSummary";
+import type { Block, BlockOf } from "../lib/protocol";
+import type { NoteEntry } from "../store/chat";
+import { useCasePanel } from "../store/case";
 import { RatingControl } from "./RatingControl";
 import { buildCarColors, CarColorContext } from "./carColors";
 import { Logo } from "./Logo";
@@ -31,6 +35,7 @@ export const Message = memo(function Message({ m }: { m: UiMessage }) {
       </div>
     );
   }
+  if (m.role === "note") return <Note m={m} />;
   if (m.role === "error") {
     return (
       <div
@@ -45,8 +50,40 @@ export const Message = memo(function Message({ m }: { m: UiMessage }) {
       </div>
     );
   }
+  const agreed = m.blocks.length > 0 && m.blocks.every((b) => b.type === "agreed");
+  if (agreed)
+    return (
+      <div id={messageDomId(m.message_id)} className="animate-fadeUp sm:pl-11">
+        {m.blocks.map((b, i) => (b.type === "agreed" ? <Agreed key={i} b={b} /> : null))}
+      </div>
+    );
   return <AssistantMessage m={m} />;
 });
+
+/** "Noted: … — Edit" after a set of case changes (spec 010 FR-038); Edit opens the case panel. */
+function Note({ m }: { m: NoteEntry }) {
+  const t = useT();
+  const openAt = useCasePanel((s) => s.openAt);
+  const car = m.changes.map((c) => /^(car#\d+)/.exec(c)?.[1]).find(Boolean) ?? null;
+  return (
+    <p
+      id={messageDomId(m.message_id)}
+      className="flex animate-fadeUp flex-wrap items-baseline gap-x-1.5 text-xs text-muted sm:pl-11"
+      data-testid="note"
+    >
+      <span className="font-semibold">{t("note.noted")}</span>
+      <span className="min-w-0">{m.changes.join(" · ")}</span>
+      <span aria-hidden>—</span>
+      <button
+        type="button"
+        onClick={() => openAt(car)}
+        className="font-medium text-accent underline-offset-2 hover:underline"
+      >
+        {t("note.edit")}
+      </button>
+    </p>
+  );
+}
 
 const SECTIONS = new Set([
   "comparison", "engineering", "performance", "cost_over_time", "value_retention", "reliability", "reviews",
@@ -67,9 +104,14 @@ function groupSections(blocks: Block[]): { section?: string; open: boolean; bloc
 function AssistantMessage({ m }: { m: ChatMessage }) {
   const colors = useMemo(() => buildCarColors(m.blocks), [m.blocks]);
   const t = useT();
-  // spec 004 FR-001: the verdict card comes first, before the explanation
-  const lead = m.blocks.filter((b) => b.type === "verdict");
-  const rest = m.blocks.filter((b) => b.type !== "verdict");
+  // spec 004 FR-001: the verdict card comes first, before the explanation; spec 010 FR-039: "Based on: …" above it
+  const lead = m.blocks.filter((b): b is BlockOf<"verdict"> => b.type === "verdict");
+  const summary = m.blocks.find((b): b is BlockOf<"case_summary"> => b.type === "case_summary");
+  const strip = lead.length > 0 ? summary : undefined;
+  const rest = m.blocks.filter((b) => b.type !== "verdict" && b !== strip);
+  const versions = summary?.cars.some((c) => c.variant_label)
+    ? summary.cars.map(carLine).join(" vs ")
+    : undefined;
   // audit F11: one "find the missing data" action per report — the data panel's, when there is one
   const hasPanel = m.blocks.some((b) => b.type === "data_panel");
   return (
@@ -86,8 +128,9 @@ function AssistantMessage({ m }: { m: ChatMessage }) {
         </div>
         <CarColorContext.Provider value={colors}>
           <DataPanelPresent.Provider value={hasPanel}>
+            {strip && <BasedOn b={strip} />}
             {lead.map((b, i) => (
-              <BlockView key={`lead-${i}`} block={b} />
+              <Verdict key={`lead-${i}`} b={b} versions={versions} />
             ))}
           </DataPanelPresent.Provider>
         </CarColorContext.Provider>
