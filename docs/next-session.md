@@ -1,6 +1,60 @@
 # Next session: where to start
 
-State on 2026-11-04:
+## State on 2026-11-05: start here
+
+- **main** has specs 002–008, plus the 008 follow-ups:
+  - PRs #48–#49: live-run fixes and the fallback ladder;
+  - PR #50: used price and brand warranty researched for used cars; brand pages judged by the make; the warranty search collected apart; the used price searched by model year; a generation-wide range never stands for one year;
+  - PR #51: spec 009, source survey, and ToS-forbidden favourites removed.
+- **Next: implement spec 009** (`specs/009-source-registry/spec.md`). Spec Kit stage: spec written and checklist passed. Next come `/speckit-plan`, `/speckit-tasks` and `/speckit-implement`.
+- **The owner's direction (2026-11-05)**, also in the spec:
+  - Europe is ONE market and no country is preferred, Spain included;
+  - "no data" is unacceptable when the data exists somewhere;
+  - keep a curated registry of verified sources per kind of data, with lessons;
+  - every live-chat lesson becomes a registry update in the same PR as the code fix;
+  - new sources are admitted by a defined procedure: discovery → admission check (classifieds, robots, terms, content) → candidate (half weight, labelled) → verified (after 3 good runs + review);
+  - demotion after 3 failures or any junk; re-checks every 90 days (verified) or 180 days (blocked or forbidden);
+  - sources outside Europe (RU, CN, JP, US) may give specs, reliability and real consumption, never prices.
+- **Source survey**: `specs/009-source-registry/registry-survey.yaml`.
+  - 198 sites, each with robots and terms checked and quoted.
+  - Verdicts: 87 candidate, 45 classifieds, 22 tos_forbids, 12 blocked, 12 paywall, 12 js_only, 8 dead.
+  - Seed the registry from it.
+  - Most valuable open datasets:
+    - EEA OBFCM: real-world fuel use, including PHEV;
+    - EEA CO2: WLTP figures, electric range and kWh for every EU car;
+    - RDW (NL), DVSA MOT (UK), Traficom (FI), KBA (DE);
+    - fueleconomy.gov and NHTSA (US).
+
+    These are datasets or APIs, not pages, so the plan needs a "dataset" source type with download and refresh.
+  - Used price is the hard part: nearly every European valuer forbids robots. The open ones are:
+    - DAT (dat.de);
+    - the Spanish tax tables (BOE Orden HAC/1501/2025);
+    - motor.es.
+
+    Add an estimate from the new price × sourced residual values, labelled, and listing text pasted by the user (US8).
+- **Incident behind 009: chat 20b5b7f9** (Kia Sorento 2024 1.6 T-GDI PHEV 288 CV new vs Toyota Land Cruiser Prado J150 2010 3.0 D-4D 173 CV used). Its flaws, all listed in the spec:
+  - the PHEV had no charge-sustaining consumption, so its TCO had no fuel, yet the costs were still compared;
+  - the Prado's used price came from a junk US-dollar page;
+  - the gearbox rule matches " manual" inside "manuales";
+  - generation "2024" is stored instead of MQ4;
+  - brand-wide service pages were rejected;
+  - used-car queries carry no year;
+  - the first message got "could not map";
+  - "find me a Kia" asked "which model" instead of proposing candidates.
+- **Suggested order for 009**:
+  1. PHEV consumption (EEA OBFCM + EU utility-factor estimate) and no TCO comparison when a main cost item is missing;
+  2. relevance fixes and year in queries;
+  3. the registry (git YAML + run statistics in DB + proposals + admission check);
+  4. used price (DAT, BOE, residual estimate, user-pasted listings);
+  5. the dialogue fixes;
+  6. a paid replay of chat 20b5b7f9, after a cost estimate and the owner's yes.
+- **Live driver** for WS replays: a small script connecting to `ws://127.0.0.1:8000/ws/chat/{id}` with the `automind_owner` cookie.
+  - First send `{"type":"hello","last_seq":N}`.
+  - Confirm messages use the field `choice` (not `option`).
+  - "find it" is `{"type":"find","focus_cars":["car#2"],"areas":[...]}`.
+
+## Earlier state (2026-11-04)
+
 
 - **main** contains specs 002–005 and spec 007 (the profile drives the assessment), increments A–J (PRs #14–#24; ADR-027). The review findings and their status are in `docs/review-2026-11-03.md`.
 - **Spec 006 — electrified cars** is implemented (PRs #28–#36; ADR-028; `specs/006-electrified-cars/tasks.md`):
@@ -59,8 +113,11 @@ State on 2026-11-04:
 
 ## Rules that stay in force
 
-- Never scrape classifieds (deny-list in `backend/config/sources.yaml`).
-- Respect robots.txt.
+- Never scrape classifieds (deny-list in `backend/config/sources.yaml`); the robot never imitates a browser or bypasses anti-bot protection.
+- Respect robots.txt and the site's terms of use (a terms clause forbidding automated access = deny-list).
 - Announce any paid live run with a cost estimate first.
 - API keys live only in `.env`; never print them.
 - Reply to the owner in Russian.
+- Destructive DB changes need the owner's yes and a backup first.
+- Limits ask "continue?", never cancel.
+- Commit, push and merge to main without review (owner's standing instruction).
