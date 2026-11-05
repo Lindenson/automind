@@ -60,8 +60,16 @@ ALL_PROFILES=(--profile monitoring --profile public)
 # --- configuration ------------------------------------------------------------------------------------------------
 ensure_env() {
   [[ -n "${DOCKER+x}" ]] || docker_cmd
-  [[ -f .env ]] || die ".env is missing: copy .env.example to .env and set GOOGLE_API_KEY and SERPER_API_KEY (or run scripts/deploy.sh bootstrap)."
-  check_api_keys .env backend/config/models.yaml backend/config/search.yaml || die "set the keys above in .env"
+  if [[ ! -f .env ]]; then  # keys may live in .env.docker only; compose still needs the file
+    (umask 077; printf '# AutoMind settings; API keys may be here or in .env.docker\n' > .env)
+  fi
+  local merged
+  merged="$(mktemp)"; chmod 600 "$merged"
+  cat .env > "$merged"; [[ -f .env.docker ]] && cat .env.docker >> "$merged"
+  if ! check_api_keys "$merged" backend/config/models.yaml backend/config/search.yaml; then
+    rm -f "$merged"; die "set the keys above in .env or .env.docker"
+  fi
+  rm -f "$merged"
   if grep -Eq '^DATABASE_URL=' .env; then
     echo "note: DATABASE_URL in .env is ignored by the containers (compose sets it)." >&2
   fi
