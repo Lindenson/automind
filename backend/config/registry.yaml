@@ -10,7 +10,7 @@ weights:                   # weight of a truth signal
   agreement: 0.3
 priors:                    # pseudo-counts (right, wrong) added to accuracy by source type
   MANUFACTURER: [4.0, 0.5]
-  SPEC_DB: [3.0, 1.0]
+  SPEC_DATABASE: [3.0, 1.0]
   INSTRUMENTED_TEST: [3.0, 1.0]
   VALUER: [3.0, 1.0]
   PUBLICATION: [2.0, 1.0]

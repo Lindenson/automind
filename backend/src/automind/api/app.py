@@ -21,6 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_mcp_adapters.tools import load_mcp_tools
 
+from automind.acquisition.registry.application.seed import seed_if_empty
 from automind.api import access, rest
 from automind.api import admin as admin_api
 from automind.api import metrics as metrics_api
@@ -82,6 +83,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.runner = ChatRunner(
             hub.build_graph(saver, tools), live_ports(bus, load_prompts()), new_budget, messages=messages
         )
+        try:  # spec 010 US8: the source registry starts from favourites, the 009 survey and learned domains
+            seeded = await seed_if_empty()
+            if seeded:
+                print(f"source registry seeded: {seeded}")
+        except Exception:  # noqa: BLE001 - research works without the registry
+            traceback.print_exc()
         retention = asyncio.create_task(retention_loop())  # spec 003 FR-026; heartbeat "retention" (spec 010)
         stack.callback(retention.cancel)
         metrics = asyncio.create_task(metrics_loop())  # spec 010 US9: Prometheus snapshot every minute

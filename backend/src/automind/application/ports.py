@@ -282,6 +282,7 @@ class Ports:
     versions: VersionsStore | None = None  # spec 008: versions of model generations; None: no ladder (fallback)
     outcomes: OutcomeStore | None = None  # spec 010 US1/US2; None: not recorded (test fakes)
     metrics: Any = None  # spec 010: inc(name, **labels) for Prometheus counters; None: not counted
+    registry: Any = None  # spec 010 US6-US8: acquisition.registry.api.RegistryPort; None: config order only
 
     @property
     def page_store(self) -> PageStore:
