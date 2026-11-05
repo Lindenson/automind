@@ -103,6 +103,7 @@ async def apply_delta_node(state: TurnState, runtime: Runtime[TurnContext]) -> d
         new, changes = picked if picked is not None else apply(case, i.delta, current_year=year)
     except ValueError:
         return {"action": "ASK", "done": True, "reply_text": t("which_car", i.language)}
+    changes += _make_to_choose_from(new, case, state.get("user_text") or "", c.ports.ref.makes)
     changes += intake.inherit_condition(case, new)
     sp = i.delta.set_persona
     if sp is not None and i.persona_evidence and new.persona == sp.persona:  # the words the persona came from
@@ -141,6 +142,63 @@ def _pick(case: CaseFile, text: str) -> tuple[CaseFile, list[str]] | None:
     """The reply is one of the options offered under the pending question (spec 007 F)."""
     return intake.pick(case, text, gearbox_words=phrases.GEARBOX_WORDS, yes=phrases.yes_or_no(text) == "yes",
                        choose=phrases.choose_for_me(text) or phrases.go_ahead(text))  # fmt: skip
+
+
+# "для замены моего", "вместо", "to replace my", "instead of", "para sustituir", "en lugar de"
+_REPLACE = re.compile(r"замен|вместо|на смену|replac|instead of|sustitu|reemplaz|en lugar de|cambiar mi", re.I)
+_OWN = re.compile(r"(?<!\w)(мо[йеёюяи]\w*|my|mine|mi|mis)(?!\w)", re.I)
+
+
+def _makes_named(text: str, reg: Any) -> list[str]:
+    """The makes the words name exactly (an alias or a transliteration, one or two words), in order; a make right
+    after "my" / "моего" / "mi" is the user's own car and is left out."""
+    names = getattr(reg, "names", None) or {}
+    words = re.findall(r"[\w&-]+", text.lower())
+    out: list[str] = []
+    for i, w in enumerate(words):
+        if any(_OWN.fullmatch(x) for x in words[max(0, i - 2) : i]):
+            continue
+        make = names.get(" ".join(words[i : i + 2])) or names.get(w)
+        if make and make not in out:
+            out.append(make)
+    return out
+
+
+def _make_to_choose_from(new: CaseFile, before: CaseFile, text: str, reg: Any) -> list[str]:
+    """009 FR-022 (chat 20b5b7f9): "find me a Kia to replace my Prado 150". A make named without a model, next to a
+    car the purchase replaces, is a make to choose from (candidates are proposed), not a car to ask "which model?"
+    about; the car to replace is the user's own (used) car, compared with the candidates."""
+    old = {c.key for c in before.cars}
+    added = [c for c in new.cars if c.key not in old]
+    # "my Toyota" is the user's own car, never the make to choose from
+    bare = [c for c in added if c.make and not c.model and not c.replaced and not _OWN.search(c.request_text)]
+    log: list[str] = []
+    replacing = bool(_REPLACE.search(text)) or any(c.replaced for c in added)
+    modelled = [c for c in added if c.model and c not in bare]
+    if not new.wanted_make and replacing and modelled:
+        # the make of a bare car, else a make the words name that no car of this message has (the interpreter
+        # dropped the Kia and kept the Prado only)
+        taken = {(c.make or "").lower() for c in modelled}
+        free = [m for m in _makes_named(text, reg) if m.lower() not in taken]
+        make = bare[0].make if bare else (free[0] if len(modelled) == 1 and free else None)
+        if make:
+            new.wanted_make = make
+            log.append(f"make to choose from: {new.wanted_make}")
+    if new.wanted_make:  # the make to choose from is not a car of its own
+        drop = [c for c in bare if (c.make or "").lower() == new.wanted_make.lower()]
+        new.cars = [c for c in new.cars if c not in drop]
+        log += [f"{c.key} removed: {c.request_text} (a make to choose from)" for c in drop]
+        if replacing and not any(c.replaced for c in new.cars):
+            for c in added:
+                if c in drop or not c.model or (c.make or "").lower() == new.wanted_make.lower():
+                    continue
+                c.replaced = True
+                log.append(f"{c.key}: the car to replace")
+    for c in added:
+        if c.replaced and c.condition == "UNKNOWN":  # the user's own car is a used one
+            c.condition = "USED"
+            log.append(f"{c.key}: used (the user's own car)")
+    return log
 
 
 def _charging_from_text(new: CaseFile, text: str) -> list[str]:

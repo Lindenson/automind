@@ -14,7 +14,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field, ValidationError
 
 from automind.application.ports import LLM
-from automind.domain.casefile import CRITERION_KEYS, CaseDelta, CaseFile, Constraints, EngineHint
+from automind.domain.casefile import CRITERION_KEYS, CarRef, CaseDelta, CaseFile, Constraints, EngineHint
 from automind.domain.identity import parse_engine
 from automind.domain.policy import RequestKind
 
@@ -129,6 +129,27 @@ def _fold_new_car_context(case: CaseFile, i: Interpretation) -> Interpretation:
     return i.model_copy(update={"delta": d.model_copy(update={"set_car_context": keep})})
 
 
+def _unknown_targets_as_new_cars(case: CaseFile, i: Interpretation) -> Interpretation:
+    """A car described for a key the case does not have is a new car, not an error (009 FR-022, chat 20b5b7f9: the
+    first message "a Kia to replace my Prado 150" came back as replace_cars of car#1 in an empty case, and the user
+    got "could not map that to the cars we are discussing"). Only a description with a make or a model is kept."""
+    d = i.delta
+    keys = {c.key for c in case.cars}
+    stray = [x for x in (*d.replace_cars, *d.set_car_context) if x.target_key not in keys and (x.make or x.model)]
+    if not stray:
+        return i
+    add = [CarRef(request_text=x.request_text or " ".join(p for p in (x.make, x.model) if p), make=x.make,
+                  model=x.model, condition=x.condition or "UNKNOWN", year=x.year, age_years=x.age_years,
+                  mileage_km=x.mileage_km, constraints=x.constraints or Constraints()) for x in stray]  # fmt: skip
+    gone = {id(x) for x in stray}
+    delta = d.model_copy(update={
+        "add_cars": [*d.add_cars, *add],
+        "replace_cars": [x for x in d.replace_cars if id(x) not in gone],
+        "set_car_context": [x for x in d.set_car_context if id(x) not in gone],
+    })  # fmt: skip
+    return i.model_copy(update={"delta": delta})
+
+
 def _check(case: CaseFile, delta: CaseDelta) -> None:
     keys = {c.key for c in case.cars}
     refs = [
@@ -152,7 +173,7 @@ async def interpret(
         )
     except (ValidationError, ValueError) as e:
         raise InterpretError(str(e)) from e
-    out = _fold_new_car_context(case, out)
+    out = _unknown_targets_as_new_cars(case, _fold_new_car_context(case, out))
     _check(case, out.delta)
     said = [user_text, *(m["text"] for m in history if m.get("role") == "user")]
     out = _profile_from_users_words(_persona_from_users_words(out, said), said)

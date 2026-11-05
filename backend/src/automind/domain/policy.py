@@ -140,8 +140,15 @@ def decide(
 
 
 def wants_candidates(case: CaseFile) -> bool:
-    """No car named, a budget, and a class or a need (a body, a family, passengers, a usage)."""
-    if case.cars or not case.budget.max_eur:
+    """No car named, a budget, and a class or a need (a body, a family, passengers, a usage); or a make to choose
+    from with no candidate of it proposed yet (009 FR-022: "find me a Kia to replace my Prado")."""
+    if case.wanted_make:
+        make = case.wanted_make.lower()
+        proposed = any(str(x.get("make") or "").lower() == make for x in case.candidates)
+        named = any((c.make or "").lower() == make and not c.replaced for c in case.cars)
+        if not (proposed or named):
+            return True
+    if any(not c.replaced for c in case.cars) or not case.budget.max_eur:
         return False
     need = (case.wanted_body is not None or case.profile.family == "FAMILY" or "FAMILY" in case.usage
             or (case.needs.passengers or 0) >= 4)  # fmt: skip

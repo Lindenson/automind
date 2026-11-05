@@ -283,6 +283,16 @@ PHRASES: dict[str, dict[str, str]] = {
         "ru": "Вы не назвали машину, поэтому я подобрал кандидатов под вашу задачу и бюджет:",
         "es": "No nombraste un coche, así que elegí candidatos para tu necesidad y presupuesto:",
     },
+    "cand_intro_make": {
+        "en": "You did not name a {make} model, so I picked {make} candidates{replaces}:",
+        "ru": "Вы не назвали модель {make}, поэтому я подобрал кандидатов {make}{replaces}:",
+        "es": "No nombraste un modelo de {make}, así que elegí candidatos de {make}{replaces}:",
+    },
+    "cand_replaces": {
+        "en": " to replace your {car} (I compare them with it)",
+        "ru": " на замену вашему {car} (сравню их с ним)",
+        "es": " para sustituir tu {car} (los comparo con él)",
+    },
     "cand_price": {"en": "from €{eur}", "ru": "от {eur} €", "es": "desde {eur} €"},
     "cand_price_check": {"en": "price to check", "ru": "цену нужно уточнить", "es": "precio por confirmar"},
     "cand_fits": {
