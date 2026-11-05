@@ -193,3 +193,42 @@ forbidden_modules =
 # direct imports, no ignore_imports: acquisition.api loads the engine at call time; the legacy compose ->
 # infrastructure.config edge (application-ports exception) would otherwise reach the snapshot store indirectly
 allow_indirect_imports = True
+
+[importlinter:contract:api-uses-engine-facades]
+name = The web API reaches the acquisition engine only through its facades (spec 011 T113)
+type = forbidden
+source_modules =
+    automind.api
+# allowed: automind.acquisition.api (the chat's order), automind.acquisition.admin_api (the admin page) and the 010
+# registry modules the API already uses: registry.api (ws), registry.application.seed (app), registry.domain.model
+# and registry.domain.seed_rules (admin)
+forbidden_modules =
+    automind.acquisition.agents
+    automind.acquisition.domain
+    automind.acquisition.drift
+    automind.acquisition.engine
+    automind.acquisition.facade
+    automind.acquisition.gates
+    automind.acquisition.gold
+    automind.acquisition.infrastructure
+    automind.acquisition.parsing
+    automind.acquisition.pipeline
+    automind.acquisition.ports
+    automind.acquisition.read
+    automind.acquisition.recheck
+    automind.acquisition.replay
+    automind.acquisition.reputation
+    automind.acquisition.snapshots
+    automind.acquisition.worker
+    automind.acquisition.registry.application.admission
+    automind.acquisition.registry.application.review
+    automind.acquisition.registry.application.service
+    automind.acquisition.registry.domain.admission
+    automind.acquisition.registry.domain.blame
+    automind.acquisition.registry.domain.families
+    automind.acquisition.registry.domain.lifecycle
+    automind.acquisition.registry.domain.limits
+    automind.acquisition.registry.domain.score
+    automind.acquisition.registry.infrastructure
+# direct imports, no ignore_imports: the facades themselves reach the engine
+allow_indirect_imports = True
