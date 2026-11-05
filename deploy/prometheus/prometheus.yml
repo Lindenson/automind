@@ -1,6 +1,8 @@
 # Prometheus for AutoMind (spec 010 US9). Started by `scripts/deploy.sh monitoring up` (compose profile `monitoring`).
 # The bearer token is METRICS_TOKEN from .env.docker, written by deploy.sh to deploy/prometheus/metrics_token
 # (mode 600, gitignored) and mounted read-only; it is never stored in this file.
+# Spec 011: the acquisition worker is a second target (job automind-worker, worker:9101, compose network only, no
+# token): it serves the snapshot gauges, the automind_loop_* health of the background tasks and the queue metrics.
 global:
   scrape_interval: 30s
   evaluation_interval: 30s
@@ -22,3 +24,9 @@ scrape_configs:
       credentials_file: /etc/prometheus/metrics_token
     static_configs:
       - targets: ["app:8000"]
+
+  - job_name: automind-worker
+    metrics_path: /metrics
+    scheme: http
+    static_configs:
+      - targets: ["worker:9101"]

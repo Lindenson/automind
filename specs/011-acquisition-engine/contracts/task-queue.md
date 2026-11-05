@@ -36,7 +36,7 @@ async def fail(task_id: str, error: str) -> None                            # ba
 | `rollup` | daily 02:00 | `rollup:<date>` | — |
 | `drift` | daily 02:30 (after rollup) | `drift:<date>` | — |
 | `registry_review` | daily 03:00 (+ early on N attempts) | `review:<date>` | `registry.discovery.eur_per_day` |
-| `insight_run` | as spec 010 (daily + early) | `insight:<date>[:early<n>]` | `insight.budget_eur` |
+| `insight_run` | every 10 min a check; runs as spec 010 (daily + early) when due | `insight:<YYYY-MM-DDTHH:MM>` | `insight.budget_eur` |
 | `evaluator` | daily 04:00 | `eval:<date>` | — |
 | `gold_load` | daily 05:00 per due dataset | `gold:<dataset>:<date>` | — |
 | `retention_snapshots` | daily 01:00 | `snapret:<date>` | — |
@@ -51,4 +51,7 @@ async def fail(task_id: str, error: str) -> None                            # ba
 `automind_worker_beat_timestamp_seconds`, `automind_acq_tasks{kind,state}` (gauge from the table each minute),
 `automind_acq_task_duration_seconds{kind}` (histogram), `automind_acq_task_failures_total{kind}`,
 `automind_background_spend_today_eur{loop}` (moved from the app), plus every 010 snapshot gauge (moved with
-`metrics_snapshot`). New rule `WorkerDown`: `time() - automind_worker_beat_timestamp_seconds > 120` for 2 m.
+`metrics_snapshot`). New rule `AutomindWorkerDown`: `time() - automind_worker_beat_timestamp_seconds > 120` (or
+`up{job="automind-worker"} == 0`) for 2 m. The `automind_loop_*` health of each enabled schedule entry (label `loop`
+from the entry, e.g. `metrics`, `registry`, `insight`) is derived from the journal, so every worker reports the same.
+Scrape job `automind-worker` (`worker:9101`, no token, compose network only).
