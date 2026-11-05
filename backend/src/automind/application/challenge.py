@@ -17,8 +17,8 @@ from typing import Any
 
 from sqlalchemy import select
 
-from automind.application import research as rs
-from automind.application.ports import Reference, WebDoc
+from automind.acquisition import api as acquisition
+from automind.application.ports import Reference
 from automind.domain import specs
 from automind.infrastructure import db
 
@@ -39,34 +39,9 @@ async def recheck(
             )
         ).scalar_one_or_none()
         old = _shown(attribute, before)
-        rows = (
-            await s.execute(
-                select(db.Claim, db.Evidence, db.Document)
-                .join(db.Evidence, db.Claim.evidence_id == db.Evidence.id)
-                .join(db.Document, db.Evidence.document_id == db.Document.id)
-                .where(
-                    db.Claim.variant_id == variant_id, db.Claim.attribute == attribute, db.Claim.status == "ACCEPTED"
-                )
-            )
-        ).all()
-        rejected, kept = [], []
-        judged: list[tuple[str, str, str, str | None, str | None, bool]] = []  # (domain, area, claim, excerpt, by, ok)
-        claim_id = rows[0][0].id if rows else None  # spec 010 FR-006: the claim behind the shown value
-        ctx = rs.plausibility_ctx(v, {})
-        for c, e, d in rows:
-            claim = rs.ReaderClaim(c.attribute, c.raw_value, c.raw_unit, c.excerpt)
-            doc = WebDoc(e.url, d.title or "", d.text or "", bool(e.snippet_only))
-            status, _, _, rule = rs.check(claim, doc, ctx, ref.plausibility)
-            if status != "ACCEPTED":
-                c.status, c.reject_rule = status, rule or "challenge"
-                rejected.append({"source": e.domain, "value": c.raw_value, "why": status.lower()})
-            else:
-                kept.append(e.domain)
-            excerpt_missing = status == "REJECTED_UNSUPPORTED"  # the quote is not on the page: our extraction erred
-            by = "LLM_EXCERPT" if excerpt_missing else c.extracted_by
-            judged.append((e.domain, c.area or "specs", c.id, c.excerpt, by, status == "ACCEPTED"))
-        await s.commit()
-    await rs.reselect(variant_id)
+    checked = await acquisition.recheck_value(variant_id, attribute, rules=ref.plausibility)
+    rejected, kept, claim_id = checked.rejected, checked.kept, checked.claim_id
+    judged = [(j.domain, j.area, j.claim_id, j.excerpt, j.by, j.ok) for j in checked.judged]
     async with db.sessionmaker()() as s:
         after = (
             await s.execute(

@@ -33,13 +33,19 @@ __all__: list[str] = [
     "Tried",
     "acquire",
     "ev_counts",
+    "Judged",
+    "RecheckResult",
+    "RevalidateResult",
     "gearbox_families_mixed",
     "last_done",
     "missing_critical",
     "powertrains",
+    "recheck_minimums",
+    "recheck_value",
     "record_challenge_gold",
     "registry_done",
     "reselect",
+    "revalidate_claims",
     "unmet_areas",
 ]
 
@@ -169,6 +175,48 @@ async def gearbox_families_mixed(variant_id: str) -> bool:
 async def reselect(variant_id: str) -> None:
     """Recompute the selected values of a variant from its accepted claims."""
     await _engine("acquisition.facade").reselect(variant_id)
+
+
+# --- challenge and repair: stored claims against the current rules -------------------------------------------------
+
+
+class Judged(BaseModel):
+    """One claim behind a challenged value: its source, whether it passed, and who produced it (blame input)."""
+
+    domain: str
+    area: str
+    claim_id: str
+    excerpt: str | None = None
+    by: str | None = None  # READER | LLM | LLM_EXCERPT (the quote is not on the page)
+    ok: bool
+
+
+class RecheckResult(BaseModel):
+    rejected: list[dict[str, Any]] = []  # {"source", "value", "why"} per claim that failed
+    kept: list[str] = []  # domains of the claims that passed
+    judged: list[Judged] = []
+    claim_id: str | None = None  # the claim behind the shown value (spec 010 FR-006)
+
+
+class RevalidateResult(BaseModel):
+    stats: dict[str, int] = {}  # "<old status>-><new status>:<attribute>" -> claims
+    changed: list[str] = []  # variant ids whose claims changed
+
+
+async def recheck_value(variant_id: str, attribute: str, *, rules: dict[str, Any] | None = None) -> RecheckResult:
+    """A user challenge (spec 004 FR-022): the accepted claims behind one value checked again with the current rules
+    (`rules`: config/plausibility.yaml); failing claims are rejected and the values selected again. No model call."""
+    return await _engine("acquisition.recheck").recheck_value(variant_id, attribute, rules=rules)  # type: ignore[no-any-return]
+
+
+async def revalidate_claims(rules: dict[str, Any] | None) -> RevalidateResult:
+    """Data repair after rule fixes (spec 004 FR-027): spec claims checked again; returns what changed."""
+    return await _engine("acquisition.recheck").revalidate_claims(rules)  # type: ignore[no-any-return]
+
+
+async def recheck_minimums(variant_id: str) -> None:
+    """The area minimums of a variant's research runs again from its stored evidence."""
+    await _engine("acquisition.recheck").recheck_minimums(variant_id)
 
 
 # --- gold ----------------------------------------------------------------------------------------------------------
