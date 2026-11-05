@@ -96,13 +96,18 @@ _CLAIM = """
 """
 
 
-async def claim(worker_id: str, n: int, lease_s: int, kinds: Sequence[str] | None = None) -> list[Task]:
-    """Take up to n due tasks (or tasks whose lease expired) for this worker; never one another worker holds."""
+async def claim(worker_id: str, n: int, lease_s: int, kinds: Sequence[str] | None = None,
+                skip: Sequence[str] = ()) -> list[Task]:  # fmt: skip
+    """Take up to n due tasks (or tasks whose lease expired) for this worker; never one another worker holds.
+    `skip`: kinds left queued (their handler arrives with a later story, e.g. `parser_doctor`)."""
+    clause, params, binds = "", {}, []
     if kinds:
-        stmt = text(_CLAIM.format(kinds="AND kind IN :kinds")).bindparams(bindparam("kinds", expanding=True))
-        params: dict[str, Any] = {"kinds": list(kinds)}
-    else:
-        stmt, params = text(_CLAIM.format(kinds="")), {}
+        clause, params["kinds"] = "AND kind IN :kinds", list(kinds)
+        binds.append(bindparam("kinds", expanding=True))
+    elif skip:
+        clause, params["skip"] = "AND kind NOT IN :skip", list(skip)
+        binds.append(bindparam("skip", expanding=True))
+    stmt = text(_CLAIM.format(kinds=clause)).bindparams(*binds)
     async with sessionmaker()() as s:
         await s.execute(_BURY)
         rows = (await s.execute(stmt, {"w": worker_id, "lease": float(lease_s), "n": int(n), **params})).all()

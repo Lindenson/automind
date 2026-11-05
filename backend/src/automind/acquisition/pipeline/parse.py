@@ -1,6 +1,6 @@
-"""S4 parse (spec 011 strangler, research R5): the deterministic site readers on the job's pages (favourite spec
-sites with a reviewed reader); ambiguous or unknown layouts go to the extraction role (`pipeline/extract.py`).
-Moved from `application/research.py` with the body unchanged.
+"""S4 parse (spec 011 strangler, research R5): the deterministic site readers on the job's pages (the running parser
+spec version of each site, `parsing/registry.py`); ambiguous or unknown layouts go to the extraction role
+(`pipeline/extract.py`). Moved from `application/research.py`.
 """
 
 from __future__ import annotations
@@ -15,6 +15,9 @@ VERSION = "parse@1"
 
 async def _read_tables(ports: Ports, v: db.Variant, pages: list[Page]) -> dict[str, Any]:
     """Deterministic site readers for favourite spec sites; ambiguous or unknown layouts go to the LLM."""
+    prepare = getattr(ports.readers, "prepare", None)
+    if prepare is not None:
+        await prepare()  # the live registry reloads the running parser versions every 60 s
     readings: dict[str, Any] = {}
     for p in pages:
         r = ports.readers.read(p, {"variant_id": v.id})

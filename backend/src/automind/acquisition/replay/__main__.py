@@ -1,7 +1,7 @@
 """`python -m automind.acquisition.replay` (contracts/replay-cli.md).
 
     python -m automind.acquisition.replay
-        (--reader KEY | --reader-file FILE.yaml | --extractor KEY [--model MODEL] --allow-llm)
+        (--reader KEY | --reader-spec FILE.json | --extractor KEY [--model MODEL] --allow-llm)
         [--since 30d | --from 2026-10-01 --to 2026-11-05]
         [--domain km77.com] [--attribute max_power ...] [--limit-pages N] [--json] [--mismatches N]
 
@@ -36,8 +36,8 @@ def parse(argv: list[str] | None = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(prog="python -m automind.acquisition.replay", description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)  # fmt: skip
     who = p.add_mutually_exclusive_group(required=True)
-    who.add_argument("--reader", help="a reader version, e.g. km77@v1")
-    who.add_argument("--reader-file", help="one legacy-format reader block (YAML), labelled <id>@test")
+    who.add_argument("--reader", help="a stored parser version, e.g. km77@v2")
+    who.add_argument("--reader-spec", help="a candidate parser spec (JSON), validated first (exit 2 when invalid)")
     who.add_argument("--extractor", help="an extraction prompt version, e.g. extract_specs@v2 (needs --allow-llm)")
     p.add_argument("--model")
     p.add_argument("--allow-llm", action="store_true")
@@ -55,7 +55,7 @@ def parse(argv: list[str] | None = None) -> argparse.Namespace:
 def request(a: argparse.Namespace) -> ReplayRequest:
     since = a.since or a.from_
     until = datetime.combine(a.to.date(), time.max, tzinfo=UTC) if a.to else (datetime.now(UTC) if since else None)
-    return ReplayRequest(reader=a.reader, reader_file=a.reader_file, extractor=a.extractor, model=a.model,
+    return ReplayRequest(reader=a.reader, reader_spec=a.reader_spec, extractor=a.extractor, model=a.model,
                          since=since, until=until, domains=a.domain, attributes=a.attribute,
                          limit_pages=a.limit_pages, allow_llm=a.allow_llm)  # fmt: skip
 

@@ -126,6 +126,41 @@ async def blame_judge(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any]:
     return await judge(str(task.payload["signal_id"]), charge=ctx.budget().charge)
 
 
+def _day(task: queue.Task) -> Any:
+    """The task's `day` (ISO) or yesterday (UTC): a daily task rolls up the day that has ended."""
+    from datetime import UTC, date, datetime, timedelta  # noqa: PLC0415
+
+    if d := task.payload.get("day"):
+        return date.fromisoformat(str(d))
+    return datetime.now(UTC).date() - timedelta(days=1)
+
+
+async def parser_daily(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any]:
+    """Spec 011 T089: per parser version and day, fields per page, pass rate and structure fingerprint."""
+    from automind.acquisition.drift import daily  # noqa: PLC0415
+
+    out = await daily.roll_day(_day(task))
+    try:
+        await daily.publish_gauges()
+    except Exception:  # noqa: BLE001 - gauges are best effort
+        log.exception("parser.gauges_failed")
+    return out
+
+
+async def drift(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any]:
+    """Spec 011 T089: the drift detectors on each running parser version (degrade, journal, parser doctor), after
+    the day's roll-up (idempotent, so the order of the two daily tasks does not matter)."""
+    from automind.acquisition.drift import daily  # noqa: PLC0415
+
+    day = _day(task)
+    rolled = await daily.roll_day(day)
+    return {**await daily.detect(day), "rolled": rolled["rows"]}
+
+
+# Kinds enqueued before their handler exists (spec 011: drift enqueues `parser_doctor`, whose handler is US5 T105):
+# the worker leaves them queued instead of burying them as "no handler".
+AWAITING_HANDLER = ("parser_doctor",)
+
 HANDLERS: dict[str, Handler] = {
     "metrics_snapshot": metrics_snapshot,
     "registry_review": registry_review,
@@ -137,4 +172,6 @@ HANDLERS: dict[str, Handler] = {
     "rollup": rollup,
     "baseline": baseline,
     "blame_judge": blame_judge,
+    "parser_daily": parser_daily,
+    "drift": drift,
 }

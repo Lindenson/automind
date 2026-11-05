@@ -1,7 +1,7 @@
 """Producer identity of a claim (spec 011 FR-002, SC-002, research R2): source page, producer, version and model.
 
 Keyword arguments for `db.Claim(...)` and `page_relevance`, so the research code names who produced each value
-without growing. Readers are version 1 of their parser until parser specs are versioned (US4); extractor claims name
+without growing. Reader claims name the parser spec version that read them (US4); extractor claims name
 the prompt version and the model that actually answered the call in this task (the gateway's served call).
 """
 
@@ -10,16 +10,23 @@ from __future__ import annotations
 from typing import Any
 
 from automind.acquisition.domain.served import served
-from automind.acquisition.domain.versions import reader_key
+from automind.acquisition.domain.versions import parse_key, reader_key
 
 LEGACY_READER_VERSION = 1
 
 
 def reader(reading: Any, page: Any) -> dict[str, Any]:
-    """`reading` is a `SiteReading` (`reader="site:km77"`), `page` the `Page` it was read from (or None)."""
+    """`reading` is a `SiteReading` named by its parser version (`reader="km77@v2"`, spec 011 US4) — or, from an old
+    reader, `"site:km77"` (version 1) — and `page` the `Page` it was read from (or None)."""
+    name = str(reading.reader)
+    try:
+        parse_key(name)
+        version = name
+    except ValueError:
+        version = reader_key(name.removeprefix("site:"), LEGACY_READER_VERSION)
     return {
         "producer": "reader",
-        "producer_version": reader_key(str(reading.reader).removeprefix("site:"), LEGACY_READER_VERSION),
+        "producer_version": version,
         "model": None,
         "snapshot_id": getattr(page, "snapshot_id", None),
     }

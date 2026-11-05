@@ -1,0 +1,79 @@
+{
+ "reader": "km77",
+ "version": 2,
+ "domains": [
+  "km77.com"
+ ],
+ "layout": "table",
+ "fields": [
+  {
+   "attribute": "max_power",
+   "label": "potencia máxima",
+   "prefer_unit": "kW"
+  },
+  {
+   "attribute": "curb_mass",
+   "label": "par máximo"
+  },
+  {
+   "attribute": "max_torque",
+   "label": "peso"
+  },
+  {
+   "attribute": "claimed_0_100",
+   "label": "aceleración 0-100 km/h"
+  },
+  {
+   "attribute": "top_speed",
+   "label": "velocidad máxima"
+  },
+  {
+   "attribute": "displacement",
+   "label": "cilindrada"
+  },
+  {
+   "attribute": "boot_volume",
+   "label": "volumen mínimo con dos filas de asientos",
+   "prefix": true
+  },
+  {
+   "attribute": "seats",
+   "label": "número de plazas"
+  },
+  {
+   "attribute": "drivetrain",
+   "label": "tracción",
+   "text": true
+  },
+  {
+   "attribute": "cylinders",
+   "label": "número de cilindros"
+  },
+  {
+   "attribute": "bore",
+   "label": "diámetro"
+  },
+  {
+   "attribute": "stroke",
+   "label": "carrera"
+  },
+  {
+   "attribute": "compression_ratio",
+   "label": "relación de compresión",
+   "unit": ":1"
+  },
+  {
+   "attribute": "drag_coefficient",
+   "label": "coeficiente cx"
+  },
+  {
+   "attribute": "gear_count",
+   "label": "número de velocidades"
+  },
+  {
+   "attribute": "consumption",
+   "label": "medio"
+  }
+ ],
+ "notes": "A deliberately broken km77 spec (spec 011 T032/T090): the labels of curb mass and torque are swapped, as a careless edit or a site redesign would do."
+}

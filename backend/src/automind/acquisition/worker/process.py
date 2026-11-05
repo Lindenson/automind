@@ -24,7 +24,7 @@ from sqlalchemy import text
 from automind.acquisition.worker import exporter, heartbeat, queue, scheduler
 from automind.acquisition.worker.budget import BudgetExceeded
 from automind.acquisition.worker.config import worker_config
-from automind.acquisition.worker.handlers import HANDLERS, Handler, WorkerCtx
+from automind.acquisition.worker.handlers import AWAITING_HANDLER, HANDLERS, Handler, WorkerCtx
 from automind.application.usage import current_job
 from automind.infrastructure.db.models import now
 from automind.infrastructure.db.session import sessionmaker
@@ -47,6 +47,7 @@ class Worker:
         self.handlers = handlers or HANDLERS
         self.concurrency = max(1, int(concurrency or w["concurrency"]))
         self.kinds = list(kinds) if kinds else None
+        self.skip = [k for k in AWAITING_HANDLER if k not in self.handlers]  # left queued until their story lands
         self.lease_s = int(w["lease_s"])
         self.poll_s, self.beat_s = float(w["poll_s"]), float(w["beat_s"])
         self.schedule_s, self.grace_s = float(w["schedule_s"]), float(w["grace_s"])
@@ -63,6 +64,18 @@ class Worker:
         done, self._done = self._done, 0
         await heartbeat.beat(self.id, done)
         await heartbeat.refresh_gauges(self.cfg.get("schedule") or {}, self.started)
+
+    @staticmethod
+    async def seed() -> None:
+        """Spec 011 T086: today's site readers become parser spec version 1 (idempotent)."""
+        from automind.acquisition.parsing.migrate_v1 import seed  # noqa: PLC0415
+
+        try:
+            got = await seed()
+            if got["inserted"]:
+                log.info("worker.parsers_seeded %s", got)
+        except Exception:  # noqa: BLE001 - the readers fall back to the YAML; never stop the worker
+            log.warning("worker.parser_seed_failed", exc_info=True)
 
     async def tick_schedule(self, at: datetime | None = None) -> list[str]:
         return await scheduler.tick(self.cfg.get("schedule") or {}, at)
@@ -124,7 +137,7 @@ class Worker:
     async def drain(self) -> list[str]:
         """Run every due task now (tests, `--once`); returns the ids run."""
         ran: list[str] = []
-        while tasks := await queue.claim(self.id, self.concurrency, self.lease_s, self.kinds):
+        while tasks := await queue.claim(self.id, self.concurrency, self.lease_s, self.kinds, self.skip):
             await asyncio.gather(*(self.run_task(t) for t in tasks))
             ran += [t.id for t in tasks]
         return ran
@@ -151,7 +164,7 @@ class Worker:
     async def _claim_loop(self, stop: asyncio.Event) -> None:
         while not stop.is_set():
             try:
-                tasks = await queue.claim(self.id, 1, self.lease_s, self.kinds)
+                tasks = await queue.claim(self.id, 1, self.lease_s, self.kinds, self.skip)
             except Exception:  # noqa: BLE001 - the database may be restarting
                 log.warning("worker.claim_failed", exc_info=True)
                 tasks = []
@@ -176,6 +189,7 @@ class Worker:
             if stop.is_set():
                 return
         await self.register()
+        await self.seed()
         log.info("worker.started id=%s concurrency=%s", self.id, self.concurrency)
         claims = [asyncio.create_task(self._claim_loop(stop)) for _ in range(self.concurrency)]
         side = [asyncio.create_task(self._every(stop, self.beat_s, "beat", self.beat))]

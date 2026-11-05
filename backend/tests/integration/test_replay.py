@@ -1,5 +1,6 @@
 """US1 independent test (spec 011 T033): stored pages of three cars + gold; replaying km77@v1 scores high, a reader
-with two labels swapped scores lower and names the wrong values; no network and no model call."""
+with two labels swapped scores lower and names the wrong values; no network and no model call. US4 (T090): the
+versions are parser specs — stored ones by key, candidates from a JSON file."""
 
 import json
 from datetime import UTC, datetime, timedelta
@@ -8,8 +9,10 @@ from pathlib import Path
 import pytest
 from sqlalchemy import delete, func, select
 
+from automind.acquisition.domain.versions import spec_hash
 from automind.acquisition.gold import repo
 from automind.acquisition.gold.domain.match import GoldValue
+from automind.acquisition.parsing import migrate_v1
 from automind.acquisition.replay import __main__ as cli
 from automind.acquisition.replay.run import NoPages, ReplayRequest, run
 from automind.acquisition.snapshots import store
@@ -21,6 +24,7 @@ CARS = {  # page -> (variant name, kW, N·m, kg, cm3)
     "car_b": ("530d", 195.0, 620.0, 1735.0, 2993.0),
     "car_c": ("520i", 135.0, 290.0, 1540.0, 1998.0),
 }
+TEST_VERSION = 9000  # a version number no real parser reaches
 UNITS = {"max_power": "kW", "max_torque": "N·m", "curb_mass": "kg", "displacement": "cm3"}
 TOL = {"max_power": ("rel", 0.02), "max_torque": ("rel", 0.03), "curb_mass": ("rel", 0.03), "displacement": ("abs", 10)}
 
@@ -75,8 +79,8 @@ async def test_v1_vs_broken_v2(seeded, capsys):
     assert v1.gold_covered == 12 and v1.accuracy is not None and v1.accuracy >= 0.9
     assert v1.network_calls == 0 and v1.llm_calls == 0
 
-    v2 = await run(ReplayRequest(reader_file=str(FIX / "broken_v2.yaml"), since=since, domains=["km77.com"]))
-    assert v2.version == "km77@test"
+    v2 = await run(ReplayRequest(reader_spec=str(FIX / "broken_v2.json"), since=since, domains=["km77.com"]))
+    assert v2.version == "km77@v2"
     assert v2.accuracy is not None and v2.accuracy < v1.accuracy
     wrong = {m["attribute"] for m in v2.mismatches}
     assert wrong and wrong <= {"curb_mass", "max_torque"}
@@ -94,8 +98,39 @@ async def test_v1_vs_broken_v2(seeded, capsys):
     assert out["version"] == "km77@v1" and out["network_calls"] == 0 and out["llm_calls"] == 0
 
 
-async def test_exit_codes(seeded, capsys):
-    assert await cli.main_async(["--reader", "km77@v7"]) == 2  # no such version before US4
+async def test_stored_version_from_the_database(seeded, capsys):
+    """Spec 011 T090: `--reader km77@vN` replays a version stored in parser_versions."""
+    since, _, _ = seeded
+    await migrate_v1.seed()
+    body = json.loads((FIX / "broken_v2.json").read_text(encoding="utf-8"))
+    key = f"km77@v{TEST_VERSION}"
+    body["version"] = TEST_VERSION
+    async with db.sessionmaker()() as s:
+        await s.execute(delete(db.ParserVersion).where(db.ParserVersion.key == key))
+        s.add(db.ParserVersion(key=key, reader="km77", version=TEST_VERSION, spec=body, spec_hash=spec_hash(body),
+                               status="candidate", author="owner"))  # fmt: skip
+        await s.commit()
+    try:
+        rc = await cli.main_async(["--reader", key, "--since", "1h", "--domain", "km77.com", "--json"])
+        assert rc == 0 and json.loads(capsys.readouterr().out)["version"] == key
+        v2 = await run(ReplayRequest(reader=key, since=since, domains=["km77.com"]))
+        v1 = await run(ReplayRequest(reader="km77@v1", since=since, domains=["km77.com"]))
+        assert v2.version == key and v2.pages == 3
+        assert v2.mismatches and {m["attribute"] for m in v2.mismatches} <= {"curb_mass", "max_torque"}
+        assert v2.accuracy is not None and v1.accuracy is not None and v2.accuracy < v1.accuracy
+    finally:
+        async with db.sessionmaker()() as s:
+            await s.execute(delete(db.ParserVersion).where(db.ParserVersion.key == key))
+            await s.commit()
+
+
+async def test_exit_codes(seeded, capsys, tmp_path):
+    assert await cli.main_async(["--reader", "km77@v7"]) == 2  # no such stored version
+    bad = tmp_path / "bad.json"
+    bad.write_text(json.dumps({"reader": "km77", "version": 3, "domains": ["auto-data.net"], "layout": "table",
+                               "fields": [{"attribute": "warp", "label": "x"}]}))  # fmt: skip
+    assert await cli.main_async(["--reader-spec", str(bad)]) == 2  # deny-listed domain, unknown attribute
+    assert "deny-list" in capsys.readouterr().err
     assert await cli.main_async(["--extractor", "extract_specs@v2"]) == 3  # model calls need --allow-llm
     with pytest.raises(NoPages):
         await run(ReplayRequest(reader="km77@v1", since=datetime.now(UTC) + timedelta(days=1)))

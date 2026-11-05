@@ -30,6 +30,12 @@ SEARCHES_PER_VALUE = Gauge(P + "searches_per_accepted_value", "Web searches per 
 WRONG_SHARE = Gauge(P + "wrong_share", "Share of accepted values with a wrong signal, last 7 days", ["area"])
 WRONG_SHARE_BASELINE = Gauge(P + "wrong_share_baseline", "Wrong share of the last closed KPI baseline", ["area"])
 COMPONENT_ACC_LB = Gauge(P + "component_acc_lb", "Accuracy lower bound of pipeline components by kind", ["kind"])
+# spec 011 US4 (T089): parser metrics over the last 7 days and drift, set by the `parser_daily` and `drift` tasks
+PARSER_FIELDS = Gauge(P + "parser_fields_per_page", "Fields found per page by a parser version, last 7 days",
+                      ["reader", "version"])  # fmt: skip
+PARSER_PASS = Gauge(P + "parser_pass_rate", "Share of a parser version's rows passing the checks, last 7 days",
+                    ["reader", "version"])  # fmt: skip
+PARSER_DRIFT = Gauge(P + "parser_drift", "1 while the running version of a parser is degraded by drift", ["reader"])
 
 _counts: list[tuple[str, str, int]] = []
 
@@ -39,7 +45,8 @@ def metric_names() -> set[str]:
     d = P + "acq_task_duration_seconds"
     return {P + "worker_beat_timestamp_seconds", P + "acq_tasks", P + "acq_task_failures_total",
             d + "_bucket", d + "_sum", d + "_count", P + "searches_per_accepted_value", P + "wrong_share",
-            P + "wrong_share_baseline", P + "component_acc_lb"}  # fmt: skip
+            P + "wrong_share_baseline", P + "component_acc_lb", P + "parser_fields_per_page", P + "parser_pass_rate",
+            P + "parser_drift"}  # fmt: skip
 
 
 def start(port: int, addr: str = "127.0.0.1") -> Any:
@@ -103,3 +110,15 @@ def set_reputation(
         gauge.clear()
         for key, v in values.items():
             gauge.labels(**{label: key}).set(v)
+
+
+def set_parsers(
+    fields_per_page: dict[tuple[str, str], float], pass_rate: dict[tuple[str, str], float], drift: dict[str, float]
+) -> None:
+    for gauge, values in ((PARSER_FIELDS, fields_per_page), (PARSER_PASS, pass_rate)):
+        gauge.clear()
+        for (reader, version), v in values.items():
+            gauge.labels(reader=reader, version=version).set(v)
+    PARSER_DRIFT.clear()
+    for reader, v in drift.items():
+        PARSER_DRIFT.labels(reader=reader).set(v)

@@ -1021,3 +1021,89 @@ class KpiBaseline(Base):
     values: Mapped[dict] = mapped_column(JSONB, default=dict)
     recorded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     note: Mapped[str | None] = mapped_column(Text)
+
+
+# --- spec 011 US4: parser specifications, drift and the change journal (migration 0022) ----------------------------
+
+OPEN_CHANGE_STATUSES = ("proposed", "replay", "shadow", "accepted", "watch")
+
+
+class Parser(Base):
+    """A site reader whose versions are declarative specs (contracts/parser-spec.md)."""
+
+    __tablename__ = "parsers"
+    reader: Mapped[str] = mapped_column(String(40), primary_key=True)  # km77
+    domains: Mapped[list[str]] = mapped_column(ARRAY(Text), default=list)
+    page_type: Mapped[str] = mapped_column(String(20), default="spec_table")
+    active_version: Mapped[int | None] = mapped_column(Integer)
+    frozen: Mapped[bool] = mapped_column(Boolean, default=False)  # the owner's freeze: no automatic change
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class ParserVersion(Base):
+    """One version of a parser spec, `km77@v1`; the live registry runs the active (or degraded) one per reader."""
+
+    __tablename__ = "parser_versions"
+    __table_args__ = (UniqueConstraint("reader", "version", name="uq_parser_versions_reader_version"),)
+    key: Mapped[str] = mapped_column(String(80), primary_key=True)
+    reader: Mapped[str] = mapped_column(String(40), ForeignKey("parsers.reader", ondelete="CASCADE"))
+    version: Mapped[int] = mapped_column(Integer)
+    spec: Mapped[dict] = mapped_column(JSONB)
+    spec_hash: Mapped[str] = mapped_column(String(12))
+    # draft | candidate | active | degraded | superseded | rejected | retired
+    status: Mapped[str] = mapped_column(String(12), index=True)
+    degraded_reason: Mapped[str | None] = mapped_column(Text)
+    zero_streak: Mapped[int] = mapped_column(Integer, default=0)
+    author: Mapped[str] = mapped_column(String(40))  # seed | owner | agent:parser_doctor
+    change_id: Mapped[str | None] = mapped_column(String(36))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ParserDaily(Base):
+    """Daily metrics of a parser version (research R12): yield, pass rate, structure fingerprint."""
+
+    __tablename__ = "parser_daily"
+    __table_args__ = (PrimaryKeyConstraint("version_key", "day"),)
+    version_key: Mapped[str] = mapped_column(String(80), ForeignKey("parser_versions.key", ondelete="CASCADE"))
+    day: Mapped[date] = mapped_column(Date)
+    pages: Mapped[int] = mapped_column(Integer, default=0)
+    fields_total: Mapped[int] = mapped_column(Integer, default=0)
+    fields_per_page: Mapped[float] = mapped_column(Float, default=0.0)
+    rows_read: Mapped[int] = mapped_column(Integer, default=0)
+    rows_accepted: Mapped[int] = mapped_column(Integer, default=0)
+    pass_rate: Mapped[float | None] = mapped_column(Float)
+    zero_pages: Mapped[int] = mapped_column(Integer, default=0)
+    structure_hash: Mapped[str | None] = mapped_column(String(16))
+    structure_shingles: Mapped[list | None] = mapped_column(JSONB)
+    structure_sim: Mapped[float | None] = mapped_column(Float)
+
+
+class AcqChange(Base):
+    """The journal of gated declarative changes and of automatic status changes (research R15)."""
+
+    __tablename__ = "acq_changes"
+    __table_args__ = (
+        # one open change per object (FR-018); a closed row (closed_at set) never blocks the next one
+        Index("uq_acq_changes_open", "object_kind", "object_key", unique=True, postgresql_where=text(
+            "status IN ('proposed','replay','shadow','accepted','watch') AND closed_at IS NULL")),
+    )  # fmt: skip
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, index=True)
+    author: Mapped[str] = mapped_column(String(40))  # agent:parser_doctor | system | owner | …
+    object_kind: Mapped[str] = mapped_column(String(20))  # parser | prompt | role_model | rule | source
+    object_key: Mapped[str] = mapped_column(String(160))
+    from_version: Mapped[str | None] = mapped_column(String(80))
+    to_version: Mapped[str | None] = mapped_column(String(80))
+    diff: Mapped[dict] = mapped_column(JSONB, default=dict)
+    diff_hash: Mapped[str] = mapped_column(String(12))
+    reason: Mapped[str] = mapped_column(Text)
+    evidence: Mapped[dict] = mapped_column(JSONB, default=dict)
+    gates: Mapped[dict] = mapped_column(JSONB, default=dict)
+    metrics_before: Mapped[dict | None] = mapped_column(JSONB)
+    metrics_after: Mapped[dict | None] = mapped_column(JSONB)
+    status: Mapped[str] = mapped_column(String(12))
+    explanation: Mapped[str] = mapped_column(Text)
+    cost_eur: Mapped[float] = mapped_column(Numeric(10, 4), default=0)
+    reverted_by: Mapped[str | None] = mapped_column(String(36))
+    closed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
