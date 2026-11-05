@@ -5,11 +5,11 @@ import { useLang, useT } from "../../i18n";
  * Every edit is sent as PATCH. After a report it recomputes the report at once (a rescore); while a turn runs
  * the edit is queued on the server and applied when the turn ends.
  */
-import { useCallback, useEffect, useId, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import type { Key } from "../../i18n/en";
 import type { CaseCar, CaseFile } from "../../lib/protocol";
 import { CarChange } from "../CarChange";
-import { cx, useEscape, yearsLabel } from "../../lib/util";
+import { cx, useDialogFocus, useEscape, yearsLabel } from "../../lib/util";
 import { BASIS_CLS } from "../badges";
 import { patchCase, useCasePanel, type CasePatch } from "../../store/case";
 import { useChat } from "../../store/chat";
@@ -475,6 +475,8 @@ export function CaseSheet() {
   const close = useCallback(() => setOpen(false), [setOpen]);
   // the sheet only shows below 768 px; Escape closes the panel at any width (audit F14)
   useEscape(open, close);
+  const panel = useRef<HTMLDivElement>(null);
+  useDialogFocus(open, panel);
   if (!open) return null;
   return (
     <div
@@ -489,7 +491,7 @@ export function CaseSheet() {
         className="absolute inset-0 bg-black/40"
         onClick={() => setOpen(false)}
       />
-      <div className="scroll-thin absolute inset-x-0 bottom-0 max-h-[80vh] overflow-y-auto rounded-t-2xl border-t border-line/60 bg-bg p-4">
+      <div ref={panel} className="scroll-thin absolute inset-x-0 bottom-0 max-h-[80vh] overflow-y-auto rounded-t-2xl border-t border-line/60 bg-bg p-4">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="font-display text-sm font-bold">{t("case.title")}</h2>
           <button

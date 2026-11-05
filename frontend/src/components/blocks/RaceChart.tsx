@@ -218,7 +218,7 @@ export function RaceChart({ b }: { b: BlockOf<"race_chart"> }) {
                   </td>
                   <td className="py-2 pr-2 text-right">
                     {r.t_0_200 === null ? (
-                      <span className="text-muted/70">—</span>
+                      <span className="text-muted">—</span>
                     ) : (
                       `${fmtNum(r.t_0_200, 2)} s`
                     )}

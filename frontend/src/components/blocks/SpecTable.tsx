@@ -38,19 +38,31 @@ function ColumnChange({ variantId, name }: { variantId: string; name: string }) 
   return <CarChange car={car} name={name} className="mt-1.5" />;
 }
 
+/** The table's minimum width: a label column plus ~8 rem per car, so two cars fit a 390 px screen (audit F13). */
+export function tableMinWidth(cars: number): string {
+  return `${6 + Math.max(1, cars) * 8}rem`;
+}
+
 export function SpecTable({ b }: { b: BlockOf<"spec_table"> }) {
   const color = useCarColor();
   const t = useT();
+  const title = useBlockTitle(b.type, b.title);
   return (
-    <BlockCard title={useBlockTitle(b.type, b.title)} icon={<TableIcon />}>
+    <BlockCard title={title} icon={<TableIcon />}>
       <div className="-mx-4 -mt-2 mb-2 px-4">
         <SpecLegend />
       </div>
-      <div className="-mx-4 -mb-4 overflow-x-auto scroll-thin">
-        <table className="w-full min-w-[480px] border-collapse text-sm">
+      {b.cars.length > 2 && (
+        <p className="-mt-1 mb-2 text-[11px] text-muted sm:hidden" data-testid="table-scroll-hint">
+          {t("table.scroll")} →
+        </p>
+      )}
+      <div className="-mx-4 -mb-4 overflow-x-auto scroll-thin" tabIndex={0} role="region" aria-label={title}>
+        {/* audit F13: two cars fit side by side at 390 px; more cars scroll with the label column pinned */}
+        <table className="w-full border-collapse text-sm" style={{ minWidth: tableMinWidth(b.cars.length) }}>
           <thead>
             <tr className="border-b border-line/60 bg-panel2/50">
-              <th className="sticky left-0 z-10 w-[28%] bg-panel px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted">
+              <th className="sticky left-0 z-10 w-[30%] bg-panel px-3 py-3 text-left text-[11px] font-semibold uppercase tracking-wider text-muted sm:w-[28%] sm:px-4">
                 {t("table.spec")}
               </th>
               {b.cars.map((c) => (
@@ -90,7 +102,7 @@ export function SpecTable({ b }: { b: BlockOf<"spec_table"> }) {
               >
                 <th
                   scope="row"
-                  className="sticky left-0 z-10 bg-panel px-4 py-2.5 text-left align-top font-medium text-muted"
+                  className="sticky left-0 z-10 break-words bg-panel px-3 py-2.5 text-left align-top font-medium text-muted sm:px-4"
                 >
                   {row.label}
                   {row.unit && (

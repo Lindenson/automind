@@ -41,7 +41,7 @@ export function Maintenance({ b }: { b: BlockOf<"maintenance"> }) {
                     Service interval
                   </dt>
                   <dd className="tabular text-sm font-medium">
-                    {interval || <i className="text-muted/70">unavailable</i>}
+                    {interval || <i className="text-muted">unavailable</i>}
                   </dd>
                 </div>
                 <div>
@@ -52,7 +52,7 @@ export function Maintenance({ b }: { b: BlockOf<"maintenance"> }) {
                     {it.annual_cost_eur !== null ? (
                       `€${fmtNum(it.annual_cost_eur, 0)}`
                     ) : (
-                      <i className="text-sm font-normal text-muted/70">
+                      <i className="text-sm font-normal text-muted">
                         unavailable
                       </i>
                     )}

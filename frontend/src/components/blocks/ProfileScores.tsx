@@ -77,7 +77,7 @@ export function ProfileScores({ b }: { b: BlockOf<"profile_scores"> }) {
                         <span className="truncate text-muted">{cr.label}</span>
                         <span className="tabular">
                           {v === null || v === undefined ? (
-                            <i className="text-muted/70">n/a</i>
+                            <i className="text-muted">n/a</i>
                           ) : (
                             fmtNum(v, 0)
                           )}

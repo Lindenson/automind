@@ -4,7 +4,8 @@ import type { BlockOf } from "../../lib/protocol";
 import { cx, fmtNum } from "../../lib/util";
 import { useChat } from "../../store/chat";
 import { useCarColor } from "../carColors";
-import { Reveal } from "../badges";
+import { MessageIdContext, Reveal } from "../badges";
+import { ratingDomId } from "../RatingControl";
 
 const CONF: Record<string, { cls: string }> = {
   HIGH: { cls: "border-good/40 text-good" },
@@ -81,8 +82,32 @@ export function Verdict({ b, versions }: { b: BlockOf<"verdict">; /** the cars w
       {(b.break_even || b.labels) && <Electrified b={b} />}
       <p className="text-xs text-muted">{b.confidence_reason}</p>
       {b.would_change && <p className="text-sm text-fg/80">{b.would_change}</p>}
-      {b.gaps.length > 0 && b.find && !hasPanel && <FindIt />}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        {b.gaps.length > 0 && b.find && !hasPanel ? <FindIt /> : <span />}
+        <RateLink />
+      </div>
     </section>
+  );
+}
+
+/** audit F12: the rating sits at the end of a long report; the verdict points to it. */
+function RateLink() {
+  const t = useT();
+  const messageId = useContext(MessageIdContext);
+  if (!messageId) return null;
+  return (
+    <button
+      type="button"
+      data-testid="rate-link"
+      onClick={() => {
+        const el = document.getElementById(ratingDomId(messageId));
+        el?.scrollIntoView({ behavior: "smooth", block: "center" });
+        el?.querySelector<HTMLButtonElement>("button")?.focus({ preventScroll: true });
+      }}
+      className="min-h-9 text-xs text-muted underline-offset-2 hover:text-fg hover:underline"
+    >
+      {t("verdict.rate")} <span aria-hidden>↓</span>
+    </button>
   );
 }
 

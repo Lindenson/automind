@@ -7,7 +7,6 @@ import { useChat, type UiMessage } from "../store/chat";
 import { ConfidenceDot, ProvenanceBadge } from "./badges";
 import { textAfterSend } from "./Composer";
 import { IntakeCard } from "./IntakeCard";
-import { ProgressGrid } from "./ProgressGrid";
 import { StatusTimeline } from "./StatusTimeline";
 import { RatingControl, asksReasons, ratingNote } from "./RatingControl";
 import { DataPanelPresent, Verdict } from "./blocks/Verdict";
@@ -124,8 +123,9 @@ describe("intake card options (audit F10)", () => {
 
 describe("progress grid (audit F7, F9)", () => {
   it("has sentence-case areas, a legend and the elapsed time", () => {
+    // the grid is shown inside the timeline card, which carries the elapsed time (audit F7)
     const html = renderToStaticMarkup(
-      <ProgressGrid
+      <StatusTimeline
         pending={{
           userMessageId: "",
           startedAt: Date.now(),
