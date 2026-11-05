@@ -114,10 +114,10 @@ The system never changes code, rules, prompts or parsers itself. When the owner 
 
 An admin page, behind the existing admin token, answers three questions: is it better or worse, what broke, what did the system change by itself.
 
-- **Overview**: satisfaction index per kind of request, with 7- and 30-day trends and cuts by language and persona; share of "no data"; data accuracy from signals; share of model calls served by a fallback model; spend today and this month.
+- **Overview**: satisfaction index per kind of request, with 7- and 30-day trends and cuts by language and persona; share of "no data"; data accuracy from signals; share of model calls served by a fallback model; spend today and this month; firing alerts.
 - **Issues**: the issue queue with diagnosis, examples, status and the copy button; the owner can mark an issue acknowledged, fixed (with a commit reference) or won't fix.
-- **Sources**: see US7.
-- **Source changes**: see US7.
+- **Sources**, **Source changes**: see US7 and US9.
+- **Inaccuracies**, **Complaints**, **Self-diagnostics**, **Alerts**: see US9.
 
 Every number leads to its reason: a drop in accuracy leads to the sources, from there to the wrong values, from there to the page and the quote.
 
@@ -236,8 +236,52 @@ The old "learned after 3 accepted runs" rule stops; the registry replaces it. Un
 
 ---
 
+### User Story 9 - Metrics and alerts: in the admin page and for Prometheus (Priority: P1)
+
+The owner does not want to open the admin page to learn that something broke. The system keeps metrics over time and raises alerts, in two places:
+- **in the admin page**: an Alerts tab and a badge on every tab while an alert is firing; charts over time for the satisfaction index, accuracy, complaints, sources and the system's own health;
+- **for Prometheus**: a metrics endpoint scraped by Prometheus, plus ready alert rules with the same conditions and thresholds as the in-app alerts, so the owner's own monitoring can page them.
+
+The admin page gets dedicated views:
+- **Sources**: per capability, score, accuracy (mean and lower bound), yield and cost per value over time (daily points, 30 and 90 days); counts by status per kind of data over time; recent status changes.
+- **Inaccuracies**: every value shown wrong (challenge CORRECTED/REMOVED, bad source, later replacement): car, attribute, shown value, corrected value, source, page quote, who was blamed (source, parser, extractor, relevance, check, merge), with filters by kind of data, source and blame; trend of wrong values per day.
+- **Complaints**: every feedback item (ratings with notes, "wrong?", "bad source", typed complaints, detected rephrases and corrections) with its chat, turn, kind of request and language; trend per day by kind.
+- **Self-diagnostics**: health of the system itself — the background loops (last successful run, last error, duration), model provider errors and fallback share per role, search provider failures, page-fetch refusals and errors, site readers with a falling share of pages read, research jobs failing, spend against the daily cap and the background budgets.
+
+**Alert conditions** (configurable thresholds; each has a severity: warning or critical):
+
+| Area | Fires when |
+|---|---|
+| Satisfaction | the 7-day index of a kind of request falls by more than a set margin below its 30-day level, with a minimum number of turns |
+| Complaints | complaints, rephrases or corrections in the last 24 h exceed a multiple of their daily average |
+| Inaccuracy | wrong values in the last 7 days exceed a share of values shown, or one source collects several wrong values in a day |
+| Sources | an active source becomes degraded or blocked (terms changed, robots), active sources for a kind of data and market fall below the minimum, or a site reader reads zero values in a row |
+| No data | the "no data" share of a kind of data rises above its 30-day level by a margin |
+| Models | the fallback share of a role exceeds a threshold, or a provider is unavailable for several minutes |
+| Budget | spend today passes 80% of the daily cap, or a background budget is used up |
+| Self | a background loop has not completed on time, or failed twice in a row |
+| Issues | an issue reopens as a regression |
+
+An alert is raised once, stays firing while the condition holds, and resolves by itself when it clears. The owner can acknowledge it or mute it for a period. Each alert links to its reason (the chart, the source card, the issue). Optionally an alert is also sent to a configured webhook (for example a chat bot).
+
+**Why this priority**: The owner asked for metrics and alerts as part of the product and its admin interface, with an export for Prometheus. Without alerts, a degraded source or a wave of complaints is found only by chance.
+
+**Independent Test**: With seeded data, push the complaint rate of one day above its threshold and degrade one active source. Two alerts fire in the admin page with links, the metrics endpoint shows the matching values, and the shipped Prometheus rule for each fires on the same data; when the data returns to normal, both alerts resolve.
+
+**Acceptance Scenarios**:
+
+1. **Given** a condition above its threshold, **When** the evaluation runs, **Then** exactly one alert is firing for it (not one per evaluation), with severity, value, threshold, start time and link.
+2. **Given** a firing alert whose condition clears, **When** the evaluation runs, **Then** the alert is resolved with an end time and stays in the history.
+3. **Given** a muted alert, **When** its condition fires again inside the mute period, **Then** it is recorded but not shown as a badge or sent to the webhook.
+4. **Given** Prometheus scrapes the metrics endpoint, **When** it reads it, **Then** it gets the satisfaction index per kind of request, accuracy, complaints, source counts by status, loop health, fallback share and spend, and the request is refused without the metrics token outside the local network.
+5. **Given** the shipped Prometheus alert rules, **When** they are checked against the in-app alert configuration, **Then** each in-app alert has a rule with the same condition and threshold.
+6. **Given** the Sources view, **When** the owner opens a source, **Then** the score, accuracy and yield of each of its capabilities are shown as daily series for 30 and 90 days.
+
+---
+
 ### Edge Cases
 
+- **Alert storm.** Many sources degrade at once (for example the search provider is down): one alert per condition and source, and the self-diagnostics alert for the provider points to the common cause; the webhook sends at most a configured number of messages per hour.
 - **Too few signals.** One user produces few truth signals: transitions use the accuracy lower bound and minimum sample sizes, so a source does not flip status on one or two values.
 - **Copying sites.** Mirror sites agree with each other: agreement counts by family, so copies do not raise each other's accuracy.
 - **Our own fault, not the source's.** A value was wrong because our parser or extractor misread a correct page: when the page quote holds the right number, the error is attributed to the parser/extractor and goes to the issue queue, and the source's accuracy is not lowered.
@@ -292,6 +336,17 @@ The old "learned after 3 accepted runs" rule stops; the registry replaces it. Un
 - **FR-028**: The sources view MUST list capabilities per kind of data (status, score mean and lower bound, yield, accuracy, attempts, cost per accepted value, last change), open a source card with history and evidence, and let the owner block, freeze or revert.
 - **FR-029**: The change journal MUST list every registry change with its reason and evidence, newest first.
 
+**Metrics and alerts**
+
+- **FR-030**: The system MUST keep daily series of: satisfaction index per kind of request, language and persona; failure-class shares; feedback counts per kind; wrong values and accuracy per kind of data and source; "no data" share per kind of data and market; per-capability score, accuracy (mean and lower bound), yield and cost; capability counts by status per kind of data; model calls, fallback share and errors per role; search and fetch failures; spend. Series MUST cover at least 180 days.
+- **FR-031**: The admin page MUST include views for Sources (with daily series per capability), Inaccuracies, Complaints and Self-diagnostics as described in US9, each linking down to the chat, value, page or source behind a number.
+- **FR-032**: The system MUST evaluate the alert conditions of US9 at least every 5 minutes in the background, with configurable thresholds and severities; an alert MUST have one firing instance per condition and subject, resolve automatically, and keep a history.
+- **FR-033**: The owner MUST be able to acknowledge an alert and mute a condition (optionally for one subject) for a period. Firing alerts MUST be visible as a badge on every admin view.
+- **FR-034**: When a webhook is configured, firing and resolved alerts (not muted) MUST be sent to it, rate-limited per hour.
+- **FR-035**: The system MUST expose a metrics endpoint in the Prometheus text format with the metrics of FR-030 (current values and counters), protected by a metrics token or restricted to the local network, with bounded label sets (per-source series only for candidate, active and degraded sources).
+- **FR-036**: The project MUST ship Prometheus alert rules equivalent to the in-app alert conditions, generated from the same configuration, and a check MUST fail when they drift apart.
+- **FR-037**: The self-diagnostics alerts MUST fire when a background loop misses its schedule or fails twice in a row, so a silent stop of observation is itself visible.
+
 ### Key Entities
 
 - **Turn outcome**: one per turn; kind of request, action, path, duration, cost, relation of the next message, failure classes, signals, score.
@@ -301,6 +356,9 @@ The old "learned after 3 accepted runs" rule stops; the registry replaces it. Un
 - **Capability**: source × kind of data × market; status, score, yield and accuracy evidence, attempts, cost, frozen flag.
 - **Truth signal**: evidence that a shown value was right or wrong; kind (reference, challenge, bad source, later replacement, agreement), weight, date, value and capability concerned, blame (source or our processing).
 - **Registry change**: a journal entry; time, author, capability, before, after, reason, evidence, reverted flag.
+- **Daily series point**: a metric, its labels (kind of request, kind of data, source, role…), a day and a value.
+- **Alert rule**: a named condition with threshold, window, severity, subject type and link target; from configuration.
+- **Alert**: one firing instance of a rule for a subject; started, resolved, value, threshold, acknowledged, muted until, notifications sent.
 
 ## Success Criteria *(mandatory)*
 
@@ -315,12 +373,17 @@ The old "learned after 3 accepted runs" rule stops; the registry replaces it. Un
 - **SC-007**: Every registry change is in the journal with a reason and evidence, and any one can be reverted in one action.
 - **SC-008**: After one month, the share of "no data" for kinds of data with an existing open source falls, and the accuracy of shown values does not fall, compared with the baseline.
 - **SC-009**: Background analysis and discovery stay within their daily budgets on every day.
+- **SC-010**: A degraded source, a complaint wave or a stopped background loop raises an alert within 10 minutes, visible in the admin page and through Prometheus.
+- **SC-011**: Every in-app alert condition has an equivalent shipped Prometheus rule (zero drift, checked automatically).
+- **SC-012**: Every number on the Sources, Inaccuracies and Complaints views leads in at most three clicks to the chat, value, page quote or source behind it.
 
 ## Assumptions
 
 - One owner and few users: decisions rely on lower bounds, minimum samples and slow transitions; no live A/B or canary.
 - Background work runs inside the existing single application process on a schedule, like the existing retention task; no new service.
-- The existing admin token protects the admin page; no user accounts are added.
+- The existing admin token protects the admin page; no user accounts are added. A separate metrics token protects the Prometheus endpoint.
+- Alerts are delivered in the admin page, through Prometheus (the owner's Alertmanager routes them), and optionally to one generic webhook; e-mail and SMS are not built in.
+- Prometheus and Alertmanager themselves are optional: the project ships a scrape and rules configuration and an optional monitoring profile for the local deployment, but works without them.
 - Signal weights, thresholds, half-life, budgets and minimum samples are configuration with sensible defaults (strong signal 1, later replacement 0.7, agreement 0.3; half-life 90 days); the system cannot change them.
 - Dataset sources (EEA CO2/OBFCM, RDW, DVSA MOT, fueleconomy.gov), JS rendering, automatic parser repair and a weekly model-judge calibration of implicit signals are out of scope and may follow in later specs.
 - The current specs 001–009 are summarised in one baseline document of what the system does today; they remain as history.

@@ -45,5 +45,28 @@ Sets `sources.frozen`; journalled.
 ## GET /changes?limit=100&author=system
 `[{id, created_at, author, domain, area, market, field, before, after, reason, evidence, reverted: bool, held: bool}]` newest first.
 
+## GET /series?metric=capability_score&labels=domain:km77.com,area:specs&days=90
+`{"metric": "...", "series": [{"labels": {...}, "points": [{"day": "2026-11-05", "value": 0.71, "samples": 14}]}]}` — from `metric_daily`; used by every chart.
+
+## GET /inaccuracies?area=&domain=&blame=&days=30
+`[{signal_id, created_at, variant, car_name, attribute, shown_value, corrected_value, domain, url, quote, blame, kind, chat_id, turn_id}]` + `trend` (daily wrong values).
+
+## GET /complaints?kind=&lang=&days=30
+`[{feedback_id, created_at, kind, rating, text, request_kind, language, chat_id, turn_id, attribute, domain}]` + `trend` per kind.
+
+## GET /diagnostics
+```json
+{"loops": [{"name":"insight","last_ok":"…","last_error":null,"fails_in_row":0,"next_due":"…","stale":false}],
+ "models": [{"role":"interpreter","calls_24h":40,"fallback_share_1h":0.0,"errors_24h":{"quota":2}}],
+ "search": {"calls_24h":30,"failures_24h":1}, "fetch": {"ok":120,"robots":8,"error":3},
+ "readers": [{"reader":"km77","ok_share_7d":0.9,"ok_share_30d":0.92,"zero_streak":0}],
+ "jobs": {"failed_24h":1}, "spend": {...}}
+```
+
+## GET /alerts?state=firing|all&days=30
+`[{id, rule_id, subject, severity, title, value, threshold, started_at, last_seen_at, resolved_at, acknowledged_at, muted: bool, link}]`. `GET /alerts/summary` → `{"firing": {"critical":1,"warning":2}}` for the badge.
+
+## POST /alerts/{id}/ack · POST /alerts/mutes `{rule_id, subject?, hours, note?}` · DELETE /alerts/mutes/{id}
+
 ## POST /changes/{id}/revert
 Restores `before`; journals a new change `author=owner` with `reverted_by` set on the original. 409 if a later change on the same capability exists (revert the latest first).

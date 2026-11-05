@@ -65,6 +65,21 @@ Decisions taken from the code as it is on 2026-11-05 and the owner's boundary (s
 
 - **Decision**: `acquisition/registry/api.py` exposes `plan(area, markets, variant_make) -> Plan` (ordered domains with priority ints compatible with `favourite_priority`, plus `candidate_slots`) and `record(attempts)`. In `research.py`: `favourite_priority` reads priorities from the plan; `learned_sites` returns active non-favourite capabilities; `_record_learned` → `record()` with richer outcomes (accepted / rejected reason / robots / junk). With `autonomy: false` the plan reproduces today's favourites priorities and learned rule exactly (golden-checked).
 
+## R13. Metrics storage and Prometheus export
+
+- **Decision**: two layers.
+  1. **Daily rollups in Postgres** (`metric_daily`: metric, labels jsonb, day, value, samples) computed by the background loop from the journals (`turn_outcomes`, `feedback`, `truth_signals`, `registry_attempts`, `capabilities`, `llm_calls`, `search_calls`, `research_jobs`, `site_reader_stats`, `documents.fail_reason`), idempotent per day (today is recomputed every run). The admin charts read only these rollups. Retention 400 days.
+  2. **`/metrics` in Prometheus text format** via `prometheus_client` (new dependency, ~0 transitive deps). Counters/histograms incremented live at the existing write points (turn end, LLM callback, search record, feedback, registry attempt, fetch refusal); gauges for the slow KPIs (index per kind, accuracy, nodata share, capability counts, per-source score for candidate/active/degraded, open issues, firing alerts, loop last success, spend today) refreshed from the DB by the loop every minute into a custom collector (no DB query on scrape). Single process (`--workers 1`), so the default registry is correct; no multiprocess mode.
+- **Rationale**: the admin page must work without Prometheus (owner's interface is primary); Prometheus gets the same numbers for external alerting. Metric names prefixed `automind_`.
+- **Alternatives**: Prometheus as the only store and Grafana as UI (owner wants it in the product's admin; adds infra); OpenTelemetry (heavier, no need for traces now — LangSmith remains available).
+- **Constitution X**: `prometheus_client` is a concrete requirement (FR-035); no server infrastructure is required (monitoring profile is optional).
+
+## R14. Alerts
+
+- **Decision**: rules in `config/alerts.yaml` (`id, title, severity, expr_kind, metric, labels, window, compare: drop_vs_baseline|above|below|ratio_above|stale, threshold, min_samples, for_minutes, subject, link`). A pure evaluator `insight/domain/alerts.py` takes rollups + live gauges and returns `(rule, subject, value, firing)`; the loop (every 5 min) upserts `alerts` (one open row per rule+subject; resolved_at set when it clears), respects `alert_mutes`, and posts to `ALERT_WEBHOOK_URL` (generic JSON; rate limit per hour; retries 2). `scripts/alerts_to_prom.py` generates `deploy/prometheus/automind-rules.yml` from the same YAML (each `expr_kind` has a PromQL template over the exported gauges); a unit test regenerates and diffs it (drift → fail, FR-036).
+- **Self-watch**: each background loop writes `loop_heartbeats(name, last_ok, last_error, fails_in_row)`; the `stale` rule kind covers missed schedules. Because the alert loop could be the one that stopped, the Prometheus rule `AutomindLoopStale` (on `automind_loop_last_success_timestamp`) is the external guard.
+- **Monitoring profile**: `docker-compose.yml` gains an optional `monitoring` profile (Prometheus + Alertmanager, pinned images) with `deploy/prometheus/prometheus.yml` scraping `app:8000/metrics` with the token; Alertmanager receiver left to the owner (webhook placeholder).
+
 ## R12. Admin UI without a router
 
 - **Decision**: `main.tsx` renders `<AdminApp/>` when `location.pathname.startsWith("/admin")`; the token is entered once and kept in `sessionStorage`, sent as `Authorization: Bearer`. The backend SPA fallback serves `index.html` for `/admin`.

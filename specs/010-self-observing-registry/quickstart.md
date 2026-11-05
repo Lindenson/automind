@@ -28,3 +28,11 @@ Expected: all green; the scenario test `fixtures/scenarios/registry` shows class
 1. `uv run python -m automind.acquisition.registry.application.seed` (idempotent) → Sources tab lists ~200 sites; classifieds/terms-forbid are `blocked` with quotes.
 2. With `registry.autonomy: false` run a research chat → same favourites order as before (compare `research_jobs.queries`).
 3. Set `registry.autonomy: true`, run `uv run python -m automind.acquisition.registry.application.review --once` → Changes tab lists changes with reasons; freeze a source, re-run → its change shows "held: frozen"; revert a change → capability returns to its previous status.
+
+## 5. Metrics and alerts
+1. `curl -H "Authorization: Bearer $METRICS_TOKEN" http://127.0.0.1:8000/metrics | grep automind_` → counters and gauges of `contracts/metrics.md`; without the token from outside the local network → 403.
+2. Admin: Complaints, Inaccuracies, Self-diagnostics and Sources tabs show daily series (`/api/v1/admin/series`).
+3. Test helper `uv run python -m automind.insight.alerts.evaluate --once` after seeding a complaint spike and a degraded source → two firing alerts, badge on every tab; webhook (e.g. `ALERT_WEBHOOK_URL=http://127.0.0.1:9999` with `nc -l 9999`) receives two JSON posts; clearing the seed and re-running resolves both.
+4. Stop the insight loop (test flag) for > 2 intervals → `loop_stale` fires in-app and `AutomindLoopStale` fires in Prometheus.
+5. `docker compose --profile monitoring up -d` → Prometheus on :9090 shows the target UP and the rules loaded from `deploy/prometheus/automind-rules.yml`.
+6. `uv run pytest tests/unit/test_alert_rules_sync.py` → generated rules equal the committed file.
