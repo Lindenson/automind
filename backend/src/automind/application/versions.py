@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field
 from automind.application.ports import Ports
 from automind.application.usage import current_budget
 from automind.domain import evidence, identity
-from automind.domain.ladder import Generation, Version
+from automind.domain.ladder import Generation, Version, sold_in
 
 _GEARBOX = Literal["manual", "automatic", "dct", "cvt", "e-cvt", "single"]
 
@@ -184,8 +184,7 @@ def covers(g: Generation, year: int | None) -> bool:
     """Does the list say which versions were sold in `year`? (a version without years covers every year)"""
     if year is None:
         return True
-    return any(v.years_from is None or identity.generation_matches(year, v.years_from, v.years_to, 1)
-               for v in g.versions)  # fmt: skip
+    return any(sold_in(v, g.versions, year) for v in g.versions)
 
 
 async def _merge(store: Any, g: Generation, kept: list[Version], docs: dict[str, tuple[str, str]], year: int | None,
@@ -201,6 +200,5 @@ async def _merge(store: Any, g: Generation, kept: list[Version], docs: dict[str,
     merged = Generation(g.make, g.model, g.generation, g.years_from, g.years_to, g.body_class, [*g.versions, *add],
                         srcs)  # fmt: skip
     await store.put(merged)
-    in_year = [v for v in merged.versions if year is None or v.years_from is None
-               or identity.generation_matches(year, v.years_from, v.years_to, 1)]  # fmt: skip
+    in_year = [v for v in merged.versions if year is None or sold_in(v, merged.versions, year)]
     return merged if len(in_year) >= minimum else None

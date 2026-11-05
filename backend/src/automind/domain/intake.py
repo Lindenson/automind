@@ -428,7 +428,7 @@ def inherit_condition(before: CaseFile, after: CaseFile) -> list[str]:
     """A car added later in the chat ("and the Mazda?") is bought like the cars already compared: when they all
     share a condition (and, if new, a year), the added car takes it instead of asking "new or used?" again."""
     old = {c.key for c in before.cars}
-    others = [c for c in after.cars if c.key in old]
+    others = [c for c in after.cars if c.key in old and not c.replaced]  # the user's own car is not bought
     conds = {c.condition for c in others}
     if len(conds) != 1 or "UNKNOWN" in conds:
         return []
@@ -458,6 +458,12 @@ BODY_WORDS: dict[str, tuple[str, ...]] = {
 _BODY_MATCH = {"suv": ("suv", "crossover", "todocamino", "4x4"), "estate": ("estate", "familiar", "wagon", "touring"),
                "mpv": ("mpv", "monovolumen", "van"), "sedan": ("sedan", "berlina", "saloon"),
                "hatchback": ("hatchback", "compacto")}  # fmt: skip
+
+
+def body_class_of(body: str | None) -> str | None:
+    """A line-up or catalog body ("SUV", "todocamino", "familiar") as a body class the candidates use, or None."""
+    low = (body or "").lower()
+    return next((b for b, ws in _BODY_MATCH.items() if any(w in low for w in ws)), None) if low else None
 
 
 def body_of(text: str) -> str | None:
