@@ -1,1 +1,1 @@
-"""Pure gold matching rules (spec 011 research R3)."""
+"""Spec 011: pure gold matching (no I/O)."""

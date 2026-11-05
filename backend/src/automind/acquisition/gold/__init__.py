@@ -1,1 +1,1 @@
-"""Gold (reference) values from open datasets and user challenges (spec 011 US1)."""
+"""Spec 011: gold values from open datasets, the reference set and user challenges (research R3)."""
