@@ -42,7 +42,7 @@ function Points({
                   <i className="ml-1 text-[10px]">(single source)</i>
                 )}
               </span>
-              {p.sources.length > 0 && <SourcesButton sources={p.sources} />}
+              {p.sources.length > 0 && <SourcesButton sources={p.sources} area="reviews" />}
             </li>
           ))}
         </ul>

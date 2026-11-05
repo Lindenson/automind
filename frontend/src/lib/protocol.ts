@@ -948,6 +948,16 @@ export const ChallengeResultSchema = z.object({
     .default([]),
 });
 
+// spec 010 US2: the server recorded (or ignored) a "bad source" mark
+export const FeedbackAckSchema = z.object({
+  ...Envelope,
+  type: z.literal("feedback_ack"),
+  kind: z.literal("bad_source"),
+  url: z.string(),
+  ignored: z.boolean().nullish(),
+});
+export type FeedbackAck = z.infer<typeof FeedbackAckSchema>;
+
 // spec 004 FR-023: one cell of the car × area research grid
 export const ProgressMsgSchema = z.object({
   ...Envelope,
@@ -972,6 +982,7 @@ export type ProgressMsg = z.infer<typeof ProgressMsgSchema>;
 export const ServerMsgSchema = z.discriminatedUnion("type", [
   ProgressMsgSchema,
   ChallengeResultSchema,
+  FeedbackAckSchema,
   StatusMsgSchema,
   AssistantMsgSchema,
   UserAckSchema,
@@ -1053,6 +1064,16 @@ export type ChallengeOut = {
   attribute: string;
   text: string;
 };
+/** spec 010 US2 (contracts/ws-feedback.md): mark a source of an answer as bad. */
+export type BadSourceOut = {
+  type: "bad_source";
+  message_id: string;
+  url: string;
+  car_id?: string;
+  attribute?: string;
+  area?: string;
+  text?: string;
+};
 export type IntakeEditOut = {
   type: "intake_edit";
   request_id?: string;
@@ -1068,4 +1089,5 @@ export type ClientMsg =
   | FindOut
   | RatingOut
   | ChallengeOut
+  | BadSourceOut
   | IntakeEditOut;

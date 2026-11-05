@@ -35,7 +35,7 @@ export function Manufacturer({ b }: { b: BlockOf<"manufacturer"> }) {
                   </span>
                   <span className="min-w-0 flex-1">{f.text}</span>
                   {f.sources.length > 0 && (
-                    <SourcesButton sources={f.sources} />
+                    <SourcesButton sources={f.sources} area="manufacturer" />
                   )}
                 </li>
               ))}

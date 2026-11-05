@@ -76,7 +76,7 @@ export function Reliability({ b }: { b: BlockOf<"reliability"> }) {
                         </span>
                       )}
                       {i.sources.length > 0 && (
-                        <SourcesButton sources={i.sources} />
+                        <SourcesButton sources={i.sources} carId={car.car_id} area="reliability" />
                       )}
                     </div>
                     <p className="text-xs text-muted">{i.description}</p>
