@@ -1,6 +1,18 @@
 <!--
 Sync Impact Report
 ==================
+Version change: 1.2.0 → 1.3.0
+Bump rationale: MINOR — principle XII materially expanded (owner's decision of 2026-11-05 evening, after an
+external review; spec 011 "Acquisition engine"): agents of the acquisition engine MAY change declarative data
+(parser specifications, relevance keywords, sense/plausibility thresholds, extraction prompt versions, model per
+extractor role) by themselves, only through automatic gates (offline replay on stored snapshots and gold values →
+shadow → accept → watch → automatic rollback). Code, deny-list, robots/terms prohibitions and budgets stay human.
+Principle VI's "human-steered" bullet narrowed accordingly. New principle XIII: acquisition is a separate engine.
+Templates reviewed: plan-template.md Constitution Check must now cover I–XIII (read at runtime).
+Dependent artifacts: spec 010's "never changes parsers/rules" boundary superseded by spec 011.
+
+Previous change
+---------------
 Version change: 1.1.1 → 1.2.0
 Bump rationale: MINOR — new principle XII (Self-Observation and Bounded Autonomy), owner's decision
 of 2026-11-05 (spec 010). Principle VI gains one clarifying bullet: "human-steered" governs code,
@@ -143,9 +155,10 @@ Rationale: keeps core logic testable and replaceable as orchestration and provid
   the same state field (reducers required).
 - Failure of one independent research task MUST NOT fail the entire session.
 - Progress MUST be visible to the user; hidden model reasoning MUST NOT be exposed.
-- "Human-steered" covers code, rules, prompts, parsers and their configuration: only a person
-  changes them. The order, admission and status of sources are managed by the system itself under
-  principle XII.
+- "Human-steered" covers code, budgets, the deny-list and robots/terms prohibitions: only a person
+  changes them. Declarative acquisition data (parser specifications, relevance keywords, thresholds,
+  extraction prompt versions, model per extractor role) and the order, admission and status of
+  sources are changed by the acquisition engine itself under principle XII, behind automatic gates.
 
 Rationale: reliable, cost-controlled research that the user stays in control of.
 
@@ -224,8 +237,18 @@ Rationale: the product's promise is a reliable, validated answer for experts and
   failure classes, a score, cost, the model that actually answered and the prompt version. User
   feedback (ratings, "wrong?", "bad source", complaints, detected rephrases and corrections) MUST
   be stored in one place.
-- For logic, rules, prompts, parsers and dialogue, the system MUST only observe, group failures,
-  diagnose and propose a fix as a task for a person; it MUST NOT change them itself.
+- Code is never changed by the system, and no model output is ever executed as code: code fixes are
+  tasks for a person (the issue queue). Dialogue rules and prompts of the chat stay human-changed.
+- The acquisition engine's agents MAY change **declarative data** by themselves — parser
+  specifications (labels, selectors, JSON-LD paths, unit hints), relevance keywords, sense and
+  plausibility thresholds, extraction prompt versions and the model per extractor role — only through
+  automatic gates: (1) offline replay on stored page snapshots and gold values, not worse on the
+  cycle's KPI and better on at least one target metric, guard metrics (coverage, cost per value,
+  freshness) within tolerance; (2) shadow run on live pages; (3) acceptance; (4) watch period with
+  automatic rollback on degradation. One change per object at a time.
+- Every value and every attempt MUST record the versions of what produced it (source, parser spec,
+  extractor prompt, model), and raw page snapshots MUST be kept long enough to replay them; without
+  this no automatic change may be accepted.
 - For sources, the system MAY order, admit, promote, demote and retire sources by itself, using
   measured quality (lower confidence bounds, minimum samples, decaying signals), without review.
 - Hard limits that no automatic process may change: the deny-list and classifieds; robots and
@@ -236,7 +259,19 @@ Rationale: the product's promise is a reliable, validated answer for experts and
 - Background observation and source management MUST NOT slow a user's turn.
 
 Rationale: complaints must turn into measured, visible work without a person curating every
-lesson, while code stays under human control.
+lesson, while code stays under human control; an automatic change is accepted only when it is
+measurably better on stored evidence.
+
+### XIII. Acquisition Is a Separate Engine
+
+- Data acquisition (plan, locate, fetch, parse, validate, merge) is a bounded context with its own
+  data model, process and time. The chat orders data through one interface (`acquire`) and never
+  calls search, fetch, parsers or extractors directly; import contracts enforce it.
+- Background acquisition work (prefetch, roll-ups, drift detection, registry review, discovery,
+  agents, canaries and rollbacks) runs in a separate worker process with a database-backed queue,
+  never in the API's event loop.
+
+Rationale: an engine that learns needs its own time and must not slow or be stopped by the chat.
 
 ## Technology & Data Constraints
 
@@ -288,4 +323,4 @@ lesson, while code stays under human control.
 - Every plan and code review MUST verify compliance with the principles above. Deviations MUST
   be explicitly justified (Complexity Tracking) or rejected.
 
-**Version**: 1.2.0 | **Ratified**: 2026-11-01 | **Last Amended**: 2026-11-05
+**Version**: 1.3.0 | **Ratified**: 2026-11-01 | **Last Amended**: 2026-11-05
