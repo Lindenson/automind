@@ -11,7 +11,11 @@
 #   scripts/deploy.sh destroy     stop and DELETE the database volume (asks for confirmation)
 #
 # Settings (environment or .env.docker): AUTOMIND_PORT (default 8080), AUTOMIND_BIND (default 127.0.0.1).
-# Secrets: OPENAI_API_KEY and TAVILY_API_KEY are read from .env; they are never printed or baked into the image.
+# Secrets: API keys are read from .env and never printed or baked into the image. The required model keys follow
+#   the providers in backend/config/models.yaml (+ MODEL_<ROLE> overrides): google_genai -> GOOGLE_API_KEY or
+#   GEMINI_API_KEY, openai -> OPENAI_API_KEY, anthropic -> ANTHROPIC_API_KEY; the search key follows
+#   backend/config/search.yaml `provider:` (or SEARCH_PROVIDER): SERPER_API_KEY / SERPAPI_API_KEY / TAVILY_API_KEY.
+#   POSTGRES_PASSWORD, ADMIN_TOKEN and METRICS_TOKEN are generated into .env.docker when missing.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -23,13 +27,12 @@ compose() { "${DOCKER[@]}" compose "$@"; }
 
 # --- configuration ------------------------------------------------------------------------------
 ensure_env() {
-  [[ -f .env ]] || die ".env is missing: copy .env.example to .env and set OPENAI_API_KEY and SERPER_API_KEY."
-  grep -Eq "^OPENAI_API_KEY=.+" .env || die "OPENAI_API_KEY is not set in .env"
-  grep -Eq "^(SERPER|SERPAPI|TAVILY)_API_KEY=.+" .env || die "no search key in .env (SERPER_API_KEY recommended)"
+  [[ -f .env ]] || die ".env is missing: copy .env.example to .env and set GOOGLE_API_KEY and SERPER_API_KEY."
+  check_api_keys .env backend/config/models.yaml backend/config/search.yaml || die "set the keys above in .env"
   if grep -Eq '^DATABASE_URL=' .env; then
     echo "note: DATABASE_URL in .env is ignored by the containers (compose sets it)." >&2
   fi
-  ensure_db_secret  # POSTGRES_PASSWORD and optional AUTOMIND_PORT / AUTOMIND_BIND
+  ensure_db_secret  # POSTGRES_PASSWORD, ADMIN_TOKEN, METRICS_TOKEN and optional AUTOMIND_PORT / AUTOMIND_BIND
   export AUTOMIND_PORT="${AUTOMIND_PORT:-8080}" AUTOMIND_BIND="${AUTOMIND_BIND:-127.0.0.1}"
 }
 
@@ -95,5 +98,5 @@ case "$cmd" in
     [[ "$a" == "yes" ]] || die "aborted"
     compose down -v
     ;;
-  *) sed -n '2,14p' "$0"; exit 2 ;;
+  *) sed -n '2,18p' "$0"; exit 2 ;;
 esac
