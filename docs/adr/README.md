@@ -30,3 +30,4 @@
 - [ADR-028](ADR-028.md) — Energy model per powertrain, market facts with dates, like-for-like ownership cost (Accepted)
 - [ADR-029](ADR-029.md) — Access before any external demo: owner per browser, same-site only, daily cap (Accepted)
 - [ADR-030](ADR-030.md) — Identification ladder over sourced version lists; used cars costed as used (Accepted)
+- [ADR-032](ADR-032-acquisition-engine.md) — Acquisition engine separated from the chat; agents change declarative data behind gates (Accepted)

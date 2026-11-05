@@ -300,8 +300,8 @@ sources; the learned-sources module no longer exists and the checks pass.
 
 ## Phase 10: Polish & cross-cutting
 
-- [ ] T126 [P] Write `docs/adr/ADR-032-acquisition-engine.md` (separate engine + worker + Postgres queue; snapshots in Postgres; gated declarative self-change; ADR-031 stays reserved for 010's T076) and update `docs/baseline.md`, `README.md` (worker service, `replay`, gold loader, `RDW_APP_TOKEN`), `docs/deploy.md` (worker in export/move; snapshot volume in the DB dump), `docs/next-session.md`.
-- [ ] T127 Run `scripts/check.sh` and `tests/golden`; walk `specs/011-acquisition-engine/quickstart.md` sections 0–7 on `scripts/dev.sh` and record results in `specs/011-acquisition-engine/checklists/requirements.md` notes.
+- [X] T126 [P] Write `docs/adr/ADR-032-acquisition-engine.md` (separate engine + worker + Postgres queue; snapshots in Postgres; gated declarative self-change; ADR-031 stays reserved for 010's T076) and update `docs/baseline.md`, `README.md` (worker service, `replay`, gold loader, `RDW_APP_TOKEN`), `docs/deploy.md` (worker in export/move; snapshot volume in the DB dump), `docs/next-session.md`.
+- [X] T127 Run `scripts/check.sh` and `tests/golden`; walk `specs/011-acquisition-engine/quickstart.md` sections 0–7 on `scripts/dev.sh` and record results in `specs/011-acquisition-engine/checklists/requirements.md` notes.
 - [ ] T128 After 30 days with autonomy on: compare wrong share and coverage with the `pre-autonomy` baseline (SC-006) and searches per accepted value month over month (SC-009) from `acq_daily`; record the numbers in `docs/next-session.md`; open an insight issue if either goal is missed.
 
 ---

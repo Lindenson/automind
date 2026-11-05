@@ -283,6 +283,7 @@ backend/src/automind
 ├── application/     use cases: interpret, identify, resolve, research, extraction, compose (report blocks)
 ├── orchestration/   LangGraph: graph.py, nodes/, runner.py (turn lifecycle), guard.py, prompts/*.md
 ├── infrastructure/  LLM gateway, search providers, fetch + page store, site readers, Postgres, checkpointer
+├── acquisition/     acquisition engine: acquire() facade, pipeline, worker + queue, parsers, gold, replay, agents
 ├── api/             FastAPI: ws.py (protocol v2 with replay), rest.py (/api/v1), app.py (composition)
 └── mcp_server.py    read-only analysis tools over validated data
 frontend/src         React chat, case panel, report blocks (ECharts), i18n ru / es / en
@@ -302,8 +303,30 @@ Principles the code holds to:
   limits on calls, time and cost.
 
 Where to start reading: `domain/policy.py` (what happens next), `domain/casefile.py` (the memory),
-`orchestration/graph.py` (the turn), `application/research.py` (the research pipeline),
+`orchestration/graph.py` (the turn), `acquisition/api.py` (the acquisition engine's entry point),
 `application/compose.py` (the report blocks).
+
+### Acquisition engine
+
+Data acquisition is a separate engine (`backend/src/automind/acquisition`) that the chat reaches only through
+`acquisition.api.acquire()`. Decision record: [ADR-032](docs/adr/ADR-032-acquisition-engine.md).
+
+- **Worker.** `python -m automind.acquisition.worker` (compose service `worker`, started by `scripts/dev.sh` unless
+  `--no-worker`) runs prefetch, roll-ups, drift, registry review, retention and the agents from a Postgres queue
+  (`acq_tasks`, `SKIP LOCKED`). `--once <kind>` runs one task and exits. Stopping the API does not stop it.
+- **Snapshots and gold.** Every fetched page is kept (zstd, deduplicated, capped by `snapshots.max_gb`); every value
+  names its producer version. Gold values come from EEA CO2, EEA OBFCM, RDW (`RDW_APP_TOKEN` optional) and the
+  reference set: `python -m automind.acquisition.gold.load --dataset reference_set`.
+- **Replay.** `python -m automind.acquisition.replay --reader km77@v1 --since 30d --json` measures a parser version on
+  stored pages against gold, with no network and no model calls.
+- **Admin.** `/admin` has **Parsers** (versions, daily metrics, drift, canary) and **Changes** (every gated change
+  with its one-sentence explanation; revert, freeze, forbid similar).
+- **Autonomy gate.** Agents change only declarative data (parser specs, extraction prompts, allowed models, bounded
+  rules, sources) through replay → shadow → accept → watch → rollback. `registry.autonomy` stays `false` until a
+  7-day baseline (`python -m automind.acquisition.reputation.baseline start|status|close --name pre-autonomy`) is
+  closed; the owner switches it on.
+
+Deploying, moving and monitoring the app and the worker: [docs/deploy.md](docs/deploy.md).
 
 ---
 
@@ -418,4 +441,4 @@ AutoMind is built for one person on one machine. Before showing it to others:
 
 - Vision: [docs/vision.md](docs/vision.md) · Rules: [.specify/memory/constitution.md](.specify/memory/constitution.md)
 - Feature specs: [specs/](specs/) — 001 car battle MVP, 002 conversational MVP, 003 research quality and search, 004 report experience, 005 intake and identification
-- Architecture decisions: [docs/adr](docs/adr/README.md)
+- Architecture decisions: [docs/adr](docs/adr/README.md) (acquisition engine: [ADR-032](docs/adr/ADR-032-acquisition-engine.md))
