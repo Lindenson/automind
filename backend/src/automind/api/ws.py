@@ -11,13 +11,19 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import logging
+import time
 import traceback
 from collections.abc import Coroutine
 from typing import Any
 
 from fastapi import WebSocket, WebSocketDisconnect
 
+from automind.domain.evidence import domain_of, is_denied
 from automind.orchestration.runner import Busy, ChatRunner
+
+log = logging.getLogger(__name__)
+_BAD_SOURCE_LOG: dict[str, list[float]] = {}  # chat -> times of "bad source" marks (max 20 per hour)
 
 
 class ChatSocket:
@@ -78,12 +84,8 @@ class ChatSocket:
             text = str(msg.get("text") or "").strip()[:200] or "Find the missing data: " + (", ".join(areas) or "all")
             preset = {"kind": "research_more", "focus_cars": cars, "areas": areas, "language": msg.get("language")}
             self._background(self.runner.run_turn(self.chat_id, text, msg.get("message_id"), preset=preset))
-        elif kind == "rating":  # spec 004 FR-026
-            from automind.infrastructure.db.repositories import RatingRepo  # noqa: PLC0415
-
-            with contextlib.suppress(TypeError, ValueError):
-                await RatingRepo().save(self.chat_id, str(msg.get("message_id") or ""), int(msg.get("rating") or 0),
-                                        str(msg.get("note") or ""))  # fmt: skip
+        elif kind in ("rating", "bad_source"):  # spec 004 FR-026; spec 010 US2
+            await (self._rating(msg) if kind == "rating" else self._bad_source(msg))
         elif kind == "challenge":  # spec 004 FR-022: "this is wrong" on a value
             self._background(self._challenge(msg))
         elif kind in ("confirm", "intake_edit"):
@@ -99,7 +101,79 @@ class ChatSocket:
             return
         result = await challenge.recheck(ref, self.chat_id, str(msg.get("car_id") or ""),
                                          str(msg.get("attribute") or ""), str(msg.get("text") or ""))  # fmt: skip
+        await self._challenge_feedback(msg, result)
         await self.bus.publish(self.chat_id, None, "challenge_result", result)
+
+    # --- spec 010 US2: every user signal lands in one feedback table ---------------------------------------------
+
+    async def _rating(self, msg: dict[str, Any]) -> None:
+        from automind.infrastructure.db.repositories import RatingRepo  # noqa: PLC0415
+
+        with contextlib.suppress(TypeError, ValueError):
+            await RatingRepo().save(self.chat_id, str(msg.get("message_id") or ""), int(msg.get("rating") or 0),
+                                    str(msg.get("note") or ""))  # fmt: skip
+            await self._rating_feedback(msg)
+
+    def _outcomes(self) -> Any:
+        return getattr(getattr(self.runner, "ports", None), "outcomes", None)
+
+    async def _rating_feedback(self, msg: dict[str, Any]) -> None:
+        store = self._outcomes()
+        if store is None:
+            return
+        try:
+            message_id = str(msg.get("message_id") or "")[:36]
+            rating = max(1, min(5, int(msg.get("rating") or 0)))
+            turn_id = await store.turn_of_message(message_id) if message_id else None
+            await store.feedback(self.chat_id, "rating", rating=rating, message_id=message_id or None,
+                                 turn_id=turn_id, text=str(msg.get("note") or "") or None)  # fmt: skip
+            if turn_id:
+                await store.add_signal(turn_id, "rating", rating)
+        except Exception:  # noqa: BLE001 - feedback must never break the socket
+            log.exception("feedback.rating_failed chat=%s", self.chat_id)
+
+    async def _challenge_feedback(self, msg: dict[str, Any], result: dict[str, Any]) -> None:
+        store = self._outcomes()
+        if store is None:
+            return
+        try:
+            turn_id = result.get("turn_id")
+            await store.feedback(self.chat_id, "wrong_value", turn_id=turn_id, variant_id=result.get("car_id"),
+                                 attribute=result.get("attribute"), area=result.get("area"),
+                                 claim_id=result.get("claim_id"), text=str(msg.get("text") or "") or None,
+                                 outcome=result.get("outcome"))  # fmt: skip
+            if turn_id and result.get("outcome") in ("CORRECTED", "REMOVED"):
+                await store.add_signal(turn_id, "wrong_value")
+        except Exception:  # noqa: BLE001
+            log.exception("feedback.challenge_failed chat=%s", self.chat_id)
+
+    async def _bad_source(self, msg: dict[str, Any]) -> None:
+        url = str(msg.get("url") or "").strip()[:2000]
+        ack: dict[str, Any] = {"kind": "bad_source", "url": url}
+        store = self._outcomes()
+        now = time.monotonic()
+        recent = [x for x in _BAD_SOURCE_LOG.get(self.chat_id, []) if now - x < 3600]
+        if not url.startswith(("http://", "https://")) or is_denied(url) or store is None or len(recent) >= 20:
+            await self.bus.publish(self.chat_id, None, "feedback_ack", {**ack, "ignored": True})
+            return
+        _BAD_SOURCE_LOG[self.chat_id] = [*recent, now]
+        try:
+            message_id = str(msg.get("message_id") or "")[:36]
+            turn_id = await store.turn_of_message(message_id) if message_id else None
+            await store.feedback(self.chat_id, "bad_source", url=url, domain=domain_of(url), turn_id=turn_id,
+                                 message_id=message_id or None, variant_id=str(msg.get("car_id") or "") or None,
+                                 attribute=str(msg.get("attribute") or "") or None,
+                                 area=str(msg.get("area") or "") or None,
+                                 text=str(msg.get("text") or "") or None)  # fmt: skip
+            if turn_id:
+                await store.add_signal(turn_id, "bad_source")
+            sink = getattr(getattr(self.runner, "ports", None), "registry", None)
+            if sink is not None:  # spec 010 T060: a truth signal against the source for that kind of data
+                await sink.bad_source(url=url, area=msg.get("area"), variant_id=msg.get("car_id"),
+                                      attribute=msg.get("attribute"))  # fmt: skip
+        except Exception:  # noqa: BLE001
+            log.exception("feedback.bad_source_failed chat=%s", self.chat_id)
+        await self.bus.publish(self.chat_id, None, "feedback_ack", ack)
 
     async def _resend_open_turn(self) -> None:
         """After a reload the client may have seen everything already but lost its state: re-send the open
