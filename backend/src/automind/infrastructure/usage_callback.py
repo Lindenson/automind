@@ -17,6 +17,7 @@ from uuid import UUID
 from langchain_core.callbacks import AsyncCallbackHandler
 from langchain_core.outputs import LLMResult
 
+from automind.acquisition.domain.served import ServedCall, record
 from automind.application.usage import Prices, current_budget, current_job
 from automind.infrastructure.db.repositories import UsageRepo
 from automind.insight.metrics import prom
@@ -65,6 +66,8 @@ class UsageCallbackHandler(AsyncCallbackHandler):
 
     async def on_llm_end(self, response: LLMResult, *, run_id: UUID, **kwargs: Any) -> None:
         started = self._started.pop(run_id, time.monotonic())
+        p = current_prompt.get()  # spec 011 T009: the caller can name the model and prompt that answered
+        record(ServedCall(self.role, self.model, *(p if p else (None, None, None))))
         in_tok, out_tok = _tokens(response)
         budget = current_budget.get()
         if budget is not None:

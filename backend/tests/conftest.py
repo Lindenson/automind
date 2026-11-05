@@ -8,9 +8,20 @@ os.environ["DATABASE_URL"] = (
     os.environ.get("TEST_DATABASE_URL") or f"postgresql+asyncpg://postgres@/automind_test?host={_pg}"
 )
 
+import pytest  # noqa: E402
+
 from automind.infrastructure.config import configure_domain  # noqa: E402
 
 configure_domain()
+
+
+@pytest.fixture
+def no_network():
+    """Spec 011 T008: any network call in the test raises NetworkForbidden; the guard counts attempts."""
+    from automind.acquisition.replay.offline import no_network as guard  # noqa: PLC0415
+
+    with guard() as g:
+        yield g
 
 
 def pytest_addoption(parser):
