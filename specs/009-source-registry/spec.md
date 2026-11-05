@@ -51,7 +51,7 @@ A buyer compares a plug-in hybrid with a diesel. The report gives both cars a fu
 
 ### User Story 2 - Used prices from where they exist, labelled, never junk (Priority: P1)
 
-A buyer compares a used car. The used price comes from a trusted valuer or an editorial used-car guide. If no Spanish source gives it, it comes from another market, with the market, the currency and the conversion shown. A page that is not a price for that model year, such as a market floor, a whole-generation range or another currency without a basis, is never used.
+A buyer compares a used car. The used price comes from a trusted valuer or an editorial used-car guide. It comes from whichever European market has it, with the market, the currency and the conversion shown; no market is preferred. A page that is not a price for that model year, such as a market floor, a whole-generation range or another currency without a basis, is never used.
 
 **Why this priority**: The used price drives the verdict for a used car. A junk price (€18,400 against a real €30,000) misleads the user directly.
 
@@ -231,7 +231,7 @@ Searches for a used car carry its year or generation and the model's name on tha
 
 **Research uses the registry**
 
-- **FR-009**: For each kind of data, research MUST query the verified sources for that kind of data first, on every market they cover. Bounded open search follows. The search scope is Europe, and Spain has no special place except for new and used prices, where a Spanish verified source ranks first. Specifications, consumption, reliability, maintenance intervals, tests and used-car issues are taken from the best verified source in any market, including Russia, China, Japan and the US for cars sold there.
+- **FR-009**: For each kind of data, including new and used prices, research MUST query the verified sources for that kind of data first, on every market they cover. Bounded open search follows. The search scope is Europe as one market: no country is preferred, Spain included. Specifications, consumption, reliability, maintenance intervals, tests and used-car issues may also come from the best verified source outside Europe (Russia, China, Japan, the US) for cars sold there. Prices come from European markets only.
 - **FR-010**: Values from another market MUST be accepted with the market labelled. Prices MUST be converted to euros with a dated rate and labelled as that market's price.
 - **FR-011**: "No data" MUST be shown only after every verified source and a bounded open search have failed. The report MUST name the sources tried, and the system MUST record a "find a source" gap for that kind of data.
 - **FR-012**: Classifieds MUST NOT be searched, read or used for any kind of data.
@@ -260,7 +260,7 @@ Searches for a used car carry its year or generation and the model's name on tha
 
 **Prices**
 
-- **FR-032**: The official Spanish tax valuation tables (published yearly in the official gazette for every model and version, with the percentage by age) MUST be a source for used price, labelled "tax valuation", ranked below market valuers and guides.
+- **FR-032**: The official Spanish tax valuation tables (published yearly in the official gazette for every model and version, with the percentage by age) MUST be a source for used price, labelled "tax valuation", ranked below European market valuers and guides; one source among many, not a preferred one.
 - **FR-033**: The user MUST be able to give listing text they opened themselves. Its matching asking prices give the used price, labelled with the count and date, ahead of other sources.
 
 **Lessons as registry updates**
