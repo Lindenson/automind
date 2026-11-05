@@ -20,7 +20,7 @@ services:
 
   app:
     build: .
-    image: automind:latest
+    image: ${COMPOSE_PROJECT_NAME:-automind}:latest
     restart: unless-stopped
     env_file: [.env, .env.docker]
     environment:
@@ -29,5 +29,59 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
 
+  # --- profile `monitoring` (scripts/deploy.sh monitoring up, or up --monitoring) --------------------------------
+  # Prometheus scrapes app:8000/metrics with METRICS_TOKEN (deploy/prometheus/metrics_token, written by deploy.sh,
+  # mode 600). It runs as the host user (AUTOMIND_UID) so it can read that file, in group nobody (65534) so it can
+  # write the image's /prometheus directory.
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    profiles: [monitoring]
+    restart: unless-stopped
+    user: "${AUTOMIND_UID:-1000}:65534"
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=400d
+      - --web.enable-lifecycle
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./deploy/prometheus/automind-rules.yml:/etc/prometheus/automind-rules.yml:ro
+      - ./deploy/prometheus/metrics_token:/etc/prometheus/metrics_token:ro
+      - promdata:/prometheus
+    ports: ["127.0.0.1:${AUTOMIND_PROMETHEUS_PORT:-9090}:9090"]
+    depends_on: [app, alertmanager]
+
+  alertmanager:
+    image: prom/alertmanager:v0.28.1
+    profiles: [monitoring]
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --storage.path=/alertmanager
+    volumes:
+      - ./deploy/prometheus/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - amdata:/alertmanager
+    ports: ["127.0.0.1:${AUTOMIND_ALERTMANAGER_PORT:-9093}:9093"]
+
+  # --- profile `public` (scripts/deploy.sh up --public): Caddy with automatic HTTPS for AUTOMIND_DOMAIN -----------
+  # Keep AUTOMIND_BIND=127.0.0.1 so the app itself stays private and only Caddy (80/443) faces the internet.
+  # Read the security list in docs/review-2026-11-03.md before exposing AutoMind publicly.
+  caddy:
+    image: caddy:2.10
+    profiles: [public]
+    restart: unless-stopped
+    environment:
+      AUTOMIND_DOMAIN: ${AUTOMIND_DOMAIN:-localhost}
+    volumes:
+      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+    ports: ["80:80", "443:443", "443:443/udp"]
+    depends_on: [app]
+
 volumes:
   pgdata:
+  promdata:
+  amdata:
+  caddydata:
+  caddyconfig:

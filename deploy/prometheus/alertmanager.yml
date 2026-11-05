@@ -1,0 +1,27 @@
+# Alertmanager for AutoMind (spec 010 US9). Routing is the owner's choice: this file ships a placeholder receiver
+# that delivers nowhere (http://127.0.0.1:9/ inside the container; nothing listens there).
+#
+# To get notified, put a real receiver here (replace `placeholder` or add one and point `route.receiver` at it),
+# then run `scripts/deploy.sh monitoring up` again. Examples:
+#   telegram_configs: [{ bot_token_file: /etc/alertmanager/telegram_token, chat_id: 123456789 }]
+#   slack_configs:    [{ api_url_file: /etc/alertmanager/slack_webhook, channel: "#automind" }]
+#   email_configs:    [{ to: you@example.com, from: automind@example.com, smarthost: smtp.example.com:587,
+#                        auth_username: automind@example.com, auth_password_file: /etc/alertmanager/smtp_password }]
+# Keep tokens and passwords in separate files (gitignored, mounted read-only in docker-compose.yml), not here.
+# Reference: https://prometheus.io/docs/alerting/latest/configuration/
+route:
+  receiver: placeholder
+  group_by: [alertname, area]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 12h
+  routes:
+    - matchers: ['severity="critical"']
+      receiver: placeholder
+      repeat_interval: 2h
+
+receivers:
+  - name: placeholder
+    webhook_configs:
+      - url: http://127.0.0.1:9/
+        send_resolved: false

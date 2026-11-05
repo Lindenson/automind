@@ -1,8 +1,39 @@
 #!/usr/bin/env bash
 # Quality gates (constitution V, IX): lint, format, domain typing, layer contracts, tests.
+#   scripts/check.sh [pytest args]            on the host (uv, node), the default
+#   scripts/check.sh --docker [pytest args]   the same steps in the Dockerfile's `check` stage against the compose
+#                                             Postgres; the host needs only Docker
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export PATH="$HOME/.local/bin:$PATH"
+
+if [[ "${1:-}" == "--docker" ]]; then
+  shift
+  . scripts/lib/env.sh
+  docker_cmd
+  ensure_db_secret
+  "${DOCKER[@]}" compose up -d postgres
+  say "Waiting for Postgres"
+  for _ in $(seq 1 60); do
+    "${DOCKER[@]}" compose exec -T postgres pg_isready -U automind -d automind >/dev/null 2>&1 && break
+    sleep 1
+  done
+  for db in automind_test automind_mig; do
+    "${DOCKER[@]}" compose exec -T postgres psql -U automind -d automind -tAc \
+      "SELECT 1 FROM pg_database WHERE datname='$db'" | grep -q 1 \
+      || "${DOCKER[@]}" compose exec -T postgres createdb -U automind "$db"
+  done
+  pg=$("${DOCKER[@]}" compose ps -q postgres)
+  net=$("${DOCKER[@]}" inspect -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}} {{end}}' "$pg" | awk '{print $1}')
+  image="${COMPOSE_PROJECT_NAME:-automind}-check:latest"
+  say "Building the check image ($image)"
+  "${DOCKER[@]}" build --target check -t "$image" .
+  say "Running the checks in Docker (network $net)"
+  # passed by name from this environment, so the password is not on the docker command line
+  export TEST_DATABASE_URL="postgresql+asyncpg://automind:${POSTGRES_PASSWORD}@postgres:5432/automind_test"
+  exec "${DOCKER[@]}" run --rm --network "$net" -e TEST_DATABASE_URL "$image" scripts/check.sh "$@"
+fi
+
 # Test database: the Docker Postgres when it runs (scripts/dev.sh starts it), else the embedded one.
 if [[ -z "${TEST_DATABASE_URL:-}" && -f .env.docker ]]; then set -a; . ./.env.docker; set +a; fi
 if [[ -z "${TEST_DATABASE_URL:-}" && -f .env.docker ]] && docker compose ps --status running postgres 2>/dev/null | grep -q postgres; then
