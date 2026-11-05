@@ -46,7 +46,6 @@
   The facade test (T038) returns the values recorded from the pre-move `run_job` on `bmw520`. Open: the SC-005
   measurement (p50/p95 of `automind_turn_duration_seconds` on 10 live turns with the worker's prefetch running vs
   stopped) needs the worker (T054–T057, branch `011-us2-worker`) and live model/search calls; T059 stays open for it.
-<<<<<<< HEAD
 
 - Quickstart walk (T127, 2026-11-05, branch `011-adr-quickstart` from main 0045ec2): offline variant — own test
   database `automind_test_qs` in the live `automind` Postgres (created, then dropped; the live stack untouched), dummy
@@ -62,7 +61,6 @@
   | 5 Agents, gates | yes | passed | 70 tests incl. `test_redesign_acceptance.py` (fake LLM, SC-007/SC-008). |
   | 6 Admin | yes | passed | API 7 tests (token auth covered there); admin vitest 57. Skipped: clicking through `/admin` (no stack started). |
   | 7 010 leftovers | yes | passed | 2 tests (paths fixed to `tests/graph/`); `learned.py` absent. |
-=======
 - SC-005 turn latency with the worker (T059, 2026-11-05, branch `011-prefetch`): `uv run pytest
   tests/golden/test_bench_turns.py -m bench -s` with `BENCH_ROUNDS=10` replays the 12 golden dialogues (26 turns, fake
   model from the cassettes, fixture search) 10 times with the worker stopped and 10 times with a worker process
@@ -82,4 +80,3 @@
   within noise; live turns are model- and network-bound (tens of seconds), so even the worst case is well under 1% of
   a live turn. T059 closed on these numbers; live turns were not measured (they cost money) — repeat with
   `automind_turn_duration_seconds` on the dev stack if a regression is suspected.
->>>>>>> origin/011-prefetch
