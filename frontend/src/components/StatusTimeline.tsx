@@ -3,7 +3,9 @@ import { useT } from "../i18n";
 import type { Stage } from "../lib/protocol";
 import type { PendingTurn } from "../store/chat";
 import { cx } from "../lib/util";
+import { CancelButton } from "./CancelButton";
 import { CheckIcon } from "./icons";
+import { ProgressGrid } from "./ProgressGrid";
 
 const stageKey = (st: Stage) => `stage.${st}` as "stage.done";
 
@@ -53,6 +55,10 @@ export function StatusTimeline({ pending }: { pending: PendingTurn }) {
   const hidden = Math.max(0, statuses.length - MAX_ROWS);
   const visible = statuses.slice(hidden);
   const elapsed = ((now - pending.startedAt) / 1000).toFixed(1);
+  const grid = Object.keys(pending.grid ?? {}).length > 0;
+  // audit F7: what was resolved stays on screen for the whole research (the grid or newer steps would hide it)
+  const resolved = [...statuses].reverse().find((s) => s.stage === "resolving");
+  const pinResolved = resolved && (grid || !visible.includes(resolved));
 
   return (
     <div
@@ -64,11 +70,16 @@ export function StatusTimeline({ pending }: { pending: PendingTurn }) {
       </div>
 
       <div className="mb-3 flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-sm font-medium">
+        <div className="flex min-w-0 items-center gap-2 text-sm font-medium">
           <Spinner />
-          <span>{t("timeline.working")}</span>
+          <span className="truncate">{t(grid ? "progress.title" : "timeline.working")}</span>
         </div>
-        <span className="tabular text-xs text-muted">{elapsed} s</span>
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="tabular text-xs text-muted" data-testid="progress-elapsed">
+            {elapsed} s
+          </span>
+          <CancelButton />
+        </div>
       </div>
 
       {/* stage rail */}
@@ -99,7 +110,7 @@ export function StatusTimeline({ pending }: { pending: PendingTurn }) {
                     ? "text-accent"
                     : done
                       ? "text-fg/70"
-                      : "text-muted/60",
+                      : "text-muted",
                 )}
               >
                 {t(stageKey(st))}
@@ -109,6 +120,21 @@ export function StatusTimeline({ pending }: { pending: PendingTurn }) {
         })}
       </div>
 
+      {pinResolved && (
+        <p className="mb-2 flex items-start gap-2 text-sm" data-testid="timeline-resolved">
+          <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center text-good">
+            <CheckIcon />
+          </span>
+          <span className="min-w-0 break-words">{resolved.text}</span>
+        </p>
+      )}
+
+      {grid ? (
+        <div className="space-y-2">
+          <ProgressGrid pending={pending} />
+          {last && last !== resolved && <p className="truncate text-xs text-muted">{last.text}</p>}
+        </div>
+      ) : (
       <ol className="space-y-1.5">
         {hidden > 0 && (
           <li className="pl-6 text-[11px] text-muted">
@@ -157,6 +183,7 @@ export function StatusTimeline({ pending }: { pending: PendingTurn }) {
           );
         })}
       </ol>
+      )}
     </div>
   );
 }

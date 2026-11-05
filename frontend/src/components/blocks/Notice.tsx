@@ -6,7 +6,8 @@ export function Notice({ b }: { b: BlockOf<"notice"> }) {
   const warn = b.level === "warning";
   return (
     <div
-      role={warn ? "alert" : "note"}
+      // a warning inside a report is read in order, not announced over everything (audit F14)
+      role="note"
       className={cx(
         "flex animate-fadeUp items-start gap-2.5 rounded-xl border px-3.5 py-2.5 text-sm",
         warn

@@ -40,7 +40,7 @@ export function MetricBars({ b }: { b: BlockOf<"metric_bars"> }) {
                       <div className="mb-1 flex items-center justify-between gap-2 text-xs">
                         <span className="truncate text-muted">{v.label}</span>
                         {v.value === null ? (
-                          <span className="shrink-0 italic text-muted/70">
+                          <span className="shrink-0 italic text-muted">
                             unavailable
                           </span>
                         ) : (

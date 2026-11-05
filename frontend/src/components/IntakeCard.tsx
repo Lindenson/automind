@@ -4,6 +4,7 @@ import type { CardItem, ConfirmRequest, IntakeCard as Card } from "../lib/protoc
 import { cx } from "../lib/util";
 import { useChat } from "../store/chat";
 import { BASIS_CLS, Reveal } from "./badges";
+import { Logo } from "./Logo";
 
 /**
  * The intake confirmation card (spec 005 FR-019–FR-021): the cars as resolved, the person, the research cost.
@@ -97,7 +98,11 @@ function Row({ it, carKey }: { it: CardItem; carKey: string | null }) {
         </span>
       </div>
       {it.options && it.options.length > 0 && (
-        <div className="mt-1 flex flex-wrap gap-1.5">
+        // audit F10: the chips say what they change; they edit this one line, they do not confirm the card
+        <div className="mt-1 flex flex-wrap items-center gap-1.5" role="group" aria-label={t("card.changeTo", { field: label })}>
+          <span className="text-[11px] text-muted" aria-hidden>
+            {t("card.changeTo", { field: label.toLowerCase() })}
+          </span>
           {it.options.map((o) => {
             // the current value is marked (audit F10); tapping it again changes nothing
             const selected = o === it.value;
@@ -105,6 +110,11 @@ function Row({ it, carKey }: { it: CardItem; carKey: string | null }) {
               <button
                 key={o}
                 type="button"
+                aria-label={
+                  selected
+                    ? t("card.option.current", { field: label, option: o })
+                    : t("card.option.aria", { field: label.toLowerCase(), option: o })
+                }
                 aria-pressed={selected}
                 onClick={() => !selected && edit(carKey, it.field, o)}
                 className={cx(
@@ -130,11 +140,18 @@ export function IntakeCard({ req, card }: { req: ConfirmRequest; card: Card }) {
   const answer = useChat((s) => s.answerConfirm);
   return (
     <div className="card animate-fadeUp space-y-3 border-accent/40 p-3 sm:p-4" role="group" aria-label={t("card.title")}>
+      {/* audit F10: the card is part of the dialogue — it comes from AutoMind like any other reply */}
+      <div className="flex items-center gap-2 text-xs text-muted" data-testid="card-from">
+        <Logo small />
+        <span className="font-display font-semibold text-fg">AutoMind</span>
+        <span>{t("card.asks")}</span>
+      </div>
       <p className="text-sm">{req.text}</p>
+      <p className="text-xs text-muted">{t("card.check")}</p>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {card.cars.map((car) => (
           <section key={car.key} className="min-w-0 rounded-lg border border-line/60 bg-panel2/60 p-2">
-            <h3 className="mb-1 break-words text-sm font-semibold">{car.display_name}</h3>
+            <h2 className="mb-1 break-words text-sm font-semibold">{car.display_name}</h2>
             <div className="space-y-0.5">
               {car.items.map((it) => (
                 <Row key={it.field} it={it} carKey={car.key} />
@@ -145,7 +162,7 @@ export function IntakeCard({ req, card }: { req: ConfirmRequest; card: Card }) {
       </div>
       {card.profile.length > 0 && (
         <section className="rounded-lg border border-line/60 p-2">
-          <h3 className="mb-1 text-sm font-semibold">{t("card.you")}</h3>
+          <h2 className="mb-1 text-sm font-semibold">{t("card.you")}</h2>
           {card.profile.map((it) => (
             <Row key={it.field} it={it} carKey={null} />
           ))}
@@ -156,23 +173,38 @@ export function IntakeCard({ req, card }: { req: ConfirmRequest; card: Card }) {
           {t("card.cost", { eur: req.estimate.eur.toFixed(2), areas: req.estimate.areas.join(", ") })}
         </p>
       )}
-      <div className="flex flex-wrap gap-2">
-        {req.options.map((o, i) => (
-          <button
-            key={o.id}
-            type="button"
-            onClick={() => answer(o.id)}
-            className={
-              i === 0
-                ? "min-h-11 rounded-full bg-accent-solid px-4 py-1.5 text-sm font-semibold text-on-accent hover:opacity-90"
-                : "min-h-11 rounded-full border border-line/70 px-4 py-1.5 text-sm hover:border-accent/60"
-            }
-          >
-            {o.label}
-          </button>
-        ))}
+      {/* audit F10: confirming is separate from editing — one primary action, the others say what they do */}
+      <div className="space-y-2 border-t border-line/50 pt-3" data-testid="card-actions">
+        <p className="text-sm font-medium">{t("card.ready")}</p>
+        <div className="flex flex-wrap gap-2">
+          {req.options.map((o, i) => (
+            <button
+              key={o.id}
+              type="button"
+              onClick={() => answer(o.id)}
+              data-primary={i === 0 || undefined}
+              className={
+                i === 0
+                  ? "min-h-11 rounded-full bg-accent-solid px-5 py-1.5 text-sm font-semibold text-on-accent shadow hover:opacity-90"
+                  : "min-h-11 rounded-full px-3 py-1.5 text-sm text-muted underline-offset-2 hover:text-fg hover:underline"
+              }
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+        {req.options
+          .filter((o) => SKIP_IDS.has(o.id))
+          .map((o) => (
+            <p key={o.id} className="text-xs text-muted" data-testid="card-skip-note">
+              {t("card.stop.note", { label: o.label })}
+            </p>
+          ))}
+        <p className="text-xs text-muted">{t("card.typeToChange")}</p>
       </div>
-      <p className="text-xs text-muted">{t("card.typeToChange")}</p>
     </div>
   );
 }
+
+/** Answers that decline the research (orchestration/nodes/confirm.py): their consequence is spelled out. */
+const SKIP_IDS = new Set(["stop", "skip"]);

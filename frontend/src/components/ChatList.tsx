@@ -1,8 +1,8 @@
 /** Past chats (FR-045): a drawer to reopen and continue earlier conversations. */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useT } from "../i18n";
 import { deleteChats } from "../lib/chats";
-import { cx, useEscape } from "../lib/util";
+import { cx, useDialogFocus, useEscape } from "../lib/util";
 import { useChat } from "../store/chat";
 
 type ChatRow = {
@@ -29,6 +29,8 @@ export function ChatList({
   const [error, setError] = useState<string | null>(null);
   const t = useT();
   useEscape(open, onClose);
+  const panel = useRef<HTMLElement>(null);
+  useDialogFocus(open, panel);
 
   const remove = async (ids: string[]) => {
     if (ids.length === 0) return;
@@ -84,7 +86,7 @@ export function ChatList({
         className="absolute inset-0 bg-black/40"
         onClick={onClose}
       />
-      <aside className="scroll-thin absolute inset-y-0 left-0 w-80 max-w-[85vw] overflow-y-auto border-r border-line/60 bg-bg p-4">
+      <aside ref={panel} className="scroll-thin absolute inset-y-0 left-0 w-80 max-w-[85vw] overflow-y-auto border-r border-line/60 bg-bg p-4">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="font-display text-sm font-bold">{t("chats.title")}</h2>
           <div className="flex items-center gap-3">

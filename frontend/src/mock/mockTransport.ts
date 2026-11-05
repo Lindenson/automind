@@ -1,7 +1,27 @@
 import type { Transport, TransportHandlers } from "../lib/transport";
 import { uuid } from "../lib/util";
 import { mockBlocks, mockText, type MockProfile } from "./data";
-import { MockCase, carEditFlow, challengeFlow, errorFlow, intakeFlow, reportFlow, type Step as FlowStep } from "./flows";
+import {
+  MockCase,
+  carEditFlow,
+  challengeFlow,
+  errorFlow,
+  errorScenario,
+  intakeFlow,
+  reportFlow,
+  type Step as FlowStep,
+} from "./flows";
+
+export { scenarioText } from "./flows";
+
+/** `?mock=1&scenario=reconnect|gone|limit|error|busy|overloaded|report` (audit F15). */
+export function mockScenario(): string | null {
+  try {
+    return new URLSearchParams(window.location.search).get("scenario");
+  } catch {
+    return null;
+  }
+}
 
 type Step = { delay: number; msg: Record<string, unknown> };
 
@@ -35,10 +55,20 @@ function script(text: string, turn: number): { steps: Step[]; profile: MockProfi
  * runs the v2 flow: case file → intake card → "Agreed" → research grid → verdict report (spec 010 T097). The
  * report's "Change", "wrong?" and the card's buttons answer too.
  */
-export function createMockTransport(h: TransportHandlers): Transport {
+export function createMockTransport(h: TransportHandlers, scenario: string | null = mockScenario()): Transport {
   let timers: ReturnType<typeof setTimeout>[] = [];
   let turn = 0;
+  let online = true;
   h.onState("mock");
+  if (scenario === "reconnect" || scenario === "gone") {
+    // audit F15: the lost-connection banner ("Retry now") and the refused chat ("New chat")
+    timers.push(
+      setTimeout(() => {
+        online = false;
+        h.onState(scenario === "gone" ? "gone" : "closed", 3);
+      }, 800),
+    );
+  }
 
   const emit = (at: number, msg: unknown) => {
     // Round-trip through JSON so the UI sees exactly what a socket would deliver.
@@ -55,7 +85,25 @@ export function createMockTransport(h: TransportHandlers): Transport {
   };
 
   return {
+    reconnect() {
+      if (online || scenario === "gone") return;
+      h.onState("connecting", 3);
+      timers.push(
+        setTimeout(() => {
+          online = true;
+          h.onState("mock");
+        }, 400),
+      );
+    },
     send(msg) {
+      if (!online) return false;
+      if (msg.type === "cancel") {
+        // stop the replay; the server answers a cancel with turn_cancelled
+        timers.forEach(clearTimeout);
+        timers = [];
+        emit(150, { type: "turn_cancelled", turn_id: msg.turn_id ?? null });
+        return true;
+      }
       if (msg.type === "confirm") {
         if (msg.choice === "stop") play([{ delay: 200, msg: { type: "assistant_message", message_id: uuid(), created_at: new Date().toISOString(), text: "OK — the cars are kept; tell me when to research.", blocks: [] } }]);
         else play(reportFlow(mc, !mc.confirmed));
@@ -77,9 +125,9 @@ export function createMockTransport(h: TransportHandlers): Transport {
         play(challengeFlow(msg.car_id, msg.attribute));
         return true;
       }
-      if (msg.type !== "user_message") return true; // hello/cancel/rating are no-ops in mock mode
+      if (msg.type !== "user_message") return true; // hello/rating/bad_source are no-ops in mock mode
       emit(60, { type: "user_message_ack", message_id: msg.message_id, created_at: new Date().toISOString() });
-      const kind = /\blimit\b/i.test(msg.text) ? "limit" : /\berror\b/i.test(msg.text) ? "error" : null;
+      const kind = errorScenario(msg.text);
       if (kind) {
         play(errorFlow(kind));
         return true;

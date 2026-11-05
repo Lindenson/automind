@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * UX smoke test (spec 010 T097, audit F15): drives the mock UI through the intake card, the research grid and the
- * verdict report at 1280 and 390 px, in the light and dark themes; takes screenshots and runs an axe scan. Exits 1
+ * verdict report at 1280 and 390 px, in the light and dark themes, then the limit error and the lost connection
+ * (`?scenario=reconnect`) with their next-step buttons (audit F8); takes screenshots and runs an axe scan. Exits 1
  * when axe reports a critical or serious issue, or a screen does not appear.
  *
  * Playwright and axe-core are NOT dependencies of this repo. Install them in a temporary directory and point the
@@ -12,7 +13,7 @@
  *   (cd frontend && npx vite --port 5179 --strictPort) &        # the mock UI: no backend needed
  *   UX_SMOKE_DEPS=/tmp/ux-smoke node frontend/scripts/ux-smoke.mjs http://localhost:5179 /tmp/ux-shots
  *
- * UX_SMOKE_VERBOSE=1 prints where each critical or serious issue is.
+ * UX_SMOKE_VERBOSE=1 prints where each critical or serious issue is; UX_SMOKE_VERBOSE=all also the moderate ones.
  * Arguments: base URL (default http://localhost:5179), screenshot directory (default ./ux-shots).
  */
 import { mkdirSync } from "node:fs";
@@ -55,7 +56,7 @@ async function axe(page, label) {
   const bad = res.filter((v) => BAD.has(v.impact));
   for (const v of res) {
     console.log(`  axe ${label}: ${v.impact} ${v.id} (${v.nodes}) — ${v.help}`);
-    if (process.env.UX_SMOKE_VERBOSE && BAD.has(v.impact)) for (const w of v.where) console.log(`      ${w}`);
+    if (process.env.UX_SMOKE_VERBOSE && (BAD.has(v.impact) || process.env.UX_SMOKE_VERBOSE === "all")) for (const w of v.where) console.log(`      ${w}`);
   }
   if (bad.length) failures.push(`${label}: ${bad.map((v) => `${v.impact} ${v.id}`).join(", ")}`);
 }
@@ -100,8 +101,17 @@ async function run(width, scheme) {
     await page.getByRole("textbox", { name: COMPOSER }).fill("show me the limit");
     await page.keyboard.press("Enter");
     await page.getByRole("alert").last().waitFor({ timeout: 10000 });
+    // audit F8: the limit says what to do next
+    await page.getByRole("alert").last().getByRole("button", { name: "Continue with researched data" }).waitFor();
     await shot(page, `${label}-5-limit`);
     await axe(page, `${label} limit`);
+    // audit F8: a lost connection is said in words at every width, with "Retry now"
+    await page.goto(`${base}/?mock=1&scenario=reconnect`);
+    await page.getByTestId("conn-banner").waitFor({ timeout: 10000 });
+    await shot(page, `${label}-6-reconnect`);
+    await axe(page, `${label} reconnect`);
+    await page.getByRole("button", { name: "Retry now" }).click();
+    await page.getByTestId("conn-banner").waitFor({ state: "detached", timeout: 10000 });
   } catch (e) {
     failures.push(`${label}: ${e.message.split("\n")[0]}`);
     await shot(page, `${label}-x-failed`).catch(() => undefined);

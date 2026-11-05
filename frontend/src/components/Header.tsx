@@ -11,6 +11,7 @@ const CONN: Record<ConnState, { label: Key; dot: string }> = {
   open: { label: "conn.open", dot: "bg-good" },
   connecting: { label: "conn.connecting", dot: "bg-warn animate-pulse" },
   closed: { label: "conn.closed", dot: "bg-bad animate-pulse" },
+  gone: { label: "conn.gone", dot: "bg-bad" },
   mock: { label: "conn.mock", dot: "bg-accent2" },
 };
 
@@ -27,6 +28,7 @@ export function Header({
 }) {
   const t = useT();
   const c = CONN[conn];
+  const attempt = useChat((s) => s.connAttempt);
   return (
     <header className="sticky top-0 z-30 border-b border-line/60 bg-bg/80 backdrop-blur-md">
       <div className="mx-auto flex h-14 max-w-4xl items-center justify-between gap-3 px-4">
@@ -72,17 +74,44 @@ export function Header({
           </button>
         </div>
       </div>
-      {conn === "closed" && (
-        // phones (<400 px) only show the dot above: say it in words (audit F8)
-        <div
-          role="status"
-          data-testid="conn-banner"
-          className="border-t border-bad/30 bg-bad/10 px-4 py-1.5 text-center text-xs text-fg min-[400px]:hidden"
-        >
-          {t("conn.banner")}
-        </div>
-      )}
+      <ConnBanner conn={conn} attempt={attempt} onNewChat={onNewChat} />
     </header>
+  );
+}
+
+/** A lost or refused connection in words, with the one thing to do about it (audit F8). */
+export function ConnBanner({
+  conn,
+  attempt,
+  onNewChat,
+}: {
+  conn: ConnState;
+  /** reconnect attempts so far */
+  attempt: number;
+  onNewChat: () => void;
+}) {
+  const t = useT();
+  const reconnect = useChat((s) => s.reconnect);
+  if (conn !== "closed" && conn !== "gone") return null;
+  const gone = conn === "gone";
+  return (
+    <div
+      role="status"
+      data-testid="conn-banner"
+      className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 border-t border-bad/30 bg-bad/10 px-4 py-1.5 text-center text-xs text-fg"
+    >
+      <span>
+        {gone ? t("conn.gone.banner") : t("conn.banner")}
+        {!gone && attempt > 0 && <span className="text-muted"> ({t("conn.attempt", { n: attempt })})</span>}
+      </span>
+      <button
+        type="button"
+        onClick={gone ? onNewChat : reconnect}
+        className="min-h-8 rounded-full border border-line/70 bg-panel px-3 py-0.5 font-medium hover:border-accent/60"
+      >
+        {gone ? t("error.action.newChat") : t("conn.retry")}
+      </button>
+    </div>
   );
 }
 
