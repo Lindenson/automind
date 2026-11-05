@@ -8,7 +8,7 @@ from sqlalchemy import delete
 from automind.application import incentives_research as ir
 from automind.application.extraction import IncentiveEntry, IncentiveFacts
 from automind.application.ports import WebDoc
-from automind.domain import research_plan
+from automind.domain import incentives, research_plan
 from automind.infrastructure import db
 from automind.infrastructure.db.repositories import MarketFactRepo
 
@@ -60,10 +60,10 @@ async def test_stored_once_reused_and_viewed():
                            now=when + timedelta(days=31))  # fmt: skip
     assert [j.area for j in p.jobs].count("incentives") == 1
 
-    seville = ir.view(rows, date(2026, 11, 4), "AN", "BEV")
+    seville = incentives.view(rows, date(2026, 11, 4), "AN", "BEV")
     status = {i["key"]: i["status"] for i in seville}
     assert status == {"subsidy.purchase": "ACTIVE", "subsidy.region.AN": "ACTIVE", "irpf.ev_deduction": "EXPIRED"}
-    assert ir.subsidy(seville) == 8500  # the expired deduction and the percent never count
-    madrid = ir.view(rows, date(2026, 11, 4), "MD", "BEV")
-    assert ir.subsidy(madrid) == 7000 and all(i["key"] != "subsidy.region.AN" for i in madrid)
-    assert ir.subsidy(ir.view(rows, date(2027, 1, 2), "AN", "BEV")) == 0  # after the deadline: expired
+    assert incentives.subsidy(seville) == 8500  # the expired deduction and the percent never count
+    madrid = incentives.view(rows, date(2026, 11, 4), "MD", "BEV")
+    assert incentives.subsidy(madrid) == 7000 and all(i["key"] != "subsidy.region.AN" for i in madrid)
+    assert incentives.subsidy(incentives.view(rows, date(2027, 1, 2), "AN", "BEV")) == 0  # after the deadline: expired

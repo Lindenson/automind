@@ -11,7 +11,8 @@ from dataclasses import dataclass, field, replace
 from datetime import date
 from typing import Any
 
-from automind.application import car_view, compose, electric_block, incentives_research, research
+from automind.acquisition import api as acquisition
+from automind.application import car_view, compose, electric_block
 from automind.application import feasibility as fz_app
 from automind.domain import incentives, intake, research_plan, sense, suggestions, tco, used
 from automind.domain import insights as ins
@@ -128,13 +129,13 @@ def verdict_extras(keyed: list[Any], tcars: list[tco.TcoCar], estimates: list[tc
     elec = [t for t in tcars if t.powertrain in incentives.ELECTRIFIED]
     comb = [t for t in tcars if t.powertrain not in incentives.ELECTRIFIED]
     region = getattr(case.profile, "region_code", None)
-    views = {t.car_id: incentives_research.view(market or [], today or date.today(), region, t.powertrain)
+    views = {t.car_id: incentives.view(market or [], today or date.today(), region, t.powertrain)
              for t in elec}  # fmt: skip
     if any(views.values()):
         out["incentives"] = views
     if len(elec) == 1 and len(comb) == 1:
         e, c0 = elec[0], comb[0]
-        sub = incentives_research.subsidy(views.get(e.car_id, []))
+        sub = incentives.subsidy(views.get(e.car_id, []))
         cv = curves or {}
         b = incentives.break_even(_buy_price(e), _buy_price(c0), run.get(e.car_id), run.get(c0.car_id),
                                   subsidy_eur=sub, ownership_years=case.ownership_years,
@@ -157,7 +158,7 @@ async def _energy_metrics(c: TurnContext, keyed: list[Any], estimates: list[tco.
     try:
         key = {car["variant"].id: x.key for x, car in keyed}
         missing = {key.get(e.car_id, e.car_id): energy_missing(e) for e in estimates if energy_missing(e)}
-        ev = await research.ev_counts(list(key))
+        ev = await acquisition.ev_counts(list(key))
         if missing or ev["ev_rejected"] or ev["weighted_blocked"]:
             await record_intake(c, "ENERGY_REPORT", energy_missing=missing, **ev)
     except Exception:  # noqa: BLE001 - metrics only
@@ -256,7 +257,7 @@ async def _insights(
     profile = ins.Profile(weights=weights, annual_km=case.annual_km, years=_years(case, rates))
     iset = ins.build(values, profile, ins.rules_from_config(c.ports.ref.insights))
     names = {car["variant"].id: compose.short_name(car["variant"]) for _, car in keyed}
-    unmet = await research.unmet_areas([car["variant"].id for _, car in keyed])
+    unmet = await acquisition.unmet_areas([car["variant"].id for _, car in keyed])
     young = {car["variant"].id for _, car in keyed if _new_gen(car, _year(c))}
     gaps = [f"{names[vid]}: {a}" for vid in names for a in KEY_AREAS
             if a in unmet.get(vid, set()) and not (a == "reliability" and vid in young)]  # fmt: skip

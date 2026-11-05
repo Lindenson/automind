@@ -13,7 +13,6 @@ from typing import Any
 
 from automind.application import extraction as ex
 from automind.application.ports import WebDoc
-from automind.domain import incentives as inc
 
 MARKET = "ES"
 
@@ -54,28 +53,3 @@ def accept(out: Any, d: WebDoc) -> tuple[list[dict[str, Any]], int]:
         rows.append({"key": _key(f)[:60], "value": value, "valid_from": _date(f.valid_from),
                      "valid_to": _date(f.valid_to)})  # fmt: skip
     return rows, rej
-
-
-def view(rows: list[dict[str, Any]], today: date, region_code: str | None = None,
-         powertrain: str | None = None) -> list[dict[str, Any]]:  # fmt: skip
-    """The facts that apply (national, or the user's region), with the status from the dates."""
-    out = []
-    for r in rows:
-        v = r["value"]
-        if v.get("scope") == "regional" and (not region_code or (v.get("region_code") or "").upper() != region_code):
-            continue
-        if powertrain and v.get("powertrains") and powertrain not in v["powertrains"]:
-            continue
-        i = inc.Incentive(r["key"], v.get("label") or r["key"], v.get("amount_eur"), r["valid_from"],
-                          r["valid_to"], tuple(r["evidence_ids"]))  # fmt: skip
-        out.append({"key": r["key"], "label": i.label, "status": inc.status(i, today), "amount_eur": i.amount_eur,
-                    "percent": v.get("percent"), "valid_to": r["valid_to"].isoformat() if r["valid_to"] else None,
-                    "source_url": v.get("url"), "as_of": r["fetched_at"].date().isoformat(),
-                    "subtractable": inc.status(i, today) == "ACTIVE" and bool(i.amount_eur)
-                    and r["key"].startswith("subsidy.")})  # fmt: skip
-    return sorted(out, key=lambda x: (x["status"] != "ACTIVE", x["key"]))
-
-
-def subsidy(items: list[dict[str, Any]]) -> float:
-    """What reduces the price difference in the break-even: active purchase subsidies with an amount."""
-    return float(sum(x["amount_eur"] for x in items if x["subtractable"]))

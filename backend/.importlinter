@@ -165,3 +165,33 @@ forbidden_modules =
     automind.orchestration
     automind.infrastructure
     automind.api
+
+[importlinter:contract:chat-uses-acquire-only]
+name = The chat orders data only through acquisition.api (spec 011 FR-005, FR-006, constitution XIII)
+type = forbidden
+source_modules =
+    automind.orchestration
+    automind.domain
+forbidden_modules =
+    automind.application.research
+    automind.application.extraction
+    automind.application.incentives_research
+    automind.infrastructure.fetch
+    automind.infrastructure.pages
+    automind.infrastructure.search
+    automind.infrastructure.site_readers
+    automind.acquisition.agents
+    automind.acquisition.domain
+    automind.acquisition.drift
+    automind.acquisition.facade
+    automind.acquisition.gates
+    automind.acquisition.gold
+    automind.acquisition.infrastructure
+    automind.acquisition.parsing
+    automind.acquisition.pipeline
+    automind.acquisition.replay
+    automind.acquisition.reputation
+    automind.acquisition.snapshots
+    automind.acquisition.worker
+# direct imports only: acquisition.api loads the engine at call time
+allow_indirect_imports = True

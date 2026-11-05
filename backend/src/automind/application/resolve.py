@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 from rapidfuzz import fuzz
 from sqlalchemy import func, select
 
-from automind.application import research
+from automind.acquisition import api as acquisition
 from automind.application.ports import Ports, Reference
 from automind.config import settings
 from automind.domain import identification, identity, sense
@@ -577,7 +577,7 @@ async def gearbox_mixed(variant_id: str) -> bool:
     v = await get_variant(variant_id)
     if v is None or v.transmission:
         return False
-    return research.mixed_families(await research.accepted_gearboxes(variant_id))
+    return await acquisition.gearbox_families_mixed(variant_id)
 
 
 async def split_by_gearbox(car: CaseCar, ref: Reference) -> str | None:
