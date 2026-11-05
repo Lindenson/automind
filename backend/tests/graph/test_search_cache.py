@@ -17,7 +17,7 @@ from automind.orchestration.graph import build_graph
 from automind.orchestration.runner import ChatRunner
 from tests.fakes.fixture_search import FixtureSearch
 
-from .conftest import budget_factory, make_ports
+from .conftest import budget_factory, engine, make_ports
 from .test_research_flow import INTERPRET, llm_for_research
 from .test_research_flow import fresh_variant as fresh_variant  # noqa: F401  (fixture)
 
@@ -62,7 +62,7 @@ async def _search_rows(turn_id):
 
 def _runner(saver, llm, searcher, fx):
     ports = make_ports(llm=llm, search=searcher)
-    ports.pages = fx
+    engine(ports).pages = fx
     return ChatRunner(build_graph(saver, tools=[]), ports, budget_factory(), messages=MessageRepo())
 
 

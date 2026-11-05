@@ -7,7 +7,8 @@ from typing import Any
 
 from langgraph.runtime import Runtime
 
-from automind.application import car_view, research, resolve
+from automind.acquisition import api as acquisition
+from automind.application import car_view, resolve
 from automind.application import feasibility as fz_app
 from automind.application.interpret import Interpretation, InterpretError, interpret
 from automind.config import settings
@@ -412,7 +413,7 @@ async def _plan(
     areas: list[str] | None = None,
 ) -> research_plan.ResearchPlan:  # fmt: skip
     ok = [x for x in case.cars if x.variant_id and x.resolution in ("CONFIRMED", "AUTO_OK", "PROPOSED")]
-    pts = await research.powertrains([x.variant_id for x in ok if x.variant_id])
+    pts = await acquisition.powertrains([x.variant_id for x in ok if x.variant_id])
     cars = [
         research_plan.CarToPlan(key=x.key, variant_id=x.variant_id, condition=x.condition, age_years=x.age_years,
                                 electrified=(pts.get(x.variant_id) or "").upper() in ("BEV", "PHEV", "EREV"))
@@ -420,7 +421,7 @@ async def _plan(
         if x.variant_id
     ]  # fmt: skip
     criteria = [p.criterion for p in case.priorities] + [k for k, w in case.weights.items() if w > 0]
-    last = await research.last_done([x.variant_id for x in cars])
+    last = await acquisition.last_done([x.variant_id for x in cars])
     market = await c.ports.market_facts.done() if getattr(c.ports, "market_facts", None) is not None else None
     for x in cars:  # market-level areas: one date for every car (spec 006 US5)
         last.setdefault(x.variant_id, {}).pop("incentives", None)
@@ -429,7 +430,7 @@ async def _plan(
     budget_used = bool(case.budget.max_eur) and (
         case.budget.intent in ("USED", "ANY") or any(x.condition == "USED" for x in case.cars)
     )
-    unmet = await research.unmet_areas([x.variant_id for x in cars])
+    unmet = await acquisition.unmet_areas([x.variant_id for x in cars])
     force: dict[str, set[str]] = {}
     if research_more:  # the user asked to find what is missing: retry areas below their minimum now, deeper
         keys = set(focus or []) or {x.key for x in cars}
@@ -439,7 +440,7 @@ async def _plan(
     return research_plan.plan(
         cars, persona=case.persona, criteria=criteria, depth="DEEP" if research_more else case.depth, last_done=last,
         now=c.ports.clock.now(), budget_used=budget_used, force=force, unmet=unmet,
-        registry_done=await research.registry_done([x.variant_id for x in cars]), registry_days=days,
+        registry_done=await acquisition.registry_done([x.variant_id for x in cars]), registry_days=days,
     )  # fmt: skip
 
 

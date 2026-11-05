@@ -13,7 +13,7 @@ from automind.orchestration.runner import ChatRunner
 from tests.fakes.fake_llm import FakeLLM
 from tests.fakes.fixture_search import FixtureSearch
 
-from .conftest import budget_factory, forget_make, make_ports
+from .conftest import budget_factory, engine, forget_make, make_ports
 
 LINEUP = {"models": [
     {"model": "Dolphin", "body": "hatchback", "powertrains": ["bev"], "price_from_eur": 29990,
@@ -80,7 +80,7 @@ async def test_classifieds_link_is_refused_and_maker_home_page_names_the_make(sa
     chat = str(uuid.uuid4())
     r = await rn.run_turn(chat, "вот эта https://www.coches.net/byd-seal-u")
     assert any("объявлений" in b.get("text", "") for b in r.blocks if b["type"] == "notice"), r.blocks
-    assert "https://www.coches.net/byd-seal-u" not in rn.ports.search.extracted
+    assert "https://www.coches.net/byd-seal-u" not in engine(rn.ports).search.extracted
     llm.queue(
         "interpreter",
         _ru({"set_car_context": [{"target_key": "car#1", "constraints": {"url": "https://www.byd.com/"}}]}),

@@ -5,7 +5,7 @@ import logging
 import httpx
 import pytest
 
-from automind.infrastructure.fetch import Fetcher, FetchPolicy, FetchRefused, decode_body
+from automind.acquisition.infrastructure.fetch import Fetcher, FetchPolicy, FetchRefused, decode_body
 
 SPANISH = "<p>Información técnica: consumo, tracción, año 2024, precio 35.000 €</p>"
 PAGE = "<html><head><title>T</title></head><body><p>" + "text " * 200 + "</p></body></html>"
@@ -205,7 +205,7 @@ async def test_refusals_are_counted_per_domain_and_logged(caplog):
         return httpx.Response(403) if req.url.path == "/blocked" else httpx.Response(200, html=PAGE)
 
     f, _, _ = fetcher(h)
-    with caplog.at_level(logging.INFO, logger="automind.infrastructure.fetch"):
+    with caplog.at_level(logging.INFO, logger="automind.acquisition.infrastructure.fetch"):
         await f.fetch_raw("https://site.example/ok")
         with pytest.raises(FetchRefused):
             await f.fetch_raw("https://site.example/blocked")

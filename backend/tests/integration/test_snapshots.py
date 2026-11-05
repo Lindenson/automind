@@ -9,21 +9,21 @@ import pytest
 from sqlalchemy import delete, func, select
 from tests.fakes.fake_llm import FakeLLM
 from tests.fakes.fixture_search import FixtureSearch
-from tests.graph.conftest import make_ports, open_web_reference
+from tests.graph.conftest import engine, make_ports, open_web_reference
 
 from automind.acquisition.domain import served
 from automind.acquisition.domain.versions import prompt_key_from_header
+from automind.acquisition.infrastructure.fetch import Fetcher, FetchPolicy
+from automind.acquisition.infrastructure.pages import DbPageStore
+from automind.acquisition.parsing.legacy import Registry
+from automind.acquisition.pipeline import job as research
 from automind.acquisition.registry.application.service import RegistryService
 from automind.acquisition.registry.infrastructure.repo import RegistryRepo
 from automind.acquisition.snapshots import codec, store
 from automind.acquisition.snapshots.retention import run_snapshot_retention
-from automind.application import research
 from automind.infrastructure import db
 from automind.infrastructure.config import load_yaml
 from automind.infrastructure.db import models as m
-from automind.infrastructure.fetch import Fetcher, FetchPolicy
-from automind.infrastructure.pages import DbPageStore
-from automind.infrastructure.site_readers import Registry
 
 PAGES = Path(__file__).resolve().parents[1] / "fixtures" / "pages"
 KM77 = {"domain": "km77.com", "source_type": "SPEC_DATABASE", "areas": ["specs"], "markets": ["ES"], "priority": 1,
@@ -137,7 +137,7 @@ async def test_research_job_names_producer_version_model_and_snapshot():
     llm.responders["extractor"] = _extractor
     llm.responders["validator"] = lambda s, u: {"verdicts": [{"index": 0, "verdict": "SAME_VARIANT"}]}
     fx = SnapshottingSearch("bmw520")
-    ports = make_ports(llm=llm, search=fx)
+    ports = engine(make_ports(llm=llm, search=fx))
     ports.ref = open_web_reference(
         favourites=[KM77], favourite_queries={"specs": "{make} {model} {generation} {variant} {sites}"}
     )

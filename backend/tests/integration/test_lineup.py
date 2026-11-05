@@ -7,8 +7,8 @@ from tests.fakes.fake_llm import FakeLLM
 from tests.fakes.fixture_search import FixtureSearch
 from tests.graph.conftest import make_ports
 
+from automind.acquisition.api import LineupEntry as _Entry
 from automind.application import lineup
-from automind.application.lineup import _Entry
 from automind.infrastructure import db
 
 DOCS = {"https://www.byd.com/es": ("BYD España", "BYD Seal U DM-i — SUV familiar. Desde 35.990 €. BYD Atto 3.")}

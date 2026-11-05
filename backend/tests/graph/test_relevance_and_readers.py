@@ -7,17 +7,17 @@ import uuid
 import pytest
 from sqlalchemy import delete, select
 
+from automind.acquisition.parsing.legacy import Registry
 from automind.infrastructure.config import load_yaml
 from automind.infrastructure.db import models as m
 from automind.infrastructure.db.repositories import MessageRepo
 from automind.infrastructure.db.session import sessionmaker
-from automind.infrastructure.site_readers import Registry
 from automind.orchestration.graph import build_graph
 from automind.orchestration.runner import ChatRunner
 from tests.fakes.fake_llm import FakeLLM
 from tests.fakes.fixture_search import FixtureSearch
 
-from .conftest import budget_factory, make_ports, open_web_reference
+from .conftest import budget_factory, engine, make_ports, open_web_reference, share
 
 KM77 = {"domain": "km77.com", "source_type": "SPEC_DATABASE", "areas": ["specs"], "markets": ["ES"], "priority": 1,
         "reader": "km77", "tos_checked": "2026-11-02"}  # fmt: skip
@@ -80,10 +80,10 @@ async def test_gate_reader_and_market_validator(saver):
     llm.responders["validator"] = validator
     fx = FixtureSearch("bmw520")
     ports = make_ports(llm=llm, search=fx)
-    ports.ref = open_web_reference(
+    share(ports, ref=open_web_reference(
         favourites=[KM77], favourite_queries={"specs": "{make} {model} {generation} {variant} {sites}"}
-    )
-    ports.readers = Registry(load_yaml("site_readers.yaml"), [KM77])
+    ))  # fmt: skip
+    engine(ports).readers = Registry(load_yaml("site_readers.yaml"), [KM77])
     r = await ChatRunner(build_graph(saver, tools=[]), ports, budget_factory(), messages=MessageRepo()).run_turn(
         str(uuid.uuid4()), "BMW 520d G30 for a race enthusiast"
     )

@@ -6,7 +6,7 @@ import time
 import httpx
 import pytest
 
-from automind.infrastructure.fetch import Fetcher, FetchPolicy, FetchRefused
+from automind.acquisition.infrastructure.fetch import Fetcher, FetchPolicy, FetchRefused
 
 PAGE = "<html><head><title>T</title></head><body><p>" + "text " * 200 + "</p></body></html>"
 

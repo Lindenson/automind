@@ -423,7 +423,8 @@ async def _run_dialogue(d: Dialogue, saver: Any, *, live: bool, record: bool) ->
         s.add(m.Chat(id=chat_id, title=d.id[:60]))
         await s.commit()
     if live:
-        from automind.infrastructure.adapters import LiveLLM, live_pages, live_search
+        from automind.acquisition.infrastructure.wiring import live_pages, live_search
+        from automind.infrastructure.adapters import LiveLLM
         from automind.infrastructure.llm_gateway import new_budget
 
         llm: Any = RecordingLLM(LiveLLM()) if record else LiveLLM()
@@ -436,24 +437,28 @@ async def _run_dialogue(d: Dialogue, saver: Any, *, live: bool, record: bool) ->
 
         budgets = budget_factory()
     events = EventBus(EventRepo())
+    from automind.acquisition.engine import Engine
+    from automind.acquisition.ports import AcqPorts
     from automind.infrastructure.config import reference
     from automind.orchestration.prompts import load_all
     from tests.graph.conftest import open_web_reference
 
+    ref = reference(load_all()) if live else open_web_reference()
+    facts = MarketFactRepo()
+    acq = AcqPorts(llm=llm, ref=ref, search=search, pages=live_pages() if live else None, market_facts=facts)
     ports = Ports(
         llm=llm,
-        search=search,
+        acquisition=Engine(acq),
         cases=CaseRepo(),
         turns=TurnRepo(),
         events=events,
         jobs=JobRepo(),
         clock=_clock(),
-        ref=reference(load_all()) if live else open_web_reference(),
+        ref=ref,
         messages=MessageRepo(),
         estimator=_estimator(live),
-        pages=live_pages() if live else None,
         feasibility=FeasibilityRepo(),
-        market_facts=MarketFactRepo(),
+        market_facts=facts,
     )
     runner = ChatRunner(build_graph(saver), ports, budgets, messages=MessageRepo())
     failures: list[str] = []

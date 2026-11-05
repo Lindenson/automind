@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-FROZEN_LEGACY_IGNORES = 14  # lower this number when a module moves behind a port; never raise it
+FROZEN_LEGACY_IGNORES = 12  # lower this number when a module moves behind a port; never raise it
 
 
 def test_legacy_layer_exceptions_do_not_grow():

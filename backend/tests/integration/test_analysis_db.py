@@ -4,8 +4,8 @@ import json
 
 import pytest
 
+from automind.acquisition.pipeline import merge
 from automind.application import compose as analysis
-from automind.application import research
 from automind.application import resolve as catalog
 from automind.domain.criteria import CriteriaModel, score
 from automind.infrastructure import db
@@ -74,7 +74,7 @@ async def _seed():
                 )
             )
         await s.commit()
-    await research.reselect(v.id)
+    await merge.reselect(v.id)
     return v
 
 

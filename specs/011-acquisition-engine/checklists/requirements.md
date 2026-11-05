@@ -39,3 +39,10 @@
   was not migrated): 3,007 stored km77 pages in 1.65 s wall (about 0.55 ms per page, batches of 500, zero network
   and model calls), i.e. about 17 s for 30,000 pages, inside the 5-minute target. Re-measure on the dev database with
   `--since 30d` after the merge.
+- Stage 2 strangler check (T059, part, 2026-11-05, branch `011-us2-strangler`): goldens green after every step S0–S8
+  (12 passed each time) and the full suite green (1,124 passed); `lint-imports` 9 contracts kept, with no `research`
+  exception (`FROZEN_LEGACY_IGNORES` 14 → 12) and `chat-uses-acquire-only` over application, orchestration and
+  domain without `ignore_imports`; `test -e backend/src/automind/application/research.py` fails (deleted in T049).
+  The facade test (T038) returns the values recorded from the pre-move `run_job` on `bmw520`. Open: the SC-005
+  measurement (p50/p95 of `automind_turn_duration_seconds` on 10 live turns with the worker's prefetch running vs
+  stopped) needs the worker (T054–T057, branch `011-us2-worker`) and live model/search calls; T059 stays open for it.
