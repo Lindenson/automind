@@ -100,7 +100,8 @@ async def _harder_queries(ports: Ports, make: str, model: str, generation: str |
 
 
 async def lookup(ports: Ports, make: str, model: str, *, generation: str | None, year: int | None,
-                 new: bool, current_year: int | None = None) -> Generation | None:  # fmt: skip
+                 new: bool, current_year: int | None = None,
+                 fuel: str | None = None) -> Generation | None:  # fmt: skip
     """The versions of this model in the generation asked (or the one built in `year`, or on sale now); None when
     there is no store or no document supports any version (the fallback identifies then, FR-020). A new car
     (`current_year` given) tries harder before giving up (the current year's range, the registry's spec sources)."""
@@ -126,6 +127,10 @@ async def lookup(ports: Ports, make: str, model: str, *, generation: str | None,
         more = await _harder_queries(ports, make, model, generation, current_year)
         got = await ports.acquisition.versions(make, model, generation, year=year, queries=more, limits=lim, done=read)
         g = await _from_docs(store, hit, make, model, generation, year, got, lim) if got else None
+    if g is None and hit is None:  # no sourced list: a combustion car's registered versions build it (2026-11-05)
+        min_regs = int(lim.get("dataset_versions_min_registrations", 10))
+        found = await dataset_versions(ports, make, model, generation, fuel, None)
+        g = registered_generation(found, make, model, generation, year, fuel, min_regs)
     return g
 
 
@@ -161,6 +166,58 @@ async def dataset_versions(ports: Ports, make: str, model: str, generation: str 
         return list(await get(make, model, generation, fuel, year_from))
     except Exception:  # noqa: BLE001 - the datasets only add options and a search year
         return []
+
+
+DATASET_SOURCE = "EU registrations (EEA CO2 / RDW)"
+ICE_FUELS = frozenset({"petrol", "diesel", "lpg", "cng"})
+CV_PER_KW = 1.35962
+
+
+def _span(xs: list[Any]) -> tuple[int | None, int | None]:
+    lo = min((x.years_from for x in xs if x.years_from), default=None)
+    hi = None if any(x.years_to is None for x in xs) else (max(x.years_to or 0 for x in xs) or None)
+    return lo, hi
+
+
+def registered_generation(found: list[DatasetVersion], make: str, model: str, generation: str | None,
+                          year: int | None, fuel: str | None, min_regs: int) -> Generation | None:  # fmt: skip
+    """The versions list of a petrol, diesel, LPG or CNG car built from its EU registrations (owner, 2026-11-05):
+    a combustion engine's registered kW is the car's power. One version per (fuel, engine size, kW) with its years;
+    the power in kW (the CV computed from it), gearbox and drive unknown (never invented). None for a hybrid,
+    plug-in or electric car (its registered kW is not the system power), an unknown fuel with non-combustion rows,
+    or when nothing is left after the registrations floor and the year (a used car: versions registered that year).
+    Not kept in the versions cache: a web list found later wins."""
+    if fuel is not None and fuel not in ICE_FUELS:
+        return None
+    rows = [x for x in found if fuel is None or x.fuel == fuel]
+    if not rows or any(x.fuel not in ICE_FUELS or not x.power_is_max for x in rows):
+        return None
+    merged: dict[tuple[str, int | None, int], list[DatasetVersion]] = {}
+    for x in rows:
+        if x.engine_kw:
+            merged.setdefault((x.fuel, x.displacement_cc, x.engine_kw), []).append(x)
+    out: list[Version] = []
+    for (f, cc, kw), xs in merged.items():
+        regs = sum(x.registrations for x in xs)
+        if regs and regs < min_regs:  # 0: a stored group key, its count not known
+            continue
+        lo, hi = _span(xs)
+        if year is not None and lo is not None and not (lo <= year and (hi is None or year <= hi)):
+            continue
+        cv = round(kw * CV_PER_KW)
+        size = f"{cc / 1000:.1f} " if cc else ""
+        excerpt = (f"{DATASET_SOURCE}: {f}, {cc or '?'} cm3, {kw} kW registered (CV {cv} computed from the "
+                   f"registered kW), {lo or ''}–{hi or ''}, {regs or '?'} registrations")  # fmt: skip
+        url = next((x.source_url for x in xs if x.source_url), "")
+        out.append(Version(engine=f"{size}{f} {kw} kW ({cv} CV)", fuel=f, engine_cc=cc, power_kw=kw,
+                           years_from=lo, years_to=hi, source_url=url, excerpt=excerpt[:240]))  # fmt: skip
+    if not out:
+        return None
+    out.sort(key=lambda v: (v.engine_cc or 0, v.power_kw or 0))  # the base version first
+    lo, hi = _span(out)
+    gen = generation or (f"{lo}–{hi or ''}" if lo else "")
+    url = next((v.source_url for v in out if v.source_url), "")
+    return Generation(make, model, gen, lo, hi, None, out, [{"url": url, "name": DATASET_SOURCE, "dataset": True}])
 
 
 def newer_engine_year(found: list[DatasetVersion]) -> int | None:

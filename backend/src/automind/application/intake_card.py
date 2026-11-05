@@ -131,7 +131,8 @@ def _car_items(car: CaseCar, v: Any, lang: str, options: list[str], before: dict
     k = car.constraints
     memo = car.ladder
     sourced = memo is not None and memo.certainty == "SOURCED"
-    src = ({"name": _w(WORDS, "versions", lang), "url": memo.source_url} if sourced and memo and memo.source_url
+    src = ({"name": memo.source_name, "url": memo.source_url} if sourced and memo and memo.source_name
+           else {"name": _w(WORDS, "versions", lang), "url": memo.source_url} if sourced and memo and memo.source_url
            else {"name": _w(WORDS, "catalog", lang), "url": None})  # fmt: skip
     if sourced and memo and memo.others:
         options = list(memo.others)  # the other versions of this generation, never other generations' rows

@@ -188,3 +188,41 @@ async def test_a_cached_list_that_does_not_cover_the_year_is_completed_for_it() 
     g = await versions.lookup(ports, "Audi", "A4", generation="B9", year=2023, new=False)  # type: ignore[arg-type]
     assert g is not None and len(g.versions) == 6
     assert versions.covers(g, 2023) and versions.covers(g, 2016)
+
+
+def _dv(fuel: str, kw: int, cc: int, lo: int, hi: int | None, regs: int):  # noqa: ANN202
+    from automind.acquisition.api import DatasetVersion
+
+    return DatasetVersion(
+        fuel=fuel,
+        engine_kw=kw,
+        displacement_cc=cc,
+        years_from=lo,
+        years_to=hi,
+        registrations=regs,
+        power_is_max=fuel in versions.ICE_FUELS,
+        source_url="https://eea",
+    )
+
+
+def test_registered_versions_build_a_combustion_cars_list() -> None:
+    found = [_dv("diesel", 130, 2755, 2015, None, 9000), _dv("diesel", 127, 2982, 2009, 2015, 8000),
+             _dv("diesel", 120, 2494, 2016, 2016, 3)]  # fmt: skip
+    g = versions.registered_generation(found, "Toyota", "Land Cruiser", "J150", None, "diesel", 10)
+    assert g is not None and g.sources[0]["name"] == versions.DATASET_SOURCE
+    assert [v.engine for v in g.versions] == ["2.8 diesel 130 kW (177 CV)", "3.0 diesel 127 kW (173 CV)"]
+    assert all(not v.gearboxes and not v.drives for v in g.versions)  # never invented
+    assert "computed from the registered kW" in g.versions[0].excerpt
+    used = versions.registered_generation(found, "Toyota", "Land Cruiser", "J150", 2016, "diesel", 10)
+    assert used is not None and [v.power_kw for v in used.versions] == [130]
+    petrol = versions.registered_generation([_dv("petrol", 110, 1498, 2020, None, 50)], "Seat", "Leon", None, None,
+                                            "petrol", 10)  # fmt: skip
+    assert petrol is not None and petrol.versions[0].power_kw == 110
+
+
+def test_a_plug_in_or_hybrid_gets_no_list_from_registrations() -> None:
+    phev = [_dv("phev", 132, 1598, 2021, None, 5000)]
+    assert versions.registered_generation(phev, "Kia", "Sorento", None, None, "phev", 10) is None
+    assert versions.registered_generation(phev, "Kia", "Sorento", None, None, None, 10) is None
+    mixed = [*phev, _dv("diesel", 142, 2151, 2021, None, 900)]
+    assert versions.registered_generation(mixed, "Kia", "Sorento", None, None, None, 10) is None
