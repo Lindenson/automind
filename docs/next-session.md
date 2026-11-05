@@ -1,5 +1,21 @@
 # Next session: where to start
 
+## State after spec 010 implementation (2026-11-05, evening): start here
+
+- Spec 010 is implemented except 8 tasks (see `specs/010-self-observing-registry/tasks.md`, unchecked):
+  T059 candidate label + half weight, T060 replacement/agreement truth signals, T065 gap-driven discovery search,
+  T067 "no data" names the sources tried, T075 remove `domain/learned.py`, T076 docs, T077 quickstart walk-through,
+  T078 switch `registry.autonomy: true`.
+- **Autonomy is OFF** (`backend/config/registry.yaml`): the registry records attempts, scores, admits sites and
+  journals, but research keeps the configured order. Turn it on (T078) after a live week gives a baseline.
+- **No live run yet**: this checkout has no `.env`. Needed: `GOOGLE_API_KEY`, `SERPER_API_KEY`. Estimate cost first.
+- **Admin**: `/admin` — Top problems (10 by impact, copy for Claude Code) and Sources (quality, changes, revert).
+  Prometheus: `/metrics` (METRICS_TOKEN), rules `deploy/prometheus/automind-rules.yml`, `scripts/deploy.sh up --monitoring`.
+- **Moving the install**: `docs/deploy.md` (`deploy.sh export / import / move`), rehearsed locally.
+- **Tests**: `scripts/check.sh` green (962 backend, 101 frontend). Known pre-existing failure on main, deselect:
+  `tests/integration/test_identify_ladder.py::test_fallback_without_a_sourced_list_asks_the_power_never_takes_the_first_row`.
+  Never run two `check.sh` at once: they share `automind_test`.
+
 ## Redesign on 2026-11-05 (later): start here
 
 - **Spec 010 supersedes 009**: `specs/010-self-observing-registry/spec.md`. Plan file of the redesign:
