@@ -21,7 +21,7 @@ from automind.application.usage import BudgetExceeded
 from automind.domain import ask_value, profile_gaps
 from automind.domain.casefile import CaseFile, Shown
 from automind.domain.policy import fingerprint
-from automind.orchestration import agents
+from automind.orchestration import agents, outcomes
 from automind.orchestration.guard import (
     check_numbers,
     drop_sentences,
@@ -42,6 +42,7 @@ log = logging.getLogger(__name__)  # one logging stack: stdlib everywhere (spec 
 def _log_removed(c: TurnContext, where: str, n: int) -> None:
     """Sentences the checks removed are an operator signal, not a message to the user (reviewer 2026-11-03)."""
     if n:
+        outcomes.note("guard_removed", n)  # spec 010 US1: class "bad text"
         log.info("guard.sentences_removed", extra={"where": where, "count": n, "chat_id": c.chat_id,
                                                    "turn_id": c.turn_id})  # fmt: skip
 

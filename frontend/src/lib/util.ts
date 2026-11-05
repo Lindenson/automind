@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+
 export function uuid(): string {
   try {
     if (
@@ -35,6 +37,27 @@ export function saveChatId(id: string): string {
     /* storage blocked */
   }
   return id;
+}
+
+/** Developer view (`?debug=1` or localStorage `automind.debug`): shows internals such as the AI usage badge. */
+export function isDebug(): boolean {
+  try {
+    if (new URLSearchParams(window.location.search).get("debug") === "1") return true;
+  } catch {
+    /* no window (tests) */
+  }
+  try {
+    const v = localStorage.getItem("automind.debug");
+    return v !== null && v !== "" && v !== "0" && v !== "false";
+  } catch {
+    return false;
+  }
+}
+
+/** "value_retention" → "Value retention" (sentence case; no CSS `capitalize`, which title-cases every word). */
+export function sentence(key: string): string {
+  const s = key.replace(/_/g, " ");
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 export function isMockMode(): boolean {
@@ -100,4 +123,16 @@ export function yearsLabel(n: number, lang: string, fallback: string): string {
         ? "года"
         : "лет";
   return `${n} ${word}`;
+}
+
+/** Escape closes a dialog while it is open (audit F14). */
+export function useEscape(open: boolean, onClose: () => void): void {
+  useEffect(() => {
+    if (!open) return;
+    const key = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", key);
+    return () => document.removeEventListener("keydown", key);
+  }, [open, onClose]);
 }

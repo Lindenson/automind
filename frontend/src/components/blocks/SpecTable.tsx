@@ -38,13 +38,13 @@ export function SpecTable({ b }: { b: BlockOf<"spec_table"> }) {
                     {c.from_cache ? (
                       <span
                         className="chip py-0 text-accent2"
-                        title={`Researched ${fmtDate(c.researched_at)}`}
+                        title={t("table.researchedAt", { date: fmtDate(c.researched_at) })}
                       >
-                        <CacheIcon /> cached
+                        <CacheIcon /> {t("table.cached")}
                       </span>
                     ) : (
-                      <span title="Researched in this turn">
-                        researched {fmtDate(c.researched_at)}
+                      <span title={t("table.researchedNow")}>
+                        {t("table.researched", { date: fmtDate(c.researched_at) })}
                       </span>
                     )}
                   </div>
@@ -64,7 +64,7 @@ export function SpecTable({ b }: { b: BlockOf<"spec_table"> }) {
                 >
                   {row.label}
                   {row.unit && (
-                    <span className="ml-1 text-[11px] font-normal text-muted/70">
+                    <span className="ml-1 text-[11px] font-normal text-muted">
                       ({row.unit})
                     </span>
                   )}
@@ -75,10 +75,10 @@ export function SpecTable({ b }: { b: BlockOf<"spec_table"> }) {
                     return (
                       <td key={c.id} className="px-3 py-2.5 align-top">
                         <span
-                          className="text-[13px] italic text-muted/70"
-                          title="This value could not be found or verified"
+                          className="text-[13px] italic text-muted"
+                          title={t("table.unavailable.title")}
                         >
-                          unavailable
+                          {t("table.unavailable")}
                         </span>
                       </td>
                     );
@@ -97,13 +97,13 @@ export function SpecTable({ b }: { b: BlockOf<"spec_table"> }) {
                               ? "tabular font-semibold text-good"
                               : "tabular font-medium text-fg"
                           }
-                          title={v.better ? "clearly better (above the meaningful threshold)" : undefined}
+                          title={v.better ? t("table.better") : undefined}
                         >
                           {text}
                         </span>
                         {v.confidence && <ConfidenceDot c={v.confidence} />}
                         {v.provenance && <ProvenanceBadge p={v.provenance} />}
-                        <SourcesButton sources={v.sources} />
+                        <SourcesButton sources={v.sources} what={`${row.label}, ${c.label}`} />
                         <ChallengeButton carId={c.id} attribute={row.key} />
                       </div>
                     </td>

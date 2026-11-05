@@ -15,6 +15,20 @@ export default {
         good: "rgb(var(--good) / <alpha-value>)",
         warn: "rgb(var(--warn) / <alpha-value>)",
         bad: "rgb(var(--bad) / <alpha-value>)",
+        prov: {
+          claim: "rgb(var(--prov-claim) / <alpha-value>)",
+          measured: "rgb(var(--prov-measured) / <alpha-value>)",
+          sourced: "rgb(var(--prov-sourced) / <alpha-value>)",
+          derived: "rgb(var(--prov-derived) / <alpha-value>)",
+          simulated: "rgb(var(--prov-simulated) / <alpha-value>)",
+          assumption: "rgb(var(--prov-assumption) / <alpha-value>)",
+        },
+        basis: {
+          stated: "rgb(var(--basis-stated) / <alpha-value>)",
+          inferred: "rgb(var(--basis-inferred) / <alpha-value>)",
+          found: "rgb(var(--basis-found) / <alpha-value>)",
+          assumed: "rgb(var(--basis-assumed) / <alpha-value>)",
+        },
       },
       fontFamily: {
         sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],

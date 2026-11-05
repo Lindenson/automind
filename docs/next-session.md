@@ -1,6 +1,19 @@
 # Next session: where to start
 
-## State on 2026-11-05: start here
+## Redesign on 2026-11-05 (later): start here
+
+- **Spec 010 supersedes 009**: `specs/010-self-observing-registry/spec.md`. Plan file of the redesign:
+  `~/.claude/plans/composed-imagining-kernighan.md`. Constitution v1.2.0 adds principle XII.
+- **Owner's boundary**: for logic, parsers, rules and dialogue the system only measures, groups failures,
+  diagnoses and offers a "copy for Claude Code" task; it never changes them. For sources it is autonomous
+  (order, admit, promote, demote, retire) inside hard limits, with a change journal and a Sources admin page.
+- **What the system does today**: `docs/baseline.md` (one summary of specs 001–009).
+- **009's open fixes** (PHEV, junk used price, relevance, year in queries, dialogue of chat 20b5b7f9) are
+  not implemented directly: they become the first issues of 010's issue queue (US5).
+- **Next**: `/speckit-plan`, `/speckit-tasks`, `/speckit-implement` for 010. Order: observation +
+  Prometheus base → insight + Top problems → Prometheus rules → registry in DB (same behaviour) → registry autonomy and Sources screen. Admin page = 2 screens only; detailed metrics and alerts live in Prometheus.
+
+## State on 2026-11-05 (before the redesign)
 
 - **main** has specs 002–008, plus the 008 follow-ups:
   - PRs #48–#49: live-run fixes and the fallback ladder;

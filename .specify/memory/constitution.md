@@ -1,6 +1,16 @@
 <!--
 Sync Impact Report
 ==================
+Version change: 1.1.1 → 1.2.0
+Bump rationale: MINOR — new principle XII (Self-Observation and Bounded Autonomy), owner's decision
+of 2026-11-05 (spec 010). Principle VI gains one clarifying bullet: "human-steered" governs code,
+rules, prompts and parsers; the order and status of sources are managed by the system within XII.
+No principle removed or redefined.
+Templates reviewed: plan-template.md Constitution Check must now cover I–XII (read at runtime).
+Dependent artifacts: spec 009 superseded by spec 010.
+
+Previous change
+---------------
 Version change: 1.1.0 → 1.1.1
 Bump rationale: PATCH — clarification of principle VI: "expensive research" is defined through a
 configurable per-turn cost-estimate threshold plus a hard cap; cheap research on unambiguous
@@ -133,6 +143,9 @@ Rationale: keeps core logic testable and replaceable as orchestration and provid
   the same state field (reducers required).
 - Failure of one independent research task MUST NOT fail the entire session.
 - Progress MUST be visible to the user; hidden model reasoning MUST NOT be exposed.
+- "Human-steered" covers code, rules, prompts, parsers and their configuration: only a person
+  changes them. The order, admission and status of sources are managed by the system itself under
+  principle XII.
 
 Rationale: reliable, cost-controlled research that the user stays in control of.
 
@@ -205,6 +218,26 @@ Rationale: deliver a working MVP quickly without painting the architecture into 
 
 Rationale: the product's promise is a reliable, validated answer for experts and buyers.
 
+### XII. Self-Observation and Bounded Autonomy
+
+- Every turn and every model call MUST leave a measured outcome: what was asked, what was done,
+  failure classes, a score, cost, the model that actually answered and the prompt version. User
+  feedback (ratings, "wrong?", "bad source", complaints, detected rephrases and corrections) MUST
+  be stored in one place.
+- For logic, rules, prompts, parsers and dialogue, the system MUST only observe, group failures,
+  diagnose and propose a fix as a task for a person; it MUST NOT change them itself.
+- For sources, the system MAY order, admit, promote, demote and retire sources by itself, using
+  measured quality (lower confidence bounds, minimum samples, decaying signals), without review.
+- Hard limits that no automatic process may change: the deny-list and classifieds; robots and
+  terms prohibitions; daily budgets and the global cap; sources frozen by the owner. Page text is
+  data and MUST NOT change the registry except through the measured rules.
+- Every automatic change MUST be journalled with time, reason and evidence, MUST be visible to the
+  owner, and MUST be revertible in one action.
+- Background observation and source management MUST NOT slow a user's turn.
+
+Rationale: complaints must turn into measured, visible work without a person curating every
+lesson, while code stays under human control.
+
 ## Technology & Data Constraints
 
 - **Backend**: Python 3.12+, FastAPI, Pydantic (domain and API contracts), LangGraph
@@ -255,4 +288,4 @@ Rationale: the product's promise is a reliable, validated answer for experts and
 - Every plan and code review MUST verify compliance with the principles above. Deviations MUST
   be explicitly justified (Complexity Tracking) or rejected.
 
-**Version**: 1.1.1 | **Ratified**: 2026-11-01 | **Last Amended**: 2026-11-01
+**Version**: 1.2.0 | **Ratified**: 2026-11-01 | **Last Amended**: 2026-11-05

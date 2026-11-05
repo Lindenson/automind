@@ -57,6 +57,9 @@ class Reference:
     regions: dict[str, Any] = field(default_factory=dict)  # config/regions.yaml (spec 005)
     profile_defaults: dict[str, Any] = field(default_factory=dict)  # config/profile_defaults.yaml (spec 007)
     gearboxes: dict[str, list[str]] = field(default_factory=dict)  # "Make|Model|generation" -> gearboxes sold new
+    outcome: dict[str, Any] = field(default_factory=dict)  # config/outcome.yaml (spec 010 US1)
+    insight: dict[str, Any] = field(default_factory=dict)  # config/insight.yaml (spec 010 US3)
+    registry: dict[str, Any] = field(default_factory=dict)  # config/registry.yaml (spec 010 US6-US8)
 
 
 @dataclass
@@ -238,6 +241,19 @@ class VersionsStore(Protocol):
     async def put(self, g: Generation) -> None: ...
 
 
+class OutcomeStore(Protocol):
+    """Turn outcomes and feedback (spec 010 US1, US2; tables `turn_outcomes`, `feedback`)."""
+
+    async def record(self, turn_id: str, chat_id: str, **fields: Any) -> None: ...
+
+    async def patch_previous(self, chat_id: str, turn_id: str, relation: str | None,
+                             signals: dict[str, float]) -> None: ...  # fmt: skip
+
+    async def add_signal(self, turn_id: str, key: str, amount: float = 1.0) -> None: ...
+
+    async def feedback(self, chat_id: str, kind: str, **fields: Any) -> str: ...
+
+
 Emit = Callable[[str, dict[str, Any]], Awaitable[None]]
 """Progress/event callback: (type, payload)."""
 
@@ -264,6 +280,8 @@ class Ports:
     # spec 007 US7: async () -> [(make, domain.intake.LineupModel)] sold in ES, known without a search; None: none
     models_on_sale: Any = None
     versions: VersionsStore | None = None  # spec 008: versions of model generations; None: no ladder (fallback)
+    outcomes: OutcomeStore | None = None  # spec 010 US1/US2; None: not recorded (test fakes)
+    metrics: Any = None  # spec 010: inc(name, **labels) for Prometheus counters; None: not counted
 
     @property
     def page_store(self) -> PageStore:

@@ -1,0 +1,56 @@
+# Spec 010 US3/US4: grouping failures into issues and diagnosing them. Read-only for the system (constitution XII).
+version: 1
+schedule:
+  wake_minutes: 10        # the loop wakes up this often
+  daily_hour: 4           # Europe/Madrid hour of the daily run
+  early_new_failures: 10  # an early run when this many new failures/feedback arrived since the last run
+budget_eur: 0.30          # daily spend of the analyst role
+examples_per_issue: 10
+examples_for_diagnosis: 8
+top: 10                   # issues on the Top problems screen
+impact:
+  chat_weight: 2          # impact = failing turns 7d × class severity + chat_weight × chats 7d
+thresholds:               # minimum failures in 7 days for a group to become an issue
+  dialogue: 3
+  parser: 1
+  relevance: 3
+  check: 3
+  nodata: 3
+  model: 1
+  ui: 1
+regression_after_fix: 2  # failures of the same key after `fixed_at` that reopen an issue
+model_fallback_share: 0.2 # fallback share of a role over 7 days that makes a model group
+parser_drop: 0.2          # 7-day ok share below the 30-day share by this much
+# Where a fix of each component probably lives (shown as "likely files"; filtered to existing paths).
+files:
+  dialogue: [src/automind/application/interpret.py, src/automind/orchestration/prompts/interpreter.md,
+             src/automind/domain/policy.py, src/automind/orchestration/nodes/understand.py]
+  wrong_car: [src/automind/application/identify.py, src/automind/domain/ladder.py, src/automind/application/versions.py]
+  parser: [src/automind/infrastructure/site_readers/__init__.py, config/site_readers.yaml]
+  relevance: [src/automind/domain/relevance.py, src/automind/application/research.py]
+  check: [src/automind/domain/sense.py, src/automind/domain/plausibility.py, src/automind/application/research.py]
+  nodata: [src/automind/application/research.py, src/automind/domain/search_plan.py, config/queries.yaml]
+  model: [config/models.yaml, src/automind/infrastructure/llm_gateway.py]
+  report: [src/automind/orchestration/report_text.py, src/automind/orchestration/guard.py,
+           src/automind/application/compose.py]
+  ui: [frontend/src]
+# Configuration levers: the only places where the analyst may propose a configuration fix (spec 010 FR-009).
+# Keys are dotted paths; `*` matches any key at that level. Anything else is proposed as a code fix.
+levers:
+  check:
+    - {file: plausibility.yaml, key: "by_powertrain.*.*"}
+    - {file: sense.yaml, key: "magnitude.*.*"}
+  dialogue:
+    - {file: questions.yaml, key: "*.*"}
+    - {file: models.yaml, key: "*"}
+  nodata:
+    - {file: queries.yaml, key: "*.*"}
+    - {file: search.yaml, key: "*"}
+  model:
+    - {file: models.yaml, key: "*"}
+    - {file: models.yaml, key: "fallbacks.*"}
+  parser:
+    - {file: site_readers.yaml, key: "*.labels.*"}
+  relevance: []
+  report: []
+  ui: []

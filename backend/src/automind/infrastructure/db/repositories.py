@@ -23,6 +23,7 @@ from .models import (
     Claim,
     DeletedChat,
     FeasibilityCheck,
+    Feedback,
     IntakeEvent,
     LLMCall,
     ReportRating,
@@ -34,6 +35,7 @@ from .models import (
     TcoEstimateRow,
     Turn,
     TurnEvent,
+    TurnOutcome,
     ValueChallenge,
     now,
     uid,
@@ -43,7 +45,7 @@ from .session import sessionmaker
 
 class ChatRepo:
     CHAT_SCOPED = (ChatMessage, CaseFileRow, TurnEvent, ResearchJob, LLMCall, SearchCall, FeasibilityCheck,
-                   ReportRating, ValueChallenge, IntakeEvent)  # fmt: skip
+                   ReportRating, ValueChallenge, IntakeEvent, TurnOutcome, Feedback)  # fmt: skip
 
     async def is_deleted(self, chat_id: str) -> bool:
         async with sessionmaker()() as s:
@@ -380,10 +382,20 @@ class UsageRepo:
         cost_eur: float,
         job_id: str | None = None,
         area: str | None = None,
+        primary_model: str | None = None,
+        fallback: bool = False,
+        prompt_name: str | None = None,
+        prompt_version: str | None = None,
+        prompt_hash: str | None = None,
     ) -> None:
         async with sessionmaker()() as s:
             s.add(
                 LLMCall(
+                    primary_model=primary_model,
+                    fallback=fallback,
+                    prompt_name=prompt_name,
+                    prompt_version=prompt_version,
+                    prompt_hash=prompt_hash,
                     chat_id=chat_id,
                     turn_id=turn_id,
                     role=role,

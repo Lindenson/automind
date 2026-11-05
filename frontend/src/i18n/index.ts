@@ -1,24 +1,17 @@
 /** Tiny i18n layer (spec 004 FR-024; research R12): no library, three typed dictionaries. */
 import { useChat } from "../store/chat";
 import { en, type Key } from "./en";
-import { es } from "./es";
-import { ru } from "./ru";
-
+import { translate, uiLang } from "./translate";
 import { type Lang } from "./lang";
-export { LANGS, asLang, storeLang, storedLang, type Lang } from "./lang";
-const DICTS: Record<Lang, Record<Key, string>> = { en, ru, es };
 
-export function translate(lang: Lang, key: Key, vars?: Record<string, string | number>): string {
-  let s = DICTS[lang][key] ?? en[key] ?? key;
-  for (const [k, v] of Object.entries(vars ?? {})) s = s.replace(`{${k}}`, String(v));
-  return s;
-}
+export { LANGS, UI_LANG, asLang, storeLang, storedLang, type Lang } from "./lang";
+export { translate, uiLang } from "./translate";
 
-/** The interface language: the user's choice, else the conversation's (latest reply), else English. */
+/** The interface language: English while `UI_LANG` pins it, else the user's choice, else the conversation's. */
 export function useLang(): Lang {
   const manual = useChat((s) => s.manualLang);
   const convo = useChat((s) => s.convoLang);
-  return manual ?? convo ?? "en";
+  return uiLang(manual, convo);
 }
 
 export function useT(): (key: Key, vars?: Record<string, string | number>) => string {

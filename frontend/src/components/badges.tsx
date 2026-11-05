@@ -7,52 +7,38 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import type { Confidence, Provenance, SourceRef } from "../lib/protocol";
+import { useT } from "../i18n";
 import { cx, fmtDate, hostOf } from "../lib/util";
 
-const PROV: Record<Provenance, { short: string; full: string; cls: string }> = {
-  MANUFACTURER_CLAIM: {
-    short: "Claim",
-    full: "Manufacturer claim",
-    cls: "text-sky-400 border-sky-400/30 bg-sky-400/10",
-  },
-  MEASURED: {
-    short: "Measured",
-    full: "Measured (instrumented test)",
-    cls: "text-emerald-400 border-emerald-400/30 bg-emerald-400/10",
-  },
-  SOURCED_FACT: {
-    short: "Sourced",
-    full: "Sourced fact",
-    cls: "text-indigo-300 border-indigo-300/30 bg-indigo-300/10",
-  },
-  DERIVED: {
-    short: "Derived",
-    full: "Derived (calculated from other values)",
-    cls: "text-violet-300 border-violet-300/30 bg-violet-300/10",
-  },
-  SIMULATED_ESTIMATE: {
-    short: "Simulated",
-    full: "Simulated estimate",
-    cls: "text-orange-400 border-orange-400/30 bg-orange-400/10",
-  },
-  ASSUMPTION: {
-    short: "Assumption",
-    full: "Assumption",
-    cls: "text-amber-400 border-amber-400/40 bg-amber-400/10",
-  },
+/** Theme tokens (`--prov-*` in index.css) with light variants: readable in both themes (audit F5). */
+const PROV: Record<Provenance, string> = {
+  MANUFACTURER_CLAIM: "text-prov-claim border-prov-claim/40 bg-prov-claim/10",
+  MEASURED: "text-prov-measured border-prov-measured/40 bg-prov-measured/10",
+  SOURCED_FACT: "text-prov-sourced border-prov-sourced/40 bg-prov-sourced/10",
+  DERIVED: "text-prov-derived border-prov-derived/40 bg-prov-derived/10",
+  SIMULATED_ESTIMATE: "text-prov-simulated border-prov-simulated/40 bg-prov-simulated/10",
+  ASSUMPTION: "text-prov-assumption border-prov-assumption/40 bg-prov-assumption/10",
+};
+
+/** Basis of an understood value (intake card, case panel): theme tokens `--basis-*`. */
+export const BASIS_CLS: Record<string, string> = {
+  STATED: "border-basis-stated/50 text-basis-stated",
+  INFERRED: "border-basis-inferred/50 text-basis-inferred",
+  LOOKED_UP: "border-basis-found/50 text-basis-found",
+  ASSUMED: "border-basis-assumed/50 text-basis-assumed",
 };
 
 export function ProvenanceBadge({ p }: { p: Provenance }) {
-  const d = PROV[p];
+  const t = useT();
   return (
     <span
-      title={d.full}
+      title={t(`prov.${p}.full` as "prov.MEASURED.full")}
       className={cx(
         "inline-flex shrink-0 items-center rounded border px-1 py-px text-[10px] font-semibold uppercase tracking-wide",
-        d.cls,
+        PROV[p],
       )}
     >
-      {d.short}
+      {t(`prov.${p}` as "prov.MEASURED")}
     </span>
   );
 }
@@ -68,11 +54,14 @@ const CONF: Record<Confidence, string> = {
 };
 
 export function ConfidenceDot({ c }: { c: Confidence }) {
+  const t = useT();
+  const label = t("conf.dot", { c: t(`conf.${c}` as "conf.HIGH") });
   return (
     <span
       className="inline-flex shrink-0 items-center"
-      title={`Confidence: ${c.toLowerCase()}`}
-      aria-label={`confidence ${c.toLowerCase()}`}
+      role="img"
+      title={label}
+      aria-label={label}
     >
       <span
         className={cx(
@@ -85,17 +74,6 @@ export function ConfidenceDot({ c }: { c: Confidence }) {
   );
 }
 
-const SRC_TYPE: Record<SourceRef["type"], string> = {
-  MANUFACTURER: "Manufacturer",
-  INSTRUMENTED_TEST: "Instrumented test",
-  PUBLICATION: "Publication",
-  ENCYCLOPEDIA: "Encyclopedia",
-  SPEC_DATABASE: "Spec database",
-};
-
-export function sourceTypeLabel(t: SourceRef["type"]) {
-  return SRC_TYPE[t];
-}
 
 export function SourceItem({
   s,
@@ -104,6 +82,7 @@ export function SourceItem({
   s: SourceRef;
   compact?: boolean;
 }) {
+  const t = useT();
   return (
     <div className="min-w-0">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -118,10 +97,10 @@ export function SourceItem({
       </div>
       <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-muted">
         <span className="rounded bg-panel2 px-1.5 py-px">
-          {sourceTypeLabel(s.type)}
+          {t(`src.${s.type}` as "src.MANUFACTURER")}
         </span>
         <span>{hostOf(s.url)}</span>
-        <span>· retrieved {fmtDate(s.retrieved_at)}</span>
+        <span>{t("sources.retrieved", { date: fmtDate(s.retrieved_at) })}</span>
       </div>
       {s.excerpt && (
         <p
@@ -137,8 +116,10 @@ export function SourceItem({
   );
 }
 
-/** Small "n sources" button with a viewport-clamped popover rendered in a portal. */
-export function SourcesButton({ sources }: { sources: SourceRef[] }) {
+/** Small "n sources" button with a viewport-clamped popover rendered in a portal.
+ *  `what` names the value the sources are for (e.g. "0–100 km/h, Golf GTI") for screen readers. */
+export function SourcesButton({ sources, what }: { sources: SourceRef[]; what?: string }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const btn = useRef<HTMLButtonElement>(null);
   const pop = useRef<HTMLDivElement>(null);
@@ -201,7 +182,12 @@ export function SourcesButton({ sources }: { sources: SourceRef[] }) {
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        title="Show sources"
+        aria-label={
+          what
+            ? t("sources.buttonFor", { what, n: sources.length })
+            : t("sources.button", { n: sources.length })
+        }
+        title={t("sources.show")}
         className={cx(
           "inline-flex shrink-0 items-center gap-0.5 rounded px-1 py-px text-[10px] font-semibold text-muted transition hover:bg-panel2 hover:text-accent2",
           open && "bg-panel2 text-accent2",
@@ -223,7 +209,7 @@ export function SourcesButton({ sources }: { sources: SourceRef[] }) {
             className="card fixed z-50 max-h-[60vh] animate-fadeUp overflow-y-auto p-3 text-sm scroll-thin"
           >
             <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-muted">
-              {sources.length === 1 ? "Source" : `${sources.length} sources`}
+              {sources.length === 1 ? t("sources.one") : t("sources.many", { n: sources.length })}
             </div>
             <div className="space-y-3">
               {sources.map((s, i) => (

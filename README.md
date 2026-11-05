@@ -351,7 +351,11 @@ scripts/deploy.sh backup       # pg_dump → backups/automind-<time>.sql.gz  (re
 scripts/deploy.sh down         # stop, data kept
 ```
 
-Keys come from `.env` at run time and are never baked into the image. The container runs migrations before
+Keys come from `.env` at run time and are never baked into the image. `deploy.sh` checks only the keys the
+configured providers need (Gemini: `GOOGLE_API_KEY` or `GEMINI_API_KEY`; the search provider's key;
+`OPENAI_API_KEY`/`ANTHROPIC_API_KEY` only if `models.yaml` or a `MODEL_<ROLE>` override uses them) and names any
+that are missing. `POSTGRES_PASSWORD`, `ADMIN_TOKEN` and `METRICS_TOKEN` are generated into `.env.docker` when
+absent; existing values are kept. The container runs migrations before
 uvicorn, runs as a non-root user and exposes `/api/v1/health`. It binds to 127.0.0.1 by default
 (`AUTOMIND_BIND`, `AUTOMIND_PORT`); put a reverse proxy with TLS in front before exposing it.
 

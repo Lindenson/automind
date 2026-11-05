@@ -21,7 +21,7 @@ from pydantic import BaseModel
 from automind.application.usage import BudgetExceeded, Limits, Prices, TurnBudget, current_budget
 from automind.config import settings
 from automind.infrastructure import config as cfg
-from automind.infrastructure.usage_callback import UsageCallbackHandler
+from automind.infrastructure.usage_callback import UsageCallbackHandler, current_prompt, prompt_identity
 
 log = logging.getLogger(__name__)
 
@@ -135,7 +135,7 @@ def _build(role: str, name: str) -> BaseChatModel:
     if name.startswith("google_genai:") and s.google_api_key:
         kwargs["google_api_key"] = s.google_api_key
     kwargs.update(cfg.model_options(name))
-    kwargs["callbacks"] = [UsageCallbackHandler(role, name, prices())]
+    kwargs["callbacks"] = [UsageCallbackHandler(role, name, prices(), primary=model_name(role))]
     return init_chat_model(name, **kwargs)
 
 
@@ -193,7 +193,11 @@ async def structured(role: str, schema: type[T], system: str, user: str) -> T:
             [("system", system), ("user", user)]
         )
 
-    out = await _with_fallbacks(role, call)
+    token = current_prompt.set(prompt_identity(role, system))
+    try:
+        out = await _with_fallbacks(role, call)
+    finally:
+        current_prompt.reset(token)
     if out.get("parsing_error") or out.get("parsed") is None:
         raise ValueError(f"{role}: structured output failed: {out.get('parsing_error')}")
     parsed: T = out["parsed"]
@@ -204,6 +208,10 @@ async def text(role: str, system: str, user: str) -> str:
     async def call(model: BaseChatModel) -> Any:
         return await model.ainvoke([("system", system), ("user", user)])
 
-    msg = await _with_fallbacks(role, call)
+    token = current_prompt.set(prompt_identity(role, system))
+    try:
+        msg = await _with_fallbacks(role, call)
+    finally:
+        current_prompt.reset(token)
     content = msg.text if isinstance(getattr(msg, "text", None), str) else str(msg.content)
     return str(content)

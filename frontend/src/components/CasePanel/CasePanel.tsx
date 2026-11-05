@@ -5,19 +5,16 @@ import { useLang, useT } from "../../i18n";
  * Every edit is sent as PATCH. After a report it recomputes the report at once (a rescore); while a turn runs
  * the edit is queued on the server and applied when the turn ends.
  */
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useState, type ReactNode } from "react";
+import type { Key } from "../../i18n/en";
 import type { CaseFile } from "../../lib/protocol";
-import { cx, yearsLabel } from "../../lib/util";
+import { cx, useEscape, yearsLabel } from "../../lib/util";
+import { BASIS_CLS } from "../badges";
 import { patchCase, useCasePanel, type CasePatch } from "../../store/case";
 import { useChat } from "../../store/chat";
 import { Weights } from "./Weights";
 
-const PERSONAS: { v: CaseFile["persona"]; label: string }[] = [
-  { v: "UNKNOWN", label: "Not sure yet" },
-  { v: "BUYER", label: "Everyday / family buyer" },
-  { v: "PERFORMANCE", label: "Performance enthusiast" },
-  { v: "EXPERT", label: "Engineer / expert" },
-];
+const PERSONAS: CaseFile["persona"][] = ["UNKNOWN", "BUYER", "PERFORMANCE", "EXPERT"];
 const USAGE = [
   "CITY",
   "MOTORWAY",
@@ -27,20 +24,29 @@ const USAGE = [
   "FAMILY",
 ] as const;
 const DEPTHS = ["QUICK", "STANDARD", "DEEP"] as const;
-const RESOLUTION: Record<string, { label: string; cls: string }> = {
-  UNRESOLVED: { label: "to identify", cls: "text-muted border-line" },
-  PROPOSED: { label: "to confirm", cls: "text-warn border-warn/40" },
-  CONFIRMED: { label: "confirmed", cls: "text-good border-good/40" },
-  AUTO_OK: { label: "identified", cls: "text-good border-good/40" },
-  UNKNOWN_MODEL: { label: "unknown model", cls: "text-warn border-warn/40" },
+const RESOLUTION: Record<string, { label: Key; cls: string }> = {
+  UNRESOLVED: { label: "case.res.UNRESOLVED", cls: "text-muted border-line" },
+  PROPOSED: { label: "case.res.PROPOSED", cls: "text-warn border-warn/40" },
+  CONFIRMED: { label: "case.res.CONFIRMED", cls: "text-good border-good/40" },
+  AUTO_OK: { label: "case.res.AUTO_OK", cls: "text-good border-good/40" },
+  UNKNOWN_MODEL: { label: "case.res.UNKNOWN_MODEL", cls: "text-warn border-warn/40" },
 };
 const nice = (s: string) =>
   s.charAt(0) + s.slice(1).toLowerCase().replace(/_/g, " ");
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({
+  title,
+  id,
+  children,
+}: {
+  title: string;
+  /** id of the heading, so a control can be labelled by it (`aria-labelledby`) */
+  id?: string;
+  children: ReactNode;
+}) {
   return (
     <section className="space-y-1.5">
-      <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+      <h3 id={id} className="text-[11px] font-semibold uppercase tracking-wide text-muted">
         {title}
       </h3>
       {children}
@@ -94,6 +100,7 @@ export function CaseBody() {
   const rescore = useChat((s) => s.rescore);
   const [error, setError] = useState<string | null>(null);
   const t = useT();
+  const personaId = useId();
   const c = cf?.data;
 
   const save = async (p: CasePatch) => {
@@ -102,9 +109,7 @@ export function CaseBody() {
 
   if (!c)
     return (
-      <p className="text-sm text-muted">
-        Tell me what you are looking for — I will keep track of it here.
-      </p>
+      <p className="text-sm text-muted">{t("case.empty")}</p>
     );
   const rates = c.rates_override as Record<string, number | null | undefined>;
   return (
@@ -127,8 +132,9 @@ export function CaseBody() {
           {error}
         </p>
       )}
-      <Section title="Who you are">
+      <Section title={t("case.who")} id={personaId}>
         <select
+          aria-labelledby={personaId}
           className="w-full rounded border border-line/70 bg-panel2 px-2 py-1.5 text-sm"
           value={c.persona}
           onChange={(e) =>
@@ -136,8 +142,8 @@ export function CaseBody() {
           }
         >
           {PERSONAS.map((p) => (
-            <option key={p.v} value={p.v}>
-              {p.label}
+            <option key={p} value={p}>
+              {t(`persona.${p}` as "persona.BUYER")}
             </option>
           ))}
         </select>
@@ -183,7 +189,7 @@ export function CaseBody() {
                       r.cls,
                     )}
                   >
-                    {r.label}
+                    {t(r.label)}
                   </span>
                 </div>
                 <div className="text-xs text-muted">
@@ -199,9 +205,9 @@ export function CaseBody() {
         </ul>
       </Section>
 
-      <Section title="What matters">
+      <Section title={t("case.matters")}>
         {c.priorities.length === 0 && (
-          <p className="text-sm text-muted">No priorities stated.</p>
+          <p className="text-sm text-muted">{t("case.noPriorities")}</p>
         )}
         <div className="flex flex-wrap gap-1.5">
           {c.priorities.map((p) => (
@@ -213,7 +219,7 @@ export function CaseBody() {
               <span className="text-muted">{p.strength.toLowerCase()}</span>
               <button
                 type="button"
-                aria-label={`remove ${p.criterion}`}
+                aria-label={t("case.removePriority", { p: p.criterion })}
                 className="text-muted hover:text-bad"
                 onClick={() => void save({ remove_priority: p.criterion })}
               >
@@ -224,16 +230,16 @@ export function CaseBody() {
         </div>
         {c.unmapped_wishes.length > 0 && (
           <p className="text-xs text-muted">
-            Not assessable with data: {c.unmapped_wishes.join(", ")}
+            {t("case.unmapped", { list: c.unmapped_wishes.join(", ") })}
           </p>
         )}
       </Section>
 
-      <Section title="Weights">
+      <Section title={t("case.weights")}>
         <Weights onError={setError} />
       </Section>
 
-      <Section title="Usage">
+      <Section title={t("case.usage")}>
         <div className="flex flex-wrap gap-1.5">
           {USAGE.map((u) => {
             const on = c.usage.includes(u);
@@ -256,22 +262,22 @@ export function CaseBody() {
                     : "border-line/70 text-muted hover:text-fg",
                 )}
               >
-                {nice(u)}
+                {t(`case.usage.${u}` as "case.usage.CITY")}
               </button>
             );
           })}
         </div>
       </Section>
 
-      <Section title="Money and driving">
+      <Section title={t("case.money")}>
         <NumberField
-          label="Budget"
+          label={t("case.budget")}
           unit="€"
           value={c.budget.max_eur}
           onCommit={(v) => void save({ budget: { max_eur: v } })}
         />
         <label className="flex items-center justify-between gap-2 text-sm">
-          <span className="text-fg/80">Budget for</span>
+          <span className="text-fg/80">{t("case.budgetFor")}</span>
           <select
             className="rounded border border-line/70 bg-panel2 px-2 py-1 text-sm"
             value={c.budget.intent ?? "UNKNOWN"}
@@ -283,14 +289,15 @@ export function CaseBody() {
               })
             }
           >
-            <option value="UNKNOWN">not said</option>
-            <option value="NEW">a new car</option>
-            <option value="USED">a used car</option>
-            <option value="ANY">new or used</option>
+            {(["UNKNOWN", "NEW", "USED", "ANY"] as const).map((v) => (
+              <option key={v} value={v}>
+                {t(`case.intent.${v}`)}
+              </option>
+            ))}
           </select>
         </label>
         <NumberField
-          label="Running cost limit"
+          label={t("case.runningLimit")}
           unit="€/month"
           value={
             c.running_cost_limit
@@ -310,13 +317,13 @@ export function CaseBody() {
           }
         />
         <NumberField
-          label="People"
+          label={t("case.people")}
           unit=""
           value={c.needs.passengers}
           onCommit={(v) => void save({ needs: { passengers: v } })}
         />
         <label className="flex items-center justify-between gap-2 text-sm">
-          <span className="text-fg/80">Luggage</span>
+          <span className="text-fg/80">{t("case.luggage")}</span>
           <select
             className="rounded border border-line/70 bg-panel2 px-2 py-1 text-sm"
             value={c.needs.luggage ?? "MEDIUM"}
@@ -326,32 +333,34 @@ export function CaseBody() {
               })
             }
           >
-            <option value="LOW">little</option>
-            <option value="MEDIUM">normal</option>
-            <option value="HIGH">a lot</option>
+            {(["LOW", "MEDIUM", "HIGH"] as const).map((v) => (
+              <option key={v} value={v}>
+                {t(`case.luggage.${v}`)}
+              </option>
+            ))}
           </select>
         </label>
         <NumberField
-          label="Towing"
+          label={t("case.towing")}
           unit="kg"
           value={c.needs.towing_kg}
           onCommit={(v) => void save({ needs: { towing_kg: v } })}
         />
         <NumberField
-          label="Per year"
+          label={t("case.perYear")}
           unit="km"
           value={c.annual_km}
           onCommit={(v) => v && void save({ annual_km: v })}
         />
         <NumberField
-          label="Petrol"
+          label={t("case.petrol")}
           unit="€/l"
           step={0.01}
           value={rates.fuel_eur_per_l}
           onCommit={(v) => void save({ rates_override: { fuel_eur_per_l: v } })}
         />
         <NumberField
-          label="Diesel"
+          label={t("case.diesel")}
           unit="€/l"
           step={0.01}
           value={rates.diesel_eur_per_l}
@@ -360,7 +369,7 @@ export function CaseBody() {
           }
         />
         <NumberField
-          label="Electricity"
+          label={t("case.electricity")}
           unit="€/kWh"
           step={0.01}
           value={rates.electricity_eur_per_kwh}
@@ -369,7 +378,7 @@ export function CaseBody() {
           }
         />
         <NumberField
-          label="Workshop"
+          label={t("case.workshop")}
           unit="€/h"
           value={rates.labour_eur_per_h}
           onCommit={(v) =>
@@ -377,11 +386,11 @@ export function CaseBody() {
           }
         />
         <p className="text-[11px] text-muted">
-          Empty = default rate (shown as an assumption in costs).
+          {t("case.defaultRate")}
         </p>
       </Section>
 
-      <Section title="Research depth">
+      <Section title={t("case.depth")}>
         <div className="grid grid-cols-3 overflow-hidden rounded border border-line/70 text-xs">
           {DEPTHS.map((d) => (
             <button
@@ -396,14 +405,14 @@ export function CaseBody() {
                   : "text-muted hover:text-fg",
               )}
             >
-              {nice(d)}
+              {t(`case.depth.${d}`)}
             </button>
           ))}
         </div>
       </Section>
 
       {cf.changes.length > 0 && (
-        <Section title="Last changes">
+        <Section title={t("case.lastChanges")}>
           <ul className="list-inside list-disc text-xs text-muted">
             {cf.changes.slice(-4).map((ch) => (
               <li key={ch}>{ch}</li>
@@ -417,14 +426,15 @@ export function CaseBody() {
 
 /** Desktop sidebar (≥768 px). */
 export function CaseSidebar() {
+  const t = useT();
   const open = useCasePanel((s) => s.open);
   if (!open) return null;
   return (
     <aside
       className="scroll-thin hidden w-80 shrink-0 overflow-y-auto border-l border-line/60 bg-panel/40 p-4 md:block"
-      aria-label="Case file"
+      aria-label={t("case.aria")}
     >
-      <h2 className="mb-3 font-display text-sm font-bold">Your case</h2>
+      <h2 className="mb-3 font-display text-sm font-bold">{t("case.title")}</h2>
       <CaseBody />
     </aside>
   );
@@ -432,30 +442,34 @@ export function CaseSidebar() {
 
 /** Phone bottom sheet (<768 px). */
 export function CaseSheet() {
+  const t = useT();
   const { open, setOpen } = useCasePanel();
+  const close = useCallback(() => setOpen(false), [setOpen]);
+  // the sheet only shows below 768 px; Escape closes the panel at any width (audit F14)
+  useEscape(open, close);
   if (!open) return null;
   return (
     <div
       className="fixed inset-0 z-40 md:hidden"
       role="dialog"
       aria-modal="true"
-      aria-label="Case file"
+      aria-label={t("case.aria")}
     >
       <button
         type="button"
-        aria-label="Close"
+        aria-label={t("case.close")}
         className="absolute inset-0 bg-black/40"
         onClick={() => setOpen(false)}
       />
       <div className="scroll-thin absolute inset-x-0 bottom-0 max-h-[80vh] overflow-y-auto rounded-t-2xl border-t border-line/60 bg-bg p-4">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="font-display text-sm font-bold">Your case</h2>
+          <h2 className="font-display text-sm font-bold">{t("case.title")}</h2>
           <button
             type="button"
             className="text-sm text-muted"
             onClick={() => setOpen(false)}
           >
-            Close
+            {t("case.close")}
           </button>
         </div>
         <CaseBody />
@@ -470,11 +484,6 @@ const PROFILE_OPTIONS = {
   home_charging: ["YES", "WORK", "NO"],
 } as const;
 const YEARS = [2, 3, 4, 5, 6, 8, 10, 12, 15];
-const BASIS_CLS: Record<string, string> = {
-  STATED: "border-emerald-500/50 text-emerald-300",
-  INFERRED: "border-sky-500/50 text-sky-300",
-  ASSUMED: "border-amber-500/50 text-amber-300",
-};
 
 function Basis({ b }: { b?: string }) {
   const t = useT();

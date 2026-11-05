@@ -21,6 +21,7 @@ from typing import Any
 from langgraph.graph import END, START, StateGraph
 
 from automind.orchestration.nodes import confirm, feasibility, identify, report, research, understand
+from automind.orchestration.outcomes import traced
 from automind.orchestration.retry import LLM_RETRY
 from automind.orchestration.runner import TurnContext
 from automind.orchestration.state import TurnState
@@ -30,6 +31,12 @@ MCP_TOOLS: list[Any] = []  # set by the API lifespan (persistent MCP stdio sessi
 
 def build_graph(checkpointer: Any = None, tools: list[Any] | None = None) -> Any:
     g = StateGraph(TurnState, context_schema=TurnContext)
+    _add = g.add_node
+
+    def add_node(name: str, fn: Any, **kw: Any) -> Any:  # spec 010: record the path of each turn
+        return _add(name, traced(name, fn), **kw)
+
+    g.add_node = add_node  # type: ignore[method-assign]
     g.add_node("load_case", understand.load_case_node)
     g.add_node("interpret", understand.interpret_node, retry_policy=LLM_RETRY)
     g.add_node("apply_delta", understand.apply_delta_node)

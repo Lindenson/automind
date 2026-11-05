@@ -5,21 +5,48 @@ import {
   type FormEvent,
   type KeyboardEvent,
 } from "react";
+import { useT } from "../i18n";
 import { SendIcon } from "./icons";
+
+/** The composer text after a send attempt: cleared only when the message went out (audit F8). */
+export function textAfterSend(text: string, sent: boolean): string {
+  return sent ? "" : text;
+}
+
+const NARROW = "(max-width: 639px)";
+
+/** Below Tailwind's `sm`: the long placeholder does not fit one row there (audit F13). */
+function useNarrow(): boolean {
+  const get = () => typeof window !== "undefined" && !!window.matchMedia && window.matchMedia(NARROW).matches;
+  const [narrow, setNarrow] = useState(get);
+  useEffect(() => {
+    if (!window.matchMedia) return;
+    const m = window.matchMedia(NARROW);
+    const on = () => setNarrow(m.matches);
+    m.addEventListener("change", on);
+    return () => m.removeEventListener("change", on);
+  }, []);
+  return narrow;
+}
 
 export function Composer({
   onSend,
   disabled,
   busy,
   placeholder,
+  shortPlaceholder,
 }: {
-  onSend: (t: string) => void;
+  /** returns false when the message could not be sent: the text stays in the box */
+  onSend: (t: string) => boolean;
   disabled: boolean;
   busy: boolean;
   placeholder: string;
+  shortPlaceholder?: string;
 }) {
+  const t = useT();
   const [text, setText] = useState("");
   const ref = useRef<HTMLTextAreaElement>(null);
+  const narrow = useNarrow();
 
   useEffect(() => {
     const el = ref.current;
@@ -35,8 +62,7 @@ export function Composer({
   const submit = (e?: FormEvent) => {
     e?.preventDefault();
     if (disabled || !text.trim()) return;
-    onSend(text);
-    setText("");
+    setText(textAfterSend(text, onSend(text)));
   };
 
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -59,14 +85,14 @@ export function Composer({
           onChange={(e) => setText(e.target.value)}
           onKeyDown={onKey}
           disabled={disabled}
-          placeholder={placeholder}
-          aria-label="Message AutoMind"
+          placeholder={narrow && shortPlaceholder ? shortPlaceholder : placeholder}
+          aria-label={t("composer.aria")}
           className="max-h-[180px] min-h-[24px] flex-1 resize-none bg-transparent py-2 text-[15px] text-fg placeholder:text-muted/70 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
         />
         <button
           type="submit"
           disabled={disabled || !text.trim()}
-          aria-label="Send"
+          aria-label={t("composer.send")}
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent text-white transition hover:bg-orange-500 disabled:cursor-not-allowed disabled:bg-panel2 disabled:text-muted"
         >
           {busy ? (
@@ -76,9 +102,8 @@ export function Composer({
           )}
         </button>
       </div>
-      <p className="mt-1.5 hidden text-center text-[10px] text-muted/70 sm:block">
-        Enter to send · Shift+Enter for a new line · Simulated and assumed
-        values are labelled
+      <p className="mt-1.5 hidden text-center text-[10px] text-muted sm:block">
+        {t("composer.hint")}
       </p>
     </form>
   );

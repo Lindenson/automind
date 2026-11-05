@@ -9,7 +9,9 @@ import {
   type ProgressMsg,
 } from "../lib/protocol";
 import type { ConnState, Transport } from "../lib/transport";
+import type { Key } from "../i18n/en";
 import { asLang, storeLang, storedLang, type Lang } from "../i18n/lang";
+import { translate, uiLang } from "../i18n/translate";
 import { loadChatId, saveChatId, uuid } from "../lib/util";
 
 export type ErrorEntry = {
@@ -27,6 +29,8 @@ export interface PendingTurn {
   startedAt: number;
   statuses: TimedStatus[];
   grid?: Record<string, ProgressMsg>; // "car_key|area" -> latest state (spec 004 FR-023)
+  /** what the user sent: a question (default), an answer to a confirmation, or an edit of the intake card */
+  kind?: "question" | "answer" | "edit";
 }
 
 export interface CaseState {
@@ -56,7 +60,8 @@ interface ChatState {
   setHistory: (msgs: ChatMessage[]) => void;
   setHistoryLoading: (v: boolean) => void;
   handleRaw: (raw: unknown) => void;
-  send: (text: string) => void;
+  /** true when the message went out; false keeps it in the composer (not connected, busy, empty) */
+  send: (text: string) => boolean;
   manualLang: Lang | null; // the user's choice in the header (kept in this browser)
   convoLang: Lang | null; // the conversation's language, from the latest reply
   setLang: (lang: Lang | null) => void;
@@ -73,283 +78,333 @@ interface ChatState {
 
 const now = () => new Date().toISOString();
 
-export const useChat = create<ChatState>((set, get) => ({
-  chatId: loadChatId(),
-  conn: "connecting",
-  messages: [],
-  manualLang: storedLang(),
-  convoLang: null,
-  pending: null,
-  turnId: null,
-  confirm: null,
-  caseFile: null,
-  rescore: "idle",
-  setRescore: (rescore) => set({ rescore }),
-  usageByTurn: {},
-  historyLoading: false,
-  transport: null,
+export const useChat = create<ChatState>((set, get) => {
+  /** An interface string in the interface language (outside React). */
+  const tr = (key: Key, vars?: Record<string, string | number>) =>
+    translate(uiLang(get().manualLang, get().convoLang), key, vars);
+  return {
+    chatId: loadChatId(),
+    conn: "connecting",
+    messages: [],
+    manualLang: storedLang(),
+    convoLang: null,
+    pending: null,
+    turnId: null,
+    confirm: null,
+    caseFile: null,
+    rescore: "idle",
+    setRescore: (rescore) => set({ rescore }),
+    usageByTurn: {},
+    historyLoading: false,
+    transport: null,
 
-  setTransport: (transport) => set({ transport }),
+    setTransport: (transport) => set({ transport }),
 
-  // Protocol v2 replays missed events after a reconnect, so a turn in flight is not lost.
-  setConn: (conn) => set({ conn }),
+    // Protocol v2 replays missed events after a reconnect, so a turn in flight is not lost.
+    setConn: (conn) => set({ conn }),
 
-  setCase: (caseFile) => set({ caseFile }),
+    setCase: (caseFile) => set({ caseFile }),
 
-  setHistory: (msgs) =>
-    set((s) => {
-      // Only apply history if the user hasn't started chatting meanwhile.
-      if (s.messages.length > 0) return {};
-      return { messages: msgs };
-    }),
+    setHistory: (msgs) =>
+      set((s) => {
+        // Only apply history if the user hasn't started chatting meanwhile.
+        if (s.messages.length > 0) return {};
+        return { messages: msgs };
+      }),
 
-  setHistoryLoading: (historyLoading) => set({ historyLoading }),
+    setHistoryLoading: (historyLoading) => set({ historyLoading }),
 
-  handleRaw: (raw) => {
-    const msg = parseServerMsg(raw);
-    if (!msg) return;
-    switch (msg.type) {
-      case "progress":
-        set((s) => {
-          const pending = s.pending ?? {
-            userMessageId: "",
-            startedAt: Date.now(),
-            statuses: [],
-          };
-          const grid = {
-            ...(pending.grid ?? {}),
-            [`${msg.car_key}|${msg.area}`]: msg,
-          };
-          return {
-            pending: { ...pending, grid },
-            turnId: msg.turn_id ?? s.turnId,
-          };
-        });
-        break;
-      case "status":
-        set((s) => {
-          const entry = { ...msg, at: Date.now() };
-          // after a reload the turn is still running server-side: rebuild the progress view
-          const pending = s.pending ?? {
-            userMessageId: "",
-            startedAt: Date.now(),
-            statuses: [],
-          };
-          return {
-            pending: { ...pending, statuses: [...pending.statuses, entry] },
-            turnId: msg.turn_id ?? s.turnId,
-          };
-        });
-        break;
-      case "case_file":
-        set((s) =>
-          s.caseFile && s.caseFile.version > msg.version
-            ? {}
-            : {
-                caseFile: {
-                  version: msg.version,
-                  data: msg.case,
-                  changes: msg.changes,
+    handleRaw: (raw) => {
+      const msg = parseServerMsg(raw);
+      if (!msg) return;
+      switch (msg.type) {
+        case "progress":
+          set((s) => {
+            const pending = s.pending ?? {
+              userMessageId: "",
+              startedAt: Date.now(),
+              statuses: [],
+            };
+            const grid = {
+              ...(pending.grid ?? {}),
+              [`${msg.car_key}|${msg.area}`]: msg,
+            };
+            return {
+              pending: { ...pending, grid },
+              turnId: msg.turn_id ?? s.turnId,
+            };
+          });
+          break;
+        case "status":
+          set((s) => {
+            const entry = { ...msg, at: Date.now() };
+            // after a reload the turn is still running server-side: rebuild the progress view
+            const pending = s.pending ?? {
+              userMessageId: "",
+              startedAt: Date.now(),
+              statuses: [],
+            };
+            return {
+              pending: { ...pending, statuses: [...pending.statuses, entry] },
+              turnId: msg.turn_id ?? s.turnId,
+            };
+          });
+          break;
+        case "case_file":
+          set((s) =>
+            s.caseFile && s.caseFile.version > msg.version
+              ? {}
+              : {
+                  caseFile: {
+                    version: msg.version,
+                    data: msg.case,
+                    changes: msg.changes,
+                  },
                 },
-              },
-        );
-        break;
-      case "confirm_request":
-        set({ confirm: msg, pending: null, turnId: msg.turn_id ?? null });
-        break;
-      case "usage":
-        if (msg.turn_id) {
-          const turnId = msg.turn_id;
-          set((s) => ({ usageByTurn: { ...s.usageByTurn, [turnId]: msg } }));
-        }
-        break;
-      case "challenge_result": {
-        const what: Record<string, string> = {
-          CONFIRMED: `confirmed by ${msg.sources.join(", ")}`,
-          CORRECTED: `corrected: ${msg.before ?? "—"} → ${msg.after ?? "—"}`,
-          REMOVED: `removed (${msg.rejected.map((r) => `${r.source}: ${r.why}`).join("; ")})`,
-          UNRESOLVED: "only one source — use “Find it” to search again",
-        };
-        set((s) => ({
-          messages: [
-            ...s.messages,
-            {
-              role: "assistant",
-              message_id: uuid(),
-              created_at: now(),
-              text: `Re-checked **${msg.attribute.replace(/_/g, " ")}**: ${what[msg.outcome]}.`,
-              blocks: [],
-            },
-          ],
-        }));
-        break;
-      }
-      case "turn_cancelled":
-        set((s) => ({
-          pending: null,
-          confirm: null,
-          turnId: null,
-          messages: [
-            ...s.messages,
-            {
-              role: "error",
-              message_id: uuid(),
-              created_at: now(),
-              text: "Stopped.",
-            },
-          ],
-        }));
-        break;
-      case "user_message_ack":
-        set((s) => ({
-          messages: s.messages.map((m) =>
-            m.role === "user" && m.message_id === msg.message_id
-              ? { ...m, created_at: msg.created_at }
-              : m,
-          ),
-        }));
-        break;
-      case "rescore_failed":
-        set({ rescore: "failed", pending: null, turnId: null });
-        break;
-      case "assistant_message":
-        set((s) => {
-          if (s.messages.some((m) => m.message_id === msg.message_id))
-            return { pending: null, turnId: null, rescore: "idle" };
-          return {
-            rescore: "idle",
-            pending: null,
-            confirm: null,
-            turnId: null,
-            convoLang: asLang(msg.language) ?? s.convoLang,
+          );
+          break;
+        case "confirm_request":
+          set({ confirm: msg, pending: null, turnId: msg.turn_id ?? null });
+          break;
+        case "usage":
+          if (msg.turn_id) {
+            const turnId = msg.turn_id;
+            set((s) => ({ usageByTurn: { ...s.usageByTurn, [turnId]: msg } }));
+          }
+          break;
+        case "challenge_result": {
+          const what: Record<string, string> = {
+            CONFIRMED: tr("challenge.CONFIRMED", { sources: msg.sources.join(", ") }),
+            CORRECTED: tr("challenge.CORRECTED", { before: msg.before ?? "—", after: msg.after ?? "—" }),
+            REMOVED: tr("challenge.REMOVED", { why: msg.rejected.map((r) => `${r.source}: ${r.why}`).join("; ") }),
+            UNRESOLVED: tr("challenge.UNRESOLVED"),
+          };
+          set((s) => ({
             messages: [
               ...s.messages,
               {
                 role: "assistant",
-                message_id: msg.message_id,
-                turn_id: msg.turn_id,
-                created_at: msg.created_at,
-                text: msg.text,
-                blocks: msg.blocks,
+                message_id: uuid(),
+                created_at: now(),
+                text: tr("challenge.result", { attr: msg.attribute.replace(/_/g, " "), what: what[msg.outcome] ?? "" }),
+                blocks: [],
               },
             ],
-          };
-        });
-        break;
-      case "error":
-        if (msg.code === "chat_deleted") {
-          set({
+          }));
+          break;
+        }
+        case "turn_cancelled":
+          set((s) => ({
             pending: null,
             confirm: null,
+            turnId: null,
             messages: [
+              ...s.messages,
               {
                 role: "error",
                 message_id: uuid(),
                 created_at: now(),
-                text: "This chat was deleted.",
+                text: tr("chat.stopped"),
               },
             ],
+          }));
+          break;
+        case "user_message_ack":
+          set((s) => ({
+            messages: s.messages.map((m) =>
+              m.role === "user" && m.message_id === msg.message_id
+                ? { ...m, created_at: msg.created_at }
+                : m,
+            ),
+          }));
+          break;
+        case "rescore_failed":
+          set({ rescore: "failed", pending: null, turnId: null });
+          break;
+        case "assistant_message":
+          set((s) => {
+            if (s.messages.some((m) => m.message_id === msg.message_id))
+              return { pending: null, turnId: null, rescore: "idle" };
+            return {
+              rescore: "idle",
+              pending: null,
+              confirm: null,
+              turnId: null,
+              convoLang: asLang(msg.language) ?? s.convoLang,
+              messages: [
+                ...s.messages,
+                {
+                  role: "assistant",
+                  message_id: msg.message_id,
+                  turn_id: msg.turn_id,
+                  created_at: msg.created_at,
+                  text: msg.text,
+                  blocks: msg.blocks,
+                },
+              ],
+            };
           });
           break;
-        }
+        case "error":
+          if (msg.code === "chat_deleted") {
+            set({
+              pending: null,
+              confirm: null,
+              messages: [
+                {
+                  role: "error",
+                  message_id: uuid(),
+                  created_at: now(),
+                  text: tr("chat.deleted"),
+                },
+              ],
+            });
+            break;
+          }
+          set((s) => ({
+            pending: null,
+            messages: [
+              ...s.messages,
+              {
+                role: "error",
+                message_id: uuid(),
+                created_at: now(),
+                text: msg.text,
+              },
+            ],
+          }));
+          break;
+      }
+    },
+
+    answerConfirm: (choice, text) => {
+      const { transport, confirm } = get();
+      if (!transport || !confirm) return;
+      if (
+        transport.send({
+          type: "confirm",
+          request_id: confirm.request_id,
+          choice,
+          text: text ?? null,
+        })
+      ) {
+        set({
+          confirm: null,
+          pending: { userMessageId: "", startedAt: Date.now(), statuses: [], kind: "answer" },
+        });
+      }
+    },
+
+    editIntake: (carKey, field, value) => {
+      const { transport, confirm } = get();
+      if (!transport || !confirm) return;
+      if (
+        transport.send({
+          type: "intake_edit",
+          request_id: confirm.request_id,
+          car_key: carKey,
+          field,
+          value,
+        })
+      ) {
+        set({
+          confirm: null,
+          pending: { userMessageId: "", startedAt: Date.now(), statuses: [], kind: "edit" },
+        });
+      }
+    },
+
+    cancel: () => {
+      const { transport, turnId } = get();
+      transport?.send({ type: "cancel", turn_id: turnId });
+    },
+
+    challenge: (carId, attribute) => {
+      get().transport?.send({
+        type: "challenge",
+        car_id: carId,
+        attribute,
+        text: "this is wrong",
+      });
+    },
+
+    setLang: (lang) => {
+      storeLang(lang);
+      set({ manualLang: lang });
+    },
+
+    rate: (messageId, rating, note) => {
+      get().transport?.send({
+        type: "rating",
+        message_id: messageId,
+        rating,
+        note,
+      });
+    },
+
+    find: (focusCars, areas, text) => {
+      const { transport, pending } = get();
+      if (pending || !transport) return;
+      const message_id = uuid();
+      if (
+        transport.send({
+          type: "find",
+          focus_cars: focusCars,
+          areas,
+          text,
+          message_id,
+        })
+      ) {
         set((s) => ({
-          pending: null,
+          messages: [
+            ...s.messages,
+            { role: "user", message_id, created_at: now(), text, blocks: [] },
+          ],
+          pending: {
+            userMessageId: message_id,
+            startedAt: Date.now(),
+            statuses: [],
+          },
+        }));
+      }
+    },
+
+    send: (text) => {
+      const { transport, pending } = get();
+      const trimmed = text.trim();
+      if (!trimmed || pending || !transport) return false;
+      const message_id = uuid();
+      const ok = transport.send({
+        type: "user_message",
+        message_id,
+        text: trimmed,
+      });
+      if (!ok) {
+        set((s) => ({
           messages: [
             ...s.messages,
             {
               role: "error",
               message_id: uuid(),
               created_at: now(),
-              text: msg.text,
+              text: tr("chat.notConnected"),
             },
           ],
         }));
-        break;
-    }
-  },
-
-  answerConfirm: (choice, text) => {
-    const { transport, confirm } = get();
-    if (!transport || !confirm) return;
-    if (
-      transport.send({
-        type: "confirm",
-        request_id: confirm.request_id,
-        choice,
-        text: text ?? null,
-      })
-    ) {
-      set({
-        confirm: null,
-        pending: { userMessageId: "", startedAt: Date.now(), statuses: [] },
-      });
-    }
-  },
-
-  editIntake: (carKey, field, value) => {
-    const { transport, confirm } = get();
-    if (!transport || !confirm) return;
-    if (
-      transport.send({
-        type: "intake_edit",
-        request_id: confirm.request_id,
-        car_key: carKey,
-        field,
-        value,
-      })
-    ) {
-      set({
-        confirm: null,
-        pending: { userMessageId: "", startedAt: Date.now(), statuses: [] },
-      });
-    }
-  },
-
-  cancel: () => {
-    const { transport, turnId } = get();
-    transport?.send({ type: "cancel", turn_id: turnId });
-  },
-
-  challenge: (carId, attribute) => {
-    get().transport?.send({
-      type: "challenge",
-      car_id: carId,
-      attribute,
-      text: "this is wrong",
-    });
-  },
-
-  setLang: (lang) => {
-    storeLang(lang);
-    set({ manualLang: lang });
-  },
-
-  rate: (messageId, rating, note) => {
-    get().transport?.send({
-      type: "rating",
-      message_id: messageId,
-      rating,
-      note,
-    });
-  },
-
-  find: (focusCars, areas, text) => {
-    const { transport, pending } = get();
-    if (pending || !transport) return;
-    const message_id = uuid();
-    if (
-      transport.send({
-        type: "find",
-        focus_cars: focusCars,
-        areas,
-        text,
-        message_id,
-      })
-    ) {
+        return false;
+      }
+      // a free-text reply while a confirmation is pending resumes that turn (the server interprets it)
       set((s) => ({
+        confirm: null,
         messages: [
           ...s.messages,
-          { role: "user", message_id, created_at: now(), text, blocks: [] },
+          {
+            role: "user",
+            message_id,
+            created_at: now(),
+            text: trimmed,
+            blocks: [],
+          },
         ],
         pending: {
           userMessageId: message_id,
@@ -357,78 +412,34 @@ export const useChat = create<ChatState>((set, get) => ({
           statuses: [],
         },
       }));
-    }
-  },
+      return true;
+    },
 
-  send: (text) => {
-    const { transport, pending } = get();
-    const trimmed = text.trim();
-    if (!trimmed || pending || !transport) return;
-    const message_id = uuid();
-    const ok = transport.send({
-      type: "user_message",
-      message_id,
-      text: trimmed,
-    });
-    if (!ok) {
-      set((s) => ({
-        messages: [
-          ...s.messages,
-          {
-            role: "error",
-            message_id: uuid(),
-            created_at: now(),
-            text: "Not connected to the AutoMind server. Retrying…",
-          },
-        ],
-      }));
-      return;
-    }
-    // a free-text reply while a confirmation is pending resumes that turn (the server interprets it)
-    set((s) => ({
-      confirm: null,
-      messages: [
-        ...s.messages,
-        {
-          role: "user",
-          message_id,
-          created_at: now(),
-          text: trimmed,
-          blocks: [],
-        },
-      ],
-      pending: {
-        userMessageId: message_id,
-        startedAt: Date.now(),
-        statuses: [],
-      },
-    }));
-  },
+    openChat: (id) => {
+      if (id === get().chatId) return;
+      const chatId = saveChatId(id);
+      set({
+        chatId,
+        messages: [],
+        pending: null,
+        turnId: null,
+        confirm: null,
+        caseFile: null,
+        usageByTurn: {},
+      });
+    },
 
-  openChat: (id) => {
-    if (id === get().chatId) return;
-    const chatId = saveChatId(id);
-    set({
-      chatId,
-      messages: [],
-      pending: null,
-      turnId: null,
-      confirm: null,
-      caseFile: null,
-      usageByTurn: {},
-    });
-  },
-
-  newChat: () => {
-    const chatId = saveChatId(uuid());
-    set({
-      chatId,
-      messages: [],
-      pending: null,
-      turnId: null,
-      confirm: null,
-      caseFile: null,
-      usageByTurn: {},
-    });
-  },
-}));
+    newChat: () => {
+      const chatId = saveChatId(uuid());
+      set({
+        chatId,
+        messages: [],
+        pending: null,
+        turnId: null,
+        confirm: null,
+        caseFile: null,
+        usageByTurn: {},
+      });
+    },
+  };
+});

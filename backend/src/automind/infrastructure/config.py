@@ -208,6 +208,9 @@ def reference(prompts: dict[str, str]) -> Reference:
         regions=dict(load_yaml("regions.yaml").get("regions") or {}),
         profile_defaults=load_yaml("profile_defaults.yaml"),
         gearboxes=gearboxes(),
+        outcome=load_yaml("outcome.yaml"),
+        insight=load_yaml("insight.yaml"),
+        registry=load_yaml("registry.yaml"),
     )
 
 

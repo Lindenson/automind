@@ -1,0 +1,36 @@
+# Spec 010 US6-US8: the autonomous source registry. The system reads this file and never writes it (constitution XII).
+version: 1
+autonomy: false            # false: the registry reproduces today's order (favourites, then learned); see T078
+half_life_days: 90         # truth signals and counts fade with this half-life
+weights:                   # weight of a truth signal
+  gold: 1.0
+  challenge: 1.0
+  bad_source: 1.0
+  replacement: 0.7
+  agreement: 0.3
+priors:                    # pseudo-counts (right, wrong) added to accuracy by source type
+  MANUFACTURER: [4.0, 0.5]
+  SPEC_DB: [3.0, 1.0]
+  INSTRUMENTED_TEST: [3.0, 1.0]
+  VALUER: [3.0, 1.0]
+  PUBLICATION: [2.0, 1.0]
+  ENCYCLOPEDIA: [2.0, 1.0]
+  FORUM: [1.0, 1.0]
+  OTHER: [1.0, 1.0]
+wilson_z: 1.96
+cost_lambda: 2.0           # score -= cost_lambda × € per attempt
+lifecycle:
+  promote: {min_attempts: 8, min_acc_lb: 0.60, min_yield: 0.20}
+  degrade: {min_attempts: 10, max_acc_lb: 0.45, max_yield: 0.05, zero_in_last: 10}
+  recover: {min_acc_lb: 0.55, min_yield: 0.15}
+  retire_after_days: 21
+  retired_retry_days: 30
+candidate_slots: 1         # candidates tried per research job (exploration)
+recheck_days: {active: 90, blocked: 180}
+discovery:
+  eur_per_day: 0.20
+  per_gap_per_day: 3
+  min_active_per_area_market: 2
+  gap_window_days: 7
+families:                  # mirror sites counted as one family for agreement
+  autodata: [auto-data.net, ultimatespecs.com]

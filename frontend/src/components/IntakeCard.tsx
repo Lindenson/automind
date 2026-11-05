@@ -1,17 +1,13 @@
 import { useT } from "../i18n";
 import type { CardItem, ConfirmRequest, IntakeCard as Card } from "../lib/protocol";
+import { cx } from "../lib/util";
 import { useChat } from "../store/chat";
+import { BASIS_CLS } from "./badges";
 
 /**
  * The intake confirmation card (spec 005 FR-019–FR-021): the cars as resolved, the person, the research cost.
  * Every item shows its basis; option chips edit it (applied by code); one "yes" starts the research.
  */
-const BASIS_CLS: Record<CardItem["basis"], string> = {
-  STATED: "border-emerald-500/50 text-emerald-300",
-  INFERRED: "border-sky-500/50 text-sky-300",
-  LOOKED_UP: "border-accent/50 text-accent",
-  ASSUMED: "border-amber-500/50 text-amber-300",
-};
 
 function Row({ it, carKey }: { it: CardItem; carKey: string | null }) {
   const t = useT();
@@ -44,16 +40,27 @@ function Row({ it, carKey }: { it: CardItem; carKey: string | null }) {
       </div>
       {it.options && it.options.length > 0 && (
         <div className="mt-1 flex flex-wrap gap-1.5">
-          {it.options.map((o) => (
-            <button
-              key={o}
-              type="button"
-              onClick={() => edit(carKey, it.field, o)}
-              className="min-h-9 rounded-full border border-line/70 px-3 py-1 text-xs hover:border-accent/60"
-            >
-              {o}
-            </button>
-          ))}
+          {it.options.map((o) => {
+            // the current value is marked (audit F10); tapping it again changes nothing
+            const selected = o === it.value;
+            return (
+              <button
+                key={o}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => !selected && edit(carKey, it.field, o)}
+                className={cx(
+                  "min-h-9 rounded-full border px-3 py-1 text-xs",
+                  selected
+                    ? "border-accent bg-accent/15 font-semibold text-fg"
+                    : "border-line/70 hover:border-accent/60",
+                )}
+              >
+                {selected && <span aria-hidden>✓ </span>}
+                {o}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>

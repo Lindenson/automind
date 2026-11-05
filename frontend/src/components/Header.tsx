@@ -1,16 +1,17 @@
 import { useChat } from "../store/chat";
-import { LANGS, asLang, useLang } from "../i18n";
+import { LANGS, UI_LANG, asLang, useLang, useT } from "../i18n";
+import type { Key } from "../i18n/en";
 import type { ConnState } from "../lib/transport";
 import { cx } from "../lib/util";
 import { useCasePanel } from "../store/case";
 import { Logo } from "./Logo";
 import { PlusIcon } from "./icons";
 
-const CONN: Record<ConnState, { label: string; dot: string }> = {
-  open: { label: "Connected", dot: "bg-good" },
-  connecting: { label: "Connecting…", dot: "bg-warn animate-pulse" },
-  closed: { label: "Reconnecting…", dot: "bg-bad animate-pulse" },
-  mock: { label: "Mock mode", dot: "bg-accent2" },
+const CONN: Record<ConnState, { label: Key; dot: string }> = {
+  open: { label: "conn.open", dot: "bg-good" },
+  connecting: { label: "conn.connecting", dot: "bg-warn animate-pulse" },
+  closed: { label: "conn.closed", dot: "bg-bad animate-pulse" },
+  mock: { label: "conn.mock", dot: "bg-accent2" },
 };
 
 export function Header({
@@ -24,6 +25,7 @@ export function Header({
   canReset: boolean;
   onOpenChats: () => void;
 }) {
+  const t = useT();
   const c = CONN[conn];
   return (
     <header className="sticky top-0 z-30 border-b border-line/60 bg-bg/80 backdrop-blur-md">
@@ -35,45 +37,57 @@ export function Header({
               Auto<span className="text-accent">Mind</span>
             </div>
             <div className="hidden truncate text-[11px] text-muted sm:block">
-              Your car expert
+              {t("header.tagline")}
             </div>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-          <LangSwitch />
+          {UI_LANG === null && <LangSwitch />}
           <span
             className="flex items-center gap-1.5 rounded-full border border-line/70 bg-panel/70 px-2.5 py-1 text-xs text-muted"
             role="status"
+            aria-label={t(c.label)}
           >
             <span className={cx("h-2 w-2 rounded-full", c.dot)} />
-            <span className="hidden min-[400px]:inline">{c.label}</span>
+            <span className="hidden min-[400px]:inline">{t(c.label)}</span>
           </span>
           <button
             type="button"
             onClick={onOpenChats}
             className="rounded-full border border-line/70 bg-panel/70 px-2.5 py-1 sm:px-3 text-xs font-medium text-fg transition hover:border-accent/60 hover:text-accent"
           >
-            Chats
+            {t("header.chats")}
           </button>
           <CaseToggle />
           <button
             type="button"
             onClick={onNewChat}
             disabled={!canReset}
-            aria-label="New chat"
-            title="New chat"
+            aria-label={t("header.newChat")}
+            title={t("header.newChat")}
             className="flex items-center gap-1.5 rounded-full border border-line/70 bg-panel/70 px-2.5 py-1 text-xs font-medium sm:px-3 text-fg transition hover:border-accent/60 hover:text-accent disabled:cursor-not-allowed disabled:opacity-40"
           >
             <PlusIcon />
-            <span className="hidden sm:inline">New chat</span>
+            <span className="hidden sm:inline">{t("header.newChat")}</span>
           </button>
         </div>
       </div>
+      {conn === "closed" && (
+        // phones (<400 px) only show the dot above: say it in words (audit F8)
+        <div
+          role="status"
+          data-testid="conn-banner"
+          className="border-t border-bad/30 bg-bad/10 px-4 py-1.5 text-center text-xs text-fg min-[400px]:hidden"
+        >
+          {t("conn.banner")}
+        </div>
+      )}
     </header>
   );
 }
 
 function CaseToggle() {
+  const t = useT();
   const { open, setOpen } = useCasePanel();
   return (
     <button
@@ -87,12 +101,13 @@ function CaseToggle() {
           : "border-line/70 bg-panel/70 text-fg hover:border-accent/60 hover:text-accent",
       )}
     >
-      Your case
+      {t("header.case")}
     </button>
   );
 }
 
-/** Interface language (spec 004 FR-024): follows the conversation unless chosen here. */
+/** Interface language (spec 004 FR-024): follows the conversation unless chosen here.
+ *  Hidden while the interface is pinned to English (`UI_LANG`, spec 010 FR-042). */
 function LangSwitch() {
   const lang = useLang();
   const manual = useChat((s) => s.manualLang);

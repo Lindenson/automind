@@ -56,3 +56,80 @@ ignore_imports =
     # spec 005: the brand line-up cache (brand_lineups), like resolve
     automind.application.lineup -> automind.infrastructure.**
     automind.application.lineup -> sqlalchemy
+
+# --- spec 010 -------------------------------------------------------------------------------------
+[importlinter:contract:insight-domain-pure]
+name = Insight domain is pure (spec 010, constitution V)
+type = forbidden
+source_modules =
+    automind.insight.domain
+forbidden_modules =
+    langgraph
+    langchain
+    langchain_core
+    fastapi
+    sqlalchemy
+    httpx
+    prometheus_client
+    automind.application
+    automind.orchestration
+    automind.infrastructure
+    automind.api
+    automind.insight.application
+    automind.insight.infrastructure
+    automind.insight.metrics
+
+[importlinter:contract:registry-domain-pure]
+name = Registry domain is pure (spec 010)
+type = forbidden
+source_modules =
+    automind.acquisition.registry.domain
+forbidden_modules =
+    langgraph
+    langchain
+    langchain_core
+    fastapi
+    sqlalchemy
+    httpx
+    prometheus_client
+    automind.application
+    automind.orchestration
+    automind.infrastructure
+    automind.api
+    automind.acquisition.registry.application
+    automind.acquisition.registry.infrastructure
+
+[importlinter:contract:registry-boundary]
+name = The chat cycle uses the registry only through acquisition.registry.api (spec 010)
+type = forbidden
+source_modules =
+    automind.application
+    automind.orchestration
+    automind.domain
+forbidden_modules =
+    automind.acquisition.registry.domain
+    automind.acquisition.registry.application
+    automind.acquisition.registry.infrastructure
+allow_indirect_imports = True
+
+[importlinter:contract:registry-no-chat]
+name = The registry knows nothing about chats (spec 010)
+type = forbidden
+source_modules =
+    automind.acquisition
+forbidden_modules =
+    automind.orchestration
+    automind.api
+    automind.domain.casefile
+    automind.insight
+
+[importlinter:contract:insight-independent]
+name = Insight does not depend on the chat graph or registry internals (spec 010)
+type = forbidden
+source_modules =
+    automind.insight
+forbidden_modules =
+    automind.orchestration
+    automind.api
+    automind.acquisition.registry.application
+    automind.acquisition.registry.infrastructure

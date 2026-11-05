@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, ValidationError
 
@@ -17,6 +17,8 @@ from automind.application.ports import LLM
 from automind.domain.casefile import CRITERION_KEYS, CaseDelta, CaseFile, Constraints, EngineHint
 from automind.domain.identity import parse_engine
 from automind.domain.policy import RequestKind
+
+Relation = Literal["continues", "rephrase", "correction", "complaint", "thanks", "new_topic"]
 
 
 class Interpretation(BaseModel):
@@ -32,6 +34,14 @@ class Interpretation(BaseModel):
         "chitchat: greetings/other"
     )
     language: str = Field(description="ISO 639-1 code of the user's message, e.g. 'ru', 'en', 'es'")
+    relation: Relation = Field(
+        default="continues",
+        description="How this message relates to the assistant's PREVIOUS answer (spec 010 FR-002): continues = goes "
+        "on from it (next step, a question about it, an answer to its question); rephrase = asks the same thing again "
+        "in other words because the answer missed it; correction = says the assistant got something wrong ('no, I "
+        "meant…', 'not the 250, the 150'); complaint = unhappy with the answer ('useless', 'плохо', 'no sirve'); "
+        "thanks = thanks or approval; new_topic = an unrelated new request. First message of a chat: continues.",
+    )
     delta: CaseDelta = Field(default_factory=CaseDelta, description="Changes to the case file stated in THIS message")
     persona_evidence: str | None = Field(
         default=None,

@@ -55,6 +55,9 @@ class Settings(BaseSettings):
     owner_isolation: bool = True
     allowed_origins: list[str] = ["http://127.0.0.1:5173", "http://localhost:5173"]
     admin_token: str | None = None
+    # spec 010 FR-030: Prometheus /metrics; without a token only these networks may scrape
+    metrics_token: str | None = None
+    metrics_nets: str = "127.0.0.0/8,::1/128,172.16.0.0/12"
     # Spend across all chats per day (Europe/Madrid): research pauses and asks "continue?" at it; 0 = no cap
     daily_cap_eur: float = 5.00
 

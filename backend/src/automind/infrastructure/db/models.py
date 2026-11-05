@@ -190,7 +190,13 @@ class LLMCall(Base):
     output_tokens: Mapped[int] = mapped_column(Integer, default=0)
     latency_ms: Mapped[int] = mapped_column(Integer, default=0)
     cost_eur: Mapped[float | None] = mapped_column(Numeric(10, 5))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, index=True)
+    # spec 010 FR-004: the configured model, whether a fallback answered, and which prompt version was used
+    primary_model: Mapped[str | None] = mapped_column(String(80))
+    fallback: Mapped[bool] = mapped_column(Boolean, default=False)
+    prompt_name: Mapped[str | None] = mapped_column(String(40))
+    prompt_version: Mapped[str | None] = mapped_column(String(12))
+    prompt_hash: Mapped[str | None] = mapped_column(String(12))
 
 
 # --- Conversation (spec 002, data-model §1-2) -------------------------------------------------
@@ -610,3 +616,197 @@ class Simulation(Base):
     results: Mapped[list] = mapped_column(JSONB, default=list)
     input_hash: Mapped[str] = mapped_column(String(64), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+# --- Spec 010: observation, insight, source registry -------------------------------------------
+
+
+class TurnOutcome(Base):
+    """One per turn: what was asked, what happened, failure classes, signals and a 0-1 score (US1)."""
+
+    __tablename__ = "turn_outcomes"
+    turn_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    chat_id: Mapped[str] = mapped_column(String(36), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    request_kind: Mapped[str | None] = mapped_column(String(24))
+    action: Mapped[str | None] = mapped_column(String(24))
+    language: Mapped[str | None] = mapped_column(String(8))
+    persona: Mapped[str | None] = mapped_column(String(16))
+    path: Mapped[list] = mapped_column(JSONB, default=list)
+    status: Mapped[str] = mapped_column(String(24))
+    duration_ms: Mapped[int | None] = mapped_column(Integer)
+    cost_eur: Mapped[float] = mapped_column(Numeric(10, 4), default=0)
+    relation_next: Mapped[str | None] = mapped_column(String(16))
+    failure_classes: Mapped[list] = mapped_column(JSONB, default=list)
+    signals: Mapped[dict] = mapped_column(JSONB, default=dict)
+    score: Mapped[float] = mapped_column(Float)
+    settings_version: Mapped[str | None] = mapped_column(String(16))
+
+
+FEEDBACK_KINDS = ("rating", "wrong_value", "bad_source", "complaint", "rephrase", "correction")
+
+
+class Feedback(Base):
+    """Every user signal in one place (US2)."""
+
+    __tablename__ = "feedback"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, index=True)
+    chat_id: Mapped[str] = mapped_column(String(36), index=True)
+    turn_id: Mapped[str | None] = mapped_column(String(36), index=True)
+    message_id: Mapped[str | None] = mapped_column(String(36))
+    kind: Mapped[str] = mapped_column(String(16))
+    rating: Mapped[int | None] = mapped_column(SmallInteger)
+    variant_id: Mapped[str | None] = mapped_column(String(36))
+    attribute: Mapped[str | None] = mapped_column(String(40))
+    area: Mapped[str | None] = mapped_column(String(20))
+    domain: Mapped[str | None] = mapped_column(String(120))
+    url: Mapped[str | None] = mapped_column(Text)
+    claim_id: Mapped[str | None] = mapped_column(String(36))
+    text: Mapped[str | None] = mapped_column(String(1000))
+    outcome: Mapped[str | None] = mapped_column(String(16))
+
+
+class InsightIssue(Base):
+    """A group of failures with a diagnosis and a proposed fix; never applied by the system (US3)."""
+
+    __tablename__ = "insight_issues"
+    __table_args__ = (Index("ix_insight_issues_status_impact", "status", "impact"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    fingerprint: Mapped[str] = mapped_column(String(64), unique=True)
+    component: Mapped[str] = mapped_column(String(16))
+    klass: Mapped[str] = mapped_column(String(40))
+    key: Mapped[str] = mapped_column(String(200))
+    title: Mapped[str] = mapped_column(String(200))
+    count_total: Mapped[int] = mapped_column(Integer, default=0)
+    count_7d: Mapped[int] = mapped_column(Integer, default=0)
+    chats_7d: Mapped[int] = mapped_column(Integer, default=0)
+    impact: Mapped[float] = mapped_column(Float, default=0.0)
+    first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    examples: Mapped[list] = mapped_column(JSONB, default=list)
+    diagnosis: Mapped[dict | None] = mapped_column(JSONB)
+    diagnosed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(String(16), default="open")
+    status_history: Mapped[list] = mapped_column(JSONB, default=list)
+    fixed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    fixed_ref: Mapped[str | None] = mapped_column(String(80))
+    source: Mapped[str] = mapped_column(String(16), default="auto")
+
+
+class InsightRun(Base):
+    __tablename__ = "insight_runs"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    kind: Mapped[str] = mapped_column(String(8))
+    groups: Mapped[int] = mapped_column(Integer, default=0)
+    issues_new: Mapped[int] = mapped_column(Integer, default=0)
+    diagnosed: Mapped[int] = mapped_column(Integer, default=0)
+    cost_eur: Mapped[float] = mapped_column(Numeric(10, 4), default=0)
+    error: Mapped[str | None] = mapped_column(Text)
+
+
+class SourceRow(Base):
+    __tablename__ = "sources"
+    domain: Mapped[str] = mapped_column(String(120), primary_key=True)
+    source_type: Mapped[str] = mapped_column(String(20))
+    family: Mapped[str] = mapped_column(String(120))
+    markets: Mapped[list] = mapped_column(JSONB, default=list)
+    languages: Mapped[list] = mapped_column(JSONB, default=list)
+    access: Mapped[str] = mapped_column(String(20), default="unknown")
+    access_evidence: Mapped[dict] = mapped_column(JSONB, default=dict)
+    checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    next_check_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reader: Mapped[str | None] = mapped_column(String(40))
+    frozen: Mapped[bool] = mapped_column(Boolean, default=False)
+    note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class CapabilityRow(Base):
+    __tablename__ = "capabilities"
+    __table_args__ = (
+        UniqueConstraint("domain", "area", "market", name="uq_capabilities"),
+        Index("ix_capabilities_area_status", "area", "status"),
+    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    domain: Mapped[str] = mapped_column(String(120), index=True)
+    area: Mapped[str] = mapped_column(String(20))
+    market: Mapped[str] = mapped_column(String(8))
+    status: Mapped[str] = mapped_column(String(12))
+    priority_seed: Mapped[int | None] = mapped_column(Integer)
+    attempts: Mapped[float] = mapped_column(Float, default=0.0)
+    accepted: Mapped[float] = mapped_column(Float, default=0.0)
+    rejected: Mapped[dict] = mapped_column(JSONB, default=dict)
+    right_w: Mapped[float] = mapped_column(Float, default=0.0)
+    wrong_w: Mapped[float] = mapped_column(Float, default=0.0)
+    robots_refusals: Mapped[float] = mapped_column(Float, default=0.0)
+    junk: Mapped[float] = mapped_column(Float, default=0.0)
+    cost_eur: Mapped[float] = mapped_column(Float, default=0.0)
+    score: Mapped[float] = mapped_column(Float, default=0.0)
+    acc_mean: Mapped[float] = mapped_column(Float, default=0.0)
+    acc_lb: Mapped[float] = mapped_column(Float, default=0.0)
+    yield_: Mapped[float] = mapped_column("yield_", Float, default=0.0)
+    recent: Mapped[list] = mapped_column(JSONB, default=list)  # last outcomes (accepted: bool), newest last
+    decayed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    status_since: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    last_used: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class RegistryAttempt(Base):
+    __tablename__ = "registry_attempts"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, index=True)
+    capability_id: Mapped[str] = mapped_column(String(36), index=True)
+    job_id: Mapped[str | None] = mapped_column(String(36))
+    variant_id: Mapped[str | None] = mapped_column(String(36))
+    url: Mapped[str | None] = mapped_column(Text)
+    outcome: Mapped[str] = mapped_column(String(10))
+    reason: Mapped[str | None] = mapped_column(String(60))
+    values: Mapped[int] = mapped_column(Integer, default=0)
+    cost_eur: Mapped[float] = mapped_column(Float, default=0.0)
+
+
+class TruthSignal(Base):
+    __tablename__ = "truth_signals"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, index=True)
+    capability_id: Mapped[str | None] = mapped_column(String(36), index=True)
+    variant_id: Mapped[str | None] = mapped_column(String(36))
+    attribute: Mapped[str | None] = mapped_column(String(40))
+    claim_id: Mapped[str | None] = mapped_column(String(36))
+    kind: Mapped[str] = mapped_column(String(12))
+    verdict: Mapped[str] = mapped_column(String(6))
+    weight: Mapped[float] = mapped_column(Float)
+    blame: Mapped[str] = mapped_column(String(10))
+    details: Mapped[dict] = mapped_column(JSONB, default=dict)
+
+
+class RegistryChange(Base):
+    __tablename__ = "registry_changes"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, index=True)
+    author: Mapped[str] = mapped_column(String(8))
+    capability_id: Mapped[str | None] = mapped_column(String(36), index=True)
+    domain: Mapped[str] = mapped_column(String(120), index=True)
+    change: Mapped[str] = mapped_column(String(12))
+    before: Mapped[dict] = mapped_column(JSONB, default=dict)
+    after: Mapped[dict] = mapped_column(JSONB, default=dict)
+    reason: Mapped[str] = mapped_column(Text)
+    evidence: Mapped[dict] = mapped_column(JSONB, default=dict)
+    reverted_by: Mapped[str | None] = mapped_column(String(36))
+    held: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class RegistryRun(Base):
+    __tablename__ = "registry_runs"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    kind: Mapped[str] = mapped_column(String(8))
+    changes: Mapped[int] = mapped_column(Integer, default=0)
+    discovery_queries: Mapped[int] = mapped_column(Integer, default=0)
+    cost_eur: Mapped[float] = mapped_column(Numeric(10, 4), default=0)
+    error: Mapped[str | None] = mapped_column(Text)
