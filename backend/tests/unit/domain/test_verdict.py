@@ -11,8 +11,14 @@ RULES = ins.rules_from_config(load_yaml("insights.yaml"))
 PROFILE = ins.Profile(weights={"efficiency": 3, "purchase_price": 2, "practicality": 1})
 
 
-def _car(cid, **v):
-    return ins.CarValues(cid, cid, v, confidence={k: "HIGH" for k in v}, energy_eur_per_unit=1.6)
+def _car(cid, curve=(), **v):
+    return ins.CarValues(cid, cid, v, confidence={k: "HIGH" for k in v}, energy_eur_per_unit=1.6,
+                         cost_curve=tuple(curve))  # fmt: skip
+
+
+def _curve(first: float, per_year: float) -> list[float]:
+    """Total cost (value lost + running) after 1..15 years."""
+    return [first + per_year * t for t in range(1, 16)]
 
 
 def _score(totals: dict[str, float], common=("efficiency", "purchase_price", "practicality"), tie=False):
@@ -22,8 +28,8 @@ def _score(totals: dict[str, float], common=("efficiency", "purchase_price", "pr
                          list(common), tie)  # fmt: skip
 
 
-A = _car("rav4", consumption=5.6, official_price_es=45_900, boot_volume=580)
-B = _car("cx5", consumption=6.4, official_price_es=35_500, boot_volume=583)
+A = _car("rav4", _curve(3000, 1000), consumption=5.6, official_price_es=45_900, boot_volume=580)
+B = _car("cx5", _curve(0, 1192), consumption=6.4, official_price_es=35_500, boot_volume=583)
 S = ins.build([A, B], PROFILE, RULES)
 
 
@@ -31,18 +37,20 @@ def test_pick_with_reasons_trade_off_and_would_change() -> None:
     v = vd.build(_score({"rav4": 70, "cx5": 60}), S)
     assert v.pick_car_id == "rav4" and not v.tie
     assert v.reasons and v.reasons[0] == "consumption" and "boot_volume" not in v.reasons
-    assert v.trade_off is not None and v.trade_off.break_even_years
-    # a payback of ~50 years is no payback: never offered as "what would change it" (incident 2026-11-03)
-    assert v.trade_off.break_even_years > vd.MAX_BREAK_EVEN_YEARS
+    # total cost (value lost + running) never drops to the other's within 15 years: no payback, never offered as
+    # "what would change it" (incident 2026-11-03)
+    assert v.trade_off is not None and v.trade_off.no_payback and v.trade_off.break_even_years is None
     assert v.would_change is not None and v.would_change.kind != "BREAK_EVEN"
     assert v.confidence == "HIGH" and v.confidence_reason == "COVERAGE_HIGH"
 
 
 def test_a_realistic_payback_is_what_would_change_it() -> None:
-    near = ins.build([A, _car("cx5", consumption=8.0, official_price_es=40_000, boot_volume=583)], PROFILE, RULES)
-    v = vd.build(_score({"rav4": 70, "cx5": 60}), near)
-    assert v.trade_off is not None and v.trade_off.break_even_years <= vd.MAX_BREAK_EVEN_YEARS
-    assert v.would_change is not None and v.would_change.kind == "BREAK_EVEN" and v.would_change.car_id == "cx5"
+    cx5 = _car("cx5", _curve(0, 1576), consumption=8.0, official_price_es=40_000, boot_volume=583)
+    v = vd.build(_score({"rav4": 70, "cx5": 60}), ins.build([A, cx5], PROFILE, RULES))
+    assert v.trade_off is not None and v.trade_off.break_even_years == 5.5
+    # the pick (rav4) costs more at first and pays back after 5.5 years: kept for less, the cx5 is ahead
+    w = v.would_change
+    assert w is not None and w.kind == "BREAK_EVEN" and w.car_id == "cx5" and w.shorter
 
 
 def test_close_totals_are_a_tie_with_what_would_tip_it() -> None:

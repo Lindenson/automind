@@ -13,7 +13,10 @@ attributes:
   max_torque:         {label: Torque, unit: N·m, threshold_rel: 0.10, direction: higher, criterion: performance}
   curb_mass:          {label: Weight, unit: kg, threshold_rel: 0.07, direction: lower, criterion: driving_fun}
   official_price_es:  {label: Price, unit: EUR, threshold_rel: 0.05, direction: lower, criterion: purchase_price}
-  tco_per_year:       {label: Ownership cost per year, unit: EUR, threshold_abs: 150, direction: lower, criterion: ownership_cost}
+  # Ownership cost is compared on the total over the user's period including depreciation (chat 5821ac77); the
+  # running costs per year are a secondary figure, always labelled "without depreciation", and weigh as background.
+  tco_period:         {label: Total ownership cost over the period (incl. depreciation), unit: EUR, threshold_abs: 500, threshold_rel: 0.03, direction: lower, criterion: ownership_cost}
+  tco_per_year:       {label: Running costs per year (without depreciation), unit: EUR, threshold_abs: 150, direction: lower}
   value_retention_5y: {label: Value after 5 years, unit: '%', threshold_abs: 5, direction: higher, criterion: ownership_cost}
   reliability_score:  {label: Reliability score, unit: points, threshold_abs: 10, direction: higher, criterion: reliability}
   ground_clearance:   {label: Ground clearance, unit: mm, threshold_abs: 20, direction: higher, criterion: offroad_mountain}

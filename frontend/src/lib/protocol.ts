@@ -243,6 +243,7 @@ export const CriteriaScoresBlockSchema = z.object({
       label: z.string(),
       weight: z.number(),
       definition: z.string(),
+      inputs: z.array(z.string()).nullish(), // the data the score is built from (criteria.yaml)
       delta: z.number().nullish(), // spec 007: change since the previous report
       reasons: z
         .array(z.object({ code: z.string(), points: z.number() }))
@@ -290,6 +291,7 @@ export const TcoBlockSchema = z.object({
   type: z.literal("tco"),
   title: z.string(),
   annual_km: z.number(),
+  annual_km_assumed: z.boolean().nullish(), // chat 5821ac77: the user never said it
   years: z.number().default(5),
   cars: z.array(
     z.object({

@@ -1,7 +1,8 @@
 import { useBlockTitle, useT } from "../../i18n";
 /**
- * Criteria scores (FR-025..FR-028): 0–100 indices per criterion with visible weights. Each car's total
- * bar is split into the weighted contribution of every criterion. Missing data is shown, never guessed.
+ * Criteria scores (FR-025..FR-028): 0–100 scores per criterion, computed from the sourced data, with visible
+ * weights and the data each score is built from. Each car's total bar is split into the weighted contribution of
+ * every criterion. Missing data is shown ("insufficient data"), never guessed.
  */
 import type { BlockOf } from "../../lib/protocol";
 import { cx, fmtNum } from "../../lib/util";
@@ -38,7 +39,11 @@ export function CriteriaScores({ b }: { b: BlockOf<"criteria_scores"> }) {
     <BlockCard
       title={useBlockTitle(b.type, b.title)}
       icon={<TrophyIcon />}
-      right={<span className="chip">scores, not measurements</span>}
+      right={
+        <span className="chip" data-testid="scores-basis">
+          {t("scores.basis")}
+        </span>
+      }
     >
       <div className="space-y-4">
         {cars.map((car) => {
@@ -116,7 +121,9 @@ export function CriteriaScores({ b }: { b: BlockOf<"criteria_scores"> }) {
                         <span className="truncate text-muted">{cr.label}</span>
                         <span className="tabular">
                           {insufficient ? (
-                            <i className="text-warn/90">insufficient data</i>
+                            <i className="text-warn/90">
+                              {t("scores.insufficient")}
+                            </i>
                           ) : (
                             <>
                               {fmtNum(part!.score, 0)}
@@ -135,6 +142,14 @@ export function CriteriaScores({ b }: { b: BlockOf<"criteria_scores"> }) {
                           )}
                         </span>
                       </div>
+                      {!insufficient && part!.inputs.length > 0 && (
+                        <div
+                          className="truncate text-[10px] text-muted"
+                          data-testid="score-inputs"
+                        >
+                          {part!.inputs.join("; ")}
+                        </div>
+                      )}
                       <div className="mt-0.5 h-1 overflow-hidden rounded-full bg-panel2">
                         {!insufficient && (
                           <div
@@ -165,6 +180,19 @@ export function CriteriaScores({ b }: { b: BlockOf<"criteria_scores"> }) {
           </span>
         ))}
       </div>
+      <details className="mt-2 text-[11px] text-muted" data-testid="built-from">
+        <summary className="cursor-pointer">{t("scores.builtFrom")}</summary>
+        <ul className="mt-1 space-y-0.5">
+          {b.criteria.map((cr) => (
+            <li key={cr.key}>
+              <b className="text-fg">{cr.label}</b>:{" "}
+              {cr.inputs && cr.inputs.length > 0
+                ? cr.inputs.join(", ")
+                : cr.definition}
+            </li>
+          ))}
+        </ul>
+      </details>
       {(b.tie ||
         (b.compared_on && b.compared_on.length < b.criteria.length)) && (
         <p className="mt-2 text-xs text-muted">

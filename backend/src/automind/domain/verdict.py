@@ -22,6 +22,9 @@ Another profile (spec 007 FR-018): when the same data scored with another person
 clear winner, the verdict carries it (`other_profile`) so the text can say so. Code computes it; the model only
 phrases it.
 
+Ownership cost (chat 5821ac77): the ownership-cost criterion and the payback in the trade-off count the total over
+the user's period, running costs plus the value the car loses; running costs alone never decide or "save".
+
 Used cars without used prices or wear data (FR-019) lower the confidence by one step and are listed.
 """
 
@@ -47,6 +50,7 @@ class WouldChange:
     insight_id: str | None = None
     years: float | None = None  # BREAK_EVEN: keep the car longer than this
     gaps: tuple[str, ...] = ()  # DATA: what is missing
+    shorter: bool = False  # BREAK_EVEN: keep the car for less than `years` (the pick pays back only after them)
 
 
 @dataclass(frozen=True)
@@ -113,10 +117,13 @@ MAX_BREAK_EVEN_YEARS = 15.0  # beyond this a payback is no payback ("after 77 ye
 
 
 def _would_change(pick: str | None, s: InsightSet, trade: TradeOff | None) -> WouldChange | None:
+    """The payback is on total cost (running + value lost): the car that costs more at first (`gain_car`) comes out
+    ahead when kept longer than the payback, the other one when kept for less."""
     if (trade is not None and trade.break_even_years and trade.break_even_years <= MAX_BREAK_EVEN_YEARS
             and pick in (trade.gain_car, trade.cost_car)):  # fmt: skip
-        other = trade.cost_car if pick == trade.gain_car else trade.gain_car
-        return WouldChange("BREAK_EVEN", other, trade.gain, years=trade.break_even_years)
+        if pick == trade.gain_car:
+            return WouldChange("BREAK_EVEN", trade.cost_car, trade.gain, years=trade.break_even_years, shorter=True)
+        return WouldChange("BREAK_EVEN", trade.gain_car, trade.gain, years=trade.break_even_years)
     rival = next((i for i in s.meaningful() if i.better_car and i.better_car != pick), None)
     if rival is not None:
         return WouldChange("PRIORITY", rival.better_car, rival.id)

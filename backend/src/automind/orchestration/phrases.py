@@ -62,6 +62,24 @@ PHRASES: dict[str, dict[str, str]] = {
         "ru": "Чтобы уточнить: сколько километров в год вы проезжаете? (Я принял {km} км.)",
         "es": "Para afinar: ¿cuántos km al año conduces? (He supuesto {km} km.)",
     },
+    # chat 5821ac77: an assumed mileage or period is said once, with the value, and the user may correct it
+    "assumed_km": {
+        "en": "Assumed {km} km/year — tell me your mileage and I will recount the costs.",
+        "ru": "Принято {km} км в год — напишите свой пробег, и я пересчитаю расходы.",
+        "es": "He supuesto {km} km al año — dime tu kilometraje y recalculo los costes.",
+    },
+    "assumed_years": {
+        "en": "Assumed {years} years of ownership — tell me how long you will keep the car.",
+        "ru": "Принят срок владения {years} лет — напишите, сколько вы будете ездить на машине.",
+        "es": "He supuesto {years} años de uso — dime cuánto tiempo tendrás el coche.",
+    },
+    "assumed_km_years": {
+        "en": "Assumed {km} km/year and {years} years of ownership — tell me your mileage and period and I will "
+        "recount the costs.",
+        "ru": "Принято {km} км в год и {years} лет владения — напишите свой пробег и срок, и я пересчитаю расходы.",
+        "es": "He supuesto {km} km al año y {years} años de uso — dime tu kilometraje y cuánto lo tendrás y "
+        "recalculo los costes.",
+    },
     "profile_FAMILY_SIZE": {
         "en": "To sharpen this: who usually travels in the car?",
         "ru": "Чтобы уточнить: кто обычно ездит в машине?",
