@@ -26,7 +26,7 @@ async def test_seed_is_idempotent_and_keeps_evidence():
     assert first is not None and first["favourites"] > 50 and first["survey"] > 100
     assert await seed_if_empty() is None
     again = await seed()
-    assert again == {"favourites": 0, "survey": 0, "learned": 0}
+    assert again == {"favourites": 0, "survey": 0}
     async with sessionmaker()() as s:
         forbid = (await s.execute(select(m.SourceRow).where(m.SourceRow.access == "terms_forbid"))).scalars().all()
         alv = await s.get(m.SourceRow, "alvolante.it")

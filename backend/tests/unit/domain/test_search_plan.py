@@ -112,7 +112,7 @@ def test_ai_query_checks():
     assert not accept_ai_query("   ", tried)
 
 
-# --- spec 007 US5: short favourite identity, market words, retry, learned sources ----------------------------
+# --- spec 007 US5: short favourite identity, market words, retry --------------------------------------------
 
 from automind.domain.search_plan import retry_queries, short_identity  # noqa: E402
 
@@ -167,14 +167,6 @@ def test_zero_hit_favourite_gets_one_shorter_retry():
     assert again[0].text == "Volkswagen Golf Pannenstatistik Mängel site:adac.de"
     assert again[0].sites == qs[0].sites
     assert retry_queries(again, GOLF_R, MARKET_T) == []  # a retry is never retried
-
-
-def test_learned_sources_join_round0_after_the_configured_ones():
-    learned = {"DE": ["autobild.de", "adac.de", "milanuncios.com", "a.de", "b.de", "c.de", "d.de"]}
-    qs = queries("reliability", GOLF_R, ["DE"], REL_FAV, MARKET_T, {}, 0, learned=learned, learned_per_area=4)
-    assert qs[0].sites == ("adac.de",) and not qs[0].learned
-    extra = [s for q in qs if q.learned for s in q.sites]
-    assert extra == ["autobild.de", "a.de", "b.de", "c.de"]  # configured adac.de not repeated, denied dropped
 
 
 def test_trim_codes_survive_and_generation_decimals_do_not():

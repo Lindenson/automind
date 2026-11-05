@@ -1,12 +1,11 @@
 """S1 plan (spec 011 strangler, research R5): what to search for one job — the area's markets and model names, the
-favourite / open-web / registry `site:` queries, the learned sites, the registry's plan for the job and the
+favourite / open-web / registry `site:` queries, the registry's plan for the job and the
 assistant's follow-up queries. Moved from `application/research.py` with the bodies unchanged.
 """
 
 from __future__ import annotations
 
 import dataclasses
-from collections import defaultdict
 from contextvars import ContextVar
 from typing import TYPE_CHECKING
 
@@ -15,7 +14,6 @@ from pydantic import BaseModel
 from automind.acquisition.registry.api import Plan
 from automind.application.ports import Ports
 from automind.application.usage import BudgetExceeded
-from automind.domain import learned as learned_rules
 from automind.domain import research_plan, search_plan, specs
 from automind.infrastructure import db
 
@@ -53,7 +51,6 @@ def queries_for(
     area: str,
     round_: int,
     missing: list[str],
-    learned: dict[str, list[str]] | None = None,
     car_year: int | None = None,
 ) -> list[search_plan.PlannedQuery]:
     """Favourites first (round 0), open web for later rounds or when an area has no favourites (R2)."""
@@ -70,7 +67,7 @@ def queries_for(
             {area: ports.ref.queries.get(area, [])}, r,
             manufacturer_site=ports.ref.manufacturer_sites.get(v.make),
             sites_per_query=int(cfg.get("sites_per_query", 4)),
-            learned=learned, learned_per_area=_learned_cfg(ports).per_area, market_names=names,
+            market_names=names,
         )  # fmt: skip
 
     out = plan(round_) or (plan(1) if round_ == 0 else [])
@@ -113,6 +110,9 @@ async def registry_queries(ports: Ports, v: db.Variant, job: JobSpec,
         sources = await reg.sources_for(job.area, markets, per_area * per_query + len(exclude))
     except Exception:  # noqa: BLE001 - research works without the registry
         return []
+    candidates = current_candidates.get()
+    if candidates is not None:
+        candidates.update(s.domain for s in sources if s.unverified)
     ident = identity_of(v)
     if job.area == "used_price" and job.car_year:
         ident = dataclasses.replace(ident, years=str(job.car_year))
@@ -120,27 +120,6 @@ async def registry_queries(ports: Ports, v: db.Variant, job: JobSpec,
         job.area, ident, [(s.site, s.market) for s in sources], ports.ref.favourite_queries, exclude=exclude,
         domains_per_query=per_query, max_queries=per_area, market_names=market_names(ports, v),
     )  # fmt: skip
-
-
-def _learned_cfg(ports: Ports) -> learned_rules.Config:
-    return learned_rules.Config.from_mapping((ports.ref.search or {}).get("learned"))
-
-
-async def learned_sites(ports: Ports, area: str) -> dict[str, list[str]]:
-    """Active learned domains per market for an area (spec 007 FR-022), best first."""
-    if ports.learned is None:
-        return {}
-    cfg = _learned_cfg(ports)
-    favs = {str(f["domain"]) for f in ports.ref.favourites if area in f.get("areas", ())}
-    out: dict[str, list[str]] = defaultdict(list)
-    try:
-        rows = await ports.learned.rows(area)
-    except Exception:  # noqa: BLE001 - learned sources are a hint; research works without them
-        return {}
-    for r in rows:
-        if learned_rules.is_active(r, cfg, favourites=favs):
-            out[r.market].append(r.domain)
-    return dict(out)
 
 
 PLAN_MARKETS = ["ES", "EN", "DE", "FR", "IT", "PT", "NL"]
@@ -196,3 +175,15 @@ async def _ai_queries(
 
 # spec 010 US6-US8: the registry's plan for the running job (source order and the domains never to read)
 current_plan: ContextVar[Plan | None] = ContextVar("current_plan", default=None)
+# spec 011 FR-022 (010 T059): registry candidates the running job queried with `site:` (filled by registry_queries)
+current_candidates: ContextVar[set[str] | None] = ContextVar("current_candidates", default=None)
+
+
+def is_unverified(domain: str) -> bool:
+    """A page of a registry candidate, from the job's plan or one of its `site:` queries: its values are labelled
+    "unverified source" and its domain counts as half an independent source."""
+    d = domain.lower().removeprefix("www.")
+    plan = current_plan.get()
+    if plan is not None and plan.unverified(d):
+        return True
+    return any(d == c or d.endswith("." + c) for c in current_candidates.get() or ())

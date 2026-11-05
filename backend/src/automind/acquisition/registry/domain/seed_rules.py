@@ -1,4 +1,4 @@
-"""How the registry starts (spec 010 US8): favourites, the 009 survey and the learned domains. Pure."""
+"""How the registry starts (spec 010 US8): favourites and the 009 survey. Pure."""
 
 from __future__ import annotations
 
@@ -122,19 +122,3 @@ def from_favourite(
         for m in f.get("markets") or ["ANY"]
     ]
     return src, caps
-
-
-def from_learned(row: Mapping[str, Any], deny: Sequence[str], min_runs: int = 3, max_misses: int = 5) -> Capability:
-    domain = str(row["domain"]).lower()
-    ok = int(row.get("accepted_runs") or 0) >= min_runs and int(row.get("misses") or 0) < max_misses
-    status = "blocked" if denied(domain, deny) else "active" if ok else "candidate"
-    runs = float(row.get("accepted_runs") or 0)
-    return Capability(
-        domain,
-        str(row["area"]),
-        str(row["market"]),
-        status,
-        None,
-        attempts=runs + float(row.get("misses") or 0),
-        accepted=runs,
-    )

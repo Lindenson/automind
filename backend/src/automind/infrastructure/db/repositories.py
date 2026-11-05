@@ -549,7 +549,6 @@ class MetricsRepo:
             "areas": areas,
             "sense_rejections": {str(r): int(n) for r, n in sense_rows},  # spec 004 FR-027, per rule
             "empty_search_share": empty_share,
-            "learned_sources": await LearnedSourceRepo().all(),
             "intake": intake_summary([(str(a), str(b), dict(c or {})) for a, b, c in intake_rows]),  # spec 005 R13
             "ratings": {"count": int(ratings[0] or 0), "average": round(float(ratings[1]), 2) if ratings[1] else None},
             "sites": [
@@ -586,63 +585,6 @@ class FeasibilityRepo:
             for r in rows:
                 s.add(FeasibilityCheck(chat_id=chat_id, turn_id=turn_id, **r))
             await s.commit()
-
-
-class LearnedSourceRepo:
-    """learned_sources table (spec 007 FR-022). The promotion and expiry rules are in domain.learned."""
-
-    async def rows(self, area: str) -> list[Any]:
-        from automind.domain.learned import LearnedRow  # noqa: PLC0415
-
-        from .models import LearnedSource  # noqa: PLC0415
-
-        async with sessionmaker()() as s:
-            got = (await s.execute(select(LearnedSource).where(LearnedSource.area == area))).scalars().all()
-        rows = [LearnedRow(r.domain, r.area, r.market, r.source_type, r.accepted_runs, r.misses) for r in got]
-        return sorted(rows, key=lambda r: (-r.accepted_runs, r.domain))
-
-    async def record(self, area: str, outcomes: list[tuple[str, str, bool, bool]]) -> None:
-        from automind.domain import learned  # noqa: PLC0415
-
-        from .models import LearnedSource  # noqa: PLC0415
-
-        # one outcome per (domain, market): accepted if any page of that domain gave an accepted value; independent
-        # if such a page was also found by a normal (not learned) query
-        merged: dict[tuple[str, str], tuple[bool, bool]] = {}
-        for d, m, ok, indep in outcomes:
-            if d:
-                a, i = merged.get((d, m), (False, False))
-                merged[(d, m)] = (a or ok, i or (ok and indep))
-        if not merged:
-            return
-        async with sessionmaker()() as s:
-            have = {
-                (r.domain, r.market): r
-                for r in (await s.execute(select(LearnedSource).where(LearnedSource.area == area))).scalars()
-            }
-            for (d, m), (ok, indep) in merged.items():
-                row = have.get((d, m))
-                if row is None:
-                    if not (ok and indep):
-                        continue  # new rows only from accepted values
-                    row = LearnedSource(domain=d, area=area, market=m, accepted_runs=0, misses=0,
-                                        source_type=learned.source_type_of(f"https://{d}/"))  # fmt: skip
-                    s.add(row)
-                old = learned.LearnedRow(d, area, m, row.source_type, row.accepted_runs or 0, row.misses or 0)
-                lr = learned.update_row(old, accepted=ok, independent=indep)
-                row.accepted_runs, row.misses = lr.accepted_runs, lr.misses
-                if ok:
-                    row.last_seen = now()
-            await s.commit()
-
-    async def all(self) -> list[dict[str, Any]]:
-        from .models import LearnedSource  # noqa: PLC0415
-
-        async with sessionmaker()() as s:
-            got = (await s.execute(select(LearnedSource).order_by(LearnedSource.accepted_runs.desc()))).scalars()
-            return [{"domain": r.domain, "area": r.area, "market": r.market, "source_type": r.source_type,
-                     "accepted_runs": r.accepted_runs, "misses": r.misses,
-                     "last_seen": r.last_seen.isoformat() if r.last_seen else None} for r in got]  # fmt: skip
 
 
 class MarketFactRepo:

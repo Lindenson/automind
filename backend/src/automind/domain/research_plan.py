@@ -6,7 +6,7 @@ still fresh are skipped; each area has a minimum-evidence rule; gap rounds are b
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Literal
@@ -112,11 +112,13 @@ class ResearchPlan:
 
 @dataclass(frozen=True)
 class SourceHit:
-    """Accepted evidence for an area: one source (domain), its type, and how many items it gave."""
+    """Accepted evidence for an area: one source (domain), its type, and how many items it gave. `unverified`: the
+    source is a registry candidate (spec 011 FR-022): it counts as half an independent source."""
 
     domain: str
     source_type: str
     items: int = 1
+    unverified: bool = False
 
 
 def areas_for(persona: str, criteria: Iterable[str], condition: str, budget_used: bool = False) -> set[str]:
@@ -210,34 +212,48 @@ def plan_key(p: ResearchPlan) -> str:
 MIN_PRICE_DOMAINS = 3  # a brand site that blocks readers must not leave a well-known price 'missing'
 
 
-def _independent(hits: list[SourceHit]) -> set[str]:
-    return {h.domain for h in hits if h.items > 0}
+UNVERIFIED_WEIGHT = 0.5  # spec 011 FR-022 (010 T059): a candidate source is half an independent source
+
+
+def _weight(hits: list[SourceHit], keep: Callable[[SourceHit], bool] = lambda h: True) -> float:
+    """Independent sources (domains) with accepted items: 1 each, `UNVERIFIED_WEIGHT` for a domain whose every hit
+    comes from a registry candidate (one verified hit makes the domain verified)."""
+    verified: dict[str, bool] = {}
+    for h in hits:
+        if h.items > 0 and keep(h):
+            verified[h.domain] = verified.get(h.domain, False) or not h.unverified
+    return sum(1.0 if v else UNVERIFIED_WEIGHT for v in verified.values())
+
+
+def _has_type(hits: list[SourceHit], source_type: str) -> bool:
+    """A verified source of this type: a candidate brand site or lab alone is not the official word."""
+    return _weight(hits, lambda h: h.source_type == source_type) >= 1
 
 
 def _has_manufacturer(hits: list[SourceHit]) -> bool:
-    return any(h.source_type == "MANUFACTURER" and h.items > 0 for h in hits)
+    return _has_type(hits, "MANUFACTURER")
 
 
 def minimum_met(area: str, hits: list[SourceHit]) -> bool:
-    """Section minimums (FR-019, constitution XI)."""
-    domains = _independent(hits)
-    non_mfr = {h.domain for h in hits if h.items > 0 and h.source_type != "MANUFACTURER"}
+    """Section minimums (FR-019, constitution XI). Counts are weighted: a registry candidate counts half."""
+    domains = _weight(hits)
+    non_mfr = _weight(hits, lambda h: h.source_type != "MANUFACTURER")
     if area in ("specs", "engineering"):
-        return (_has_manufacturer(hits) and len(non_mfr) >= 1) or len(non_mfr) >= 2
+        return (_has_manufacturer(hits) and non_mfr >= 1) or non_mfr >= 2
     if area == "maintenance":
-        return _has_manufacturer(hits) or len(domains) >= 2
+        return _has_manufacturer(hits) or domains >= 2
     if area == "reviews":
-        return sum(h.items for h in hits) >= 5 and len(domains) >= 2
+        return sum(h.items for h in hits) >= 5 and domains >= 2
     if area in ("reliability", "used_issues", "manufacturer"):
-        return len(domains) >= 2
+        return domains >= 2
     if area in ("used_price", "depreciation"):
-        return len(domains) >= 1  # one editorial range for the model years; otherwise the labelled estimate
+        return domains >= 1  # one editorial range for the model years; otherwise the labelled estimate
     if area == "price":  # the brand's own price list, or the same list price quoted by 3+ independent sites
-        return _has_manufacturer(hits) or len(domains) >= MIN_PRICE_DOMAINS
+        return _has_manufacturer(hits) or domains >= MIN_PRICE_DOMAINS
     if area == "measured":
-        return any(h.source_type == "INSTRUMENTED_TEST" and h.items > 0 for h in hits)
+        return _has_type(hits, "INSTRUMENTED_TEST")
     if area == "incentives":  # one official or press source with a dated programme
-        return len(domains) >= 1
+        return domains >= 1
     raise ValueError(f"unknown area {area!r}")
 
 

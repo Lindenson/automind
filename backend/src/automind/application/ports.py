@@ -167,15 +167,6 @@ class NoReaders:
         return None
 
 
-class LearnedSources(Protocol):
-    """Domains that keep giving accepted values (spec 007 FR-022). Rows are `domain.learned.LearnedRow`."""
-
-    async def rows(self, area: str) -> list[Any]: ...
-
-    async def record(self, area: str, outcomes: list[tuple[str, str, bool]]) -> None:
-        """(domain, market, accepted) per fetched page of one research job."""
-
-
 class CaseRepo(Protocol):
     async def latest(self, chat_id: str) -> tuple[int, dict[str, Any] | None, str | None]: ...
 

@@ -98,7 +98,7 @@ Spec 009's open data and dialogue fixes become the seeded issues of 010 US5.
 - **Search providers**: cache-first `Searcher` port over Serper (default), SerpAPI, Tavily; cache in `search_cache`.
 - **Queries**: `queries.yaml`; used-car queries still carry no year in some paths (see section 3).
 - **Favourites**: favourite sources per area and market in `sources.yaml`; deny-list of classifieds and ToS-forbidden sites there too.
-- **Learned sources**: domains that delivered are remembered (`search.yaml: learned: {min_runs: 3, max_misses: 5, per_area: 4}`).
+- **Learned sources**: removed in spec 011 (T124); the source registry (`registry.yaml`) replaced them. The `learned_sources` table is no longer read or written.
 - **Fetch**: own fetcher with deny-list, robots incl. Crawl-delay, 401/403 = disallow, redirect re-check, SSRF guard on user URLs.
 - **Site readers**: deterministic parsers for favourite spec sites (`site_readers.yaml`).
 - **Relevance**: gate before extraction; is this page about the exact variant? (role `relevance`). Brand pages judged by the make.
@@ -117,7 +117,7 @@ Spec 009's open data and dialogue fixes become the seeded issues of 010 US5.
 | `application/research.py`, `domain/research_plan.py`, `domain/search_plan.py`, `orchestration/nodes/research.py` | 002, 003; ADR-006 |
 | `infrastructure/search/{cache,serper,serpapi,tavily}.py` | 003; ADR-017 |
 | `infrastructure/fetch.py`, `infrastructure/pages.py`, `infrastructure/site_readers/` | 003; ADR-018 |
-| `domain/relevance.py`, `application/extraction.py`, `domain/evidence.py`, `domain/units.py`, `domain/sense.py`, `domain/plausibility.py`, `domain/learned.py` | 003, 006, 007; ADR-010, ADR-022, ADR-027 |
+| `domain/relevance.py`, `application/extraction.py`, `domain/evidence.py`, `domain/units.py`, `domain/sense.py`, `domain/plausibility.py` | 003, 006, 007; ADR-010, ADR-022, ADR-027 |
 
 ### 2.7 Report and guard
 

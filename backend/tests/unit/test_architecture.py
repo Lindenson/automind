@@ -12,3 +12,27 @@ def test_legacy_layer_exceptions_do_not_grow():
         f"{len(ignores)} ignore_imports in .importlinter (frozen at {FROZEN_LEGACY_IGNORES}): put new code "
         "behind a port in application/ports.py instead of adding an exception"
     )
+
+
+def test_the_learned_sources_rule_is_gone():
+    """Spec 011 T124 (closes 010 T075): the registry replaced spec 007's learned sources; nothing reads or writes
+    the `learned_sources` table any more (the table stays until a later spec drops it)."""
+    import importlib.util
+
+    src = Path(__file__).parents[2] / "src" / "automind"
+    assert importlib.util.find_spec("automind.domain.learned") is None
+    users = [
+        str(p.relative_to(src))
+        for p in src.rglob("*.py")
+        if any(
+            w in p.read_text(encoding="utf-8")
+            for w in (
+                "domain.learned",
+                "domain import learned",
+                "LearnedSourceRepo",
+                "LearnedSources",
+                "select(LearnedSource",
+            )
+        )
+    ]
+    assert users == []

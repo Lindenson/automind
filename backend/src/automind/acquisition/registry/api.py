@@ -61,7 +61,6 @@ class Attempt(BaseModel):
     reason: str | None = None
     values: int = 0
     cost_eur: float = 0.0
-    via_learned_query: bool = False
     # spec 011 FR-002: the stored page, the producer's version and model, and the pipeline stages' versions
     snapshot_id: str | None = None
     producer_version: str | None = None
