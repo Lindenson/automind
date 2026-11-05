@@ -25,6 +25,7 @@ HUMAN_FIELDS = {"access", "access_evidence", "frozen", "denylist", "budgets"}
 HUMAN_ONLY_WRITERS = {
     "registry/application/admission.py",  # robots/terms verdicts of the admission check
     "registry/application/seed.py",  # the seed from the owner's config/sources.yaml and survey
+    "admin_api.py",  # the owner's own actions from the admin page (freeze, block, rollback), behind ADMIN_TOKEN
     "registry/infrastructure/repo.py",  # (same seed, persisted)
     "parsing/migrate_v1.py",  # the parser seed inserts new parsers unfrozen (`frozen=False`, never an update)
 }
