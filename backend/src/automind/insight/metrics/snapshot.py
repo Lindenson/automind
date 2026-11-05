@@ -172,6 +172,16 @@ async def _issues(snap: prom.Snapshot) -> None:
         snap.set("issues", (comp, status), int(n))
 
 
+async def _engine(snap: prom.Snapshot) -> None:
+    """Spec 011 T031: snapshot store size, gold values per dataset, claims that do not name their producer."""
+    for (n,) in await _rows("SELECT coalesce(sum(stored_bytes), 0) FROM snapshot_blobs"):
+        snap.set("snapshot_store_bytes", (), float(n or 0))
+    for dataset, n in await _rows("SELECT coalesce(dataset_id, origin), count(*) FROM gold_values GROUP BY 1"):
+        snap.set("gold_values", (dataset,), int(n))
+    for (n,) in await _rows("SELECT count(*) FROM claims WHERE producer_version IS NULL"):
+        snap.set("claims_without_producer", (), int(n))
+
+
 def _readers(snap: prom.Snapshot) -> None:
     from automind.infrastructure.site_readers import STREAKS  # noqa: PLC0415
 
@@ -191,6 +201,7 @@ async def refresh() -> prom.Snapshot:
         _models(snap, now),
         _spend(snap),
         _issues(snap),
+        _engine(snap),
     )
     for part in parts:
         try:

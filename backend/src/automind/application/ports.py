@@ -68,6 +68,7 @@ class WebDoc:
     title: str
     text: str
     snippet_only: bool
+    snapshot_id: str | None = None  # spec 011: the stored raw page this text came from
 
 
 class LLM(Protocol):
@@ -124,9 +125,10 @@ class Page:
     from_cache: bool = False
     html: str | None = None  # raw HTML for site readers only; never stored
     document_id: str | None = None
+    snapshot_id: str | None = None  # spec 011: the stored raw page of the fetch that produced this page
 
     def as_doc(self) -> WebDoc:
-        return WebDoc(url=self.url, title=self.title, text=self.text, snippet_only=False)
+        return WebDoc(url=self.url, title=self.title, text=self.text, snippet_only=False, snapshot_id=self.snapshot_id)
 
 
 class PageStore(Protocol):

@@ -16,6 +16,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    LargeBinary,
     Numeric,
     PrimaryKeyConstraint,
     SmallInteger,
@@ -24,7 +25,7 @@ from sqlalchemy import (
     UniqueConstraint,
     text,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -130,6 +131,13 @@ class Claim(Base):
     reject_rule: Mapped[str | None] = mapped_column(String(40))
     extracted_by: Mapped[str] = mapped_column(String(12), default="LLM", server_default="LLM")  # READER | LLM
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    # spec 011 FR-002: who produced the value — reader | extractor | dataset | user, its version and model
+    producer: Mapped[str] = mapped_column(String(12), default="extractor", server_default="extractor")
+    producer_version: Mapped[str | None] = mapped_column(String(80))  # km77@v1 | extract_specs@v2 | legacy
+    model: Mapped[str | None] = mapped_column(String(80))  # served model of extractor claims
+    snapshot_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("page_snapshots.id", ondelete="SET NULL"), index=True
+    )
 
 
 class SpecValue(Base):
@@ -167,6 +175,7 @@ class ResearchRun(Base):
     # spec 010 FR-022: when the area last tried the registry's sources with the escalation to the other European
     # markets (None: never; an area below its minimum then gets that round in the first research of a turn)
     registry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    stage_versions: Mapped[dict] = mapped_column(JSONB, default=dict, server_default="{}")  # spec 011 R2
 
 
 class ChatMessage(Base):
@@ -376,6 +385,8 @@ class PageRelevance(Base):
     reason: Mapped[str] = mapped_column(Text)
     method: Mapped[str] = mapped_column(String(12))  # RULES | LLM
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    prompt_version: Mapped[str | None] = mapped_column(String(80))  # spec 011: method LLM only
+    model: Mapped[str | None] = mapped_column(String(80))
 
 
 class UsedPriceRange(Base):
@@ -770,6 +781,12 @@ class RegistryAttempt(Base):
     reason: Mapped[str | None] = mapped_column(String(60))
     values: Mapped[int] = mapped_column(Integer, default=0)
     cost_eur: Mapped[float] = mapped_column(Float, default=0.0)
+    # spec 011 FR-002: versions of the producer and the pipeline stages, the page snapshot, searches spent
+    producer_version: Mapped[str | None] = mapped_column(String(80))
+    model: Mapped[str | None] = mapped_column(String(80))
+    snapshot_id: Mapped[str | None] = mapped_column(String(36))
+    stage_versions: Mapped[dict] = mapped_column(JSONB, default=dict, server_default="{}")
+    searches: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
 
 class TruthSignal(Base):
@@ -813,3 +830,97 @@ class RegistryRun(Base):
     discovery_queries: Mapped[int] = mapped_column(Integer, default=0)
     cost_eur: Mapped[float] = mapped_column(Numeric(10, 4), default=0)
     error: Mapped[str | None] = mapped_column(Text)
+
+
+# --- spec 011: acquisition engine ---------------------------------------------------------------------------------
+
+
+class SnapshotBlob(Base):
+    """A raw page body, zstd-compressed, content-addressed by the sha256 of the raw bytes (research R1)."""
+
+    __tablename__ = "snapshot_blobs"
+    sha256: Mapped[str] = mapped_column(String(64), primary_key=True)
+    codec: Mapped[str] = mapped_column(String(8))
+    body: Mapped[bytes] = mapped_column(LargeBinary)
+    raw_bytes: Mapped[int] = mapped_column(Integer)
+    stored_bytes: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
+class PageSnapshot(Base):
+    """One network fetch of a page (never a cache hit); replayable when its raw body is kept."""
+
+    __tablename__ = "page_snapshots"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    url: Mapped[str] = mapped_column(Text)
+    url_hash: Mapped[str] = mapped_column(String(64), index=True)
+    final_url: Mapped[str | None] = mapped_column(Text)
+    domain: Mapped[str] = mapped_column(String(200), index=True)
+    document_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("documents.id", ondelete="SET NULL"), index=True
+    )
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, index=True)
+    blob_sha256: Mapped[str | None] = mapped_column(String(64), ForeignKey("snapshot_blobs.sha256"), index=True)
+    content_type: Mapped[str | None] = mapped_column(String(60))
+    http_status: Mapped[int | None] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(16))  # OK | NO_CONTENT | REFUSED | ERROR
+    replayable: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    retention_class: Mapped[str] = mapped_column(String(10), default="plain", server_default="plain")
+    keep_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    accepted_values: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    variant_ids: Mapped[list[str]] = mapped_column(ARRAY(String(36)), default=list, server_default="{}")
+    structure_hash: Mapped[str | None] = mapped_column(String(16))
+    parser_version: Mapped[str | None] = mapped_column(String(80))
+
+
+class GoldDataset(Base):
+    __tablename__ = "gold_datasets"
+    id: Mapped[str] = mapped_column(String(40), primary_key=True)  # eea_co2_2024, rdw, reference_set, challenges
+    name: Mapped[str] = mapped_column(Text)
+    kind: Mapped[str] = mapped_column(String(20))  # eea_co2 | eea_obfcm | rdw | kba | reference_set | challenge
+    version: Mapped[str | None] = mapped_column(String(80))
+    licence: Mapped[str] = mapped_column(String(30))
+    url: Mapped[str | None] = mapped_column(Text)
+    rows_read: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    rows_matched: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    loaded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    next_refresh_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    error: Mapped[str | None] = mapped_column(Text)
+
+
+class GoldValueRow(Base):
+    """A reference value of one variant's attribute, with its origin, matching rule and tolerance (FR-003)."""
+
+    __tablename__ = "gold_values"
+    __table_args__ = (UniqueConstraint("variant_id", "attribute", "origin", "dataset_id", name="uq_gold_values"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    variant_id: Mapped[str] = mapped_column(ForeignKey("vehicle_variants.id", ondelete="CASCADE"), index=True)
+    attribute: Mapped[str] = mapped_column(String(40))
+    value_num: Mapped[float | None] = mapped_column(Float)
+    value_text: Mapped[str | None] = mapped_column(Text)
+    unit: Mapped[str] = mapped_column(String(20))
+    tolerance: Mapped[float] = mapped_column(Float)
+    tolerance_kind: Mapped[str] = mapped_column(String(4))  # abs | rel
+    origin: Mapped[str] = mapped_column(String(16))  # dataset | challenge | reference_set
+    dataset_id: Mapped[str | None] = mapped_column(String(40), ForeignKey("gold_datasets.id"))
+    record_key: Mapped[str | None] = mapped_column(Text)
+    match_rule: Mapped[str] = mapped_column(String(80))
+    confidence: Mapped[str] = mapped_column(String(8))  # HIGH | MEDIUM
+    registrations: Mapped[int | None] = mapped_column(Integer)
+    verified_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    flagged: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    flag_reason: Mapped[str | None] = mapped_column(Text)
+    details: Mapped[dict] = mapped_column(JSONB, default=dict, server_default="{}")
+
+
+class ExtractionCache(Base):
+    """Extractor outputs per (prompt, model, page body, area): a second replay of a version costs nothing (R4)."""
+
+    __tablename__ = "extraction_cache"
+    __table_args__ = (PrimaryKeyConstraint("prompt_hash", "model", "blob_sha256", "area"),)
+    prompt_hash: Mapped[str] = mapped_column(String(12))
+    model: Mapped[str] = mapped_column(String(80))
+    blob_sha256: Mapped[str] = mapped_column(String(64))
+    area: Mapped[str] = mapped_column(String(20))
+    output: Mapped[dict] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, index=True)

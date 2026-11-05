@@ -24,6 +24,7 @@ from typing import Any
 from pydantic import BaseModel
 from sqlalchemy import delete, func, select, text
 
+from automind.acquisition.pipeline import stamp
 from automind.acquisition.registry.api import Attempt, Plan
 from automind.application import extraction as ex
 from automind.application import incentives_research
@@ -145,7 +146,7 @@ async def _store_relevance(p: Page, variant_id: str, r: rel.Relevance, method: s
     from sqlalchemy.dialects.postgresql import insert  # noqa: PLC0415
 
     values = {"document_id": p.document_id, "variant_id": variant_id, "verdict": r.verdict,
-              "other": (r.other or "")[:80] or None, "reason": r.reason, "method": method}  # fmt: skip
+              "other": (r.other or "")[:80] or None, "reason": r.reason, **stamp.relevance(method)}  # fmt: skip
     async with db.sessionmaker()() as s:
         stmt = insert(db.PageRelevance).values(**values)
         await s.execute(stmt.on_conflict_do_update(index_elements=["document_id", "variant_id"], set_=values))
@@ -164,8 +165,6 @@ def fuel_of(variant_name: str, powertrain: str | None) -> str | None:
 
 
 def re_diesel_suffix(n: str) -> bool:
-    import re  # noqa: PLC0415
-
     return re.search(r"\b\d{3}d\b|\b\d\.\dd\b|\b\d{3} d\b", n) is not None  # 520d, 2.0d, E 220 d
 
 
@@ -336,7 +335,7 @@ async def _record_registry(ports: Ports, job: JobSpec, pages: list[Page], outcom
         if p.url not in url_market or ev.is_denied(p.url):
             continue
         outcome, reason, n = outcome_by_url.get(p.url, ("empty", None, 0))
-        attempts.append(Attempt(domain=ev.domain_of(p.url), area=job.area, market=url_market[p.url], url=p.url,
+        attempts.append(Attempt(area=job.area, market=url_market[p.url], url=p.url, snapshot_id=p.snapshot_id,
                                 outcome=outcome, reason=reason, values=n, job_id=job.job_id,  # type: ignore[arg-type]
                                 variant_id=job.variant_id, via_learned_query=p.url not in indep))  # fmt: skip
     await ports.registry.record(attempts)
@@ -1001,7 +1000,7 @@ async def _spec_claims(
                 variant_id=v.id, evidence_id=e.id, attribute=c.attribute, area=area, raw_value=c.raw_value,
                 raw_unit=c.unit, value_num=num, value_text=txt, excerpt=c.excerpt, scope=scope,
                 provenance=ev.assign_provenance(e.source_type, c.attribute), status=status, reject_rule=rule,
-                extracted_by="LLM",
+                extracted_by="LLM", **stamp.extractor(d),
             )
         )  # fmt: skip
     return accepted, rejected
@@ -1051,7 +1050,7 @@ async def _persist_reading(
                     variant_id=v.id, evidence_id=e.id, attribute=c.attribute, area=area, raw_value=c.raw_value,
                     raw_unit=c.unit, value_num=num, value_text=txt, excerpt=c.excerpt, scope="VARIANT",
                     provenance=ev.assign_provenance(e.source_type, c.attribute), status=status, reject_rule=rule,
-                    extracted_by="READER",
+                    extracted_by="READER", **stamp.reader(reading, page),
                 )
             )  # fmt: skip
         await s.commit()

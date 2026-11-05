@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from typing import Literal, Protocol
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from automind.acquisition.registry.domain.blame import blame
+from automind.domain.evidence import domain_of
 
 __all__ = ["Attempt", "Plan", "PlannedSource", "RegistryPort", "TruthSignalIn", "blame"]
 
@@ -42,7 +43,7 @@ Outcome = Literal["accepted", "rejected", "robots", "junk", "empty", "error"]
 
 
 class Attempt(BaseModel):
-    domain: str
+    domain: str = ""  # the URL's domain when not given
     area: str
     market: str
     url: str
@@ -53,6 +54,17 @@ class Attempt(BaseModel):
     values: int = 0
     cost_eur: float = 0.0
     via_learned_query: bool = False
+    # spec 011 FR-002: the stored page, the producer's version and model, and the pipeline stages' versions
+    snapshot_id: str | None = None
+    producer_version: str | None = None
+    model: str | None = None
+    stage_versions: dict[str, str] = {}
+
+    @model_validator(mode="after")
+    def _domain_from_url(self) -> Attempt:
+        if not self.domain:
+            self.domain = domain_of(self.url)
+        return self
 
 
 class TruthSignalIn(BaseModel):

@@ -12,6 +12,7 @@ Stored in value_challenges with the details. No model call.
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from sqlalchemy import select
@@ -21,10 +22,13 @@ from automind.application.ports import Reference, WebDoc
 from automind.domain import specs
 from automind.infrastructure import db
 
+GoldSink = Callable[..., Awaitable[bool]]  # acquisition.api.record_challenge_gold (spec 011 T027)
+
 
 async def recheck(
-    ref: Reference, chat_id: str, variant_id: str, attribute: str, user_text: str = "", registry: Any = None
-) -> dict[str, Any]:
+    ref: Reference, chat_id: str, variant_id: str, attribute: str, user_text: str = "", registry: Any = None,
+    gold: GoldSink | None = None,
+) -> dict[str, Any]:  # fmt: skip
     async with db.sessionmaker()() as s:
         v = await s.get(db.Variant, variant_id)
         if v is None or attribute not in specs.ATTRS:
@@ -80,7 +84,7 @@ async def recheck(
         else:
             outcome = "UNRESOLVED"
         details = {"before": old, "after": new, "rejected": rejected, "sources": sources}
-        turn_id = None
+        turn_id = challenge_id = None
         if await s.get(db.Chat, chat_id) is not None:  # chat-scoped record (deleted with the chat)
             turn_id = (
                 await s.execute(
@@ -90,12 +94,16 @@ async def recheck(
                     .limit(1)
                 )
             ).scalar_one_or_none()
-            s.add(db.ValueChallenge(chat_id=chat_id, variant_id=variant_id, attribute=attribute, turn_id=turn_id,
+            row = db.ValueChallenge(chat_id=chat_id, variant_id=variant_id, attribute=attribute, turn_id=turn_id,
                                     claim_id=claim_id, user_text=user_text[:500], outcome=outcome,
-                                    details=details))  # fmt: skip
+                                    details=details)  # fmt: skip
+            s.add(row)
             await s.commit()
+            challenge_id = row.id
     area = specs.ATTRS[attribute].category
     await _signals(registry, outcome, judged, new, variant_id, attribute)
+    if gold is not None:  # spec 011 FR-003: a confirmed or corrected value is a reference value for this variant
+        await gold(variant_id, attribute, outcome, new, challenge_id=challenge_id)
     return {"outcome": outcome, "attribute": attribute, "car_id": variant_id, "area": area, **details,
             "turn_id": turn_id, "claim_id": claim_id}  # fmt: skip
 

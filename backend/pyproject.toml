@@ -28,6 +28,7 @@ dependencies = [
     "tavily-python>=0.8.5",
     "trafilatura>=2.3,<3",
     "uvicorn[standard]>=0.54.0",
+    "zstandard>=0.25.0",
 ]
 
 [build-system]

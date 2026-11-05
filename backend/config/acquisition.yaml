@@ -1,0 +1,41 @@
+# The system reads this file and never writes it (constitution XII).
+# Spec 011: the acquisition engine (snapshots, worker, schedule, prefetch, drift, replay).
+version: 1
+snapshots:                 # research R1: raw pages kept for replay, zstd in Postgres
+  max_gb: 5                # size cap of stored (compressed) bodies; retention evicts above it
+  keep_days: {plain: 30, accepted: 180}
+  zstd_level: 10
+worker:                    # research R6
+  concurrency: 2           # tasks at once
+  llm_concurrency: 2       # model calls in flight from the worker (separate from user turns)
+  lease_s: 300
+  poll_s: 2
+  beat_s: 15
+schedule:                  # contracts/task-queue.md; times are UTC
+  metrics_snapshot: {every_s: 60}
+  prefetch: {hourly: [6, 22]}
+  rollup: {daily: "02:00"}
+  drift: {daily: "02:30"}
+  registry_review: {daily: "03:00"}
+  insight_run: {daily: "03:15"}
+  scout: {daily: "03:30"}
+  rule_auditor: {daily: "03:30"}
+  extractor_tuner: {daily: "03:30"}
+  evaluator: {daily: "04:00"}
+  gold_load: {daily: "05:00"}
+  retention_snapshots: {daily: "01:00"}
+  baseline: {daily: "23:50"}
+prefetch:                  # FR-009
+  eur_per_day: 0.30
+  jobs_per_run: 6
+  window_days: 30
+  due_within_h: 48
+drift:                     # research R12
+  min_pages_7d: 15
+  yield_drop: 0.3
+  pass_drop: 0.15
+  min_similarity: 0.6
+  zero_streak: 5
+replay:                    # research R4
+  batch: 500
+  extractor_max_pages: 60

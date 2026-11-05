@@ -228,6 +228,7 @@ dependencies = [
     { name = "tavily-python" },
     { name = "trafilatura" },
     { name = "uvicorn", extra = ["standard"] },
+    { name = "zstandard" },
 ]
 
 [package.dev-dependencies]
@@ -266,6 +267,7 @@ requires-dist = [
     { name = "tavily-python", specifier = ">=0.8.5" },
     { name = "trafilatura", specifier = ">=2.3,<3" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.54.0" },
+    { name = "zstandard", specifier = ">=0.25.0" },
 ]
 
 [package.metadata.requires-dev]

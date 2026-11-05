@@ -18,6 +18,8 @@ from langchain.chat_models import init_chat_model
 from langchain_core.language_models import BaseChatModel
 from pydantic import BaseModel
 
+from automind.acquisition.domain import served as _served
+from automind.acquisition.domain.served import ServedCall, served
 from automind.application.usage import BudgetExceeded, Limits, Prices, TurnBudget, current_budget
 from automind.config import settings
 from automind.infrastructure import config as cfg
@@ -27,6 +29,7 @@ log = logging.getLogger(__name__)
 
 __all__ = [
     "BudgetExceeded",
+    "ServedCall",
     "TurnBudget",
     "chat_model",
     "current_budget",
@@ -35,6 +38,7 @@ __all__ = [
     "models_by_role",
     "new_budget",
     "prices",
+    "served",
     "structured",
     "text",
 ]
@@ -193,6 +197,7 @@ async def structured(role: str, schema: type[T], system: str, user: str) -> T:
             [("system", system), ("user", user)]
         )
 
+    _served.begin(role)  # spec 011 T009: `served(role)` names the model and prompt version that answer this call
     token = current_prompt.set(prompt_identity(role, system))
     try:
         out = await _with_fallbacks(role, call)
@@ -208,6 +213,7 @@ async def text(role: str, system: str, user: str) -> str:
     async def call(model: BaseChatModel) -> Any:
         return await model.ainvoke([("system", system), ("user", user)])
 
+    _served.begin(role)
     token = current_prompt.set(prompt_identity(role, system))
     try:
         msg = await _with_fallbacks(role, call)
