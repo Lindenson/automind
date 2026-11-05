@@ -272,6 +272,7 @@ async def test_parsers_list_and_detail(monkeypatch, seed):
     assert p["last_7d"]["pages"] == 9 * 3 and p["last_7d"]["fields_per_page"] == pytest.approx(11.0)
     assert p["last_7d"]["pass_rate"] == pytest.approx(88 / 90, abs=1e-3)
     assert p["baseline_30d"]["fields_per_page"] is not None
+    assert [x["fields_per_page"] for x in p["spark_30d"][-4:]] == [2.0, 11.0, 11.0, 11.0]  # v1's drop, then v2
     assert p["drift"] is None  # the drift of v1 is older than v2's activation
     assert p["canary"] == {"change_id": seed.doctor_id, "phase": "watch", "ends_at": None, "day": 2, "of": 7}
 

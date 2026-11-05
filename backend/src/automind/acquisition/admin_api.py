@@ -217,6 +217,14 @@ async def _parsers(readers: list[str] | None, daily_days: int) -> list[dict[str,
             (c for c in sorted(open_, key=lambda c: c.created_at, reverse=True) if c.object_key == p.reader), None
         )
         b = _agg(base)
+        recent = sorted((r for r in rows if r.day > today - timedelta(days=30)), key=lambda r: r.day)
+        by_day: dict[date, list[ParserDaily]] = defaultdict(list)
+        for r in recent:
+            by_day[r.day].append(r)
+        spark = []
+        for d, v in by_day.items():
+            a = _agg(v)
+            spark.append({"day": _iso(d), "fields_per_page": a["fields_per_page"], "pass_rate": a["pass_rate"]})
         out.append(
             {
                 "reader": p.reader,
@@ -227,6 +235,7 @@ async def _parsers(readers: list[str] | None, daily_days: int) -> list[dict[str,
                 "active_status": active.status if active else None,
                 "versions": [_version_out(v) for v in vs],
                 "last_7d": _agg(last),
+                "spark_30d": spark,  # the reader's daily fields per page and pass rate (all versions), 30 days
                 "baseline_30d": {
                     "fields_per_page": b["fields_per_page"],
                     "pass_rate": b["pass_rate"],
