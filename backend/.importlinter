@@ -41,8 +41,6 @@ forbidden_modules =
 ignore_imports =
     automind.application.compose -> automind.infrastructure.**
     automind.application.compose -> sqlalchemy
-    # strangler (spec 011 S1-S7): research.py imports the stages moved to acquisition.pipeline until T049 deletes it
-    automind.application.research -> automind.**
     automind.application.resolve -> automind.infrastructure.**
     automind.application.resolve -> sqlalchemy
     # one-off data repair after the 004 verification fixes; uses the research persistence directly
@@ -170,16 +168,13 @@ forbidden_modules =
 name = The chat orders data only through acquisition.api (spec 011 FR-005, FR-006, constitution XIII)
 type = forbidden
 source_modules =
+    automind.application
     automind.orchestration
     automind.domain
 forbidden_modules =
-    automind.application.research
-    automind.application.extraction
-    automind.application.incentives_research
     automind.infrastructure.fetch
     automind.infrastructure.pages
     automind.infrastructure.search
-    automind.infrastructure.site_readers
     automind.acquisition.agents
     automind.acquisition.domain
     automind.acquisition.drift
