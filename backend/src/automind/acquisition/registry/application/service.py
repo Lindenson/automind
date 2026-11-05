@@ -44,7 +44,8 @@ def rank_queryable(rows: list[dict[str, Any]], markets: list[str], limit: int) -
         if any(p.domain == r["domain"] for p in out):
             continue
         out.append(PlannedSource(domain=r["domain"], market=r["market"], priority=len(out), status=r["status"],
-                                 unverified=r["status"] == "candidate"))  # fmt: skip
+                                 unverified=r["status"] == "candidate",
+                                 path=str((r.get("url_patterns") or [""])[0])))  # fmt: skip
     return out
 
 

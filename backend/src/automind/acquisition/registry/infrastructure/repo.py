@@ -57,6 +57,7 @@ def _cap_dict(r: CapabilityRow) -> dict[str, Any]:
         "wrong_w": r.wrong_w,
         "cost_eur": r.cost_eur,
         "explore_spent_eur": r.explore_spent_eur or 0.0,
+        "url_patterns": list(r.url_patterns or []),  # spec 011 T108: learned by the scout
     }
 
 
