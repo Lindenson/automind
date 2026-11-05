@@ -9,6 +9,11 @@ the power of each version is written in its excerpt, the excerpt occurs in its d
 generation's. A new car whose first
 searches find no list tries harder before the fallback (chat 5821ac77: an old catalog row won for a new Sorento):
 the generation with the current year, the market's model name, and the registry's spec sources (`site:`).
+
+Before any search, a new car's registered versions are read from the open datasets (`acquisition.api.
+dataset_versions`: stored gold, cached rows, else one bounded dataset query): an engine first registered after the
+others (a facelift, the Sorento PHEV's 118 kW engine of 2024) names the year the searches ask for, and the same
+versions are the options of the "which version?" question when no list is found (chat 6e001ee0).
 """
 
 from __future__ import annotations
@@ -16,7 +21,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from automind.acquisition.api import VersionEntry, VersionsOut, VersionsRead
+from automind.acquisition.api import DatasetVersion, VersionEntry, VersionsOut, VersionsRead
 from automind.application.ports import Ports
 from automind.domain import evidence, identity, search_plan
 from automind.domain.ladder import Generation, Version, sold_in
@@ -106,9 +111,13 @@ async def lookup(ports: Ports, make: str, model: str, *, generation: str | None,
     hit = await store.get(make, model, generation, year, new, int(lim.get("versions_ttl_days", 60)))
     if hit is not None and covers(hit, year):
         return hit  # type: ignore[no-any-return]
-    when = " ".join(x for x in (generation, str(year) if year else None) if x) or "nuevo"
     if ports.acquisition is None:
         return None
+    since = None
+    if new and current_year and year is None:  # the datasets first: cheap, and they know a facelift's year
+        since = newer_engine_year(await dataset_versions(ports, make, model, generation, None,
+                                                         current_year - DATASET_YEARS))  # fmt: skip
+    when = " ".join(x for x in (generation, str(year or since or "") or None) if x) or "nuevo"
     read: set[str] = set()
     first = _first_queries(f"{make} {model} {when}")
     got = await ports.acquisition.versions(make, model, generation, year=year, queries=first, limits=lim, done=read)
@@ -137,6 +146,28 @@ async def _from_docs(store: Any, hit: Generation | None, make: str, model: str, 
     g = Generation(make, model, gen, out.generation_years_from, out.generation_years_to, out.body_class, kept, srcs)
     await store.put(g)
     return g
+
+
+DATASET_YEARS = 6  # a new car: the registered versions of the last years
+
+
+async def dataset_versions(ports: Ports, make: str, model: str, generation: str | None, fuel: str | None,
+                           year_from: int | None) -> list[DatasetVersion]:  # fmt: skip
+    """The model's versions registered in the EU (the engine's `dataset_versions`); [] without the engine."""
+    get = getattr(getattr(ports, "acquisition", None), "dataset_versions", None)
+    if get is None:
+        return []
+    try:
+        return list(await get(make, model, generation, fuel, year_from))
+    except Exception:  # noqa: BLE001 - the datasets only add options and a search year
+        return []
+
+
+def newer_engine_year(found: list[DatasetVersion]) -> int | None:
+    """The first year of the newest engine registered after the model's first ones (a facelift); None if all came
+    together."""
+    years = sorted({v.years_from for v in found if v.years_from})
+    return years[-1] if len(years) > 1 else None
 
 
 def covers(g: Generation, year: int | None) -> bool:

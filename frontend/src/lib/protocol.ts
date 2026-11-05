@@ -522,6 +522,7 @@ export const QuickRepliesBlockSchema = z.object({
       text: z.string(),
       suggested: z.boolean().nullish(), // spec 005 FR-024: a model the user did not name
       reason: z.string().nullish(),
+      typing: z.boolean().nullish(), // "another one (I'll type it)": focuses the composer, sends nothing
     }),
   ),
 });

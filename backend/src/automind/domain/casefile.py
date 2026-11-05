@@ -198,6 +198,12 @@ class Choice(BaseModel):
     power_kw: int | None = None
     gearbox: str | None = None
     drive: str | None = None
+    # a version the open registration datasets list (chat 6e001ee0): the combustion engine's kW (a hybrid's is
+    # not its power) and the registration years; the label is built from them in the user's language
+    engine_kw: int | None = None
+    power_is_max: bool = False
+    years_from: int | None = None
+    years_to: int | None = None
 
 
 IdentifyKind = Literal["IDENTIFIED", "CHOICES", "NEED", "NOT_FOUND"]

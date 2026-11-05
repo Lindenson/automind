@@ -23,6 +23,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 __all__: list[str] = [
+    "DatasetVersion",
     "LineupEntry",
     "LineupOut",
     "LineupRead",
@@ -30,6 +31,7 @@ __all__: list[str] = [
     "VersionsOut",
     "VersionsRead",
     "WebHint",
+    "dataset_versions",
     "generation_hints",
     "lineup",
     "versions",
@@ -314,6 +316,37 @@ async def generation_hints(query: str, *, lineup_url: str | None = None, user_ur
     identity = _engine("acquisition.pipeline.identity")
     return await identity.generation_hints(_ports(ports), query, lineup_url=lineup_url, user_url=user_url,  # type: ignore[no-any-return]
                                            prices=prices)  # fmt: skip
+
+
+class DatasetVersion(BaseModel):
+    """A version of a model as the open registration datasets list it (EEA CO2; one engine: fuel, kW, cm3).
+    `engine_kw` is the combustion engine's power (for a hybrid or plug-in NOT the system power); `power_is_max`:
+    a combustion car, whose engine kW is its power. `years_to` None: still registered in the newest year."""
+
+    fuel: str
+    engine_kw: int | None = None
+    displacement_cc: int | None = None
+    years_from: int | None = None
+    years_to: int | None = None
+    registrations: int = 0  # 0: not known (a stored group key)
+    power_is_max: bool = False
+    datasets: list[str] = Field(default_factory=list)
+    names: list[str] = Field(default_factory=list)  # commercial names as published
+    source_url: str = ""
+
+
+async def dataset_versions(make: str, model: str, generation: str | None = None, fuel: str | None = None,
+                           year_from: int | None = None, *, ports: Any = None) -> list[DatasetVersion]:  # fmt: skip
+    """The distinct versions of a model registered in the EU (open datasets), newest first: offline from the stored
+    gold values and cached dataset rows; when neither has the model, one bounded live dataset query (cached).
+    Cheap and authoritative for EU-registered cars; never raises (a failure is an empty list)."""
+    gv = _engine("acquisition.gold.versions")
+    found = await gv.registered_versions(_ports(ports), make, model, generation, fuel, year_from)
+    url = gv.source_url()
+    return [DatasetVersion(fuel=v.fuel, engine_kw=v.engine_kw, displacement_cc=v.displacement_cc,
+                           years_from=v.years_from, years_to=v.years_to, registrations=v.registrations,
+                           power_is_max=v.power_is_max, datasets=list(v.datasets), names=list(v.names),
+                           source_url=url) for v in found]  # fmt: skip
 
 
 def _ports(ports: Any) -> Any:

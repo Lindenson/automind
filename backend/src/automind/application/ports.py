@@ -271,6 +271,9 @@ class AcquisitionPort(Protocol):
     async def generation_hints(self, query: str, *, lineup_url: str | None = None, user_url: str | None = None,
                                prices: bool = False) -> list[Any]: ...  # fmt: skip
 
+    async def dataset_versions(self, make: str, model: str, generation: str | None = None, fuel: str | None = None,
+                               year_from: int | None = None) -> list[Any]: ...  # fmt: skip
+
 
 Emit = Callable[[str, dict[str, Any]], Awaitable[None]]
 """Progress/event callback: (type, payload)."""

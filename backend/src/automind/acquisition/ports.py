@@ -24,6 +24,7 @@ class AcqPorts:
     metrics: Any = None  # inc(name, **labels) for Prometheus counters; None: not counted
     learned: LearnedSources | None = None  # spec 007 FR-022; None: no learned sources
     market_facts: Any = None  # spec 006 US5: upsert(rows, evidence_id); None: market areas store nothing
+    datasets: Any = None  # async (make) -> [gold DatasetRow]: a live open-dataset query; None: stored/cached only
 
     @property
     def page_store(self) -> PageStore:

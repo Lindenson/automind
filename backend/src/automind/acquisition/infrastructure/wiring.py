@@ -9,6 +9,7 @@ from functools import cache
 from pathlib import Path
 from typing import Any
 
+from automind.acquisition.gold.versions import live_rows
 from automind.acquisition.infrastructure.fetch import Fetcher, FetchPolicy
 from automind.acquisition.infrastructure.pages import DbPageStore
 from automind.acquisition.parsing.legacy import live_readers
@@ -52,6 +53,7 @@ def engine_ports(llm: Any, ref: Reference, registry: Any = None) -> AcqPorts:
         metrics=prom.inc,
         learned=LearnedSourceRepo(),
         market_facts=MarketFactRepo(),
+        datasets=live_rows,
     )
 
 
