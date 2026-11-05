@@ -32,7 +32,11 @@ schedule:
   baseline: {daily: "00:45", key: baseline}                          # US3 T073: open KPI baselines
   parser_daily: {daily: "00:15", key: parserday, loop: parsers}      # US4 T089: yesterday's parser metrics
   drift: {daily: "00:20", key: drift, loop: drift}                   # US4 T089: drift → degraded + parser doctor
-  scout: {daily: "04:00", key: scout, loop: scout}                   # US5 T108: new sources for gaps (010 T065)
+  scout: {daily: "04:10", key: scout, loop: scout}                   # US5 T108: new sources for gaps (010 T065)
+  rule_auditor: {daily: "03:30", key: rule_auditor}                  # US5 T106: rules rejecting confirmed values
+  extractor_tuner: {daily: "03:35", key: extractor_tuner}            # US5 T107: extractor accuracy / model change
+  parser_doctor: {daily: "03:40", key: doctorsweep}                  # US5 T105: spec sites without a parser
+  evaluator: {daily: "04:00", key: eval, loop: evaluator}            # US5 T103: KPI, shadow deadlines, watch/rollback
 
 prefetch:
   enabled: false        # the handler slot completes with {"skipped": "disabled"} while false

@@ -13,6 +13,7 @@ Moved from `application/research.py` with the bodies unchanged (plus `stage_vers
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from collections import defaultdict
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -38,7 +39,7 @@ from automind.domain import evidence as ev
 from automind.domain import learned as learned_rules
 from automind.domain import relevance as rel
 from automind.domain import research_plan, search_plan
-from automind.infrastructure import db
+from automind.infrastructure import db, overrides
 
 VERSION = "job@1"
 # spec 011 FR-002: the versions of the stages a job ran, on every attempt and on the area's research run
@@ -124,7 +125,21 @@ async def _record_registry(ports: Ports, job: JobSpec, pages: list[Page], outcom
     await ports.registry.record(attempts)
 
 
+async def _shadow_extracted(area: str, pages: list[Page]) -> None:
+    """Spec 011 T102: pages the extractor just read feed the shadow gate of a prompt or model change (queued for the
+    worker; no work in the turn)."""
+    if not (overrides.in_shadow("prompt") or overrides.in_shadow("role_model")):
+        return
+    from automind.acquisition.gates import shadow  # noqa: PLC0415
+
+    ids = [p.snapshot_id for p in pages if p.snapshot_id]
+    if ids:
+        with contextlib.suppress(Exception):  # bookkeeping never fails the job
+            await shadow.notify_extracted(ex.PROMPT_FOR_AREA.get(area), ids)
+
+
 async def run_job(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
+    await overrides.refresh()  # spec 011 T104: gated rule, prompt and model overrides (cached 60 s)
     token = current_job.set((job.job_id, job.area))
     plan_token = current_plan.set(await _plan(ports, job))
     count = ports.metrics or (lambda *a, **k: None)  # spec 010: Prometheus counters through the port
@@ -200,6 +215,7 @@ async def _run(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
         )
 
     await asyncio.gather(*(one(p) for p in pages))
+    await _shadow_extracted(job.area, [p for p in pages if p.url not in readings and outcome_by_url.get(p.url)])
     await _record_learned(ports, job.area, pages, accepted_by_url, stats.get("url_market", {}),
                           stats.get("independent_urls"))  # fmt: skip
     await _record_registry(ports, job, pages, outcome_by_url, stats.get("url_market", {}),

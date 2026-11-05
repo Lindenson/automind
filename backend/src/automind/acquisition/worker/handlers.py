@@ -169,9 +169,68 @@ async def drift(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any]:
     return {**await daily.detect(day), "rolled": rolled["rows"]}
 
 
-# Kinds enqueued before their handler exists (spec 011: drift enqueues `parser_doctor`, whose handler is US5 T105):
-# the worker leaves them queued instead of burying them as "no handler".
-AWAITING_HANDLER = ("parser_doctor",)
+def _guard(task: queue.Task, ctx: WorkerCtx) -> Any:
+    """The daily budget of the agent whose change (or run) this task is (agents/budget.py)."""
+    from automind.acquisition.agents.budget import AgentBudget  # noqa: PLC0415
+
+    g = AgentBudget(str(task.payload.get("agent") or task.kind))
+    ctx.guards.append(g)
+    return g
+
+
+async def gate_replay(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any]:
+    """Spec 011 T101: the replay gate of one change."""
+    from automind.acquisition.gates import replay_gate  # noqa: PLC0415
+
+    return await replay_gate.run(str(task.payload["change_id"]), guard=_guard(task, ctx))
+
+
+async def gate_shadow(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any]:
+    """Spec 011 T102: one live page added to a change's shadow, then the shadow decision."""
+    from automind.acquisition.gates import shadow  # noqa: PLC0415
+
+    sid = task.payload.get("snapshot_id")
+    return await shadow.run(str(task.payload["change_id"]), str(sid) if sid else None, guard=_guard(task, ctx))
+
+
+async def watch(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any]:
+    """Spec 011 T103: the watch of one accepted change (keep or roll back)."""
+    from automind.acquisition.gates import watch as watching  # noqa: PLC0415
+
+    return await watching.check(str(task.payload["change_id"]))
+
+
+async def evaluator(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any]:
+    """Spec 011 T103: daily, code only — accuracy KPI, shadow deadlines, watch and rollbacks, gauges."""
+    from automind.acquisition.agents import evaluator as ev  # noqa: PLC0415
+
+    return await ev.run()
+
+
+async def parser_doctor(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any]:
+    """Spec 011 T105: a new parser spec version for a drifted parser (or a spec site without one)."""
+    from automind.acquisition.agents import parser_doctor as doctor  # noqa: PLC0415
+
+    return await doctor.handle(dict(task.payload), guard=_guard(task, ctx))
+
+
+async def rule_auditor(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any]:
+    """Spec 011 T106: a bounded keyword or threshold change for rules that reject confirmed values."""
+    from automind.acquisition.agents import rule_auditor as auditor  # noqa: PLC0415
+
+    return await auditor.handle(dict(task.payload), guard=_guard(task, ctx))
+
+
+async def extractor_tuner(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any]:
+    """Spec 011 T107: an extraction prompt version or extractor model when accuracy or yield falls."""
+    from automind.acquisition.agents import extractor_tuner as tuner  # noqa: PLC0415
+
+    return await tuner.handle(dict(task.payload), guard=_guard(task, ctx))
+
+
+# Kinds enqueued before their handler exists: the worker leaves them queued instead of burying them as "no
+# handler" (the scout arrives on its own branch, spec 011 T108).
+AWAITING_HANDLER: tuple[str, ...] = ()
 
 HANDLERS: dict[str, Handler] = {
     "metrics_snapshot": metrics_snapshot,
@@ -187,4 +246,11 @@ HANDLERS: dict[str, Handler] = {
     "parser_daily": parser_daily,
     "drift": drift,
     "scout": scout,
+    "gate_replay": gate_replay,
+    "gate_shadow": gate_shadow,
+    "watch": watch,
+    "evaluator": evaluator,
+    "parser_doctor": parser_doctor,
+    "rule_auditor": rule_auditor,
+    "extractor_tuner": extractor_tuner,
 }

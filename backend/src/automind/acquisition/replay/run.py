@@ -292,7 +292,8 @@ def _prompt(key: str) -> tuple[str, str, str]:
     return name, text, area
 
 
-async def _extract_cached(doc: WebDoc, sha: str, name: str, text: str, area: str, model: str, target: str) -> Any:
+async def _extract_cached(doc: WebDoc, sha: str, name: str, text: str, area: str, model: str, target: str,
+                          llm: Any = None) -> Any:  # fmt: skip
     from automind.acquisition.pipeline import extract as extraction  # noqa: PLC0415
     from automind.infrastructure.adapters import LiveLLM  # noqa: PLC0415
 
@@ -302,7 +303,7 @@ async def _extract_cached(doc: WebDoc, sha: str, name: str, text: str, area: str
         hit = await s.get(ExtractionCache, (phash, model, sha, area))
     if hit is not None:
         return schema.model_validate(hit.output)
-    out = await extraction.extract(LiveLLM(), {name: text}, area, target, doc)
+    out = await extraction.extract(llm or LiveLLM(), {name: text}, area, target, doc)
     async with sessionmaker()() as s:
         row = {"prompt_hash": phash, "model": model, "blob_sha256": sha, "area": area,
                "output": out.model_dump(mode="json"), "created_at": datetime.now(UTC)}  # fmt: skip

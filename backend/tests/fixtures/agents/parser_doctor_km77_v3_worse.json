@@ -1,0 +1,27 @@
+{
+ "reader": "km77",
+ "version": 3,
+ "domains": ["km77.com"],
+ "layout": "dl",
+ "fields": [
+  {"attribute": "max_power", "label": "potencia", "prefer_unit": "kW"},
+  {"attribute": "curb_mass", "label": "par motor"},
+  {"attribute": "max_torque", "label": "masa en orden de marcha"},
+  {"attribute": "displacement", "label": "gasóleo"},
+  {"attribute": "claimed_0_100", "label": "0 a 100 km/h"},
+  {"attribute": "top_speed", "label": "velocidad punta"},
+  {"attribute": "boot_volume", "label": "volumen mínimo con dos filas de asientos", "prefix": true},
+  {"attribute": "drivetrain", "label": "ruedas motrices", "text": true},
+  {"attribute": "bore", "label": "diámetro del cilindro"},
+  {"attribute": "stroke", "label": "recorrido del pistón"},
+  {"attribute": "drag_coefficient", "label": "cx aerodinámico"},
+  {"attribute": "consumption", "label": "consumo combinado"},
+  {"attribute": "compression_ratio", "label": "compresión"},
+  {"attribute": "seats", "label": "número de puertas"},
+  {"attribute": "engine_layout", "label": "situación", "text": true},
+  {"attribute": "transmission", "label": "caja de cambios", "text": true}
+ ],
+ "min_rows": 3,
+ "skip_values": ["-", "No disponible"],
+ "notes": "Recorded deliberately worse parser_doctor answer (spec 011 T109): more fields, but torque, mass and displacement read the wrong labels."
+}
