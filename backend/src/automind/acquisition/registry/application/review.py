@@ -16,6 +16,7 @@ from typing import Any
 
 from sqlalchemy import select
 
+from automind.acquisition.registry.application.admission import admit_pending
 from automind.acquisition.registry.domain import limits
 from automind.acquisition.registry.domain.lifecycle import CapState, transition
 from automind.acquisition.registry.infrastructure.repo import RegistryRepo, _decay, _refresh
@@ -42,12 +43,43 @@ def _ranks(caps: list[CapabilityRow]) -> dict[str, int]:
     return out
 
 
-async def review(cfg: dict[str, Any] | None = None, kind: str = "daily") -> dict[str, int]:
+async def _reverts(s: Any) -> dict[str, Any]:
+    out: dict[str, Any] = {}
+    for ch in (await s.execute(select(RegistryChange).where(RegistryChange.change == "reverted"))).scalars():
+        if ch.capability_id and (ch.capability_id not in out or ch.created_at > out[ch.capability_id]):
+            out[ch.capability_id] = ch.created_at
+    return out
+
+
+def _journal_reorders(s: Any, caps: list[CapabilityRow], before: dict[str, int], stats: dict[str, int]) -> None:
+    after = _ranks(caps)
+    for c in caps:
+        b, a = before.get(c.id), after.get(c.id)
+        if b and a and b != a and min(a, b) <= TOP_RANKS and abs(a - b) >= 2:
+            s.add(
+                RegistryChange(
+                    author="system",
+                    capability_id=c.id,
+                    domain=c.domain,
+                    change="reordered",
+                    before={"rank": b},
+                    after={"rank": a},
+                    reason=f"{c.area}/{c.market}: moved from #{b} to #{a} by score {c.score:.3f}",
+                    evidence={"score": c.score, "acc_lb": c.acc_lb, "yield": c.yield_},
+                )
+            )
+            stats["reordered"] += 1
+            prom.inc("registry_changes", change="reordered", author="system")
+
+
+async def review(cfg: dict[str, Any] | None = None, kind: str = "daily", admit_sites: bool = True) -> dict[str, int]:
     cfg = cfg or load_yaml("registry.yaml")
     stats = {"changes": 0, "held": 0, "refused": 0, "reordered": 0}
     if not cfg.get("autonomy"):
         return stats
     deny = tuple(str(x).lower() for x in load_yaml("sources.yaml").get("denylist") or [])
+    if admit_sites:  # sites met in searches get their admission check first (FR-019)
+        stats.update({f"admission_{k}": v for k, v in (await admit_pending(cfg)).items()})
     repo = RegistryRepo(cfg)
     t = now()
     async with sessionmaker()() as s:
@@ -55,10 +87,7 @@ async def review(cfg: dict[str, Any] | None = None, kind: str = "daily") -> dict
         s.add(run)
         caps = list((await s.execute(select(CapabilityRow))).scalars())
         sources = {r.domain: r for r in (await s.execute(select(SourceRow))).scalars()}
-        reverts: dict[str, Any] = {}
-        for ch in (await s.execute(select(RegistryChange).where(RegistryChange.change == "reverted"))).scalars():
-            if ch.capability_id and (ch.capability_id not in reverts or ch.created_at > reverts[ch.capability_id]):
-                reverts[ch.capability_id] = ch.created_at
+        reverts = await _reverts(s)
         before = _ranks(caps)
         for c in caps:
             src = sources.get(c.domain)
@@ -124,24 +153,7 @@ async def review(cfg: dict[str, Any] | None = None, kind: str = "daily") -> dict
             c.status, c.status_since = mv.to, t
             stats["changes"] += 1
             prom.inc("registry_changes", change=change, author="system")
-        after = _ranks(caps)
-        for c in caps:
-            b, a = before.get(c.id), after.get(c.id)
-            if b and a and b != a and min(a, b) <= TOP_RANKS and abs(a - b) >= 2:
-                s.add(
-                    RegistryChange(
-                        author="system",
-                        capability_id=c.id,
-                        domain=c.domain,
-                        change="reordered",
-                        before={"rank": b},
-                        after={"rank": a},
-                        reason=f"{c.area}/{c.market}: moved from #{b} to #{a} by score {c.score:.3f}",
-                        evidence={"score": c.score, "acc_lb": c.acc_lb, "yield": c.yield_},
-                    )
-                )
-                stats["reordered"] += 1
-                prom.inc("registry_changes", change="reordered", author="system")
+        _journal_reorders(s, caps, before, stats)
         run.changes, run.finished_at = stats["changes"] + stats["reordered"], now()
         await s.commit()
     return stats

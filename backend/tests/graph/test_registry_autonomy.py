@@ -22,9 +22,13 @@ async def _setup() -> None:
         for t in (m.RegistryAttempt, m.RegistryChange, m.TruthSignal, m.CapabilityRow, m.SourceRow):
             await s.execute(delete(t))
         old = now() - timedelta(days=2)
-        for dom, access, frozen in (("good.example", "ok", False), ("bad.example", "ok", False),
-                                    ("forbid.example", "terms_forbid", False), ("frozen.example", "ok", True),
-                                    ("new.example", "ok", False)):  # fmt: skip
+        for dom, access, frozen in (
+            ("good.example", "ok", False),
+            ("bad.example", "ok", False),
+            ("forbid.example", "terms_forbid", False),
+            ("frozen.example", "ok", True),
+            ("new.example", "ok", False),
+        ):
             s.add(
                 m.SourceRow(
                     domain=dom,
@@ -79,7 +83,7 @@ def _client(monkeypatch) -> httpx.AsyncClient:
 async def test_review_moves_journals_and_owner_reverts(monkeypatch):
     await _setup()
     cfg = {**load_yaml("registry.yaml"), "autonomy": True}
-    stats = await review(cfg, kind="test")
+    stats = await review(cfg, kind="test", admit_sites=False)
     st = await _status()
     assert st["good.example"] == "active" and st["bad.example"] == "degraded"
     assert st["forbid.example"] == "blocked" and st["frozen.example"] == "active" and st["new.example"] == "candidate"
@@ -97,17 +101,54 @@ async def test_review_moves_journals_and_owner_reverts(monkeypatch):
     listing = (await c.get("/api/v1/admin/sources?area=specs")).json()
     assert listing["autonomy"] is False and listing["sources"][0]["rank"] == 1
     assert {x["domain"] for x in listing["sources"]} >= {"good.example", "bad.example", "forbid.example"}
-    await review(cfg, kind="test")  # the reverted demotion is not repeated without new evidence
+    await review(cfg, kind="test", admit_sites=False)  # the reverted demotion is not repeated without new evidence
     assert (await _status())["bad.example"] == "active"
     card = (await c.get("/api/v1/admin/sources/forbid.example")).json()
     assert card["source"]["access_evidence"]["clause"] and card["changes"]
     assert (await c.post("/api/v1/admin/sources/good.example/freeze")).status_code == 200
-    await review(cfg, kind="test")
+    await review(cfg, kind="test", admit_sites=False)
     async with sessionmaker()() as s:
         assert (await s.get(m.SourceRow, "good.example")).frozen is True
 
 
 async def test_review_does_nothing_without_autonomy():
     await _setup()
-    stats = await review({**load_yaml("registry.yaml"), "autonomy": False})
+    stats = await review({**load_yaml("registry.yaml"), "autonomy": False}, admit_sites=False)
     assert stats["changes"] == 0 and (await _status())["good.example"] == "candidate"
+
+
+async def test_admission_admits_or_blocks_discovered_sites_with_evidence():
+    from automind.acquisition.registry.application.admission import admit_pending
+    from automind.acquisition.registry.domain.admission import AdmissionFacts
+
+    await _setup()
+    async with sessionmaker()() as s:
+        for dom in ("fine.example", "nobots.example", "legal.example"):
+            s.add(m.SourceRow(domain=dom, source_type="PUBLICATION", family=dom, access="unknown"))
+            await s.flush()
+            s.add(
+                m.CapabilityRow(
+                    domain=dom, area="specs", market="ES", status="discovered", decayed_at=now(), status_since=now()
+                )
+            )
+        await s.commit()
+
+    async def gather(domain: str, sample: object, llm: object) -> AdmissionFacts:
+        return {
+            "fine.example": AdmissionFacts(domain, True, False, None, None, 5000),
+            "nobots.example": AdmissionFacts(domain, False, None),
+            "legal.example": AdmissionFacts(
+                domain, True, True, "Automated extraction is prohibited.", "https://l/t", 5000
+            ),
+        }.get(domain, AdmissionFacts(domain, True, False, None, None, 5000))
+
+    cfg = {**load_yaml("registry.yaml"), "autonomy": True}
+    out = await admit_pending(cfg, gather=gather)
+    assert out["blocked"] == 2 and out["admitted"] >= 1
+    await review(cfg, kind="test", admit_sites=False)
+    st = await _status()
+    assert st["fine.example"] == "candidate" and st["nobots.example"] == "blocked" and st["legal.example"] == "blocked"
+    async with sessionmaker()() as s:
+        legal = await s.get(m.SourceRow, "legal.example")
+    assert legal.access == "terms_forbid" and legal.access_evidence["clause"] == "Automated extraction is prohibited."
+    assert legal.next_check_at is not None
