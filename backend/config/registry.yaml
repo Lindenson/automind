@@ -1,6 +1,6 @@
 # Spec 010 US6-US8: the autonomous source registry. The system reads this file and never writes it (constitution XII).
 version: 1
-autonomy: false            # false: the registry reproduces today's order (favourites, then learned); see T078
+autonomy: false            # false: the configured favourites first, then the registry's `site:` queries; see T078
 half_life_days: 90         # truth signals and counts fade with this half-life
 weights:                   # weight of a truth signal
   gold: 1.0

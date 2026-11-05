@@ -79,7 +79,8 @@ async def test_follow_up_round_queries_registry_candidates_of_other_european_mar
     assert site == ["RegMake Cruiser 2016 site:valuer.example"], search.queries
     assert search.markets[search.queries.index(site[0])] == "FR"
     assert "https://www.valuer.example/regmake/cruiser/2016" in search.extracted
-    assert res.accepted == 1 and res.minimum_met
+    # a candidate is half an independent source (spec 011 FR-022): one range from it does not meet the minimum
+    assert res.accepted == 1 and not res.minimum_met
     async with sessionmaker()() as s:
         ranges = (await s.execute(select(m.UsedPriceRange).where(m.UsedPriceRange.variant_id == vid))).scalars().all()
         attempts = (

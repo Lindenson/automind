@@ -27,7 +27,7 @@ from automind.acquisition.pipeline.locate import pages_for
 from automind.acquisition.pipeline.merge import reselect
 from automind.acquisition.pipeline.parse import _read_tables
 from automind.acquisition.pipeline.persist import _evidence, _persist, _persist_reading
-from automind.acquisition.pipeline.plan import _plan, _variant, current_plan, known_makes
+from automind.acquisition.pipeline.plan import _plan, _variant, current_candidates, current_plan, known_makes
 from automind.acquisition.pipeline.relevance import _llm_per_job, _PageJudge, _relevance_target
 from automind.acquisition.pipeline.validate import known_values
 from automind.acquisition.read import _have, missing_critical
@@ -35,7 +35,6 @@ from automind.acquisition.registry.api import Attempt
 from automind.application.ports import Page, Ports
 from automind.application.usage import BudgetExceeded, current_job
 from automind.domain import evidence as ev
-from automind.domain import learned as learned_rules
 from automind.domain import relevance as rel
 from automind.domain import research_plan, search_plan
 from automind.infrastructure import db
@@ -78,6 +77,7 @@ class JobResult:
     minimum_met: bool = False
     error: str | None = None
     hits: list[dict[str, Any]] = field(default_factory=list)
+    planned: list[str] = field(default_factory=list)  # the active sources of the registry's plan (not_reached input)
 
 
 def target_of(v: db.Variant, car_year: int | None = None) -> str:
@@ -87,31 +87,14 @@ def target_of(v: db.Variant, car_year: int | None = None) -> str:
     return f"{v.label}{years}, powertrain {v.powertrain}{body}, market ES{year}"
 
 
-async def _record_learned(ports: Ports, area: str, pages: list[Page], accepted_by_url: dict[str, int],
-                          url_market: dict[str, str], independent: set[str] | None = None) -> None:  # fmt: skip
-    """Only pages that came from a search count (never a pasted URL); `independent` are the URLs a normal (not
-    learned) query also found (spec 007 J, T078)."""
-    if ports.learned is None or not pages:
-        return
-    indep = independent if independent is not None else set(url_market)
-    outcomes = [(learned_rules.domain_key(p.url), url_market[p.url], accepted_by_url.get(p.url, 0) > 0,
-                 p.url in indep)
-                for p in pages if p.url in url_market and not ev.is_denied(p.url)]  # fmt: skip
-    try:
-        await ports.learned.record(area, outcomes)
-    except Exception:  # noqa: BLE001 - never fail a job over the hint table
-        return
-
-
 PageOutcome = tuple[str, str | None, int]  # (attempt outcome, reason, accepted values)
 
 
 async def _record_registry(ports: Ports, job: JobSpec, pages: list[Page], outcome_by_url: dict[str, PageOutcome],
-                           url_market: dict[str, str], independent: set[str] | None) -> None:  # fmt: skip
+                           url_market: dict[str, str]) -> None:  # fmt: skip
     """Every page read from a search is an attempt of its source for this kind of data (spec 010 FR-015)."""
     if ports.registry is None:
         return
-    indep = independent if independent is not None else set(url_market)
     attempts = []
     for p in pages:
         if p.url not in url_market or ev.is_denied(p.url):
@@ -119,17 +102,21 @@ async def _record_registry(ports: Ports, job: JobSpec, pages: list[Page], outcom
         outcome, reason, n = outcome_by_url.get(p.url, ("empty", None, 0))
         attempts.append(Attempt(area=job.area, market=url_market[p.url], url=p.url, snapshot_id=p.snapshot_id,
                                 outcome=outcome, reason=reason, values=n, job_id=job.job_id,  # type: ignore[arg-type]
-                                variant_id=job.variant_id, via_learned_query=p.url not in indep,
+                                variant_id=job.variant_id,
                                 stage_versions=STAGE_VERSIONS))  # fmt: skip
     await ports.registry.record(attempts)
 
 
 async def run_job(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
     token = current_job.set((job.job_id, job.area))
-    plan_token = current_plan.set(await _plan(ports, job))
+    the_plan = await _plan(ports, job)
+    plan_token = current_plan.set(the_plan)
+    cand_token = current_candidates.set(set())
     count = ports.metrics or (lambda *a, **k: None)  # spec 010: Prometheus counters through the port
     try:
         result = await (_run_market if job.area in research_plan.MARKET_AREAS else _run)(ports, job, emit)
+        if the_plan is not None:
+            result.planned = list(dict.fromkeys(x.domain for x in the_plan.sources if x.status == "active"))
         count("research_jobs", area=job.area, status="ok" if result.ok else "failed")
         return result
     except BudgetExceeded:
@@ -140,6 +127,7 @@ async def run_job(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
         await emit("researching", f"{job.area}: failed ({type(e).__name__})")
         return JobResult(job.job_id, job.variant_id, job.area, job.round, ok=False, error=f"{type(e).__name__}: {e}")
     finally:
+        current_candidates.reset(cand_token)
         current_plan.reset(plan_token)
         current_job.reset(token)
 
@@ -162,7 +150,6 @@ async def _run(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
     gate: dict[str, int] = defaultdict(int)
     values_rejected: dict[str, int] = defaultdict(int)
     totals = {"accepted": 0, "rejected": 0, "reader": 0, "docs": 0}
-    accepted_by_url: dict[str, int] = defaultdict(int)
     outcome_by_url: dict[str, PageOutcome] = {}  # spec 010: attempt outcome per page
 
     brand = job.area in research_plan.BRAND_AREAS
@@ -194,16 +181,12 @@ async def _run(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
                                        car_year=job.car_year)  # fmt: skip
         totals["accepted"] += a
         totals["rejected"] += rj
-        accepted_by_url[p.url] += a
         outcome_by_url[p.url] = (
             ("accepted", None, a) if a else ("rejected", "values_rejected", 0) if rj else ("empty", None, 0)
         )
 
     await asyncio.gather(*(one(p) for p in pages))
-    await _record_learned(ports, job.area, pages, accepted_by_url, stats.get("url_market", {}),
-                          stats.get("independent_urls"))  # fmt: skip
-    await _record_registry(ports, job, pages, outcome_by_url, stats.get("url_market", {}),
-                           stats.get("independent_urls"))  # fmt: skip
+    await _record_registry(ports, job, pages, outcome_by_url, stats.get("url_market", {}))
     for k, n in gate.items():
         stats["pages_rejected"][k] = stats["pages_rejected"].get(k, 0) + n
     if gate:
@@ -287,8 +270,8 @@ async def _job_metrics(job_id: str, planned: list[search_plan.PlannedQuery], sta
         if job is None:
             return
         empty = {(q.text, q.market) for q in stats.get("empty_queries", [])}
-        job.queries = [{"text": q.text, "kind": q.kind, "market": q.market, "learned": q.learned,
-                        "empty": (q.text, q.market) in empty} for q in planned]  # fmt: skip
+        job.queries = [{"text": q.text, "kind": q.kind, "market": q.market, "empty": (q.text, q.market) in empty}
+                       for q in planned]  # fmt: skip
         job.pages_found = stats["pages_found"]
         job.pages_cached = stats["pages_cached"]
         job.pages_rejected = {**(job.pages_rejected or {}), **stats["pages_rejected"]}
@@ -308,53 +291,58 @@ async def _used_urls(variant_id: str, area: str) -> set[str]:
         return {str(u) for u in rows.scalars()}
 
 
-async def _claim_sources(s: Any, v: db.Variant, area: str) -> list[tuple[str, str]]:
+Src = tuple[str, str, bool]  # (domain, source type, unverified: read from a registry candidate)
+
+
+async def _claim_sources(s: Any, v: db.Variant, area: str) -> list[Src]:
     q = (
-        select(db.Evidence.domain, db.Evidence.source_type)
+        select(db.Evidence.domain, db.Evidence.source_type, db.Evidence.unverified)
         .join(db.Claim, db.Claim.evidence_id == db.Evidence.id)
         .where(db.Claim.variant_id == v.id, db.Claim.area == area, db.Claim.status == "ACCEPTED")
     )
-    return [(str(a), str(b)) for a, b in (await s.execute(q)).all()]
+    return [(str(a), str(b), bool(u)) for a, b, u in (await s.execute(q)).all()]
 
 
-async def _maintenance_sources(s: Any, v: db.Variant) -> list[tuple[str, str]]:
-    out = []
+async def _maintenance_sources(s: Any, v: db.Variant) -> list[Src]:
+    out: list[Src] = []
     rows = await s.execute(select(db.MaintenanceItem.evidence_ids).where(db.MaintenanceItem.variant_id == v.id))
     for (ids,) in rows.all():
         for eid in ids or []:
             e = await s.get(db.Evidence, eid)
             if e:
-                out.append((e.domain, e.source_type))
+                out.append((e.domain, e.source_type, bool(e.unverified)))
     return out
 
 
-async def _table_sources(s: Any, v: db.Variant, area: str) -> list[tuple[str, str]]:
+async def _table_sources(s: Any, v: db.Variant, area: str) -> list[Src]:
     table: Any = {"reviews": db.ReviewItem, "reliability": db.Issue, "used_issues": db.Issue,
                   "used_price": db.UsedPriceRange, "depreciation": db.ValueRetention}[area]  # fmt: skip
-    q = select(db.Evidence.domain, db.Evidence.source_type).join(table, table.evidence_id == db.Evidence.id)
+    q = select(db.Evidence.domain, db.Evidence.source_type, db.Evidence.unverified)
+    q = q.join(table, table.evidence_id == db.Evidence.id)
     q = q.where(table.variant_id == v.id)
     if table is db.UsedPriceRange:
         q = q.where(db.UsedPriceRange.status == "ACCEPTED")
     if table is db.Issue:
         q = q.where(db.Issue.area == area)
-    out = [(str(a), str(b)) for a, b in (await s.execute(q)).all()]
+    out = [(str(a), str(b), bool(u)) for a, b, u in (await s.execute(q)).all()]
     if area == "reliability":
         q2 = (
-            select(db.Evidence.domain, db.Evidence.source_type)
+            select(db.Evidence.domain, db.Evidence.source_type, db.Evidence.unverified)
             .join(db.ReliabilityStat, db.ReliabilityStat.evidence_id == db.Evidence.id)
             .where(db.ReliabilityStat.variant_id == v.id)
         )
-        out += [(str(a), str(b)) for a, b in (await s.execute(q2)).all()]
+        out += [(str(a), str(b), bool(u)) for a, b, u in (await s.execute(q2)).all()]
     return out
 
 
-async def _manufacturer_sources(s: Any, v: db.Variant) -> list[tuple[str, str]]:
+async def _manufacturer_sources(s: Any, v: db.Variant) -> list[Src]:
     rows = await s.execute(select(db.ManufacturerFact.url).where(db.ManufacturerFact.make == v.make))
-    return [(ev.domain_of(u), ev.classify_source(u)) for (u,) in rows.all()]
+    return [(ev.domain_of(u), ev.classify_source(u), False) for (u,) in rows.all()]
 
 
 async def area_hits(v: db.Variant, area: str) -> list[dict[str, Any]]:
-    """Accepted evidence per source domain for an area (input to the section minimum)."""
+    """Accepted evidence per source domain for an area (input to the section minimum); `unverified` marks a
+    registry candidate's evidence (counts half, spec 011 FR-022)."""
     async with db.sessionmaker()() as s:
         if area in ex.SPEC_AREAS:
             pairs = await _claim_sources(s, v, area)
@@ -364,10 +352,11 @@ async def area_hits(v: db.Variant, area: str) -> list[dict[str, Any]]:
             pairs = await _manufacturer_sources(s, v)
         else:
             pairs = await _table_sources(s, v, area)
-    counts: dict[tuple[str, str], int] = defaultdict(int)
+    counts: dict[Src, int] = defaultdict(int)
     for p in pairs:
         counts[p] += 1
-    return [{"domain": d, "source_type": t, "items": n} for (d, t), n in counts.items()]
+    return [{"domain": d, "source_type": t, "items": n, **({"unverified": True} if u else {})}
+            for (d, t, u), n in counts.items()]  # fmt: skip
 
 
 async def _mark_run(variant_id: str, area: str, docs: int, acc: int, rej: int, round_: int, met: bool,

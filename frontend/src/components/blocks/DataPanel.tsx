@@ -1,4 +1,5 @@
-import { useT } from "../../i18n";
+import { translate, useT } from "../../i18n";
+import { en, type Key } from "../../i18n/en";
 import type { BlockOf } from "../../lib/protocol";
 import { cx } from "../../lib/util";
 import { useChat } from "../../store/chat";
@@ -11,6 +12,21 @@ const STATUS: Record<string, { cls: string }> = {
   MISSING: { cls: "border-line text-muted" },
   UNAVAILABLE: { cls: "border-bad/30 text-bad/90" },
 };
+
+type Tried = { domain: string; outcome: string; reason?: string | null };
+type T = (key: Key, vars?: Record<string, string | number>) => string;
+const english: T = (key, vars) => translate("en", key, vars);
+
+/** "km77.com (no value), motor.es (robots), coches.com (rejected: other variant)" (spec 011 FR-022, 010 T067). */
+export function triedText(tried: Tried[], t: T = english): string {
+  return tried
+    .map((x) => {
+      const key = `panel.tried.${x.outcome}` as Key;
+      const what = key in en ? t(key) : x.outcome.replace(/_/g, " ");
+      return `${x.domain} (${what}${x.reason ? `: ${x.reason.replace(/_/g, " ")}` : ""})`;
+    })
+    .join(", ");
+}
 
 /** "What we know": one compact panel per report instead of a warning per section (spec 004 FR-014/015). */
 export function DataPanel({ b }: { b: BlockOf<"data_panel"> }) {
@@ -73,6 +89,14 @@ export function DataPanel({ b }: { b: BlockOf<"data_panel"> }) {
                 );
               })}
             </ul>
+            {car.areas
+              .filter((a) => a.tried && a.tried.length > 0)
+              .map((a) => (
+                <p key={`tried-${a.area}`} className="text-[11px] leading-snug text-muted">
+                  <span className="font-medium">{a.area.replace("_", " ")}</span>{" "}
+                  {t("panel.tried", { list: triedText(a.tried ?? [], t) })}
+                </p>
+              ))}
           </div>
         );
       })}

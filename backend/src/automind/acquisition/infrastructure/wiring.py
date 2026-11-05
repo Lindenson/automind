@@ -1,5 +1,5 @@
 """Live engine ports (spec 011 contracts/acquire.md "Ports"): the cache-first searcher, the page store under the fetch
-policy, the site readers, the source registry, model access through the gateway, metrics, learned sources and the
+policy, the site readers, the source registry, model access through the gateway, metrics and the
 market-facts store. `live_acq_ports()` builds them once per process; the API process passes its own shared parts
 (model access, reference data, registry) so the chat and the engine use the same ones."""
 
@@ -18,7 +18,7 @@ from automind.acquisition.registry.application.service import RegistryService
 from automind.acquisition.registry.infrastructure.repo import RegistryRepo
 from automind.application.ports import Reference
 from automind.infrastructure.config import fetch_policy, reference, search_config
-from automind.infrastructure.db.repositories import LearnedSourceRepo, MarketFactRepo
+from automind.infrastructure.db.repositories import MarketFactRepo
 from automind.infrastructure.search.cache import CachedSearcher
 from automind.infrastructure.search.serpapi import SerpApiProvider
 from automind.infrastructure.search.serper import SerperProvider
@@ -51,7 +51,6 @@ def engine_ports(llm: Any, ref: Reference, registry: Any = None) -> AcqPorts:
         readers=live_readers(),
         registry=registry if registry is not None else RegistryService(RegistryRepo(ref.registry), ref.registry),
         metrics=prom.inc,
-        learned=LearnedSourceRepo(),
         market_facts=MarketFactRepo(),
         datasets=live_rows,
     )

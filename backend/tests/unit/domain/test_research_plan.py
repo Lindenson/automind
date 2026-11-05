@@ -117,3 +117,33 @@ def test_plan_key_identifies_the_same_research():
     b = plan([car()], persona="BUYER", criteria=[], depth="DEEP", last_done={}, now=NOW)
     c = plan([car()], persona="BUYER", criteria=["engineering"], depth="STANDARD", last_done={}, now=NOW)
     assert plan_key(a) == plan_key(b) != plan_key(c)
+
+
+# --- spec 011 T122 (closes 010 T059): a candidate source counts as half an independent source ----------------------
+
+
+def _h(domain: str, kind: str = "PUBLICATION", *, unverified: bool = False) -> SourceHit:
+    return SourceHit(domain, kind, 1, unverified=unverified)
+
+
+@pytest.mark.parametrize(
+    ("area", "hits", "ok"),
+    [
+        ("used_price", [_h("cand.example", unverified=True)], False),  # 0.5 < 1
+        ("used_price", [_h("a.example", unverified=True), _h("b.example", unverified=True)], True),  # 0.5 + 0.5
+        ("reliability", [_h("a.example"), _h("cand.example", unverified=True)], False),  # 1.5 < 2
+        ("reliability", [_h("a.example"), _h("b.example", unverified=True), _h("c.example", unverified=True)], True),
+        ("specs", [_h("a.example", "SPEC_DATABASE", unverified=True), _h("b.example", unverified=True)], False),
+        ("specs", [_h("bmw.es", "MANUFACTURER", unverified=True), _h("a.example")], False),  # a candidate brand site
+        ("specs", [_h("bmw.es", "MANUFACTURER"), _h("a.example", unverified=True)], False),  # 0.5 non-manufacturer
+        ("measured", [_h("lab.example", "INSTRUMENTED_TEST", unverified=True)], False),
+        # one verified page of a domain makes the domain verified
+        ("used_price", [_h("cand.example", unverified=True), _h("cand.example")], True),
+    ],
+)
+def test_unverified_sources_count_half(area, hits, ok):
+    assert minimum_met(area, hits) is ok
+
+
+def test_stored_hits_without_the_flag_are_verified():
+    assert minimum_met("used_price", [SourceHit(**{"domain": "a.example", "source_type": "PUBLICATION", "items": 1})])

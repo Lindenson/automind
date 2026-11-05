@@ -1,0 +1,11 @@
+{
+  "queries": [
+    {"match": ["site:cand-a.example"],
+     "results": [{"url": "https://cand-a.example/candmake/roadster/specs", "title": "CandMake Roadster R1 2.0 T 190: ficha técnica", "doc": "cand_a.txt"}]},
+    {"match": ["site:cand-b.example"],
+     "results": [{"url": "https://cand-b.example/fichas/candmake-roadster", "title": "CandMake Roadster R1 2.0 T 190", "doc": "cand_b.txt"}]},
+    {"match": ["site:nothing.example"],
+     "results": [{"url": "https://nothing.example/candmake/roadster", "title": "CandMake Roadster R1 2.0 T 190: precio de ocasión", "doc": "nothing.txt"}]}
+  ],
+  "default": []
+}

@@ -36,7 +36,7 @@ def _found(text: str) -> bool:
 
 @pytest.fixture(scope="module")
 def ports():
-    return SimpleNamespace(ref=reference({}), learned=None)
+    return SimpleNamespace(ref=reference({}))
 
 
 @pytest.mark.parametrize("car", [GOLF, BMW], ids=["golf", "bmw"])

@@ -109,6 +109,8 @@ class Evidence(Base):
     retrieved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
     favourite: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     favourite_priority: Mapped[int | None] = mapped_column(Integer)
+    # spec 011 FR-022 (010 T059): read from a registry candidate: labelled "unverified source", half weight
+    unverified: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
 
 
 class Claim(Base):
@@ -344,7 +346,8 @@ class SearchCache(Base):
 
 
 class LearnedSource(Base):
-    """A domain that keeps giving accepted values for an area and market (spec 007 FR-022)."""
+    """Spec 007 FR-022 learned sources. Neither read nor written since spec 011 T124 (the registry replaced the rule);
+    the table stays so no migration drops data (a later spec drops it)."""
 
     __tablename__ = "learned_sources"
     __table_args__ = (UniqueConstraint("domain", "area", "market", name="uq_learned_source"),)

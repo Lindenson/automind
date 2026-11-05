@@ -16,6 +16,7 @@ from sqlalchemy import select
 from automind.acquisition.pipeline import extract as ex
 from automind.acquisition.pipeline import stamp
 from automind.acquisition.pipeline.locate import favourite_priority
+from automind.acquisition.pipeline.plan import is_unverified
 from automind.acquisition.pipeline.validate import (
     VALIDATOR_REJECTS,
     ReaderClaim,
@@ -48,6 +49,7 @@ async def _evidence(s: Any, v: db.Variant, d: WebDoc, page: Page | None = None, 
         document_id=doc_id,
         favourite=fav is not None,
         favourite_priority=fav,
+        unverified=is_unverified(ev.domain_of(d.url)),
         url=d.url,
         source_name=d.title[:200],
         domain=ev.domain_of(d.url),

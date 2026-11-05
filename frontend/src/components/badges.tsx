@@ -241,6 +241,11 @@ export function SourceItem({
           {t(`src.${s.type}` as "src.MANUFACTURER")}
         </span>
         <span>{hostOf(s.url)}</span>
+        {s.unverified && (
+          <span className="rounded border border-warn/40 px-1.5 py-px text-warn">
+            {t("sources.unverified")}
+          </span>
+        )}
         <span>{t("sources.retrieved", { date: fmtDate(s.retrieved_at) })}</span>
         {!s.rejected && mid && s.url && (
           <BadSourceAction url={s.url} messageId={mid} carId={carId} attribute={attribute} area={area} />
