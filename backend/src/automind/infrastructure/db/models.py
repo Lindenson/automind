@@ -813,3 +813,41 @@ class RegistryRun(Base):
     discovery_queries: Mapped[int] = mapped_column(Integer, default=0)
     cost_eur: Mapped[float] = mapped_column(Numeric(10, 4), default=0)
     error: Mapped[str | None] = mapped_column(Text)
+
+
+# --- spec 011 US2: the worker's task queue (migration 0020, contracts/task-queue.md) ---------------------------------
+
+
+class AcqTask(Base):
+    """One unit of background work; claimed with FOR UPDATE SKIP LOCKED (acquisition/worker/queue.py)."""
+
+    __tablename__ = "acq_tasks"
+    __table_args__ = (Index("ix_acq_tasks_due", "state", "priority", "run_at"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=uid)
+    kind: Mapped[str] = mapped_column(String(40))
+    dedupe_key: Mapped[str] = mapped_column(String(200), unique=True)
+    payload: Mapped[dict] = mapped_column(JSONB, default=dict)
+    priority: Mapped[int] = mapped_column(SmallInteger, default=5)
+    state: Mapped[str] = mapped_column(String(10), default="queued")  # queued, running, done, failed, dead
+    run_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    attempts: Mapped[int] = mapped_column(SmallInteger, default=0)
+    max_attempts: Mapped[int] = mapped_column(SmallInteger, default=3)
+    lease_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    locked_by: Mapped[str | None] = mapped_column(String(80))
+    last_error: Mapped[str | None] = mapped_column(Text)
+    result: Mapped[dict | None] = mapped_column(JSONB)
+    cost_eur: Mapped[float] = mapped_column(Numeric(10, 4), default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+
+
+class AcqWorker(Base):
+    __tablename__ = "acq_workers"
+    id: Mapped[str] = mapped_column(String(80), primary_key=True)
+    host: Mapped[str] = mapped_column(String(120))
+    pid: Mapped[int] = mapped_column(Integer)
+    version: Mapped[str] = mapped_column(String(80))
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    beat_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    tasks_done: Mapped[int] = mapped_column(Integer, default=0)
