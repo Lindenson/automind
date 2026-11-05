@@ -172,9 +172,9 @@ do_export() {
   say "Dumping the database"
   compose exec -T postgres pg_dump -U automind -d automind --clean --if-exists | gzip > "$tmp/automind.sql.gz"
   cp .env "$tmp/env"; cp .env.docker "$tmp/env.docker"
-  [[ -f "$TOKEN_FILE" ]] && cp "$TOKEN_FILE" "$tmp/metrics_token"
+  if [[ -f "$TOKEN_FILE" ]]; then cp "$TOKEN_FILE" "$tmp/metrics_token"; fi
   mkdir -p "$tmp/config"
-  for f in "${BUNDLE_CONFIG[@]}"; do [[ -f "$f" ]] && install -D -m 600 "$f" "$tmp/config/$f"; done
+  for f in "${BUNDLE_CONFIG[@]}"; do if [[ -f "$f" ]]; then install -D -m 600 "$f" "$tmp/config/$f"; fi; done
   {
     echo "format=1"
     echo "commit=$commit"
@@ -214,7 +214,7 @@ do_import() {
   docker_cmd
   if [[ "$force" != 1 ]]; then
     for f in .env .env.docker; do
-      [[ -e "$f" ]] && die "$f already exists here; import is meant for a fresh clone (use --force to overwrite it)"
+      if [[ -e "$f" ]]; then die "$f already exists here; import is meant for a fresh clone (use --force to overwrite it)"; fi
     done
   fi
   mktmp tmp
@@ -238,7 +238,7 @@ do_import() {
   (umask 077; cp "$tmp/env" .env; cp "$tmp/env.docker" .env.docker)
   chmod 600 .env .env.docker
   if [[ -f "$tmp/metrics_token" ]]; then
-    [[ -d "$TOKEN_FILE" ]] && die "$TOKEN_FILE is a directory; remove it and retry"
+    if [[ -d "$TOKEN_FILE" ]]; then die "$TOKEN_FILE is a directory; remove it and retry"; fi
     (umask 077; cp "$tmp/metrics_token" "$TOKEN_FILE"); chmod 600 "$TOKEN_FILE"
   fi
   for f in "${BUNDLE_CONFIG[@]}"; do
@@ -293,10 +293,10 @@ do_move() {
       if docker info 2>&1 | grep -q "permission denied"; then m="$m docker-group"; else m="$m compose"; fi; fi; echo $m')
   if [[ -n "$missing" ]]; then
     echo "The target is missing:$missing. Run these on $target (nothing is installed by this script):" >&2
-    [[ " $missing " == *" git "* || " $missing " == *" curl "* ]] && echo "  sudo apt-get update && sudo apt-get install -y git curl ca-certificates" >&2
-    [[ " $missing " == *" docker "* ]] && echo "  curl -fsSL https://get.docker.com | sudo sh" >&2
-    [[ " $missing " == *" docker "* || " $missing " == *" docker-group "* ]] && echo "  sudo usermod -aG docker \$USER   # then log out and in again" >&2
-    [[ " $missing " == *" compose "* ]] && echo "  sudo apt-get install -y docker-compose-plugin" >&2
+    if [[ " $missing " == *" git "* || " $missing " == *" curl "* ]]; then echo "  sudo apt-get update && sudo apt-get install -y git curl ca-certificates" >&2; fi
+    if [[ " $missing " == *" docker "* ]]; then echo "  curl -fsSL https://get.docker.com | sudo sh" >&2; fi
+    if [[ " $missing " == *" docker "* || " $missing " == *" docker-group "* ]]; then echo "  sudo usermod -aG docker \$USER   # then log out and in again" >&2; fi
+    if [[ " $missing " == *" compose "* ]]; then echo "  sudo apt-get install -y docker-compose-plugin" >&2; fi
     die "install the above on $target and run move again"
   fi
 
@@ -342,7 +342,7 @@ do_move() {
 do_bootstrap() {
   local ok=1
   say "Checking this server"
-  [[ -r /etc/os-release ]] && echo "   OS: $(. /etc/os-release; echo "${PRETTY_NAME:-unknown}")"
+  if [[ -r /etc/os-release ]]; then echo "   OS: $(. /etc/os-release; echo "${PRETTY_NAME:-unknown}")"; fi
   for t in git curl; do
     command -v "$t" >/dev/null || { echo "missing: $t   ->  sudo apt-get update && sudo apt-get install -y $t ca-certificates"; ok=0; }
   done
@@ -406,12 +406,12 @@ case "$cmd" in
     done
     ensure_env
     # keep optional services that already run
-    running prometheus && [[ " ${profiles[*]-} " != *" monitoring "* ]] && profiles+=(--profile monitoring)
-    running caddy && [[ " ${profiles[*]-} " != *" public "* ]] && profiles+=(--profile public)
+    if running prometheus && [[ " ${profiles[*]-} " != *" monitoring "* ]]; then profiles+=(--profile monitoring); fi
+    if running caddy && [[ " ${profiles[*]-} " != *" public "* ]]; then profiles+=(--profile public); fi
     if [[ " ${profiles[*]-} " == *" public "* ]]; then
       [[ -n "${AUTOMIND_DOMAIN:-}" ]] || die "--public needs AUTOMIND_DOMAIN=<your domain> in .env.docker (see docs/review-2026-11-03.md first)"
     fi
-    [[ " ${profiles[*]-} " == *" monitoring "* ]] && write_metrics_token
+    if [[ " ${profiles[*]-} " == *" monitoring "* ]]; then write_metrics_token; fi
     port_free
     say "Building the image"
     compose build --pull app
@@ -422,7 +422,7 @@ case "$cmd" in
       curl -fsS -X POST "http://127.0.0.1:${AUTOMIND_PROMETHEUS_PORT:-9090}/-/reload" >/dev/null 2>&1 || true
       say "Prometheus: http://127.0.0.1:${AUTOMIND_PROMETHEUS_PORT:-9090}  Alertmanager: http://127.0.0.1:${AUTOMIND_ALERTMANAGER_PORT:-9093}"
     fi
-    [[ " ${profiles[*]-} " == *" public "* ]] && say "Public: https://${AUTOMIND_DOMAIN}"
+    if [[ " ${profiles[*]-} " == *" public "* ]]; then say "Public: https://${AUTOMIND_DOMAIN}"; fi
     ;;
   down)    ensure_env; compose "${ALL_PROFILES[@]}" down ;;
   restart) ensure_env; compose restart app; wait_healthy ;;
