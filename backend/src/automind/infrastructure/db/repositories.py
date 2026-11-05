@@ -23,6 +23,7 @@ from .models import (
     Claim,
     DeletedChat,
     FeasibilityCheck,
+    Feedback,
     IntakeEvent,
     LLMCall,
     ReportRating,
@@ -34,6 +35,7 @@ from .models import (
     TcoEstimateRow,
     Turn,
     TurnEvent,
+    TurnOutcome,
     ValueChallenge,
     now,
     uid,
@@ -43,7 +45,7 @@ from .session import sessionmaker
 
 class ChatRepo:
     CHAT_SCOPED = (ChatMessage, CaseFileRow, TurnEvent, ResearchJob, LLMCall, SearchCall, FeasibilityCheck,
-                   ReportRating, ValueChallenge, IntakeEvent)  # fmt: skip
+                   ReportRating, ValueChallenge, IntakeEvent, TurnOutcome, Feedback)  # fmt: skip
 
     async def is_deleted(self, chat_id: str) -> bool:
         async with sessionmaker()() as s:

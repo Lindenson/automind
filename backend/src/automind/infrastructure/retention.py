@@ -10,11 +10,13 @@ from datetime import timedelta
 from sqlalchemy import delete, exists, select, text
 
 from automind.infrastructure.db import Document, Evidence, PageRelevance, SearchCache, SiteReaderStat, sessionmaker
-from automind.infrastructure.db.models import now
+from automind.infrastructure.db.models import RegistryAttempt, now
+from automind.insight.metrics import heartbeat
 
 log = logging.getLogger(__name__)
 EVERY = timedelta(hours=24)
 STATS_DAYS = 180
+ATTEMPT_DAYS = 180  # spec 010: registry_attempts are kept 180 days
 # LangGraph writes a checkpoint per super-step on one thread per chat; only the newest are needed to resume
 # a turn (reviewer 2026-11-03: the tables grew without bound). Older ones, their writes and unreferenced
 # blobs are removed.
@@ -69,17 +71,23 @@ async def run_retention() -> dict[str, int]:
         n_docs = (await s.execute(delete(Document).where(Document.id.in_(expired)))).rowcount or 0
         old = (t - timedelta(days=STATS_DAYS)).date()
         n_stats = (await s.execute(delete(SiteReaderStat).where(SiteReaderStat.day < old))).rowcount or 0
+        cut = t - timedelta(days=ATTEMPT_DAYS)
+        n_att = (await s.execute(delete(RegistryAttempt).where(RegistryAttempt.created_at < cut))).rowcount or 0
         await s.commit()
-    counts = {"search_cache": n_cache, "documents": n_docs, "page_relevance": n_rel, "site_reader_stats": n_stats}
+    counts = {"search_cache": n_cache, "documents": n_docs, "page_relevance": n_rel, "site_reader_stats": n_stats,
+              "registry_attempts": n_att}  # fmt: skip
     counts |= await prune_checkpoints()
     log.info("retention: %s", counts)
     return counts
 
 
 async def retention_loop() -> None:
+    heartbeat.register("retention", EVERY.total_seconds())
     while True:
         try:
             await run_retention()
+            heartbeat.beat("retention", True)
         except Exception:  # noqa: BLE001 - retention must never stop the service
             log.exception("retention failed")
+            heartbeat.beat("retention", False)
         await asyncio.sleep(EVERY.total_seconds())

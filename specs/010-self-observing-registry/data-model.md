@@ -56,7 +56,7 @@ Rules: one row per turn; created in `_done/_fail/cancel`; patched by the next tu
 
 ## Migration 0015 — insight
 
-### `issues`
+### `insight_issues` (the name `issues` is taken by known car issues, spec 006)
 | Column | Type | Note |
 |---|---|---|
 | id | uuid PK | |

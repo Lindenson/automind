@@ -22,6 +22,7 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_mcp_adapters.tools import load_mcp_tools
 
 from automind.api import access, rest
+from automind.api import metrics as metrics_api
 from automind.api.ws import chat_socket
 from automind.config import settings
 from automind.infrastructure import db
@@ -78,7 +79,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.runner = ChatRunner(
             hub.build_graph(saver, tools), live_ports(bus, load_prompts()), new_budget, messages=messages
         )
-        retention = asyncio.create_task(retention_loop())  # spec 003 FR-026
+        retention = asyncio.create_task(retention_loop())  # spec 003 FR-026; heartbeat "retention" (spec 010)
         stack.callback(retention.cancel)
         resumed = await app.state.runner.resume_incomplete()
         if resumed:
@@ -116,6 +117,7 @@ app.add_middleware(
     allow_credentials=True,
 )
 app.include_router(rest.router)
+app.include_router(metrics_api.router)  # spec 010 FR-030
 
 
 @app.websocket("/ws/chat/{chat_id}")
