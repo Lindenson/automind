@@ -817,6 +817,7 @@ async def tco_car(
         or (_num(car, "consumption_real") if v.powertrain == "BEV" else None),
         ev_real_meter="plug" if _num(car, "consumption_ev_plug") else None,
         consumption_cs=_num(car, "consumption_cs"),
+        consumption_weighted=_num(car, "consumption_weighted"),
         battery_kwh=_num(car, "battery_kwh"),
         range_wltp=_num(car, "range_wltp"),
         range_real=_num(car, "range_real"),

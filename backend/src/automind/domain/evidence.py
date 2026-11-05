@@ -209,10 +209,23 @@ _FUELS = {
     "diesel": ("diesel", "dci", "tdi", "crdi", "hdi", "bluehdi", "d-4d", "gasóleo", "gasoleo", "дизель"),
     "petrol": ("petrol", "gasoline", "gasolina", "benzin", "tsi", "tfsi", "бензин"),
     "electric": ("electric", "eléctrico", "electrico", "bev", "электро"),
-}  # fmt: skip
-_DRIVES = {"awd": "AWD", "4wd": "AWD", "4x4": "AWD", "all-wheel": "AWD", "all wheel": "AWD", "quattro": "AWD",
-           "xdrive": "AWD", "4motion": "AWD", "fwd": "FWD", "front": "FWD", "delantera": "FWD", "rwd": "RWD",
-           "rear": "RWD", "trasera": "RWD"}  # fmt: skip
+}
+_DRIVES = {
+    "awd": "AWD",
+    "4wd": "AWD",
+    "4x4": "AWD",
+    "all-wheel": "AWD",
+    "all wheel": "AWD",
+    "quattro": "AWD",
+    "xdrive": "AWD",
+    "4motion": "AWD",
+    "fwd": "FWD",
+    "front": "FWD",
+    "delantera": "FWD",
+    "rwd": "RWD",
+    "rear": "RWD",
+    "trasera": "RWD",
+}
 
 
 def _fuel(text: str) -> str | None:
@@ -262,6 +275,9 @@ def _clusters(attr_key: str, claims: list[ClaimIn]) -> list[list[ClaimIn]]:
     return clusters
 
 
+MAJORITY_OVER_AUTHORITY = 3  # independent domains that agree and outweigh a single higher-authority value
+
+
 def select_value(attr_key: str, claims: list[ClaimIn]) -> Selected:
     """FR-017 resolution + FR-018 confidence for one attribute of one variant."""
     if not claims:
@@ -273,7 +289,17 @@ def select_value(attr_key: str, claims: list[ClaimIn]) -> Selected:
     top = [c for c in claims if c.source_type == top_rank]
     top_clusters = sorted(_clusters(attr_key, top), key=lambda cl: -len({c.domain for c in cl}))
     rule: str | None = None
-    if len(top_clusters) == 1:
+    crowd = max(all_clusters, key=lambda cl: len({c.domain for c in cl}))
+    crowd_n, top_n = len({c.domain for c in crowd}), len({c.domain for c in top_clusters[0]})
+    if (
+        crowd_n >= MAJORITY_OVER_AUTHORITY
+        and crowd_n >= 2 * top_n
+        and not _agree(attr_key, crowd[0].value, top_clusters[0][0].value)
+    ):
+        # chat fcf5b3b8: kia.com's engine-only torque (265 Nm) beat three sources agreeing on 350 Nm. Several
+        # independent sites that agree outweigh one page, whatever its authority.
+        winner, rule, top_rank = crowd, "MAJORITY_OVER_SINGLE", crowd[0].source_type
+    elif len(top_clusters) == 1:
         winner = top_clusters[0]
         rule = "AUTHORITY_ORDER" if conflict else None
     elif len({c.domain for c in top_clusters[0]}) >= 2 and len({c.domain for c in top_clusters[0]}) > len(
@@ -299,7 +325,7 @@ def select_value(attr_key: str, claims: list[ClaimIn]) -> Selected:
     domains = {c.domain for c in supporting}
     if all(c.scope != "VARIANT" for c in winner):
         conf, crule = "LOW", "LOW:INDIRECT_SCOPE"
-    elif top_rank == "MANUFACTURER":
+    elif top_rank == "MANUFACTURER" and rule != "MAJORITY_OVER_SINGLE":
         conf, crule = "HIGH", "HIGH:MANUFACTURER"
     elif len(domains) >= 2:
         conf, crule = "HIGH", "HIGH:2_INDEPENDENT_AGREE"

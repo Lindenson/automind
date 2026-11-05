@@ -1134,12 +1134,16 @@ def _retention(s: Any, v: db.Variant, e: db.Evidence, out: Any, k: _Counter) -> 
         )  # fmt: skip
 
 
+USED_RANGE_MAX_RATIO = 1.6  # a used-price range wider than this (max / min) is a whole-market spread, not a price
+
+
 def _used_prices(s: Any, v: db.Variant, e: db.Evidence, out: Any, k: _Counter, ports_rates: dict[str, float]) -> None:
     """Editorial used-price ranges (FR-022): verbatim excerpt containing the price, plausible numbers, EUR."""
     for r in out.ranges:
         lo, hi = sorted((float(r.min), float(r.max)))
         rate = ports_rates.get(r.currency, 1.0)
-        plausible = 500 <= lo * rate <= hi * rate <= 600_000
+        # chat fcf5b3b8: "21 100 € – 93 520 €" for every Land Cruiser of a year is a market spread, not a price
+        plausible = 500 <= lo * rate <= hi * rate <= 600_000 and hi <= USED_RANGE_MAX_RATIO * lo
         good = k.ok(r.excerpt) and plausible
         s.add(
             db.UsedPriceRange(

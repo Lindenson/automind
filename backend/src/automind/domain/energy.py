@@ -12,6 +12,7 @@ Every price, habit and factor is an input line labelled with its basis (constitu
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
@@ -47,34 +48,45 @@ class EnergyConfig:
     public_dc: Price = Price(0.60, "kWh", "public DC fast charging")
     driving_days: int = 300
     charge_probability: Mapping[str, float] = field(default_factory=lambda: {"YES": 0.9, "WORK": 0.9, "NO": 0.25})
-    mix: Mapping[str, Mapping[str, float]] = field(default_factory=lambda: {
-        "YES": {"home": 0.85, "public_ac": 0.05, "public_dc": 0.10},
-        "WORK": {"home": 0.85, "public_ac": 0.05, "public_dc": 0.10},
-        "NO": {"home": 0.0, "public_ac": 0.40, "public_dc": 0.60},
-    })  # fmt: skip
+    mix: Mapping[str, Mapping[str, float]] = field(
+        default_factory=lambda: {
+            "YES": {"home": 0.85, "public_ac": 0.05, "public_dc": 0.10},
+            "WORK": {"home": 0.85, "public_ac": 0.05, "public_dc": 0.10},
+            "NO": {"home": 0.0, "public_ac": 0.40, "public_dc": 0.60},
+        }
+    )
     losses_ac: float = 0.10
     losses_dc: float = 0.05
-    climate: Mapping[str, float] = field(default_factory=lambda: {"HOT": 1.08, "MILD": 1.0, "COLD": 1.15,
-                                                                   "MOUNTAIN": 1.20})  # fmt: skip
-    motorway_share: Mapping[str, float] = field(default_factory=lambda: {"MOTORWAY": 0.6, "CITY": 0.1,
-                                                                          "default": 0.3})  # fmt: skip
+    climate: Mapping[str, float] = field(
+        default_factory=lambda: {"HOT": 1.08, "MILD": 1.0, "COLD": 1.15, "MOUNTAIN": 1.20}
+    )
+    motorway_share: Mapping[str, float] = field(default_factory=lambda: {"MOTORWAY": 0.6, "CITY": 0.1, "default": 0.3})
     motorway_extra: float = 0.25
 
     petrol: Price | None = None  # sourced fuel prices (energy.yaml); None → rates.yaml
     diesel: Price | None = None
 
     @classmethod
-    def from_config(cls, d: Mapping[str, Any] | None, home_override: float | None = None,
-                    ac_override: float | None = None, dc_override: float | None = None, night: bool = False,
-                    today: str | None = None) -> EnergyConfig:  # fmt: skip
+    def from_config(
+        cls,
+        d: Mapping[str, Any] | None,
+        home_override: float | None = None,
+        ac_override: float | None = None,
+        dc_override: float | None = None,
+        night: bool = False,
+        today: str | None = None,
+    ) -> EnergyConfig:
         d = d or {}
         base = cls()
         p = d.get("prices") or {}
         habits = d.get("habits") or {}
         losses = d.get("losses") or {}
         mw = d.get("motorway") or {}
-        home_key, home_label = ("home_night", "home electricity (night tariff)") if night else (
-            "home_fixed", "home electricity (typical fixed tariff)")  # fmt: skip
+        home_key, home_label = (
+            ("home_night", "home electricity (night tariff)")
+            if night
+            else ("home_fixed", "home electricity (typical fixed tariff)")
+        )
         return cls(
             petrol=_price(p["petrol"], base.home, None, "petrol", today) if p.get("petrol") else None,
             diesel=_price(p["diesel"], base.home, None, "diesel", today) if p.get("diesel") else None,
@@ -89,11 +101,12 @@ class EnergyConfig:
             climate={**base.climate, **(d.get("climate") or {})},
             motorway_share={**base.motorway_share, **(mw.get("share") or {})},
             motorway_extra=float(mw.get("extra", base.motorway_extra)),
-        )  # fmt: skip
+        )
 
 
-def _price(entry: Mapping[str, Any] | None, default: Price, override: float | None, label: str,
-           today: str | None = None) -> Price:  # fmt: skip
+def _price(
+    entry: Mapping[str, Any] | None, default: Price, override: float | None, label: str, today: str | None = None
+) -> Price:
     """A configured price with its date and basis; a user's own price wins. Older than `freshness_days` → stale."""
     if override is not None:
         return Price(float(override), "kWh", label, "USER")
@@ -101,8 +114,14 @@ def _price(entry: Mapping[str, Any] | None, default: Price, override: float | No
         return Price(default.value, default.unit, label)
     basis = "SOURCED" if entry.get("basis") == "sourced" else "ASSUMPTION"
     as_of = str(entry["as_of"]) if entry.get("as_of") else None
-    return Price(float(entry["value"]), str(entry.get("unit") or "kWh"), label, basis, as_of,
-                 _stale(as_of, entry.get("freshness_days"), today))  # fmt: skip
+    return Price(
+        float(entry["value"]),
+        str(entry.get("unit") or "kWh"),
+        label,
+        basis,
+        as_of,
+        _stale(as_of, entry.get("freshness_days"), today),
+    )
 
 
 def _stale(as_of: str | None, days: Any, today: str | None) -> bool:
@@ -136,6 +155,7 @@ class EnergyCar:
     consumption_ev_real: float | None = None  # tested kWh/100 km
     ev_real_meter: str | None = None  # "plug" | "battery" | None (unknown → battery, the honest upper cost)
     consumption_cs: float | None = None  # PHEV fuel with an empty battery
+    consumption_weighted: float | None = None  # PHEV official WLTP weighted l/100 km: only for the CS estimate
     battery_kwh: float | None = None  # usable
     range_wltp: float | None = None
     range_real: float | None = None
@@ -209,7 +229,8 @@ def fuel_consumption(car: EnergyCar, factor: Mapping[str, float]) -> tuple[float
     if car.consumption_nedc:
         f = factor.get("NEDC", 1.0)
         return round(car.consumption_nedc * f, 2), (
-            f"NEDC {car.consumption_nedc:g} × {f:g} real-use allowance (assumption)")  # fmt: skip
+            f"NEDC {car.consumption_nedc:g} × {f:g} real-use allowance (assumption)"
+        )
     return None, ""
 
 
@@ -227,8 +248,9 @@ def _fuel_price(car: EnergyCar, r: Rates) -> tuple[Price, str]:
 
 
 def _part(energy: str, km: float, per_100km: float, price: Price) -> EnergyPart:
-    return EnergyPart(energy, round(km), round(per_100km, 2), price.unit, price.value,
-                      round(per_100km * km / 100 * price.value, 2))  # fmt: skip
+    return EnergyPart(
+        energy, round(km), round(per_100km, 2), price.unit, price.value, round(per_100km * km / 100 * price.value, 2)
+    )
 
 
 def _combustion(car: EnergyCar, r: Rates, use: UsageContext) -> EnergyEstimate:
@@ -252,14 +274,20 @@ def situation(use: UsageContext) -> tuple[str, bool]:
 def _mix(cfg: EnergyConfig, hc: str, plug_in: bool) -> dict[str, float]:
     m = dict(cfg.mix.get(hc) or cfg.mix["YES"])
     if plug_in:  # plug-in hybrids rarely fast-charge: their public share is AC
-        m = {"home": m.get("home", 0.0), "public_ac": m.get("public_ac", 0.0) + m.get("public_dc", 0.0),
-             "public_dc": 0.0}  # fmt: skip
+        m = {
+            "home": m.get("home", 0.0),
+            "public_ac": m.get("public_ac", 0.0) + m.get("public_dc", 0.0),
+            "public_dc": 0.0,
+        }
     return m
 
 
 def _kwh_price(cfg: EnergyConfig, mix: Mapping[str, float]) -> float:
-    return (mix.get("home", 0) * cfg.home.value + mix.get("public_ac", 0) * cfg.public_ac.value
-            + mix.get("public_dc", 0) * cfg.public_dc.value)  # fmt: skip
+    return (
+        mix.get("home", 0) * cfg.home.value
+        + mix.get("public_ac", 0) * cfg.public_ac.value
+        + mix.get("public_dc", 0) * cfg.public_dc.value
+    )
 
 
 def _losses(cfg: EnergyConfig, mix: Mapping[str, float]) -> float:
@@ -290,8 +318,11 @@ def factors(cfg: EnergyConfig, use: UsageContext) -> tuple[float, list[str]]:
         out *= cf
         lines.append(f"{clim.lower()} climate ×{cf:g} (assumption)")
     codes = {u.upper() for u in use.usage}
-    share = cfg.motorway_share.get("MOTORWAY") if "MOTORWAY" in codes else (
-        cfg.motorway_share.get("CITY") if codes == {"CITY"} else None)  # fmt: skip
+    share = (
+        cfg.motorway_share.get("MOTORWAY")
+        if "MOTORWAY" in codes
+        else (cfg.motorway_share.get("CITY") if codes == {"CITY"} else None)
+    )
     if share is not None:
         base = cfg.motorway_share.get("default", 0.3)
         mf = round(1 + cfg.motorway_extra * (share - base), 3)
@@ -303,8 +334,9 @@ def factors(cfg: EnergyConfig, use: UsageContext) -> tuple[float, list[str]]:
 # ---- electric consumption -----------------------------------------------------------------------------------
 
 
-def _ev_kwh(car: EnergyCar, r: Rates, use: UsageContext, mix: Mapping[str, float]
-            ) -> tuple[float | None, list[str], list[str]]:  # fmt: skip
+def _ev_kwh(
+    car: EnergyCar, r: Rates, use: UsageContext, mix: Mapping[str, float]
+) -> tuple[float | None, list[str], list[str]]:
     """kWh/100 km bought from the grid, with how it was obtained and the factors applied."""
     allowance = r.real_world_factor.get("BEV", 1.2)
     loss = _losses(r.cfg, mix)
@@ -329,8 +361,10 @@ def _ev_kwh(car: EnergyCar, r: Rates, use: UsageContext, mix: Mapping[str, float
     if derived:  # usable kWh ÷ range is battery-side energy: losses are added once
         kwh *= 1 + loss
         fl.append(f"charging losses +{loss * 100:.0f}% (assumption)")
-        how = (f"derived {wltp:.1f} kWh/100 km ({car.battery_kwh:g} kWh usable ÷ {car.range_wltp:g} km WLTP) "
-               f"× {allowance:g} real-use allowance")  # fmt: skip
+        how = (
+            f"derived {wltp:.1f} kWh/100 km ({car.battery_kwh:g} kWh usable ÷ {car.range_wltp:g} km WLTP) "
+            f"× {allowance:g} real-use allowance"
+        )
     else:
         how = f"WLTP {wltp:g} kWh/100 km (at the plug) × {allowance:g} real-use allowance (assumption)"
     return kwh, [how], fl
@@ -342,8 +376,13 @@ def _bev(car: EnergyCar, r: Rates, use: UsageContext, hc: str, assumed: bool) ->
     if kwh is None:
         return EnergyEstimate([], [f"{EV_MISSING} not found"], [EV_MISSING])
     price = Price(round(_kwh_price(r.cfg, mix), 4), "kWh", "electricity")
-    inputs = [f"consumption {kwh:.1f} kWh/100 km: {how[0]}", *fl, _mix_line(hc, assumed, mix),
-              *_price_lines(r.cfg, mix), f"{use.annual_km:,} km/year"]  # fmt: skip
+    inputs = [
+        f"consumption {kwh:.1f} kWh/100 km: {how[0]}",
+        *fl,
+        _mix_line(hc, assumed, mix),
+        *_price_lines(r.cfg, mix),
+        f"{use.annual_km:,} km/year",
+    ]
     return EnergyEstimate([_part("electricity", use.annual_km, kwh, price)], inputs, factors=fl)
 
 
@@ -374,8 +413,36 @@ def share(car: EnergyCar, r: Rates, use: UsageContext, hc: str) -> tuple[float |
         d_how = f"≈{d:.0f} km a day ({use.annual_km:,} km ÷ {r.cfg.driving_days} driving days, assumption)"
     h = r.cfg.charge_probability.get(hc, 0.9)
     s = min(MAX_SHARE, h * min(d, rng) / d) if d else 0.0
-    return s, [d_how, rng_how, f"charged on {h * 100:.0f}% of driving days (assumption)",
-               f"electric share {s * 100:.0f}%"]  # fmt: skip
+    return s, [
+        d_how,
+        rng_how,
+        f"charged on {h * 100:.0f}% of driving days (assumption)",
+        f"electric share {s * 100:.0f}%",
+    ]
+
+
+# EU utility factor (Regulation (EU) 2017/1151, Annex XXI, Sub-annex 8, Appendix 5): share of distance in charge
+# depleting mode for an electric range d, with d_n = 800 km.
+UF_K = (26.25, -38.94, -631.05, 5964.83, -25095.0, 60380.2, -87517.0, 75513.8, -35749.0, 7154.94)
+UF_MAX = 0.85  # beyond ≈75 km the inverse is too sensitive: no estimate
+CS_PLAUSIBLE = (3.5, 14.0)
+
+
+def utility_factor(range_km: float) -> float:
+    x = range_km / 800.0
+    return 1.0 - math.exp(-sum(k * x ** (i + 1) for i, k in enumerate(UF_K)))
+
+
+def estimate_cs(weighted: float | None, range_km: float | None) -> float | None:
+    """Spec 009 FR-014: charge-sustaining l/100 km from the official weighted figure and electric range.
+    weighted ≈ (1 − UF) × CS, so CS ≈ weighted / (1 − UF). None when the inputs cannot support it."""
+    if not weighted or not range_km or weighted <= 0 or range_km <= 0:
+        return None
+    uf = utility_factor(range_km)
+    if uf <= 0 or uf > UF_MAX:
+        return None
+    cs = weighted / (1.0 - uf)
+    return round(cs, 2) if CS_PLAUSIBLE[0] <= cs <= CS_PLAUSIBLE[1] else None
 
 
 def _plug_in(car: EnergyCar, r: Rates, use: UsageContext, hc: str, assumed: bool) -> EnergyEstimate:
@@ -383,23 +450,49 @@ def _plug_in(car: EnergyCar, r: Rates, use: UsageContext, hc: str, assumed: bool
     kwh, how, fl = _ev_kwh(car, r, use, mix)
     s, s_lines = share(car, r, use, hc)
     yours = car.stated.get("CS")
-    missing = [m for m, ok in ((EV_MISSING, kwh is not None), ("electric range", s is not None),
-                               (CS_MISSING, bool(car.consumption_cs or yours))) if not ok]  # fmt: skip
-    if missing or kwh is None or s is None or not (car.consumption_cs or yours):
+    est = None if (car.consumption_cs or yours) else estimate_cs(car.consumption_weighted, car.range_wltp)
+    missing = [
+        m
+        for m, ok in (
+            (EV_MISSING, kwh is not None),
+            ("electric range", s is not None),
+            (CS_MISSING, bool(car.consumption_cs or yours or est)),
+        )
+        if not ok
+    ]
+    if missing or kwh is None or s is None or not (car.consumption_cs or yours or est):
         why = [f"missing: {', '.join(missing)}", "the weighted WLTP figure is not a real consumption and is not used"]
         return EnergyEstimate([], why, missing)
     fuel_price, what = _fuel_price(car, r)
     if yours:
         cs, cs_line = yours[0], f"{what} with an empty battery: {_yours(yours[0], 'l/100 km', yours[1])}"
+    elif est is not None and not car.consumption_cs:
+        f = r.real_world_factor.get("HEV", r.real_world_factor.get("ICE", 1.15))
+        cs = est * f
+        cs_line = (
+            f"{what} {cs:.1f} l/100 km with an empty battery: ESTIMATE from the official weighted WLTP "
+            f"{car.consumption_weighted:g} l/100 km and {car.range_wltp:g} km electric range by the EU utility "
+            f"factor ({est:.1f} l/100 km) × {f:g} real-use allowance"
+        )
     else:
         f = r.real_world_factor.get("HEV", r.real_world_factor.get("ICE", 1.15))
         cs = (car.consumption_cs or 0.0) * f
-        cs_line = (f"{what} {cs:.1f} l/100 km: charge-sustaining {car.consumption_cs:g} × {f:g} real-use allowance "
-                   "(assumption)")  # fmt: skip
+        cs_line = (
+            f"{what} {cs:.1f} l/100 km: charge-sustaining {car.consumption_cs:g} × {f:g} real-use allowance "
+            "(assumption)"
+        )
     e_price = Price(round(_kwh_price(r.cfg, mix), 4), "kWh", "electricity")
     e_km, f_km = use.annual_km * s, use.annual_km * (1 - s)
-    inputs = [*s_lines, f"electricity {kwh:.1f} kWh/100 km: {how[0]}", *fl, _mix_line(hc, assumed, mix),
-              *_price_lines(r.cfg, mix), cs_line, fuel_price.line(), f"{use.annual_km:,} km/year"]  # fmt: skip
+    inputs = [
+        *s_lines,
+        f"electricity {kwh:.1f} kWh/100 km: {how[0]}",
+        *fl,
+        _mix_line(hc, assumed, mix),
+        *_price_lines(r.cfg, mix),
+        cs_line,
+        fuel_price.line(),
+        f"{use.annual_km:,} km/year",
+    ]
     parts = [_part("electricity", e_km, kwh, e_price), _part(what, f_km, cs, fuel_price)]
     return EnergyEstimate(parts, inputs, electric_share=round(s, 3), factors=fl)
 
@@ -410,5 +503,12 @@ def _with_alt(car: EnergyCar, r: Rates, use: UsageContext, fn: Any) -> EnergyEst
     other = "NO" if hc in ("YES", "WORK") else "YES"
     alt: EnergyEstimate = fn(car, r, use, other, False)
     label = "without home charging" if other == "NO" else "with home charging"
-    return EnergyEstimate(main.parts, main.inputs, main.missing, main.electric_share, main.factors,
-                          alt.eur_per_100km, label if alt.eur_per_100km is not None else None)  # fmt: skip
+    return EnergyEstimate(
+        main.parts,
+        main.inputs,
+        main.missing,
+        main.electric_share,
+        main.factors,
+        alt.eur_per_100km,
+        label if alt.eur_per_100km is not None else None,
+    )
