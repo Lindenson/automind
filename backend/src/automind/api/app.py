@@ -21,6 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_mcp_adapters.tools import load_mcp_tools
 
+from automind.acquisition.registry.application.review import registry_loop
 from automind.acquisition.registry.application.seed import seed_if_empty
 from automind.api import access, rest
 from automind.api import admin as admin_api
@@ -93,6 +94,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         stack.callback(retention.cancel)
         metrics = asyncio.create_task(metrics_loop())  # spec 010 US9: Prometheus snapshot every minute
         stack.callback(metrics.cancel)
+        registry = asyncio.create_task(registry_loop())  # spec 010 US7: daily source review (autonomy flag)
+        stack.callback(registry.cancel)
         insight = asyncio.create_task(insight_loop())  # spec 010 US3: issues and diagnoses, never self-changes
         stack.callback(insight.cancel)
         resumed = await app.state.runner.resume_incomplete()
