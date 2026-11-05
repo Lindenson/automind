@@ -26,6 +26,7 @@ from automind.acquisition.worker.budget import BudgetExceeded
 from automind.acquisition.worker.config import worker_config
 from automind.acquisition.worker.handlers import AWAITING_HANDLER, HANDLERS, Handler, WorkerCtx
 from automind.application.usage import current_job
+from automind.infrastructure import overrides
 from automind.infrastructure.db.models import now
 from automind.infrastructure.db.session import sessionmaker
 
@@ -108,6 +109,7 @@ class Worker:
             exporter.observe(task.kind, 0, False)
             return
         ctx = WorkerCtx(self.id, self.cfg, task)
+        await overrides.refresh()  # spec 011 T104: gated rule, prompt and model overrides (cached 60 s)
         token = current_job.set(cast(tuple[str, str], (task.id, None)))  # model calls carry the task id
         extender = asyncio.create_task(self._extend(task.id))
         t0 = time.monotonic()

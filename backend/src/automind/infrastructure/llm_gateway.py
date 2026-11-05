@@ -11,6 +11,7 @@ import asyncio
 import logging
 import re
 import time
+from contextvars import ContextVar
 from functools import lru_cache
 from typing import Any, TypeVar
 
@@ -72,11 +73,20 @@ def models_by_role() -> dict[str, str]:
     return cfg.models()
 
 
+# A model forced for some roles in this context (the replay/shadow gates of a model change, spec 011 US5).
+FORCED_MODELS: ContextVar[dict[str, str] | None] = ContextVar("forced_models", default=None)
+
+
 def model_name(role: str) -> str:
+    forced = FORCED_MODELS.get()
+    if forced and role in forced:
+        return forced[role]
     roles = cfg.models()
     if role not in roles:
         raise KeyError(f"no model configured for role {role!r} in config/models.yaml")
-    return roles[role]
+    from automind.infrastructure.overrides import role_model  # noqa: PLC0415
+
+    return role_model(role) or roles[role]  # spec 011 T104: a gated model of an extractor role
 
 
 # Models whose provider quota is used up (e.g. a free tier's requests per day): name -> monotonic time it

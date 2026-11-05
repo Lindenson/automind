@@ -32,6 +32,8 @@ schedule:
   baseline: {daily: "00:45", key: baseline}                          # US3 T073: open KPI baselines
   parser_daily: {daily: "00:15", key: parserday, loop: parsers}      # US4 T089: yesterday's parser metrics
   drift: {daily: "00:20", key: drift, loop: drift}                   # US4 T089: drift → degraded + parser doctor
+  parser_doctor: {daily: "03:40", key: doctorsweep}                  # US5 T105: spec sites without a parser
+  evaluator: {daily: "04:00", key: eval, loop: evaluator}            # US5 T103: KPI, shadow deadlines, watch/rollback
 
 prefetch:
   enabled: false        # the handler slot completes with {"skipped": "disabled"} while false
