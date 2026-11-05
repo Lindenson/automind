@@ -89,6 +89,43 @@ async def prefetch(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any]:
     return dict(await mod.run(task, ctx))
 
 
+async def reputation_signals(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any]:
+    """Spec 011 T070: gold, physics, agreement and replacement signals of the variants touched lately, read from the
+    stored claims (no pipeline hook needed); disputed wrong signals queue a `blame_judge` task."""
+    from datetime import UTC, datetime, timedelta  # noqa: PLC0415
+
+    from automind.acquisition.reputation import rollup, signals  # noqa: PLC0415
+
+    hours = float(task.payload.get("lookback_h") or (ctx.cfg.get("reputation") or {}).get("lookback_h", 26))
+    out = await signals.scan(since=datetime.now(UTC) - timedelta(hours=hours))
+    try:
+        await rollup.publish_gauges()
+    except Exception:  # noqa: BLE001 - gauges are best effort
+        log.exception("reputation.gauges_failed")
+    return out
+
+
+async def rollup(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any]:
+    """Spec 011 T072: acq_daily, exploration reset, component fade, reputation gauges."""
+    from automind.acquisition.reputation import rollup as daily  # noqa: PLC0415
+
+    return await daily.run()
+
+
+async def baseline(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any]:
+    """Spec 011 T073: refresh the values of open KPI baselines."""
+    from automind.acquisition.reputation.baseline import record_open  # noqa: PLC0415
+
+    return await record_open()
+
+
+async def blame_judge(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any]:
+    """Spec 011 T071: settle one disputed signal within `agents.budgets.blame_judge`."""
+    from automind.acquisition.agents.blame_judge import judge  # noqa: PLC0415
+
+    return await judge(str(task.payload["signal_id"]), charge=ctx.budget().charge)
+
+
 HANDLERS: dict[str, Handler] = {
     "metrics_snapshot": metrics_snapshot,
     "registry_review": registry_review,
@@ -96,4 +133,8 @@ HANDLERS: dict[str, Handler] = {
     "retention_snapshots": retention_snapshots,
     "prune_tasks": prune_tasks,
     "prefetch": prefetch,
+    "reputation_signals": reputation_signals,
+    "rollup": rollup,
+    "baseline": baseline,
+    "blame_judge": blame_judge,
 }

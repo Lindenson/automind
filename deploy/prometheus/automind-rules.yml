@@ -80,6 +80,23 @@ groups:
           summary: 'Site reader {{ $labels.reader }} returned nothing {{ $value }} times in a row (layout change?)'
           admin: /admin
 
+      # spec 011 US3 (T075): the honest-reputation KPIs exported by the worker (7-day windows)
+      - alert: AutomindAccuracyDrop
+        expr: automind_wrong_share > on(area) (1.5 * automind_wrong_share_baseline) and automind_wrong_share > 0.02
+        for: 6h
+        labels: { severity: warning }
+        annotations:
+          summary: 'Wrong values in "{{ $labels.area }}": {{ $value | humanizePercentage }} over 7 days, more than 1.5x the baseline'
+          admin: /admin
+
+      - alert: AutomindSearchesPerValueUp
+        expr: automind_searches_per_accepted_value > 1.25 * (automind_searches_per_accepted_value offset 30d)
+        for: 1d
+        labels: { severity: warning }
+        annotations:
+          summary: 'Web searches per accepted value in "{{ $labels.area }}" rose to {{ $value }} (25 % above a month ago)'
+          admin: /admin
+
   - name: automind-providers
     rules:
       - alert: AutomindFallbackHigh

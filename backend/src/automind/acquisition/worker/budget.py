@@ -24,6 +24,7 @@ CAPS: dict[str, tuple[str, str]] = {
     "prefetch": ("acquisition.yaml", "prefetch.eur_per_day"),
     "registry_review": ("registry.yaml", "discovery.eur_per_day"),
     "insight_run": ("insight.yaml", "budget_eur"),
+    "blame_judge": ("agents.yaml", "budgets.blame_judge"),
 }
 
 _SPENT = text(
