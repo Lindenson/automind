@@ -25,7 +25,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from automind.acquisition.agents import levers
-from automind.acquisition.domain import gates
+from automind.acquisition.domain import gates, relevance_audit
 from automind.acquisition.domain.versions import parse_key, spec_hash
 from automind.infrastructure import config
 from automind.infrastructure.db import (
@@ -174,8 +174,11 @@ async def _source_candidate(s: AsyncSession, change_id: str, agent: str, p: leve
 
 
 def _text(v: Any) -> str:
-    return "none" if v is None else (", ".join(map(str, v)) if isinstance(v, list) else f"{v:g}"
-                                     if isinstance(v, float) else str(v))  # fmt: skip
+    """A version column (80 characters): a number, or a keyword list (the words, cut)."""
+    if v is None or (isinstance(v, list) and not v):
+        return "none"
+    s = ", ".join(map(str, v)) if isinstance(v, list) else f"{v:g}" if isinstance(v, float) else str(v)
+    return s if len(s) <= 80 else s[:79] + "…"
 
 
 CandidateFn = Callable[[AsyncSession, str, str, Any], Awaitable[Candidate]]
@@ -220,8 +223,12 @@ async def publish_gauges() -> None:
 
 def facts(c: AcqChange, status: str | None = None, gate: str | None = None) -> gates.Facts:
     ev = c.evidence or {}
+    extra: dict[str, Any] = {}
+    measured = relevance_audit.RelevanceMeasure.from_dict(((c.gates or {}).get("replay") or {}).get("relevance"))
+    if measured is not None:  # a relevance keyword change: the replay numbers are the re-judged pages
+        extra["measure"] = relevance_audit.sentence_part(measured)
     return gates.Facts(c.object_kind, c.object_key, c.from_version, c.to_version, str(ev.get("trigger") or c.reason),
-                       status or c.status, gate)  # fmt: skip
+                       status or c.status, gate, extra)  # fmt: skip
 
 
 def metrics_of(c: AcqChange, gate: str, which: str = "metrics_new") -> gates.Metrics | None:
@@ -321,11 +328,11 @@ async def _claim(change_id: str, expected: tuple[str, ...], status: str) -> AcqC
 
 
 async def _close(change_id: str, status: str, gate: str, verdict: gates.Verdict, old: gates.Metrics | None,
-                 new: gates.Metrics | None) -> AcqChange:  # fmt: skip
+                 new: gates.Metrics | None, **extra: Any) -> AcqChange:  # fmt: skip
     c = await _claim(change_id, ("proposed", "replay", "shadow", "watch"), status)
     if c is None:
         return await load(change_id)  # type: ignore[return-value]
-    c.gates = _gate(c, gate, verdict, old, new)
+    c.gates = _gate(c, gate, verdict, old, new, **extra)
     async with sessionmaker()() as s:
         await DEACTIVATE[c.object_kind](s, c)
         await s.commit()
@@ -337,21 +344,22 @@ async def _close(change_id: str, status: str, gate: str, verdict: gates.Verdict,
 
 
 async def reject(change_id: str, gate: str, verdict: gates.Verdict, old: gates.Metrics | None = None,
-                 new: gates.Metrics | None = None) -> AcqChange:  # fmt: skip
-    return await _close(change_id, "rejected", gate, verdict, old, new)
+                 new: gates.Metrics | None = None, **extra: Any) -> AcqChange:  # fmt: skip
+    return await _close(change_id, "rejected", gate, verdict, old, new, **extra)
 
 
 async def abandon(change_id: str, gate: str, verdict: gates.Verdict, old: gates.Metrics | None = None,
-                  new: gates.Metrics | None = None) -> AcqChange:  # fmt: skip
-    return await _close(change_id, "abandoned", gate, verdict, old, new)
+                  new: gates.Metrics | None = None, **extra: Any) -> AcqChange:  # fmt: skip
+    return await _close(change_id, "abandoned", gate, verdict, old, new, **extra)
 
 
-async def accept(change_id: str, verdict: gates.Verdict, old: gates.Metrics, new: gates.Metrics) -> AcqChange:
+async def accept(change_id: str, verdict: gates.Verdict, old: gates.Metrics, new: gates.Metrics,
+                 **extra: Any) -> AcqChange:  # fmt: skip
     """Shadow passed: activate the new object (the old one is superseded, kept for rollback) and start the watch."""
     c = await _claim(change_id, ("shadow",), "watch")
     if c is None:
         return await load(change_id)  # type: ignore[return-value]
-    c.gates = _gate(c, "shadow", verdict, old, new)
+    c.gates = _gate(c, "shadow", verdict, old, new, **extra)
     async with sessionmaker()() as s:
         previous = await ACTIVATE[c.object_kind](s, c)
         exp = await s.get(AcqExperiment, change_id)

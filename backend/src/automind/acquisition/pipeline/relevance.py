@@ -5,6 +5,8 @@ is stored per page and variant. Moved from `application/research.py` with the bo
 
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
+
 from automind.acquisition.pipeline import extract as ex
 from automind.acquisition.pipeline import stamp
 from automind.acquisition.pipeline.plan import known_makes
@@ -31,7 +33,13 @@ def _llm_per_job(ports: Ports) -> int:
 
 
 def _relevance_target(v: db.Variant, ports: Ports) -> tuple[rel.Target, list[rel.GenerationInfo]]:
-    gens = [rel.GenerationInfo(g, a, b) for g, a, b in ports.ref.generations.get(f"{v.make}|{v.model}", [])]
+    return relevance_target(v, ports.ref.generations)
+
+
+def relevance_target(v: db.Variant, generations: Mapping[str, Sequence[tuple[str, int | None, int | None]]]
+                     ) -> tuple[rel.Target, list[rel.GenerationInfo]]:  # fmt: skip
+    """The relevance rules' target and the model's known generations (live, and the offline relevance measure)."""
+    gens = [rel.GenerationInfo(g, a, b) for g, a, b in generations.get(f"{v.make}|{v.model}", [])]
     if v.generation and not any(g.code == v.generation for g in gens):
         gens.append(rel.GenerationInfo(v.generation, v.generation_years_from, v.generation_years_to))
     tgt = rel.Target(v.make, v.model, v.generation, v.generation_years_from, v.generation_years_to,
