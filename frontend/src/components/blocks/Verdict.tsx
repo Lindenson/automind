@@ -1,3 +1,4 @@
+import { createContext, useContext } from "react";
 import { useT } from "../../i18n";
 import type { BlockOf } from "../../lib/protocol";
 import { cx, fmtNum } from "../../lib/util";
@@ -10,11 +11,15 @@ const CONF: Record<string, { cls: string }> = {
   LOW: { cls: "border-bad/40 text-bad" },
 };
 
+/** True when the same report has a data panel: its per-car "Find it" replaces the verdict's (audit F11). */
+export const DataPanelPresent = createContext(false);
+
 /** The verdict card: first block of every report (spec 004 FR-001). Built by code; every number is sourced. */
 export function Verdict({ b }: { b: BlockOf<"verdict"> }) {
   const t = useT();
   const color = useCarColor();
   const conf = CONF[b.confidence] ?? CONF.MEDIUM!;
+  const hasPanel = useContext(DataPanelPresent);
   return (
     <section
       aria-label={t("verdict.aria")}
@@ -71,7 +76,7 @@ export function Verdict({ b }: { b: BlockOf<"verdict"> }) {
       {(b.break_even || b.labels) && <Electrified b={b} />}
       <p className="text-xs text-muted">{b.confidence_reason}</p>
       {b.would_change && <p className="text-sm text-fg/80">{b.would_change}</p>}
-      {b.gaps.length > 0 && b.find && <FindIt />}
+      {b.gaps.length > 0 && b.find && !hasPanel && <FindIt />}
     </section>
   );
 }

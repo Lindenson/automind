@@ -1,6 +1,13 @@
 /** Interface language helpers without React or the store (no import cycle). */
 export type Lang = "en" | "ru" | "es";
 export const LANGS: Lang[] = ["ru", "es", "en"];
+
+/**
+ * Product decision (spec 010 FR-042): the interface is English on every screen; assistant replies keep the
+ * user's language (that is the server's job). Set this to `null` to let the interface follow the user's choice
+ * or the conversation again (spec 004 FR-024): every interface string is already in the ru/es dictionaries.
+ */
+export const UI_LANG: Lang | null = "en";
 const STORAGE_KEY = "automind.lang";
 
 export function asLang(x: string | null | undefined): Lang | null {

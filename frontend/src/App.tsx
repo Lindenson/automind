@@ -15,6 +15,7 @@ import {
   loadLastSeq,
   type Transport,
 } from "./lib/transport";
+import { messageDomId, scrollTarget } from "./lib/scroll";
 import { isMockMode } from "./lib/util";
 import { loadCase } from "./store/case";
 import { useChat } from "./store/chat";
@@ -104,26 +105,41 @@ export default function App() {
     return () => ctrl.abort();
   }, [chatId]);
 
-  // Keep scrolled to bottom unless the user scrolled up.
+  // Keep scrolled to bottom unless the user scrolled up; a new answer is shown from its start (audit F4).
   const onScroll = () => {
     const el = scroller.current;
     if (!el) return;
     stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
   };
   const statusCount = pending?.statuses.length ?? 0;
+  const seen = useRef(0);
   useLayoutEffect(() => {
     const el = scroller.current;
-    if (el && stick.current)
-      el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    const target = scrollTarget(seen.current, messages);
+    seen.current = messages.length;
+    if (!el || !stick.current) return;
+    const msg =
+      target.kind === "message"
+        ? document.getElementById(messageDomId(target.id))
+        : null;
+    if (msg) {
+      const top =
+        msg.getBoundingClientRect().top -
+        el.getBoundingClientRect().top +
+        el.scrollTop -
+        12;
+      el.scrollTo({ top, behavior: "smooth" });
+      stick.current = false; // reading the answer: later updates must not pull the view down
+    } else el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
   }, [messages.length, statusCount, !!pending, !!confirm]);
 
   const ready = conn === "open" || conn === "mock";
   const busy = pending !== null;
   const empty = messages.length === 0 && !pending;
 
-  const doSend = (text: string) => {
+  const doSend = (text: string): boolean => {
     stick.current = true;
-    send(text);
+    return send(text);
   };
 
   return (
@@ -144,7 +160,7 @@ export default function App() {
             {empty ? (
               historyLoading ? (
                 <div className="py-24 text-center text-sm text-muted">
-                  Loading conversation…
+                  {t("app.loading")}
                 </div>
               ) : (
                 <EmptyState onPick={doSend} disabled={!ready || busy} />
@@ -180,6 +196,9 @@ export default function App() {
           busy={busy}
           placeholder={
             busy ? t("composer.busy") : ready ? t("composer.placeholder") : t("composer.connecting")
+          }
+          shortPlaceholder={
+            busy ? t("composer.busy") : ready ? t("composer.placeholder.short") : t("composer.connecting")
           }
         />
       </div>
