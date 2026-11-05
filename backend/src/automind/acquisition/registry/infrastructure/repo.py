@@ -270,56 +270,95 @@ class RegistryRepo:
             await s.commit()
         await _mark_snapshots(attempts)
 
-    async def signal(self, sig: TruthSignalIn, weight: float) -> None:
-        """Spec 011 US3: the signal's weight is split by its blame vector; only the source share changes the
-        capability (right/wrong and the accuracy-signal weight `signals_w`), the other shares go to the blamed
-        components' reputation (FR-011)."""
-        vector = sig.vector()
+    async def _apply(
+        self, s: Any, kind: str, verdict: str, domain: str, area: str, market: str | None,
+        vector: dict[str, float], comps: dict[str, str], weight: float,
+    ) -> CapabilityRow | None:  # fmt: skip
+        """Split a signal's weight by its blame vector: only the source share changes the capability (right/wrong
+        and the accuracy-signal weight `signals_w`), the other shares go to the blamed components (FR-011)."""
+        cap = None
         source_share = vector.get("source", 0.0)
+        if source_share > 0:
+            q = select(CapabilityRow).where(CapabilityRow.domain == domain, CapabilityRow.area == area)
+            if market:
+                q = q.where(CapabilityRow.market == market)
+            cap = (await s.execute(q.order_by(CapabilityRow.attempts.desc()).limit(1))).scalar_one_or_none()
+            if cap is not None:
+                _decay(cap, self.hl)
+                w = weight * source_share
+                if verdict == "right":
+                    cap.right_w += w
+                else:
+                    cap.wrong_w += w
+                cap.signals_w = (cap.signals_w or 0.0) + w
+                if kind == "agreement":
+                    cap.families_agree = (cap.families_agree or 0.0) + source_share
+                _refresh(cap, await self._type(s, cap.domain, {}), self.cfg)
+        for comp, share in vector.items():
+            if comp == "source" or share <= 0 or comp not in REPUTATION_KIND:
+                continue
+            await components.add(s, REPUTATION_KIND[comp], comps.get(comp) or "unknown", verdict, weight * share,
+                                 self.hl)  # fmt: skip
+        return cap
+
+    @staticmethod
+    def _component(vector: dict[str, float], comps: dict[str, str], domain: str) -> tuple[str, str]:
+        top = max(vector, key=lambda c: vector[c]) if vector else "source"
+        key = domain if top == "source" else comps.get(top) or "unknown"
+        return top, f"{REPUTATION_KIND.get(top, top)}:{key}"[:160]
+
+    async def signal(self, sig: TruthSignalIn, weight: float) -> str:
+        """Record a truth signal and apply it (spec 011 US3). A disputed signal is recorded only: the blame judge
+        applies it once the component is settled (`resolve`). Returns the signal id."""
+        vector = sig.vector()
         async with sessionmaker()() as s:
             cap = None
-            if source_share > 0:
-                q = select(CapabilityRow).where(CapabilityRow.domain == sig.domain, CapabilityRow.area == sig.area)
-                if sig.market:
-                    q = q.where(CapabilityRow.market == sig.market)
-                cap = (await s.execute(q.order_by(CapabilityRow.attempts.desc()).limit(1))).scalar_one_or_none()
-                if cap is not None:
-                    _decay(cap, self.hl)
-                    w = weight * source_share
-                    if sig.verdict == "right":
-                        cap.right_w += w
-                    else:
-                        cap.wrong_w += w
-                    cap.signals_w = (cap.signals_w or 0.0) + w
-                    if sig.kind == "agreement":
-                        cap.families_agree = (cap.families_agree or 0.0) + source_share
-                    _refresh(cap, await self._type(s, cap.domain, {}), self.cfg)
-            for comp, share in vector.items():
-                if comp == "source" or share <= 0 or comp not in REPUTATION_KIND:
-                    continue
-                key = sig.components.get(comp) or "unknown"
-                await components.add(s, REPUTATION_KIND[comp], key, sig.verdict, weight * share, self.hl)
-            top = max(vector, key=lambda c: vector[c]) if vector else "source"
-            top_key = sig.domain if top == "source" else sig.components.get(top) or "unknown"
-            s.add(
-                TruthSignal(
-                    capability_id=cap.id if cap else None,
-                    variant_id=sig.variant_id,
-                    attribute=sig.attribute,
-                    claim_id=sig.claim_id,
-                    kind=sig.kind,
-                    verdict=sig.verdict,
-                    weight=weight,
-                    blame=LABEL_010.get(top, sig.blame) if sig.blame_vector else sig.blame,
-                    details={"domain": sig.domain, "area": sig.area, **sig.details},
-                    blame_vector=vector if sig.blame_vector else None,
-                    component=f"{REPUTATION_KIND.get(top, top)}:{top_key}"[:160],
-                    gold_id=sig.gold_id,
-                    snapshot_id=sig.snapshot_id,
-                    disputed=sig.disputed,
-                )
+            if not sig.disputed:
+                cap = await self._apply(s, sig.kind, sig.verdict, sig.domain, sig.area, sig.market, vector,
+                                        sig.components, weight)  # fmt: skip
+            top, component = self._component(vector, sig.components, sig.domain)
+            row = TruthSignal(
+                capability_id=cap.id if cap else None,
+                variant_id=sig.variant_id,
+                attribute=sig.attribute,
+                claim_id=sig.claim_id,
+                kind=sig.kind,
+                verdict=sig.verdict,
+                weight=weight,
+                blame=LABEL_010.get(top, sig.blame) if sig.blame_vector else sig.blame,
+                details={
+                    "domain": sig.domain,
+                    "area": sig.area,
+                    "market": sig.market,
+                    "components": sig.components,
+                    **sig.details,
+                },  # fmt: skip
+                blame_vector=vector if sig.blame_vector else None,
+                component=component,
+                gold_id=sig.gold_id,
+                snapshot_id=sig.snapshot_id,
+                disputed=sig.disputed,
             )
+            s.add(row)
             await s.commit()
+            return row.id
+
+    async def resolve(self, signal_id: str, vector: dict[str, float], comps: dict[str, str], note: str) -> bool:
+        """Settle a disputed signal with its final vector and apply it (the blame judge, research R9)."""
+        async with sessionmaker()() as s:
+            row = await s.get(TruthSignal, signal_id)
+            if row is None or not row.disputed:
+                return False
+            d = dict(row.details or {})
+            comps = {**(d.get("components") or {}), **comps}
+            cap = await self._apply(s, row.kind, row.verdict, str(d.get("domain") or ""), str(d.get("area") or ""),
+                                    d.get("market"), vector, comps, row.weight)  # fmt: skip
+            top, row.component = self._component(vector, comps, str(d.get("domain") or ""))
+            row.blame, row.blame_vector, row.disputed = LABEL_010.get(top, "source"), vector, False
+            row.capability_id = cap.id if cap else row.capability_id
+            row.details = {**d, "components": comps, "judge": note}
+            await s.commit()
+            return True
 
 
 async def _mark_snapshots(attempts: list[Attempt]) -> None:

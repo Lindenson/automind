@@ -18,7 +18,7 @@ class Store(Protocol):
     async def capabilities(self, area: str, markets: list[str]) -> list[dict[str, Any]]: ...
     async def record(self, attempts: list[Attempt]) -> None: ...
     async def queryable(self, area: str, markets: list[str]) -> list[dict[str, Any]]: ...
-    async def signal(self, s: TruthSignalIn, weight: float) -> None: ...
+    async def signal(self, s: TruthSignalIn, weight: float) -> str | None: ...
 
 
 _DOMAIN = re.compile(r"^[a-z0-9-]+(?:\.[a-z0-9-]+)+(?:/[\w./-]*)?$")
@@ -146,9 +146,11 @@ class RegistryService:
         except Exception:  # noqa: BLE001 - never fail a job over the registry
             log.exception("registry.record_failed")
 
-    async def signal(self, s: TruthSignalIn) -> None:
+    async def signal(self, s: TruthSignalIn) -> str | None:
+        """Record a truth signal with its configured weight; returns its id (None when it could not be stored)."""
         try:
             weight = float((self.cfg.get("weights") or {}).get(s.kind, 1.0))
-            await self.store.signal(s, weight)
+            return await self.store.signal(s, weight)
         except Exception:  # noqa: BLE001
             log.exception("registry.signal_failed")
+            return None

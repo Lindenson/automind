@@ -76,7 +76,7 @@ async def main_async(argv: list[str]) -> int:
     points = reference_points() + await catalogue_points()
     env = fit_envelope(points, args.min_points)
     print(f"# {len(points)} points; review before pasting under checks.power_mass_accel.envelope")
-    print(yaml.safe_dump({"envelope": env}, sort_keys=True, default_flow_style=None))
+    print(yaml.safe_dump({"envelope": env}))  # to stdout only: a person pastes it
     return 0
 
 

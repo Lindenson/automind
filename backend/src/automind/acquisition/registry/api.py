@@ -6,10 +6,12 @@ from typing import Literal, Protocol
 
 from pydantic import BaseModel, model_validator
 
+from automind.acquisition.domain.blame import ChallengeBlame, blame_challenge
 from automind.acquisition.registry.domain.blame import blame
 from automind.domain.evidence import domain_of
 
-__all__ = ["Attempt", "Plan", "PlannedSource", "RegistryPort", "TruthSignalIn", "blame"]
+__all__ = ["Attempt", "ChallengeBlame", "Plan", "PlannedSource", "RegistryPort", "TruthSignalIn", "blame",
+           "blame_challenge"]  # fmt: skip
 
 
 class PlannedSource(BaseModel):

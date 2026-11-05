@@ -180,3 +180,34 @@ def component_keys(c: BlameCase, b: Blame) -> dict[str, str]:
         "relevance": c.relevance_version or "page_relevance",
     }
     return {k: keys[k] for k, share in b.vector.items() if share > 0}
+
+
+@dataclass(frozen=True)
+class ChallengeBlame:
+    """Who erred when a challenged value was wrong (spec 011 FR-011, research R9)."""
+
+    label: str  # the 010 label of the top component (truth_signals.blame)
+    vector: dict[str, float]  # shares per component, sum 1
+    components: dict[str, str]  # component -> its key (km77@v1, extract_specs@v3|<model>, the domain)
+    disputed: bool = False
+
+
+def blame_challenge(
+    corrected: str | None, excerpt: str | None, extracted_by: str | None, producer_version: str | None = None,
+    model: str | None = None, domain: str = "",
+) -> ChallengeBlame:  # fmt: skip
+    """Vector blame of one claim a challenge found wrong (T067). `extracted_by` is the claim's READER/LLM, or
+    `LLM_EXCERPT` when the claim's quote is not on its page (our extraction invented it); the claim's producer
+    version and model name the blamed parser or extractor."""
+    by = (extracted_by or "").upper()
+    producer = "reader" if by == "READER" else "extractor"
+    case = BlameCase(attribute=None, claim_value=None, truth=None, tolerance=("abs", 0.0), producer=producer,
+                     producer_version=producer_version, model=model, excerpt=excerpt or "", domain=domain,
+                     truth_alternatives=tuple(sorted(numbers(corrected or ""))))  # fmt: skip
+    if by == "LLM_EXCERPT":
+        b = Blame({"extractor": 1.0}, "extractor")
+    elif not corrected or not excerpt or not case.truth_alternatives:
+        b = Blame({"source": 1.0}, "source")
+    else:
+        b = blame_vector(case)
+    return ChallengeBlame(LABEL_010[b.top()], dict(b.vector), component_keys(case, b), b.disputed)
