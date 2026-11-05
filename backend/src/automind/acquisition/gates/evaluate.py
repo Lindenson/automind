@@ -4,15 +4,17 @@ the live checks (`replay/run.read_page`), extractors go through the extraction c
 
 Per object kind:
 - parser: the old and new specs (offline, socket guard on);
-- rule: every running reader with the rules before and after (plausibility paths; other rule paths have no offline
-  measure yet: `None`, the gate waits for evidence);
+- rule: every running reader with the rules before and after (plausibility and sense paths: the live checks of
+  `replay/run.read_page` with the changed thresholds); relevance keyword paths are measured by re-running the
+  relevance stage (`gates/relevance_replay.py`);
 - prompt / role_model: the extractor with the old and new prompt text or model (model calls within the agent's
   budget, cached in `extraction_cache`).
 """
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
@@ -121,17 +123,32 @@ def _spec_for(specs: list[ParserSpec], domain: str) -> ParserSpec | None:
 
 
 def rule_sets(c: AcqChange) -> tuple[dict[str, Any], dict[str, Any]]:
-    """(plausibility rules before, after) of a plausibility rule change."""
-    if not c.object_key.startswith("plausibility."):
+    """(rules before, after) of a plausibility or sense rule change, as `{"plausibility": …, "sense": …}`."""
+    section = c.object_key.split(".", 1)[0]
+    if section not in ("plausibility", "sense"):
         raise NoMeasure(f"no offline measure for {c.object_key}")
-    path = c.object_key.removeprefix("plausibility.")
-    current = config.plausibility_rules()
+    path = c.object_key.removeprefix(section + ".")
+    current = {"plausibility": config.plausibility_rules(),
+               "sense": overrides.layer("sense", config.load_yaml("sense.yaml"))}  # fmt: skip
     value = (c.diff or {}).get("to")
     before = (c.diff or {}).get("from")
-    after = overrides.set_path(current, path, value)
-    if c.status in ("watch", "kept") and before is not None:
-        current = overrides.set_path(current, path, before)  # the change is live: "before" is its old value
+    after = {**current, section: overrides.set_path(current[section], path, value)}
+    if c.status in ("watch", "kept") and before is not None:  # the change is live: "before" is its old value
+        current = {**current, section: overrides.set_path(current[section], path, before)}
     return current, after
+
+
+@contextmanager
+def _sense(rules: dict[str, Any]) -> Iterator[None]:
+    """The sense checks with these rules for the (synchronous) block."""
+    from automind.domain import sense  # noqa: PLC0415
+
+    saved = dict(sense.RULES)
+    sense.configure(rules)
+    try:
+        yield
+    finally:
+        sense.configure(saved)
 
 
 async def _rule_pair(c: AcqChange, rs: list[SnapshotRef], **_: Any) -> Pair:
@@ -144,8 +161,10 @@ async def _rule_pair(c: AcqChange, rs: list[SnapshotRef], **_: Any) -> Pair:
         sp = _spec_for(specs, r.domain)
         if sp is None:
             continue
-        old += _read([r], bodies, variants, sp, before)
-        new += _read([r], bodies, variants, sp, after)
+        with _sense(before["sense"]):
+            old += _read([r], bodies, variants, sp, before["plausibility"])
+        with _sense(after["sense"]):
+            new += _read([r], bodies, variants, sp, after["plausibility"])
     return Pair(old, new)
 
 

@@ -6,6 +6,8 @@ For a redesign the yield is measured on the pages fetched since `changed_on` and
 page. Old and new versions run on the same pages (`gates/evaluate.py`: readers offline, extractors cached and within
 the agent's budget) and `domain/gates.replay_verdict` decides: pass → shadow; fail → rejected with the reason;
 insufficient evidence → the task re-queues itself for the next day, up to `wait_days`, then abandoned.
+A relevance keyword change (`relevance.keywords.*`) is measured by re-running the relevance stage on the stored pages
+that name the changed words (`gates/relevance_replay.py`) and decided by `domain/relevance_audit`.
 """
 
 from __future__ import annotations
@@ -17,8 +19,8 @@ from typing import Any
 from sqlalchemy import update
 
 from automind.acquisition.agents.budget import AgentBudget
-from automind.acquisition.domain import gates
-from automind.acquisition.gates import evaluate, journal
+from automind.acquisition.domain import gates, relevance_audit
+from automind.acquisition.gates import evaluate, journal, relevance_replay
 from automind.acquisition.snapshots import codec
 from automind.infrastructure import config
 from automind.infrastructure.db import AcqChange, AcqExperiment, PageSnapshot, ParserVersion, sessionmaker
@@ -136,22 +138,36 @@ async def run(change_id: str, *, llm: Any = None, guard: AgentBudget | None = No
     if c is None or c.status not in ("proposed", "replay") or c.closed_at is not None:
         return {"skipped": "not waiting for replay"}
     guard = guard or AgentBudget(journal.agent_of(c))
-    rs = await corpus(c, now)
-    await pin(change_id, "replay", [r.id for r in rs])
     waited = max(0.0, (now - c.created_at).total_seconds() / 86400) if c.created_at else 0.0
     gc = cfg()
-    try:
-        old, new = await evaluate.measure(c, rs, since=_dt((c.evidence or {}).get("changed_on")), llm=llm,
-                                          charge=guard.charge)  # fmt: skip
-        verdict = gates.replay_verdict(old, new, gc, degraded=await degraded(c), waited_days=waited)
-    except evaluate.NoMeasure as e:
-        old = new = gates.Metrics()
-        why = str(e)
-        verdict = gates.Verdict("abandon" if waited >= gc.wait_days else "insufficient_evidence", (why,))
-    out = {"change_id": change_id, "pages": len(rs), "verdict": verdict.verdict, "reasons": list(verdict.reasons),
-           "old": old.as_dict(), "new": new.as_dict()}  # fmt: skip
+    extra: dict[str, Any] = {}
+    if relevance_replay.applies(c):  # a relevance keyword change: the relevance stage re-run on stored pages
+        rc = relevance_replay.gate_cfg()
+        as_of = _dt((c.evidence or {}).get("as_of")) or now
+        res = await relevance_replay.measure(c, as_of - timedelta(days=rc.window_days), now, limit=rc.max_pages,
+                                             llm=llm, charge=guard.charge)  # fmt: skip
+        ids = res.snapshot_ids
+        await pin(change_id, "replay", ids)
+        old, new = res.old, res.new
+        verdict = relevance_audit.relevance_replay_verdict(res.measure, rc, wait_days=gc.wait_days,
+                                                           waited_days=waited)  # fmt: skip
+        extra = {"relevance": res.measure.as_dict()}
+    else:
+        rs = await corpus(c, now)
+        ids = [r.id for r in rs]
+        await pin(change_id, "replay", ids)
+        try:
+            old, new = await evaluate.measure(c, rs, since=_dt((c.evidence or {}).get("changed_on")), llm=llm,
+                                              charge=guard.charge)  # fmt: skip
+            verdict = gates.replay_verdict(old, new, gc, degraded=await degraded(c), waited_days=waited)
+        except evaluate.NoMeasure as e:
+            old = new = gates.Metrics()
+            why = str(e)
+            verdict = gates.Verdict("abandon" if waited >= gc.wait_days else "insufficient_evidence", (why,))
+    out = {"change_id": change_id, "pages": len(ids), "verdict": verdict.verdict, "reasons": list(verdict.reasons),
+           "old": old.as_dict(), "new": new.as_dict(), **extra}  # fmt: skip
     if verdict.verdict == "pass":
-        await journal.advance(change_id, "shadow", "replay", verdict, old, new, corpus=len(rs))
+        await journal.advance(change_id, "shadow", "replay", verdict, old, new, corpus=len(ids), **extra)
         await pin(change_id, "shadow", [])  # the shadow phase collects its own live pages
         async with sessionmaker()() as s:
             exp = await s.get(AcqExperiment, change_id)
@@ -164,13 +180,13 @@ async def run(change_id: str, *, llm: Any = None, guard: AgentBudget | None = No
 
         await overrides.refresh(force=True)  # live readers of this process start feeding the shadow at once
     elif verdict.verdict == "fail":
-        await journal.reject(change_id, "replay", verdict, old, new)
+        await journal.reject(change_id, "replay", verdict, old, new, **extra)
         await unpin(await _decided(change_id, "rejected"))
     elif verdict.verdict == "abandon":
-        await journal.abandon(change_id, "replay", verdict, old, new)
+        await journal.abandon(change_id, "replay", verdict, old, new, **extra)
         await unpin(await _decided(change_id, "abandoned"))
     else:  # insufficient evidence: wait for prefetch to gather pages, try again tomorrow
-        await journal.advance(change_id, "replay", "replay", verdict, old, new, corpus=len(rs))
+        await journal.advance(change_id, "replay", "replay", verdict, old, new, corpus=len(ids), **extra)
         day = (now + timedelta(days=1)).date()
         await queue.enqueue("gate_replay", {"change_id": change_id, "agent": journal.agent_of(c)},
                             dedupe_key=f"gate_replay:{change_id}:{day.isoformat()}",

@@ -298,7 +298,9 @@ def explain(f: Facts, *, replay: Metrics | None = None, shadow: tuple[Metrics, M
         parts.append(head)
     else:
         parts.append(f"{_subject(f)}: {f.trigger}" if f.trigger else _subject(f))
-    if g := _gold(f, replay):
+    if f.extra.get("measure"):  # a measure of its own (relevance keywords: the re-judged pages)
+        parts.append(str(f.extra["measure"]))
+    elif g := _gold(f, replay):
         parts.append(g)
     if shadow is not None and f.status not in ("rejected", "abandoned"):
         old, new = shadow
