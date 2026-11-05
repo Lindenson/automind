@@ -1,0 +1,1 @@
+{car} specs (copied). Power {max_power} kW.

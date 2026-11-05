@@ -1,0 +1,1 @@
+{car} technical data. Max power: {max_power} kW. Curb weight: {curb_mass} kg. Displacement: {displacement} cc.

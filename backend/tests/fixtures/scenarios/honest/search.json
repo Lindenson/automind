@@ -1,0 +1,13 @@
+{
+  "queries": [
+    {"match": ["site:fastwrong.example"],
+     "results": [{"url": "https://fastwrong.example/ficha/{car}", "title": "Ficha rápida {car}", "doc": "fastwrong.txt", "source_type": "SPEC_DATABASE"}]},
+    {"match": ["site:honest.example"],
+     "results": [{"url": "https://honest.example/specs/{car}", "title": "{car} technical data", "doc": "honest.txt", "source_type": "PUBLICATION"}]},
+    {"match": ["site:mirror-a.example"],
+     "results": [{"url": "https://mirror-a.example/{car}", "title": "{car}", "doc": "mirror.txt", "source_type": "SPEC_DATABASE", "family": "mirrorfam"}]},
+    {"match": ["site:mirror-b.example"],
+     "results": [{"url": "https://mirror-b.example/{car}", "title": "{car}", "doc": "mirror.txt", "source_type": "SPEC_DATABASE", "family": "mirrorfam"}]}
+  ],
+  "default": []
+}

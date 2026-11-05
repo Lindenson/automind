@@ -1,0 +1,1 @@
+Ficha rápida {car}. Potencia máxima {max_power} kW. Peso {curb_mass} kg. Cilindrada {displacement} cm3. Maletero {boot_volume} litros. Plazas {seats}.

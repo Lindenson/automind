@@ -26,6 +26,7 @@ EXPECTED = {
     "AutomindFallbackHigh", "AutomindProviderDown", "AutomindBudget80", "AutomindBackgroundBudgetUsed",
     "AutomindLoopStale", "AutomindLoopFailing", "AutomindIssueRegression", "AutomindDown",
     "AutomindWorkerDown",  # spec 011 contracts/task-queue.md
+    "AutomindAccuracyDrop", "AutomindSearchesPerValueUp",  # spec 011 US3 (T075)
 }  # fmt: skip
 
 
@@ -74,3 +75,13 @@ def test_promtool_check_rules() -> None:
         check=False,
     )
     assert res.returncode == 0, res.stdout + res.stderr
+
+
+def test_reputation_rules_watch_the_worker_gauges() -> None:
+    """Spec 011 T075: accuracy against the baseline and searches per accepted value (SC-006, SC-009)."""
+    by = {r["alert"]: r for r in _rules()}
+    assert "automind_wrong_share_baseline" in by["AutomindAccuracyDrop"]["expr"]
+    assert "1.5" in by["AutomindAccuracyDrop"]["expr"]
+    assert "automind_searches_per_accepted_value" in by["AutomindSearchesPerValueUp"]["expr"]
+    assert {"automind_searches_per_accepted_value", "automind_wrong_share", "automind_component_acc_lb",
+            "automind_wrong_share_baseline"} <= exporter.metric_names()  # fmt: skip

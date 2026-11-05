@@ -24,6 +24,12 @@ TASKS = Gauge(P + "acq_tasks", "Background tasks in the journal by kind and stat
 DURATION = Histogram(P + "acq_task_duration_seconds", "Run time of background tasks", ["kind"],
                      buckets=(0.1, 0.5, 1, 5, 15, 60, 300, 900, 3600))  # fmt: skip
 FAILURES = Counter(P + "acq_task_failures_total", "Failed runs of background tasks", ["kind"])
+# spec 011 US3 (T072): honest reputation, set by the `rollup` and `reputation_signals` tasks (7-day windows)
+SEARCHES_PER_VALUE = Gauge(P + "searches_per_accepted_value", "Web searches per accepted value, last 7 days",
+                           ["area"])  # fmt: skip
+WRONG_SHARE = Gauge(P + "wrong_share", "Share of accepted values with a wrong signal, last 7 days", ["area"])
+WRONG_SHARE_BASELINE = Gauge(P + "wrong_share_baseline", "Wrong share of the last closed KPI baseline", ["area"])
+COMPONENT_ACC_LB = Gauge(P + "component_acc_lb", "Accuracy lower bound of pipeline components by kind", ["kind"])
 
 _counts: list[tuple[str, str, int]] = []
 
@@ -32,7 +38,8 @@ def metric_names() -> set[str]:
     """Sample names exported only by the worker (for the rules test)."""
     d = P + "acq_task_duration_seconds"
     return {P + "worker_beat_timestamp_seconds", P + "acq_tasks", P + "acq_task_failures_total",
-            d + "_bucket", d + "_sum", d + "_count"}  # fmt: skip
+            d + "_bucket", d + "_sum", d + "_count", P + "searches_per_accepted_value", P + "wrong_share",
+            P + "wrong_share_baseline", P + "component_acc_lb"}  # fmt: skip
 
 
 def start(port: int, addr: str = "127.0.0.1") -> Any:
@@ -81,3 +88,18 @@ def failures(kind: str) -> float:
             if s.name.endswith("_total") and s.labels.get("kind") == kind:
                 return float(s.value)
     return 0.0
+
+
+def set_reputation(
+    searches_per_value: dict[str, float], wrong_share: dict[str, float], component_acc_lb: dict[str, float],
+    baseline_wrong_share: dict[str, float],
+) -> None:  # fmt: skip
+    for gauge, values, label in (
+        (SEARCHES_PER_VALUE, searches_per_value, "area"),
+        (WRONG_SHARE, wrong_share, "area"),
+        (COMPONENT_ACC_LB, component_acc_lb, "kind"),
+        (WRONG_SHARE_BASELINE, baseline_wrong_share, "area"),
+    ):
+        gauge.clear()
+        for key, v in values.items():
+            gauge.labels(**{label: key}).set(v)
