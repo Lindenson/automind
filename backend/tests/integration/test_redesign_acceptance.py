@@ -236,6 +236,10 @@ async def test_redesign_repaired_with_no_human_then_rolled_back_in_watch(world, 
     change = await _change(started)
     assert change.status == "rolled_back" and change.reverted_by
     assert await _version(KEY) == ("degraded", 1) and (await _version("km77@v2"))[0] == "rejected"
+    async with db.sessionmaker()() as s:  # the parser is degraded again: the doctor retries tomorrow
+        retry = (await s.execute(select(db.AcqTask).where(db.AcqTask.dedupe_key.like(f"doctor:{KEY}:%"),
+                                                          db.AcqTask.created_at >= started))).scalar_one()  # fmt: skip
+    assert retry.state == "queued" and retry.run_at > datetime.now(UTC)
     restore = await _change(started, author="system")
     assert restore.id == change.reverted_by
     assert (

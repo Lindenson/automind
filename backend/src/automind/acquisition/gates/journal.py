@@ -75,10 +75,12 @@ async def lever_state() -> levers.LeverState:
                 AcqChange.status.in_(("rolled_back", "reverted"))))).all():  # fmt: skip
             reverted.setdefault((k, o), []).append((h, at or now))
         newest: dict[tuple[str, str], datetime] = {}
-        for k, o in reverted:
-            q = (text("SELECT max(fetched_at) FROM page_snapshots WHERE parser_version LIKE :p") if k == "parser"
-                 else text("SELECT max(created_at) FROM truth_signals"))  # fmt: skip
-            got = (await s.execute(q, {"p": f"{o}@v%"})).scalar()
+        for k, o in reverted:  # newer evidence: a page the object's reader read, or any accuracy signal
+            if k == "parser":
+                q = text("SELECT max(fetched_at) FROM page_snapshots WHERE parser_version LIKE :p")
+                got = (await s.execute(q, {"p": f"{o}@v%"})).scalar()
+            else:
+                got = (await s.execute(text("SELECT max(created_at) FROM truth_signals"))).scalar()
             if got is not None:
                 newest[(k, o)] = got
         prompts = {n: k for n, k in (await s.execute(

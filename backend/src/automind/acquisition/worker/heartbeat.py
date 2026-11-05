@@ -61,6 +61,12 @@ _HEALTH = text(
 
 async def refresh_gauges(schedule: dict[str, Any], started: datetime) -> None:
     exporter.set_counts(await queue.counts())
+    try:  # spec 011 T110: open gated changes by agent and phase, agents' spend today and budgets
+        from automind.acquisition.gates import journal  # noqa: PLC0415
+
+        await journal.publish_gauges()
+    except Exception:  # noqa: BLE001 - gauges are best effort
+        pass
     entries = scheduler.enabled(schedule)
     if not entries:
         return

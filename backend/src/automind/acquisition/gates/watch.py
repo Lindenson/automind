@@ -82,11 +82,28 @@ async def check(change_id: str, now: datetime | None = None) -> dict[str, Any]:
             await s.commit()
     if verdict.verdict == "rollback":
         await journal.rollback(change_id, "system", verdict, current, wrong_signals=wrong, days=days)
+        await _doctor_again(c, now)
     elif verdict.verdict == "keep":
         await journal.keep(change_id, verdict, current)
     log.info("gate.watch change=%s verdict=%s %s", change_id, verdict.verdict, verdict.reason)
     return {"change_id": change_id, "verdict": verdict.verdict, "reasons": list(verdict.reasons), "wrong": wrong,
             "pages": current.pages}  # fmt: skip
+
+
+async def _doctor_again(c: AcqChange, now: datetime) -> None:
+    """A rolled-back repair leaves the parser degraded: the doctor tries again tomorrow (the reverted spec itself is
+    refused without newer evidence, see agents/levers.py)."""
+    if c.object_kind != "parser" or not c.from_version or c.author != "agent:parser_doctor":
+        return
+    from datetime import time, timedelta  # noqa: PLC0415
+
+    from automind.acquisition.worker import queue  # noqa: PLC0415
+
+    day = (now + timedelta(days=1)).date()
+    payload = {"version": c.from_version, "change_id": (c.evidence or {}).get("drift_change"), "after_rollback": c.id}
+    await queue.enqueue("parser_doctor", payload,
+                        dedupe_key=f"doctor:{c.from_version}:{day.isoformat()}",
+                        run_at=datetime.combine(day, time(3, 45), tzinfo=UTC))  # fmt: skip
 
 
 async def check_all(now: datetime | None = None) -> dict[str, str]:

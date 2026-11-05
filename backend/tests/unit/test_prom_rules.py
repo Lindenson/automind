@@ -28,7 +28,9 @@ EXPECTED = {
     "AutomindWorkerDown",  # spec 011 contracts/task-queue.md
     "AutomindAccuracyDrop", "AutomindSearchesPerValueUp",  # spec 011 US3 (T075)
     "AutomindParserDrift",  # spec 011 US4 (T089)
+    "AutomindChangeRolledBack", "AutomindAgentBudgetExhausted",  # spec 011 US5 (T110)
 }  # fmt: skip
+INFO = {"AutomindChangeRolledBack", "AutomindAgentBudgetExhausted"}  # information only (spec 011 T110)
 
 
 def _rules() -> list[dict[str, Any]]:
@@ -61,7 +63,8 @@ def test_worker_metric_families_and_scrape_job() -> None:
 
 def test_every_rule_has_severity_summary_and_for() -> None:
     for r in _rules():
-        assert r.get("labels", {}).get("severity") in {"warning", "critical"}, r["alert"]
+        allowed = {"info"} if r["alert"] in INFO else {"warning", "critical"}
+        assert r.get("labels", {}).get("severity") in allowed, r["alert"]
         assert str(r.get("annotations", {}).get("summary", "")).strip(), r["alert"]
         assert str(r.get("annotations", {}).get("admin", "")).startswith("/"), r["alert"]
         assert "for" in r, r["alert"]
@@ -86,3 +89,13 @@ def test_reputation_rules_watch_the_worker_gauges() -> None:
     assert "automind_searches_per_accepted_value" in by["AutomindSearchesPerValueUp"]["expr"]
     assert {"automind_searches_per_accepted_value", "automind_wrong_share", "automind_component_acc_lb",
             "automind_wrong_share_baseline"} <= exporter.metric_names()  # fmt: skip
+
+
+def test_agent_rules_watch_the_journal_and_budgets() -> None:
+    """Spec 011 T110: a rollback and a used-up agent budget are reported (info); the gauges exist in the worker."""
+    by = {r["alert"]: r for r in _rules()}
+    assert 'automind_acq_changes_total{status="rolled_back"}' in by["AutomindChangeRolledBack"]["expr"]
+    budget = by["AutomindAgentBudgetExhausted"]["expr"]
+    assert "automind_agent_spend_today_eur" in budget and "automind_agent_budget_eur" in budget
+    assert {"automind_acq_open_changes", "automind_agent_spend_today_eur", "automind_acq_changes_total",
+            "automind_agent_budget_eur"} <= exporter.metric_names()  # fmt: skip
