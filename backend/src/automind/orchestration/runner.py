@@ -26,6 +26,8 @@ from langgraph.types import Command
 
 from automind.application.ports import Ports, TurnBusy
 from automind.application.usage import BudgetExceeded, TurnBudget, current_budget
+from automind.insight.metrics import prom
+from automind.orchestration import outcomes
 from automind.orchestration.phrases import t
 from automind.orchestration.retry import transient_provider_error
 
@@ -215,6 +217,7 @@ class ChatRunner:
         budget = await self._budget(chat_id, turn_id, inputs)
         ctx = TurnContext(self.ports, chat_id, turn_id, budget)
         token = current_budget.set(budget)
+        record = outcomes.open_record()  # spec 010 US1: path and signals of this turn
         started = time.monotonic()
         await self.ports.turns.update(turn_id, status="RUNNING")
         try:
@@ -251,13 +254,62 @@ class ChatRunner:
             if transient_provider_error(e):  # spec 007 FR-028: retried by the node policy; then a plain message
                 lang = await self._language(chat_id, turn_id)
                 log.warning("turn.provider_unavailable chat=%s turn=%s error=%s", chat_id, turn_id, e)
-                final = {"reply_text": t("run_provider_down", lang), "blocks": [], "language": lang}
+                final = {"reply_text": t("run_provider_down", lang), "blocks": [], "language": lang,
+                         "provider_down": True}  # fmt: skip
                 return await self._done(ctx, final, started)
             await self.ports.turns.update(turn_id, status="FAILED", usage=budget.snapshot())
+            await self._outcome(ctx, "FAILED", {}, started)
             await ctx.emit("error", {"text": user_error_text(e), "detail": f"{type(e).__name__}: {e}"[:500]})
             raise
         finally:
+            outcomes.close_record(record)
             current_budget.reset(token)
+
+    async def _outcome(self, ctx: TurnContext, status: str, final: dict[str, Any], started: float) -> None:
+        """Record the turn's outcome and tell the previous turn how its answer landed (spec 010 US1).
+        Never fails the turn."""
+        store = self.ports.outcomes
+        try:
+            rec = outcomes.current()
+            seconds = time.monotonic() - started
+            kind = final.get("request_kind")
+            action = final.get("action")
+            if store is not None:
+                persona = None
+                try:
+                    _, data, _ = await self.ports.cases.latest(ctx.chat_id)
+                    persona = (data or {}).get("persona")
+                except Exception:  # noqa: BLE001 - the persona is a cut, not essential
+                    persona = None
+                signals = {**rec["signals"], **outcomes.final_signals(
+                    final, list(ctx.budget.limits_reached), bool(final.get("provider_down")))}  # fmt: skip
+                await store.record(
+                    ctx.turn_id, ctx.chat_id, request_kind=kind, action=action, status=status,
+                    language=final.get("language"), persona=persona, path=rec["path"],
+                    duration_ms=int(seconds * 1000), cost_eur=float(ctx.budget.snapshot().get("cost_eur") or 0),
+                    signals=signals,
+                )  # fmt: skip
+                if status != "WAITING_CONFIRMATION":
+                    relation, prev = outcomes.previous_signals(final)
+                    if relation or prev:
+                        await store.patch_previous(ctx.chat_id, ctx.turn_id, relation, prev)
+                        await self._feedback_from_relation(ctx, relation, prev)
+            if status != "WAITING_CONFIRMATION":
+                prom.inc("turns", kind=kind or "unknown", status=status, action=action or "none")
+                prom.observe_turn(kind, seconds)
+        except Exception:  # noqa: BLE001 - observation must never break a turn
+            log.exception("turn.outcome_failed chat=%s turn=%s", ctx.chat_id, ctx.turn_id)
+
+    async def _feedback_from_relation(self, ctx: TurnContext, relation: str | None, prev: dict[str, float]) -> None:
+        """A rephrase, a correction or a complaint is feedback too (spec 010 US2)."""
+        kind = {"rephrase": "rephrase", "correction": "correction", "complaint": "complaint"}.get(relation or "")
+        if kind is None and prev.get("complaint"):
+            kind = "complaint"
+        if kind is None or self.ports.outcomes is None:
+            return
+        users = [m for m in await self.messages.history(ctx.chat_id) if getattr(m, "role", "") == "user"]
+        text = getattr(users[-1], "text", None) if users else None
+        await self.ports.outcomes.feedback(ctx.chat_id, kind, turn_id=ctx.turn_id, text=text)
 
     async def _saved_research(self, turn_id: str) -> bool:
         """Did this turn store research results before it ran out of time?"""
@@ -283,6 +335,7 @@ class ChatRunner:
         )
         await ctx.emit("confirm_request", payload)
         await ctx.emit("usage", ctx.budget.snapshot())
+        await self._outcome(ctx, "WAITING_CONFIRMATION", dict(final or {}), time.monotonic())
         return TurnResult(
             ctx.turn_id,
             "WAITING_CONFIRMATION",
@@ -332,6 +385,7 @@ class ChatRunner:
             },
         )
         await ctx.emit("usage", usage)
+        await self._outcome(ctx, "DONE", final, started)
         return TurnResult(
             ctx.turn_id,
             "DONE",
@@ -347,4 +401,9 @@ class ChatRunner:
         """Validated data already stored stays cached (FR-043); open research jobs are skipped."""
         await self.ports.jobs.skip_open(turn_id)
         await self.ports.turns.update(turn_id, status="CANCELLED")
+        if self.ports.outcomes is not None:
+            try:
+                await self.ports.outcomes.record(turn_id, chat_id, status="CANCELLED", signals={"process_failure": 1})
+            except Exception:  # noqa: BLE001
+                log.exception("turn.outcome_failed chat=%s turn=%s", chat_id, turn_id)
         await self.ports.events.publish(chat_id, turn_id, "turn_cancelled", {})

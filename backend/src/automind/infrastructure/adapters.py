@@ -9,10 +9,11 @@ from langchain.agents import create_agent
 from pydantic import BaseModel
 
 from automind.application.lineup import get_lineup
-from automind.application.ports import Ports
+from automind.application.ports import Ports, Reference
 from automind.domain.cost import AreaAverage, CostPrices, estimate
 from automind.infrastructure import llm_gateway
-from automind.infrastructure.config import fetch_policy, reference, search_config
+from automind.infrastructure.config import config_dir, fetch_policy, reference, search_config
+from automind.infrastructure.db.outcomes import OutcomeRepo, settings_version
 from automind.infrastructure.db.repositories import (
     CaseRepo,
     FeasibilityRepo,
@@ -33,6 +34,7 @@ from automind.infrastructure.search.serpapi import SerpApiProvider
 from automind.infrastructure.search.serper import SerperProvider
 from automind.infrastructure.search.tavily import TavilyProvider
 from automind.infrastructure.site_readers import live_readers
+from automind.insight.metrics import prom
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -67,6 +69,7 @@ class SystemClock:
 
 
 def live_ports(events: EventBus, prompts: dict[str, str]) -> Ports:
+    ref = reference(prompts)
     return Ports(
         llm=LiveLLM(),
         search=live_search(),
@@ -75,7 +78,7 @@ def live_ports(events: EventBus, prompts: dict[str, str]) -> Ports:
         events=events,
         jobs=JobRepo(),
         clock=SystemClock(),
-        ref=reference(prompts),
+        ref=ref,
         messages=MessageRepo(),
         estimator=LiveEstimator(),
         pages=live_pages(),
@@ -86,7 +89,14 @@ def live_ports(events: EventBus, prompts: dict[str, str]) -> Ports:
         models_on_sale=models_on_sale,
         learned=LearnedSourceRepo(),
         versions=ModelVersionsRepo(),
+        outcomes=_outcomes(ref, prompts),
+        metrics=prom.inc,
     )
+
+
+def _outcomes(ref: Reference, prompts: dict[str, str]) -> OutcomeRepo:
+    models_yaml = (config_dir() / "models.yaml").read_text(encoding="utf-8")
+    return OutcomeRepo(ref.outcome, settings_version(models_yaml, prompts))
 
 
 class LiveEstimator:

@@ -382,10 +382,20 @@ class UsageRepo:
         cost_eur: float,
         job_id: str | None = None,
         area: str | None = None,
+        primary_model: str | None = None,
+        fallback: bool = False,
+        prompt_name: str | None = None,
+        prompt_version: str | None = None,
+        prompt_hash: str | None = None,
     ) -> None:
         async with sessionmaker()() as s:
             s.add(
                 LLMCall(
+                    primary_model=primary_model,
+                    fallback=fallback,
+                    prompt_name=prompt_name,
+                    prompt_version=prompt_version,
+                    prompt_hash=prompt_hash,
                     chat_id=chat_id,
                     turn_id=turn_id,
                     role=role,
