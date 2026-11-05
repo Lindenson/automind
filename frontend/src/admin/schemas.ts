@@ -141,3 +141,166 @@ export const StatusPatchSchema = z.object({
   fixed_ref: z.string().min(1).optional(),
 });
 export type StatusPatch = z.infer<typeof StatusPatchSchema>;
+
+// --- Sources (spec 010 US7, FR-028; backend/src/automind/api/admin.py `_cap_out`, `_change_out`) ---------------
+
+/** The kinds of data (areas) a source can serve. */
+export const AREAS = [
+  "specs",
+  "price",
+  "used_price",
+  "maintenance",
+  "reliability",
+  "reviews",
+  "measured",
+  "engineering",
+  "manufacturer",
+  "depreciation",
+  "used_issues",
+  "incentives",
+] as const;
+export type Area = (typeof AREAS)[number];
+
+/** Statuses a capability is used in; the rest (blocked, retired) are "not used". */
+export const USABLE_STATUSES: readonly string[] = ["active", "candidate", "degraded"];
+
+const num0 = z
+  .number()
+  .nullish()
+  .transform((v) => v ?? 0);
+const numNull = z
+  .number()
+  .nullish()
+  .transform((v) => v ?? null);
+const bool = z
+  .boolean()
+  .nullish()
+  .transform((v) => v ?? false);
+const strOr = (d: string) =>
+  z
+    .string()
+    .nullish()
+    .transform((v) => v ?? d);
+const record = z
+  .record(z.unknown())
+  .nullish()
+  .transform((v) => v ?? null);
+
+/** One capability (domain × area × market) — `_cap_out`. */
+export const CapabilitySchema = z
+  .object({
+    capability_id: z.string(),
+    domain: z.string(),
+    market: strOr(""),
+    status: z.string(),
+    rank: numNull,
+    score: num0,
+    acc_mean: num0,
+    acc_lb: num0,
+    yield: num0,
+    attempts: num0,
+    accepted: num0,
+    wrong_w: num0,
+    right_w: num0,
+    cost_per_value: numNull,
+    frozen: bool,
+    access: strOr("unknown"),
+    source_type: str,
+    last_used: str,
+  })
+  .passthrough();
+export type Capability = z.infer<typeof CapabilitySchema>;
+
+/** GET /sources?area=… */
+export const SourceListSchema = z
+  .object({
+    area: z.string(),
+    sources: z.array(CapabilitySchema),
+    counts: z
+      .record(z.number())
+      .nullish()
+      .transform((v) => v ?? {}),
+    autonomy: bool,
+  })
+  .passthrough();
+export type SourceList = z.infer<typeof SourceListSchema>;
+
+/** One registry journal entry — `_change_out`. */
+export const ChangeSchema = z
+  .object({
+    id: z.string(),
+    at: str,
+    author: str,
+    domain: z.string(),
+    area: str,
+    market: str,
+    change: z.string(),
+    before: record,
+    after: record,
+    reason: strOr(""),
+    evidence: record,
+    held: bool,
+    reverted: bool,
+    revertible: bool,
+    capability_id: str,
+  })
+  .passthrough();
+export type Change = z.infer<typeof ChangeSchema>;
+export const ChangeListSchema = z.array(ChangeSchema);
+
+/** A truth signal about one of the source's capabilities. */
+export const SignalSchema = z
+  .object({
+    at: str,
+    kind: z.string(),
+    verdict: str,
+    weight: z.number().nullish(),
+    blame: str,
+    attribute: str,
+    variant_id: id,
+  })
+  .passthrough();
+export type Signal = z.infer<typeof SignalSchema>;
+
+/** The `sources` row as the server sends it (every column). */
+export const SourceInfoSchema = z
+  .object({
+    domain: z.string(),
+    source_type: str,
+    family: str,
+    markets: z
+      .array(z.string())
+      .nullish()
+      .transform((v) => v ?? []),
+    languages: z
+      .array(z.string())
+      .nullish()
+      .transform((v) => v ?? []),
+    access: strOr("unknown"),
+    access_evidence: z
+      .record(z.unknown())
+      .nullish()
+      .transform((v) => v ?? {}),
+    checked_at: str,
+    next_check_at: str,
+    reader: str,
+    frozen: bool,
+    note: str,
+    created_at: str,
+  })
+  .passthrough();
+export type SourceInfo = z.infer<typeof SourceInfoSchema>;
+
+/** GET /sources/{domain} */
+export const SourceDetailSchema = z
+  .object({
+    source: SourceInfoSchema,
+    capabilities: z.array(CapabilitySchema),
+    changes: z.array(ChangeSchema),
+    signals: z
+      .array(SignalSchema)
+      .nullish()
+      .transform((v) => v ?? []),
+  })
+  .passthrough();
+export type SourceDetail = z.infer<typeof SourceDetailSchema>;

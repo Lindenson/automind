@@ -3,6 +3,7 @@ import { useRef, useState, type KeyboardEvent } from "react";
 import { Logo } from "../components/Logo";
 import { cx } from "../lib/util";
 import { Problems } from "./Problems";
+import { Sources } from "./Sources";
 import { useAdmin, type AdminTab } from "./store";
 
 const TABS: { id: AdminTab; label: string }[] = [
@@ -43,10 +44,6 @@ export function TokenPrompt({ onSubmit }: { onSubmit: (token: string) => void })
       </button>
     </form>
   );
-}
-
-function Sources() {
-  return <p className="card p-6 text-center text-sm text-muted">Sources: coming with the registry.</p>;
 }
 
 export default function AdminApp() {
