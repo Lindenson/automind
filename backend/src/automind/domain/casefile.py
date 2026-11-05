@@ -234,6 +234,7 @@ class LadderMemo(BaseModel):
     generation_from: int | None = None
     generation_to: int | None = None
     source_url: str | None = None  # the document that lists the settled version
+    source_name: str | None = None  # the list's source when not a web page ("EU registrations (EEA CO2 / RDW)")
     others: list[str] = Field(default_factory=list)  # other versions of this generation and year (card chips)
 
 

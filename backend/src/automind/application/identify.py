@@ -589,8 +589,9 @@ async def _ladder(ports: Ports, case: CaseFile, car: CaseCar, year: int) -> Iden
     new = car.condition != "USED"
     gen = _generation(ports, car, year)
     try:
+        fuel = car.constraints.engine_hint.fuel if car.constraints.engine_hint else None
         g = await versions.lookup(ports, car.make, car.model, generation=gen, year=None if new else car.year, new=new,
-                                  current_year=year)  # fmt: skip
+                                  current_year=year, fuel=fuel)  # fmt: skip
     except Exception:  # noqa: BLE001 - a failed look-up never blocks the intake: the fallback identifies
         g = None
     if g is None or not g.versions:
@@ -607,6 +608,7 @@ async def _ladder(ports: Ports, case: CaseFile, car: CaseCar, year: int) -> Iden
         v = await _store_version(ports, car, g, d.step)
         car.variant_id, car.label, car.resolution = v.id, v.label, _proposed(car)
         memo.source_url = d.step.version.source_url or None
+        memo.source_name = versions.DATASET_SOURCE if any(s.get("dataset") for s in g.sources) else None
         memo.others = _others(pool, car.year if not new else None, d.step.version)
         if d.missing and not d.auto:  # the user named something this generation has not: said, the one there is
             events.append({"kind": "ladder_missing", "missing": ", ".join(d.missing), "label": v.label})
