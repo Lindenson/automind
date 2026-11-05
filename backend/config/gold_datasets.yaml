@@ -1,0 +1,176 @@
+# The system reads this file and never writes it (constitution XII).
+# Open datasets for gold values (spec 011 research R3). Endpoints, column names and units were pinned from live
+# samples on 2026-11-05 (T024–T026; trimmed samples in backend/tests/fixtures/gold/). A loader fails loudly
+# (SchemaChanged) when a pinned column is missing from a response: change this file after checking the new release.
+version: 1
+
+datasets:
+  # EU CO2 monitoring of new passenger cars, Reg. (EU) 2019/631 — one row per registration group (country, type
+  # approval, variant, version, values); queried aggregated through the Discodata SQL API.
+  eea_co2:
+    kind: eea_co2
+    name: EEA CO2 emissions from new passenger cars (Reg. (EU) 2019/631)
+    url: https://discodata.eea.europa.eu/sql
+    # POST, form field `query` (application/x-www-form-urlencoded). GET with the same SQL is refused by the Azure WAF
+    # in front of Discodata (403 for any WHERE … AND …); POST is accepted. Discodata needs an alias on every
+    # computed column, refuses system tables and has no row cap at a few thousand rows.
+    method: POST
+    datahub: https://www.eea.europa.eu/en/datahub/datahubitem-view/fa8b1229-3db6-495d-b18e-9c9b3267c02b
+    licence: CC-BY-4.0
+    attribution: "© European Environment Agency (EEA), CO2 emissions from new passenger cars, CC BY 4.0"
+    refresh_days: 30          # finals are published once a year (≈ Q3 of T+1), provisional in June; monthly check
+    timeout_s: 180
+    # One table per registration year in [CO2Emission].[latest]: co2cars_<year><F|P>v<n>. Finals only (a provisional
+    # table of the same year is superseded by its final). The old [co2cars] table (2010–2022) mixes P and F rows of
+    # every year and must not be summed. Add the next final here when it appears (2025 is provisional: v31).
+    database: "[CO2Emission].[latest]"
+    tables:
+      - {name: co2cars_2021Fv24, year: 2021}
+      - {name: co2cars_2022Fv26, year: 2022}
+      - {name: co2cars_2023Fv28, year: 2023}
+      - {name: co2cars_2024Fv30, year: 2024}
+    columns:                  # dataset column → meaning (unit)
+      make: Mk                # make, upper case ("KIA", "TOYOTA")
+      model: Cn               # commercial name, free text of the manufacturer ("SORENTO", "TOYOTA LAND CRUISER (150 SERIES)")
+      fuel_type: Ft           # petrol | diesel | petrol/electric | diesel/electric | electric | lpg | ng | e85 | hydrogen (case varies)
+      fuel_mode: Fm           # M mono-fuel | H hybrid (HEV and MHEV alike) | P plug-in | B bi-fuel | F flex-fuel
+      power_kw: "Ep (KW)"     # kW; for HEV/PHEV the COMBUSTION ENGINE power, not the system power
+      displacement_cc: "Ec (cm3)"
+      mass_kg: "M (kg)"       # mass in running order (EU definition: includes a 75 kg driver)
+      co2_wltp: "Ewltp (g/km)"  # g/km WLTP combined; PHEV = weighted
+      consumption_wltp: Fc    # l/100 km WLTP combined (from 2021); PHEV = weighted
+      energy_wh_km: "Z (Wh/km)"  # Wh/km electric energy consumption (BEV, PHEV)
+      year: Year              # registration year
+      registrations: R        # vehicles in the row
+    # Not in the Discodata tables (checked 2023–2025): the electric range ("Electric range (km)" exists only in the
+    # yearly datahub CSV). Range gold comes from RDW.
+    units:
+      max_power: kW
+      displacement: cm3
+      curb_mass: kg
+      co2_wltp: g/km
+      consumption_wltp: l/100km
+      energy_wh_km: Wh/km
+    conversions: {curb_mass: eu_running_order_minus_driver}
+
+  # EU real-world fuel/energy consumption (OBFCM), Impl. Reg. (EU) 2021/392. Published per collection year as a CSV
+  # per vehicle (2.1 GB for cars 2024) and an aggregate per manufacturer × fuel (no model: useless for gold). The
+  # loader streams the raw CSV once and aggregates per make / commercial name / fuel / kW / cm3 / registration year.
+  eea_obfcm:
+    kind: eea_obfcm
+    name: EEA real-world CO2 emissions from cars (OBFCM, Impl. Reg. (EU) 2021/392)
+    # EEA datashare (Nextcloud) public share of DOI 10.2909/13e6fad9-149c-4b86-9d83-cdf3569ccfee (collection 2024,
+    # published 2026-09-03); WebDAV GET with the share token as user name and an empty password.
+    url: https://sdi.eea.europa.eu/datashare/public.php/webdav/2024_Cars_Raw.csv
+    share_token: XCgQbNbApwXgqJp
+    landing: https://sdi.eea.europa.eu/data/13e6fad9-149c-4b86-9d83-cdf3569ccfee
+    collection_year: 2024
+    licence: CC-BY-4.0
+    attribution: "© European Environment Agency (EEA), Real-world CO2 emissions from cars and vans, CC BY 4.0"
+    refresh_days: 365         # one collection per year (T+1, ≈ September); the next one is a new share: update url+token
+    timeout_s: 1800           # a full pass reads ≈ 2 GB
+    min_vehicles: 10          # groups with fewer vehicles give no value (lifetime counters of a few cars are noise)
+    columns:
+      used: Used in calculation          # 1 = kept by the EEA plausibility checks; only these rows are aggregated
+      fuel_l: Total fuel consumed (lifetime) (l)
+      distance_km: Total distance travelled (lifetime) (km)
+      cd_engine_off_km: Total distance travelled in charge depleting operation with engine off (lifetime) (km)
+      cd_engine_on_km: Total distance travelled in charge depleting operation with engine running (lifetime) (km)
+      grid_kwh: Total grid energy into the battery (lifetime) (kWh)
+      make: Mk
+      model: Cn
+      fuel_type: Ft
+      fuel_mode: Fm
+      power_kw: Ep (KW)
+      displacement_cc: Ec (cm3)
+      mass_kg: M (kg)
+      year: Year                          # registration year (a collection holds 2021…T registrations)
+      consumption_wltp: Fuel consumption  # WLTP l/100 km of the vehicle, kept in details for the gap
+    # Missing values are the text NULL. BEVs carry no OBFCM data (no fuel; grid energy is reported for PHEV only).
+    units:
+      consumption_real: l/100km
+      energy_real_kwh_100km: kWh/100km
+
+  # RDW Open Data (Netherlands vehicle register), Socrata SODA API, SoQL $select/$where/$group/$having.
+  rdw:
+    kind: rdw
+    name: RDW Open Data — registered vehicles and their fuel data (NL)
+    url: https://opendata.rdw.nl/resource/
+    vehicles: m9d7-ebf2       # Gekentekende_voertuigen: one row per registration number
+    fuel: 8ys7-d773           # Gekentekende_voertuigen_brandstof: one row per registration number × fuel (no make)
+    licence: CC0
+    attribution: "RDW Open Data (CC0)"
+    refresh_days: 7
+    timeout_s: 120
+    app_token_env: RDW_APP_TOKEN   # optional X-App-Token (higher throttling limits); works without
+    first_registration_from: "20190101"
+    vehicle_kinds: [Personenauto, Bedrijfsauto]   # many 4x4 (Land Cruiser) are registered as vans in NL
+    min_vehicles: 2           # $having: single cars are mostly individual imports with incomplete data
+    page_size: 50000
+    plates_per_query: 50      # sample plates per fuel query (kenteken in (…))
+    # Vehicles are grouped per type approval + variant + version + mass; the fuel data of one sample vehicle per group
+    # (min(kenteken)) gives the group's power and WLTP values. Plates are only used for that join, never stored.
+    columns:
+      make: merk
+      model: handelsbenaming
+      kind: voertuigsoort
+      type_approval: typegoedkeuringsnummer
+      variant: variant          # e.g. GDJ150(MC) — the Toyota chassis code names the generation (J150 vs J250)
+      version: uitvoering
+      displacement_cc: cilinderinhoud
+      mass_kg: massa_rijklaar   # running order incl. 75 kg driver (equal to EEA "M (kg)" for the same version)
+      first_registration: datum_eerste_toelating   # yyyymmdd text
+      plate: kenteken
+      list_price: catalogusprijs                   # EUR incl. VAT/BPM, NL list price at first registration
+    fuel_columns:
+      plate: kenteken
+      seq: brandstof_volgnummer
+      fuel: brandstof_omschrijving               # Benzine | Diesel | Elektriciteit | LPG | CNG | Waterstof | Alcohol
+      hybrid_class: klasse_hybride_elektrisch_voertuig  # OVC-HEV (plug-in) | NOVC-HEV (HEV; MHEV often unmarked)
+      power_kw: nettomaximumvermogen             # kW, combustion engine
+      electric_kw: netto_max_vermogen_elektrisch  # kW, electric motor (BEV max power)
+      co2_wltp: emissie_co2_gecombineerd_wltp    # g/km
+      co2_wltp_weighted: emis_co2_gewogen_gecombineerd_wltp   # g/km, PHEV
+      consumption_wltp: brandstof_verbruik_gecombineerd_wltp  # l/100 km
+      consumption_wltp_weighted: brandstof_verbruik_gewogen_gecombineerd_wltp  # l/100 km, PHEV
+      energy_bev: elektrisch_verbruik_enkel_elektrisch_wltp   # Wh/km, BEV
+      energy_phev: elektrisch_verbruik_extern_opladen_wltp    # Wh/km, PHEV
+      range_bev: actie_radius_enkel_elektrisch_wltp           # km, BEV
+      range_phev: actie_radius_extern_opladen_wltp            # km, PHEV (EAER)
+      # NEDC figures (brandstofverbruik_gecombineerd, co2_uitstoot_gecombineerd) of older approvals are NOT WLTP and
+      # are kept in details only.
+    units:
+      max_power: kW
+      displacement: cm3
+      curb_mass: kg
+      co2_wltp: g/km
+      consumption_wltp: l/100km
+      energy_wh_km: Wh/km
+      range_wltp_km: km
+      list_price_nl: EUR
+    conversions: {curb_mass: eu_running_order_minus_driver}
+
+# Gold attribute ← loader value (the loaders already emit these names).
+attribute_map:
+  eea_co2: [max_power, displacement, curb_mass, co2_wltp, consumption_wltp, energy_wh_km]
+  eea_obfcm: [consumption_real, energy_real_kwh_100km]
+  rdw: [max_power, displacement, curb_mass, co2_wltp, consumption_wltp, energy_wh_km, range_wltp_km, list_price_nl]
+
+conversions:
+  eu_running_order_minus_driver: -75   # kg: EU mass in running order includes a 75 kg driver; curb mass does not
+
+tolerances:
+  max_power: {rel: 0.02}
+  curb_mass: {rel: 0.03}
+  displacement: {abs: 10}
+  co2_wltp: {rel: 0.03}
+  consumption_wltp: {rel: 0.04}
+  energy_wh_km: {rel: 0.04}
+  range_wltp_km: {rel: 0.04}
+  consumption_real: {rel: 0.05}
+  energy_real_kwh_100km: {rel: 0.05}
+  list_price_nl: {rel: 0.05}
+
+# Marketing / body words stripped from commercial names before model-token matching (research R3 rule 2). The make
+# itself is stripped too ("TOYOTA LAND CRUISER (150 SERIES)" → "land cruiser 150 series").
+strip_words: [series, serie, van, awd, 4wd, 4x4, xdrive, quattro, hybrid, plug-in, phev, hev, ev, electric, sortimo]
