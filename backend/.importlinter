@@ -138,3 +138,30 @@ forbidden_modules =
     automind.acquisition.registry.application
     automind.acquisition.registry.infrastructure
 allow_indirect_imports = True
+
+# --- spec 011 -------------------------------------------------------------------------------------
+[importlinter:contract:acquisition-domain-pure]
+name = Acquisition engine pure cores (spec 011, constitution V, IX)
+type = forbidden
+source_modules =
+    automind.acquisition.domain
+    automind.acquisition.gold.domain
+    automind.acquisition.snapshots.codec
+    automind.acquisition.parsing.spec
+    automind.acquisition.parsing.interpreter
+    automind.acquisition.parsing.fingerprint
+forbidden_modules =
+    langgraph
+    langchain
+    langchain_core
+    langchain_openai
+    langchain_anthropic
+    langchain_mcp_adapters
+    fastapi
+    sqlalchemy
+    httpx
+    prometheus_client
+    automind.application
+    automind.orchestration
+    automind.infrastructure
+    automind.api

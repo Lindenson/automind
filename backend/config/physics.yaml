@@ -1,0 +1,22 @@
+# The system reads this file and never writes it (constitution XII).
+# Spec 011 research R8: physical consistency checks between a variant's values (signals against the outlier).
+version: 1
+checks:
+  power_mass_accel:
+    slack: 0.15            # outside the envelope by more than 15 % -> inconsistent
+    envelope: {}           # by powertrain/drivetrain: kg/kW bucket -> [min_s, max_s]; empty until T076 (owner review)
+  torque_power:
+    rpm_max: {petrol: 7500, diesel: 5000}
+  bev_range_energy:
+    wh_km_band: [120, 300]
+    rel: 0.15
+  co2_consumption:
+    g_per_l100: {petrol: 23.8, diesel: 26.4}
+    rel: 0.08
+  displacement_geometry:
+    rel: 0.03
+  top_speed_power:
+    efficiency: 0.85
+    air_density: 1.2
+    cda_by_body: {hatchback: 0.65, sedan: 0.62, estate: 0.66, suv: 0.85, mpv: 0.8, coupe: 0.58, default: 0.75}
+    slack: 0.25

@@ -1,0 +1,74 @@
+# The system reads this file and never writes it (constitution XII).
+# Spec 011 research R3: open datasets loaded as gold (reference) values, how their rows map to our attributes and
+# how close a value must be to count as matching gold.
+# `columns` and endpoints marked TODO-verify are pinned by the loader tasks (T024-T026) from a live sample; a loader
+# fails loudly when the columns it expects are missing.
+version: 1
+datasets:
+  reference_set:
+    kind: reference_set
+    url: eval/reference_vehicles.yaml
+    licence: internal
+    refresh_days: 1
+  eea_co2:
+    kind: eea_co2
+    url: TODO-verify        # EEA Discodata SQL API (CO2 monitoring, new passenger cars, Reg. (EU) 2019/631)
+    licence: CC-BY-4.0
+    refresh_days: 30
+    min_year: 2019
+    columns: {}             # TODO-verify
+  eea_obfcm:
+    kind: eea_obfcm
+    url: TODO-verify        # EEA datahub, OBFCM real-world fuel and energy consumption (Impl. Reg. (EU) 2021/392)
+    licence: CC-BY-4.0
+    refresh_days: 90
+    columns: {}             # TODO-verify
+  rdw:
+    kind: rdw
+    url: https://opendata.rdw.nl/resource/  # SODA; datasets m9d7-ebf2 (vehicles) and 8ys7-d773 (fuel)
+    licence: CC0
+    refresh_days: 7
+    columns: {}             # TODO-verify
+# dataset field -> our attribute (canonical units: kW, cm3, kg, g/km, l/100 km, Wh/km, km, EUR)
+attribute_map:
+  power_kw: max_power
+  engine_cc: displacement
+  mass_running_order: curb_mass
+  co2_wltp: co2_wltp
+  consumption_wltp: consumption_wltp
+  energy_wh_km: energy_wh_km
+  range_wltp_km: range_wltp_km
+  consumption_real: consumption_real
+  energy_real_kwh_100km: energy_real_kwh_100km
+  list_price_nl: list_price_nl
+units:
+  max_power: kW
+  displacement: cm3
+  curb_mass: kg
+  co2_wltp: g/km
+  consumption_wltp: l/100km
+  energy_wh_km: Wh/km
+  range_wltp_km: km
+  consumption_real: l/100km
+  energy_real_kwh_100km: kWh/100km
+  list_price_nl: EUR
+conversions:               # declared, never guessed: EU mass in running order includes a 75 kg driver
+  eu_running_order_minus_driver: -75
+tolerances:                # abs (canonical units) or rel (share of the gold value)
+  max_power: {rel: 0.02}
+  curb_mass: {rel: 0.03}
+  displacement: {abs: 10}
+  co2_wltp: {rel: 0.03}
+  consumption_wltp: {rel: 0.04}
+  energy_wh_km: {rel: 0.04}
+  range_wltp_km: {rel: 0.04}
+  consumption_real: {rel: 0.05}
+  energy_real_kwh_100km: {rel: 0.05}
+  list_price_nl: {rel: 0.05}
+default_tolerance: {rel: 0.03}
+match:
+  power_kw_tolerance: 1    # |dataset kW - variant kW| <= 1
+  mass_tiebreak_rel: 0.03  # running-order mass within 3 % to break a tie between groups
+# marketing words removed from commercial names before the model tokens are compared
+strip_words: [new, nuevo, nueva, neu, neue, edition, plus, "4x4", xdrive, quattro, 4motion, hybrid, phev, hev, mhev,
+              ev, electric, e-tech, tdi, tsi, tfsi, cdi, hdi, dci, crdi]

@@ -15,6 +15,12 @@ terms_reader: google_genai:gemini-3.1-flash-lite   # spec 010: web reader, does 
 relevance: google_genai:gemini-3.1-flash-lite      # web reader: is this page about the exact variant?
 lineup: google_genai:gemini-3.1-flash-lite         # web reader (spec 005): models of a make on sale in Spain
 versions: google_genai:gemini-3.6-flash            # web reader: versions of a model generation (version ladder)
+# Spec 011 engine agents (worker only, daily budgets in config/agents.yaml):
+scout: google_genai:gemini-3.1-flash-lite            # web reader, no tools: query wording for gaps
+parser_doctor: google_genai:gemini-3.6-flash         # web reader, no tools: drafts a declarative parser spec
+rule_auditor: google_genai:gemini-3.1-flash-lite     # web reader, no tools: explains a bounded rule change
+extractor_tuner: google_genai:gemini-3.1-flash-lite  # web reader, no tools: proposes an extraction prompt edit
+blame_judge: google_genai:gemini-3.1-flash-lite      # web reader, no tools: which component erred, with a quote
 # Legacy demo roles (removed when the demo graph is replaced, T035/T060):
 hub: google_genai:gemini-3.6-flash
 analyst: google_genai:gemini-3.6-flash

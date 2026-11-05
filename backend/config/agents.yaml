@@ -1,0 +1,45 @@
+# The system reads this file and never writes it (constitution XII).
+# Spec 011 research R13/R14: engine agents, their daily budgets, gates and levers. Budgets are human-set only.
+version: 1
+budgets:                   # EUR per day
+  scout: 0.10
+  parser_doctor: 0.20
+  rule_auditor: 0.05
+  extractor_tuner: 0.20
+  blame_judge: 0.05
+max_runs_per_day:
+  scout: 3
+  parser_doctor: 3
+  rule_auditor: 1
+  extractor_tuner: 1
+  blame_judge: 20
+gates:                     # research R14
+  replay:
+    min_gold: 20
+    kpi_slack: 0.01        # accuracy_lb(new) >= accuracy_lb(old) - 0.01
+    better: {yield: 0.05, accuracy: 0.02, pass_rate: 0.05}
+    guards: {coverage_drop: 0.02, cost_rise: 0.10}
+    min_accuracy_lb: 0.8   # for a degraded object (old yield about 0)
+    wait_days: 7           # insufficient evidence: wait this long, then abandon
+  watch:
+    accuracy_lb_drop: 0.03
+    yield_drop: 0.20
+    wrong_signals: 3
+watch_days: 7
+shadow: {min_pages: 20, max_days: 7}
+levers:
+  rule_auditor:
+    max_step_rel: 0.20
+    paths:                 # whitelisted key paths of sense.yaml / plausibility.yaml / relevance keywords
+      - "plausibility.by_powertrain.*.*.min"
+      - "plausibility.by_powertrain.*.*.max"
+      - "relevance.keywords.*"
+  extractor_tuner:
+    prompts: [extract_specs, extract_maintenance, extract_reliability, extract_reviews, extract_used_price,
+              extract_depreciation, extract_manufacturer, extract_incentives]
+    roles: [extractor, validator, relevance]
+allowed_models:
+  - google_genai:gemini-3.1-flash-lite
+  - google_genai:gemini-3.5-flash-lite
+  - google_genai:gemini-3.5-flash
+  - google_genai:gemini-3.6-flash
