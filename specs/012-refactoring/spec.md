@@ -49,6 +49,26 @@ one-off data repairs (`application/repair.py`, `backfill.py`); layer leaks (`com
 worktrees, 90 local and 75 remote branches all merged, root `sec.md`, closed review documents); `docs/baseline.md`
 and `docs/deploy.md` not updated for the acquisition engine.
 
+## Clarifications
+
+### Session 2026-11-06
+
+- Q: How are use cases, stages and fallbacks shaped (classes or functions)? → A: Hybrid (C) plus an explicit dialog
+  state machine. Use case = class with `run()`, one per user action (send message, confirm, find more, edit car,
+  rescore, open chat). Application service ("engine" of a piece of logic: identification, report, cost, research) =
+  class with its ports in the constructor and a `run()` listing named stages; stages are pure functions in their own
+  modules; fallbacks/alternatives are strategies behind a `Protocol`. The dialog state machine lives in one package.
+- Q: What does the turn graph do, and how does it relate to the dialog state machine? → A: The graph (LangGraph)
+  stays the execution runtime — pause/resume across messages (interrupt + checkpointer), parallel research fan-out,
+  retries, per-node tracing. The decisions are made by the policy (rule chain) and the intake step machine. Target:
+  named dialog phases and a typed turn state instead of a 30-key dict; policy as Chain of Responsibility (one rule
+  per module, order in one list) behind a `Protocol`, so an "LLM proposes → code gates" planner can be tried later
+  as another implementation (the experiment itself is out of scope, after the quality measurement of the parked
+  backlog §4.1); the prepare → wait → apply confirmation pattern defined once and configured five times; nodes are
+  thin adapters (≤ 30 lines) calling services; graph.py reads as a transitions table.
+- Q: Owner's acceptance bar? → A: Maximal clarity of what happens, zero spaghetti, recognisable patterns, visible
+  architecture; every step is self-checked against it.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 — Find where a concept lives from the tree alone (Priority: P1)
@@ -215,8 +235,15 @@ no code literal repeats a YAML default; `git worktree list` shows only the main 
   per-source variants) are separate strategy units selected in one visible place.
 - **FR-009**: Use cases in the chat area MUST access persistence only through ports; the legacy import-contract
   exceptions for `compose`, `resolve`, `repair`, `challenge`, `backfill` and `lineup` are removed.
-- **FR-010**: Orchestration (graph nodes) MUST contain only flow control and delegation; business helpers now in
-  graph nodes move to the application or domain layer.
+- **FR-010**: Orchestration (graph nodes) MUST contain only flow control and delegation (≤ 30 lines per node);
+  business helpers and text parsing now in graph nodes move to services, the domain or vocabulary modules.
+- **FR-010a**: The dialog state machine MUST be explicit and in one package (`chat/dialog/`): named dialog phases,
+  a typed turn state, the policy as an ordered chain of rules (one rule per module) behind a `Protocol`, the
+  intake step machine, the confirmation pattern (prepare → wait → apply) defined once, and the graph wiring as a
+  transitions table.
+- **FR-010b**: User actions (send message, confirm, find more, edit car, rescore, open chat) MUST each be a use
+  case class with `run()`; logic engines (identification, report, cost, research) MUST be application services with
+  their ports in the constructor and a `run()` that lists named stages.
 
 **Contracts and documentation (owner points 5, 6)**
 
