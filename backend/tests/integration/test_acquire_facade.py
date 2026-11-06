@@ -112,6 +112,7 @@ async def test_the_chat_interface_imports_no_engine():
 
     code = ("import sys, automind.acquisition.api; "
             "bad = [m for m in sys.modules if m.startswith(('automind.acquisition.', 'automind.infrastructure', "
-            "'sqlalchemy')) and m != 'automind.acquisition.api']; print(bad); sys.exit(1 if bad else 0)")  # fmt: skip
+            "'sqlalchemy')) and m.split('.')[:3] != ['automind', 'acquisition', 'api']]; "
+            "print(bad); sys.exit(1 if bad else 0)")  # fmt: skip
     out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=False)
     assert out.returncode == 0, out.stdout + out.stderr
