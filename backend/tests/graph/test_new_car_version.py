@@ -15,7 +15,12 @@ from types import SimpleNamespace
 from automind.acquisition.api import VersionEntry as _V
 from automind.acquisition.api import VersionsOut
 from automind.acquisition.engine import Engine
-from automind.chat.application.services.identification import identify, resolve, versions
+from automind.chat.application.services.identification import versions
+from automind.chat.application.services.identification.catalogue import upsert_variant
+from automind.chat.application.services.identification.contracts import Placed, VariantIdentity
+from automind.chat.application.services.identification.strategies.catalogue_rows import CatalogueRows
+from automind.chat.application.services.identification.strategies.open_world import OpenWorld
+from automind.chat.application.services.identification.strategies.sourced_versions import SourcedVersions
 from automind.chat.dialog.prompts import load_all
 from automind.chat.domain.case import CaseCar, CaseFile, Constraints
 from automind.delivery.bootstrap import reference
@@ -28,6 +33,12 @@ DOC_2026 = (
     "Firstkia Sorento 2026: precios y gama",
     "Gama Sorento 2026 (renovado en 2024): 1.6 T-GDi HEV 215 CV, 1.6 T-GDi PHEV 288 CV, 2.2 CRDi 193 CV.",
 )
+
+
+async def _fallback(ports, case, car, year, lineup):  # noqa: ANN001, ANN202
+    """The catalogue's rows, then the resolver (the strategies after the sourced ladder)."""
+    placed = Placed(case, car, year, lineup)
+    return await CatalogueRows(ports).identify(placed) or await OpenWorld(ports).identify(placed)
 
 
 class Store:
@@ -104,7 +115,7 @@ async def test_new_sorento_phev_identified_from_the_current_range_not_an_old_row
     hint = Constraints(generation_hint="MQ4", engine_hint=parse_engine("PHEV"))
     car = CaseCar(key="car#1", request_text="Firstkia Sorento PHEV nuevo", make="Firstkia", model="Sorento",
                   condition="NEW", constraints=hint)  # fmt: skip
-    o = await identify._ladder(ports, CaseFile(cars=[car]), car, NOW)  # type: ignore[arg-type]
+    o = await SourcedVersions(ports).identify(Placed(CaseFile(cars=[car]), car, NOW, None))  # type: ignore[arg-type]
     assert o is not None and o.outcome == "IDENTIFIED", o
     assert "288" in (car.label or "") and car.ladder is not None and car.ladder.certainty == "SOURCED"
 
@@ -114,11 +125,11 @@ async def _rows(make: str, rows: list[tuple[str, str, int, int]]) -> None:
 
     await db.init_db()
     for name, gen, since, kw in rows:
-        ident = resolve.VariantIdentity(make=make, model="Sorento", generation=gen, variant_name=name,
+        ident = VariantIdentity(make=make, model="Sorento", generation=gen, variant_name=name,
                                         powertrain="PHEV", body_class="SUV", generation_years_from=since,
                                         generation_years_to=None, engine_cc=1598, power_kw=kw, fuel="phev",
                                         certainty="exact")  # fmt: skip
-        await resolve.upsert_variant(ident, reference({}))
+        await upsert_variant(ident, reference({}))
 
 
 def _new_sorento(make: str) -> CaseCar:
@@ -131,7 +142,7 @@ async def test_fallback_never_takes_a_row_a_newer_row_of_the_same_engine_superse
     await _rows(make, [("1.6 T-GDi PHEV 265 CV", "MQ4", 2020, 195), ("1.6 T-GDi PHEV 288 CV", "MQ4 PE", 2024, 212)])
     ports = SimpleNamespace(ref=reference(load_all()), versions=None)
     car = _new_sorento(make)
-    o = await identify._fallback(ports, CaseFile(cars=[car]), car, NOW, None)  # type: ignore[arg-type]
+    o = await _fallback(ports, CaseFile(cars=[car]), car, NOW, None)  # type: ignore[arg-type]
     assert o.outcome == "IDENTIFIED", o
     assert "288" in (car.label or "") and "265" not in (car.label or "")
     assert car.ladder is not None and car.ladder.certainty == "LESS_CERTAIN"
@@ -143,12 +154,12 @@ async def test_fallback_with_only_a_stale_row_asks_once_instead_of_taking_it(mig
     ports = SimpleNamespace(ref=reference(load_all()), versions=Store())  # the look-up ran and found no list
     car = _new_sorento(make)
     case = CaseFile(cars=[car])
-    o = await identify._fallback(ports, case, car, NOW, None)  # type: ignore[arg-type]
+    o = await _fallback(ports, case, car, NOW, None)  # type: ignore[arg-type]
     assert o.outcome == "CHOICES" and o.need == "POWER", o  # one question, never silently the 2020 row
     assert car.variant_id is None
     assert [c.label for c in o.choices] == ["1.6 T-GDi PHEV 265 CV"]
     assert any(e["kind"] == "version_uncertain" for e in o.events), o.events
     case.intake.bump(car.key, "POWER")  # asked once: the row is taken, less certain, never asked again
-    o = await identify._fallback(ports, case, car, NOW, None)  # type: ignore[arg-type]
+    o = await _fallback(ports, case, car, NOW, None)  # type: ignore[arg-type]
     assert o.outcome == "IDENTIFIED" and "265" in (car.label or ""), o
     assert car.resolution == "PROPOSED" and {"kind": "identity_less_certain"} in o.events

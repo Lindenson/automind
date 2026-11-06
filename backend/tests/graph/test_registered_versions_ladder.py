@@ -11,7 +11,8 @@ from sqlalchemy import delete
 
 from automind.acquisition.gold import versions as gv
 from automind.acquisition.gold.domain.match import DatasetRow
-from automind.chat.application.services.identification import resolve
+from automind.chat.application.services.identification.catalogue import upsert_variant
+from automind.chat.application.services.identification.contracts import VariantIdentity
 from automind.chat.dialog.graph import build_graph
 from automind.chat.dialog.runner import ChatRunner
 from automind.chat.infrastructure.persistence.repositories import MessageRepo
@@ -44,11 +45,11 @@ async def toyota_rows(make: str) -> list[DatasetRow]:
 
 async def _catalog() -> None:
     await forget_make("Toyota")
-    ident = resolve.VariantIdentity(make="Toyota", model="Land Cruiser", generation="J150", variant_name="2.8 D-4D",
+    ident = VariantIdentity(make="Toyota", model="Land Cruiser", generation="J150", variant_name="2.8 D-4D",
                                     powertrain="ICE", body_class="SUV", generation_years_from=2009,
                                     generation_years_to=2023, engine_cc=2755, fuel="diesel",
                                     certainty="exact")  # fmt: skip
-    await resolve.upsert_variant(ident, reference({}))
+    await upsert_variant(ident, reference({}))
     async with db.sessionmaker()() as s:
         await s.execute(delete(db.SearchCache).where(db.SearchCache.key == gv._key("Toyota")))
         await s.commit()

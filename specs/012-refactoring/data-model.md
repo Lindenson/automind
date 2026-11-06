@@ -30,7 +30,7 @@ backend/src/automind/
 │   │   ├── understanding/          text → facts, no LLM: distance.py, region.py, condition.py, charging.py,
 │   │   │                             energy_figures.py, cars_in_text.py (← intake.py parsers, nodes/understand.py
 │   │   │                             _*_from_text helpers)
-│   │   ├── identification/         ladder.py (540 → ladder/ package), identification.py, used.py
+│   │   ├── identification/         ladder.py (540 → ladder/ package), identification.py, used.py, variant_match.py (S7)
 │   │   ├── assessment/             criteria.py, weights.py, metrics.py, dragrace.py, feasibility.py,
 │   │   │                             profile_gaps.py, ask_value.py, reliability.py, reviews.py
 │   │   ├── cost/                   tco/ (566 → engine.py, inputs.py, periods.py), energy/ (550 → per powertrain),

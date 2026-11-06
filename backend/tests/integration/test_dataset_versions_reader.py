@@ -14,7 +14,8 @@ from automind.acquisition import api
 from automind.acquisition.gold import repo
 from automind.acquisition.gold import versions as gv
 from automind.acquisition.gold.domain.match import DatasetRow, GoldValue
-from automind.chat.application.services.identification import resolve
+from automind.chat.application.services.identification.catalogue import upsert_variant
+from automind.chat.application.services.identification.contracts import VariantIdentity
 from automind.delivery.bootstrap import reference
 from automind.shared.infrastructure import db
 
@@ -39,11 +40,11 @@ async def _forget_cache(make: str) -> None:
 async def test_stored_gold_keys_are_read_offline_without_a_live_query() -> None:
     await db.init_db()
     make = f"Goldkia{uuid.uuid4().hex[:6]}"
-    ident = resolve.VariantIdentity(make=make, model="Sorento", generation="MQ4", variant_name="1.6 T-GDi PHEV",
+    ident = VariantIdentity(make=make, model="Sorento", generation="MQ4", variant_name="1.6 T-GDi PHEV",
                                     powertrain="PHEV", body_class="SUV", generation_years_from=2020,
                                     generation_years_to=None, engine_cc=1598, power_kw=195, fuel="phev",
                                     certainty="exact")  # fmt: skip
-    v = await resolve.upsert_variant(ident, reference({}))
+    v = await upsert_variant(ident, reference({}))
     await repo.upsert_dataset(repo.DatasetInfo("eea_co2_2024", "EEA CO2", "eea_co2", "CC-BY-4.0"))
     up = make.upper()
     keys = f"{up}|SORENTO|phev|132|1598|2021 ; {up}|SORENTO|phev|132|1598|2023 ; {up}|SORENTO|phev|118|1598|2024"

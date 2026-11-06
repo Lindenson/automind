@@ -13,53 +13,59 @@ fallbacks = strategies behind a Protocol), then `tasks.md` from S7 on.
 What the system is: `README.md` ("Acquisition engine"), `docs/adr/ADR-032-acquisition-engine.md`,
 `docs/history/next-session-2026-11-06-engine.md` §1, specs 001–009: `docs/baseline.md`.
 
-## 0. Resume S7 (next action)
+## 0. Resume S8 (next action)
 
-Done and merged: S0–S6 (PRs up to #97, main = `f6487b1`). Tree now: `chat/ acquisition/ shared/ observability/
-delivery/` (target in `data-model.md`). S6 made the dialog explicit: `chat/dialog/policy/` (chain of rules,
-`RULES`, `RulesInOrder`), `phases.py`, `confirmation.py` (prepare → wait → apply, 5 configurations), `graph.py`
-as tables (`NODES`, `POLICY_ROUTES`, `CONFIRMATIONS`, `TERMINALS`; shape frozen by
-`tests/graph/graph_shape.json`), `state.py` (`DecisionState` TypedDict, plain data in checkpoints).
+Done and merged: S0–S7 (PRs up to #98). Tree now: `chat/ acquisition/ shared/ observability/ delivery/` (target in
+`data-model.md`). S6 made the dialog explicit (`chat/dialog/policy/`, `phases.py`, `confirmation.py`, `graph.py` as
+tables, shape frozen by `tests/graph/graph_shape.json`). S7 made identification a service:
+`chat/application/services/identification/` — `service.py` (`IdentificationService.run()` lists the stages,
+`identify_case()` the per-car loop), `stages/` (normalise_name, catalogue_lookup, ask_model, place_market,
+year_first, narrow_ladder, ask_stale_version, offer_engines, settle), `strategies/` in order (sourced_versions,
+catalogue_rows, open_world) behind `contracts.Fallback`; resolve split into `catalogue`, `assessment`, `resolver`,
+`revalidation`; pure matching in `chat/domain/identification/variant_match.py`. The catalogue (variants, line-ups)
+lives in `acquisition/catalogue.py`, reached through `acquisition.api` (T068 revised: no second port over the api —
+it already is the typed port; the same reasoning likely applies to S8's `CarRepository`, T072: decide there).
 
-**Next: S7 identification service, T066–T069** (tasks.md "S7"):
-1. `git switch -c 012-s7-identification`.
-2. T066: characterisation tests to ≥ 80 % branch coverage of `chat/application/services/identification/{identify,resolve}.py`
-   (before: 83 % / 82 % per `coverage-before.txt` — re-measure, cover fallback order, ladder narrowing, gearbox,
-   catalogue hit/miss) under `backend/tests/unit/chat/application/services/identification/`.
-3. T067: package with `contracts.py`, `service.py` (`IdentificationService.run()` ≤ 60 lines), `stages/`,
-   `strategies/`; pure matching → `chat/domain/identification/variant_match.py`.
-4. T068 (+T028 part): `acquisition.api` catalogue calls `find_variants`/`get_variant`/`upsert_variant`; port
-   `VariantCatalogue`; drop `resolve`/`lineup` `ignore_imports` in `backend/.importlinter`.
-5. T069: `chat/dialog/nodes/identify.py` ≤ 30 lines; gate; behaviour diff; PR; merge; delete branch.
-Then S8 report (+`car_data()` read model, T072), S9 interpretation/research/feasibility/usage (+T059 confirm.py
-characterisation, 47 % now), S10 use cases, S11 acquisition pipeline + parsing package, S12 admin/persistence split
-+ contracts, S13 order/API + mypy scope, S14 docs, S15 acceptance.
+**Next: S8 report service, T070–T073** (tasks.md "S8"):
+1. `git switch -c 012-s8-report`.
+2. T070: re-measure branch coverage of `chat/application/services/report/compose.py` and `chat/dialog/nodes/compute.py`
+   helpers; characterisation tests for the paths none reaches (style: S7's `test_identification_paths.py`, test-only
+   makes, rows removed in an autouse fixture).
+3. T071: package `report/` with `service.py` (`ReportService.run()`), `facts/`, blocks; T072: `car_data()` read
+   model in `acquisition.api` (T028 rest), drop `compose` `ignore_imports`; T073: report/compute nodes ≤ 30 lines.
+4. Gate, behaviour diff, check_checkpoints; PR; merge; delete branch; update this §0.
+Then S9 interpretation/research/feasibility/usage (+T059 confirm.py characterisation, 47 % now), S10 use cases,
+S11 acquisition pipeline + parsing package, S12 admin/persistence split + contracts, S13 order/API + mypy scope,
+S14 docs, S15 acceptance.
 
 Known deferred inside 012: nodes still fat (`chat/dialog/nodes/compute.py` 719, `understand.py` 500) — logic leaves
 in S7–S9; T019a flaky `test_catalog_merge` (host load) open.
 
-### Workflow per step (what worked S3a–S6)
+### Workflow per step (what worked S3a–S7)
 
 ```bash
-set -a; . ./.env.docker; set +a   # TEST_DATABASE_URL (port 5433, automind_test); without it the test DB is empty
+set -a; . ./.env.docker; set +a   # POSTGRES_PASSWORD; .env.docker has no TEST_DATABASE_URL, so for a bare pytest:
+export TEST_DATABASE_URL="postgresql+asyncpg://automind:${POSTGRES_PASSWORD}@127.0.0.1:5433/automind_test"
 scripts/check.sh > $SCRATCH/check.log 2>&1        # ruff, format, mypy strict scope, lint-imports (11), structure ratchet, pytest, vitest
-scripts/refactor/diff_behaviour.py --base origin/main --head HEAD   # base→head→base, PYTHONHASHSEED=0; must end "differs 0"
+python3 scripts/refactor/diff_behaviour.py --base origin/main --head HEAD   # (not executable) base→head→base, PYTHONHASHSEED=0; must end "differs 0"
 cd backend && uv run python ../scripts/check_checkpoints.py      # read-only prod: 0 module paths in blobs, threads load
 ```
 - Moves: `scripts/refactor/move.py <map.yaml>` (maps in `specs/012-refactoring/moves/`; whole packages first);
   after moves `scripts/check_structure.py --write-baseline` only if the count did not grow.
-- Structure ratchet baseline `scripts/structure_baseline.txt` (903 now); new violations fail the gate.
+- Structure ratchet baseline `scripts/structure_baseline.txt` (868 now); new violations fail the gate.
 - Never run two test runs on one DB at once. Commit → push → `gh pr create` → `gh pr merge --merge` → delete
   local+remote branch; update this file's §0 at the end of each step.
 
 ## 1. State when parked
 
-- main = `f6487b1` (S6 merged). **Production still runs the pre-012 code** (`2b5eb92`, PRs #83–#85, `scripts/deploy.sh
+- main = S7 merged (PR #98). **Production still runs the pre-012 code** (`2b5eb92`, PRs #83–#85, `scripts/deploy.sh
   up --monitoring`, app :8090). Deploy policy: none before the baseline closes on 2026-11-12; then S3a–S6 go
   together as the first checkpoint (compose worker command is now `python -m automind.cli worker`), live replay of
   chat ccd5f7d8 after it, then deploys only at S9, S12, S15.
-- Last gate: `check.sh` green — 1467 backend passed (2 skipped) + 161 frontend; 11 import contracts kept;
-  structure 903/903; behaviour diff vs previous main: differs 0; check_checkpoints: 375 blobs, 0 paths, 10 threads.
+- Last gate (S7): `check.sh` green — 1480 backend passed (2 skipped) + 161 frontend; 11 import contracts kept;
+  structure 868/868; mypy report 332 errors (was 336); behaviour diff vs previous main: differs 0 (racy 7: limit
+  pause, make_to_choose, persistent_thread — unstable between base runs too); check_checkpoints: 470 blobs, 0 paths,
+  11 threads.
 - Repo hygiene: no worktrees, no feature branches local or remote.
 - Last live check (pre-012): chat ccd5f7d8 (Deepal S09 vs Li L9) — S09 energy computed (EREV estimate), L9 "no data".
 - Backup before the last data repair: `backups/automind-20261106-100212.sql.gz`.

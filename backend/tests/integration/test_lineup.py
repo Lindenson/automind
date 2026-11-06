@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 from tests.fakes.fake_llm import FakeLLM
 from tests.fakes.fixture_search import FixtureSearch
 from tests.graph.conftest import make_ports
@@ -11,6 +11,7 @@ from automind.acquisition.api import LineupEntry as _Entry
 from automind.chat.application.services.identification import lineup
 from automind.shared.infrastructure import db
 
+_byd_es = select(db.BrandLineup).where(db.BrandLineup.make == "BYD", db.BrandLineup.market == "ES")
 DOCS = {"https://www.byd.com/es": ("BYD España", "BYD Seal U DM-i — SUV familiar. Desde 35.990 €. BYD Atto 3.")}
 
 
@@ -49,7 +50,7 @@ async def test_lookup_reads_official_site_and_caches() -> None:
     again = await lineup.get_lineup(ports, "BYD")  # cached: no second model call (the queue is empty)
     assert again is not None and len(again.models) == 2
     async with db.sessionmaker()() as s:  # older than the TTL: looked up again
-        row = (await s.execute(lineup._row_of("BYD"))).scalar_one()
+        row = (await s.execute(_byd_es)).scalar_one()
         row.fetched_at = datetime.now(UTC) - timedelta(days=40)
         await s.commit()
     assert await lineup.cached("BYD", 30) is None

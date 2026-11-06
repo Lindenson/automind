@@ -11,18 +11,15 @@
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
-from automind.chat.application.services.identification.resolve import (
-    _fits,
-    _strip_prefix,
-    bought_now,
-    current_generation,
-)
+from automind.chat.application.services.identification.catalogue import _strip_prefix
 from automind.chat.application.services.interpretation import ask
 from automind.chat.application.services.report.compose import data_panel_block
 from automind.chat.dialog import phrases
 from automind.chat.dialog.prompts import load_all
 from automind.chat.domain import intake
 from automind.chat.domain.case import CaseCar, CaseFile, Choice, Constraints, IdentifyOutcome, Pending
+from automind.chat.domain.identification.variant_match import bought_now, current_generation
+from automind.chat.domain.identification.variant_match import fits_case as _fits
 from automind.delivery.bootstrap import reference
 from automind.shared.infrastructure import db
 from automind.shared.vehicle import identity

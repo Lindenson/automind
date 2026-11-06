@@ -125,7 +125,7 @@ async def _canonical_makes(s: Any, moved: Counter[str]) -> None:
 
 async def _merge_plan(make: str | None) -> list[dict[str, Any]]:
     """Groups of one car; the row with the most accepted claims (then the most known fields, then the oldest) stays."""
-    from automind.chat.application.services.identification.resolve import variant_dict
+    from automind.chat.application.services.identification.catalogue import variant_dict
     from automind.shared.vehicle import identity
 
     async with db.sessionmaker()() as s:
