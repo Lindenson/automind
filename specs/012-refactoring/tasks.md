@@ -82,10 +82,10 @@ no helper "somewhere convenient", no flag arguments added, names say what the th
 
 ### S3c Package docs and constitution (PR 6)
 
-- [ ] T039 [P] [US3] Write the `__init__.py` docstring (template in data-model.md: purpose, owns, flow, depends on / must not, public API) and exact `__all__` for every package of `shared/`, `observability/`, `delivery/`
-- [ ] T040 [P] [US3] Same for every package of `chat/`
-- [ ] T041 [P] [US3] Same for every package of `acquisition/`
-- [ ] T042 [US3] Amend constitution principle V (MINOR, version bump, sync impact report) in `.specify/memory/constitution.md` per research R10 (layers per bounded context, shared kernel, delivery adapters, `dialog` = chat orchestration layer, observability as leaf area)
+- [x] T039 [P] [US3] Write the `__init__.py` docstring (template in data-model.md: purpose, owns, flow, depends on / must not, public API) and exact `__all__` for every package of `shared/`, `observability/`, `delivery/`
+- [x] T040 [P] [US3] Same for every package of `chat/`
+- [x] T041 [P] [US3] Same for every package of `acquisition/`
+- [x] T042 [US3] Amend constitution principle V (MINOR, version bump, sync impact report) in `.specify/memory/constitution.md` per research R10 (layers per bounded context, shared kernel, delivery adapters, `dialog` = chat orchestration layer, observability as leaf area)
 
 **Checkpoint**: the tree shows five areas; every package documents itself; behaviour unchanged.
 

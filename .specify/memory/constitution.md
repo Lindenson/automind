@@ -1,6 +1,15 @@
 <!--
 Sync Impact Report
 ==================
+Version change: 1.3.0 → 1.4.0
+Bump rationale: MINOR — principle V materially expanded (spec 012 "Structural refactoring", owner's choice A of
+2026-11-06): the layers stay, but live inside bounded areas — chat, acquisition, observability — next to a shared
+kernel and delivery adapters; the chat's orchestration layer is named `dialog`; graph nodes stay thin. No principle
+removed. Principle XIII unchanged (now also enforced by the tree). Templates: plan-template.md Constitution Check
+reads V as amended. Dependent artifacts: specs/012-refactoring (data-model.md, contracts/import-contracts.md).
+
+Previous change
+---------------
 Version change: 1.2.0 → 1.3.0
 Bump rationale: MINOR — principle XII materially expanded (owner's decision of 2026-11-05 evening, after an
 external review; spec 011 "Acquisition engine"): agents of the acquisition engine MAY change declarative data
@@ -118,16 +127,23 @@ Rationale: experts must always know whether a number is a claim, a measurement, 
 
 ### V. Layered Modular Monolith
 
-- The backend MUST be a single deployable modular monolith with separately testable layers:
-  domain, application, orchestration, and infrastructure.
-- The domain layer MUST NOT import LangGraph, FastAPI, SQLAlchemy, or any LLM provider SDK.
-- Domain business logic MUST NOT live inside LangGraph nodes; nodes delegate to application and
-  domain services.
+- The backend MUST be a single deployable modular monolith, organised by bounded area first and layer second:
+  `chat` (answer the person), `acquisition` (collect, validate and improve data), `observability` (see how both
+  cycles do), a `shared` kernel (concepts and infrastructure both areas use) and `delivery` (web, MCP, CLI entry
+  points and composition roots). Inside an area the layers are domain, application, orchestration (in the chat:
+  `dialog`, the dialog state machine) and infrastructure, each separately testable.
+- Domain layers MUST NOT import LangGraph, FastAPI, SQLAlchemy, or any LLM provider SDK.
+- Domain business logic MUST NOT live inside LangGraph nodes; nodes are thin and delegate to application services
+  and the domain.
+- The shared kernel MUST NOT depend on the areas; nothing depends on delivery; areas talk through their public
+  interfaces (for the engine: `acquisition.api`). Import contracts encode these rules and are only ever tightened.
+- Every package documents its purpose, owned concepts, allowed dependencies and public API in its `__init__`.
 - The frontend MUST NOT implement orchestration logic and MUST NOT couple to internal graph state;
   it consumes only versioned API contracts (`/api/v1`). The backend is the source of truth.
 - Microservices MUST NOT be introduced without an amendment-level justification.
 
-Rationale: keeps core logic testable and replaceable as orchestration and providers evolve.
+Rationale: keeps core logic testable and replaceable as orchestration and providers evolve, and lets a reader
+find where a concept lives from the tree alone (spec 012).
 
 ### VI. Bounded, Stateful, Human-Steered Orchestration
 
@@ -323,4 +339,4 @@ Rationale: an engine that learns needs its own time and must not slow or be stop
 - Every plan and code review MUST verify compliance with the principles above. Deviations MUST
   be explicitly justified (Complexity Tracking) or rejected.
 
-**Version**: 1.3.0 | **Ratified**: 2026-11-01 | **Last Amended**: 2026-11-05
+**Version**: 1.4.0 | **Ratified**: 2026-11-01 | **Last Amended**: 2026-11-06
