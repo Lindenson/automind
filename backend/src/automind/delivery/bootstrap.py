@@ -12,8 +12,9 @@ from __future__ import annotations
 
 from automind.acquisition.infrastructure.config import plausibility_rules
 from automind.chat.domain.assessment.criteria import CriteriaModel
+from automind.shared import evidence
 from automind.shared.contracts.config import Reference
-from automind.shared.evidence import evidence, sense
+from automind.shared.evidence import sense
 from automind.shared.infrastructure.config import runtime
 from automind.shared.infrastructure.config.loader import (
     aliases,

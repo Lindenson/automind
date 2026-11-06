@@ -98,9 +98,9 @@ no helper "somewhere convenient", no flag arguments added, names say what the th
 
 ### S4 Shared kernel split (PR 7)
 
-- [ ] T043 [P] [US1] Split `shared/evidence/evidence.py` (427) into `provenance.py`, `confidence.py`, `conflicts.py` by concept (codemod map `moves/S4.yaml` for callers)
-- [ ] T044 [P] [US1] Split `shared/vehicle/specs.py` (567) into package `shared/vehicle/specs/` (`registry.py`, `tiers.py`, `transmission.py`, …) by concept
-- [ ] T045 [US1] Add contract `shared-is-kernel` to `backend/.importlinter`; gate
+- [x] T043 [P] [US1] Split `shared/evidence/evidence.py` (427) into `provenance.py`, `confidence.py`, `conflicts.py` by concept (codemod map `moves/S4.yaml` for callers)
+- [x] T044 [P] [US1] Split `shared/vehicle/specs.py` (567) into package `shared/vehicle/specs/` (`registry.py`, `tiers.py`, `transmission.py`, …) by concept
+- [x] T045 [US1] Add contract `shared-is-kernel` to `backend/.importlinter`; gate
 
 ### S5 Chat domain (PR 8; characterisation tests first where T019 listed gaps)
 

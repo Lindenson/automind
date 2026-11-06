@@ -26,7 +26,7 @@ from automind.acquisition.parsing import fingerprint, interpreter
 from automind.acquisition.parsing.spec import ParserSpec
 from automind.shared.contracts.site_readers import ReadingRow, SiteReading
 from automind.shared.contracts.web import Page
-from automind.shared.evidence.evidence import domain_of
+from automind.shared.evidence import domain_of
 
 log = logging.getLogger(__name__)
 REFRESH_S = 60.0

@@ -18,7 +18,7 @@ from sqlalchemy.dialects.postgresql import insert
 
 from automind.acquisition.infrastructure import config as acq_config
 from automind.acquisition.snapshots import codec
-from automind.shared.evidence.evidence import domain_of
+from automind.shared.evidence import domain_of
 from automind.shared.infrastructure.db import PageSnapshot, SnapshotBlob, sessionmaker, uid
 from automind.shared.infrastructure.metrics import prom
 

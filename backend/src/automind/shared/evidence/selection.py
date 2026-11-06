@@ -1,185 +1,16 @@
-"""Evidence rules: source typing, excerpt validation, provenance, conflict resolution, confidence.
-
-Implements spec 001 FR-009, FR-015, FR-017, FR-018 (rules v1.0) as pure functions.
-"""
+"""Selecting one value from several claims: agreement of independent sources, majority over a single higher authority,
+confidence (research R5), and whether a claim may be about a sibling generation."""
 
 from __future__ import annotations
 
 import re
-import unicodedata
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
-from urllib.parse import urlparse
 
 from automind.shared.evidence.sense import gearbox_conflict
+from automind.shared.evidence.sources import AUTHORITY, assign_provenance
 from automind.shared.vehicle.specs import ATTRS
-
-RULES_VERSION = "1.0"
-
-# Authority order, high -> low (FR-017)
-AUTHORITY = ["MANUFACTURER", "INSTRUMENTED_TEST", "PUBLICATION", "ENCYCLOPEDIA", "SPEC_DATABASE"]
-
-
-@dataclass(frozen=True)
-class SourcePolicy:
-    """Source typing and deny-list, loaded from `config/sources.yaml` by the infrastructure layer."""
-
-    manufacturer_markers: tuple[str, ...]
-    instrumented: tuple[str, ...]
-    encyclopedia: tuple[str, ...]
-    spec_db: tuple[str, ...]
-    denylist: tuple[str, ...]
-    non_manufacturer_hints: tuple[str, ...] = ()
-    # Official maker domains (registrable host, e.g. "toyota.es", "seat-cupra-mediacenter.es"): the only hosts,
-    # with a host whose registrable name is exactly a brand (bmw.com.sg, owners-manual.mazda.com), typed as
-    # MANUFACTURER. A brand inside a longer name (toyota-club.net, clubseat.es, hondapartsnow.com) is not.
-    official_domains: tuple[str, ...] = ()
-    # The source_type an operator gave a favourite site (km77.com: SPEC_DATABASE), checked first.
-    typed_domains: tuple[tuple[str, str], ...] = ()
-
-
-_policy: SourcePolicy | None = None
-
-
-def configure(policy: SourcePolicy) -> None:
-    """Install the source policy (called once at startup and in test setup)."""
-    global _policy
-    _policy = policy
-
-
-def policy() -> SourcePolicy:
-    if _policy is None:
-        raise RuntimeError("source policy not configured: call evidence.configure() at startup")
-    return _policy
-
-
-def domain_of(url: str) -> str:
-    host = (urlparse(url).hostname or "").lower()
-    return host[4:] if host.startswith("www.") else host
-
-
-def is_denied(url: str) -> bool:
-    d = domain_of(url)
-    full = d + (urlparse(url).path or "")
-    return any(x in full for x in policy().denylist)
-
-
-_SECOND_LEVEL = {"co", "com", "org", "net", "gob", "gov", "ac", "or", "ne"}
-
-
-def _on(d: str, dom: str) -> bool:
-    """The host is the domain or one of its subdomains (never "fooautobild.de" for "autobild.de")."""
-    return d == dom or d.endswith("." + dom)
-
-
-def registrable_name(d: str) -> str:
-    """The name under the public suffix: "bmw" for bmw.com.sg, "mazda" for owners-manual.mazda.com."""
-    labels = [x for x in d.split(".") if x]
-    if len(labels) >= 3 and labels[-2] in _SECOND_LEVEL and len(labels[-1]) == 2:
-        return labels[-3]
-    return labels[-2] if len(labels) >= 2 else (labels[0] if labels else "")
-
-
-def is_official(url: str) -> bool:
-    """A maker's own site: listed as official, or the registrable name (or a brand TLD such as .seat) is exactly
-    a brand (spec 001 FR-017; reviewer 2026-11-03: fan clubs, dealers and part shops were typed MANUFACTURER)."""
-    d = domain_of(url)
-    p = policy()
-    if any(_on(d, o) for o in p.official_domains):
-        return True
-    brands = {m.strip(".").replace("-", "") for m in p.manufacturer_markers}
-    name = registrable_name(d).replace("-", "")
-    tld = d.rsplit(".", 1)[-1]
-    return name in brands or tld in brands
-
-
-def classify_source(url: str) -> str:
-    d = domain_of(url)
-    p = policy()
-    for dom, kind in p.typed_domains:
-        if _on(d, dom):
-            return kind
-    if any(_on(d, x) for x in p.encyclopedia):
-        return "ENCYCLOPEDIA"
-    if any(_on(d, x) for x in p.spec_db):
-        return "SPEC_DATABASE"
-    if any(_on(d, x) for x in p.instrumented):
-        return "INSTRUMENTED_TEST"
-    if is_official(url):
-        return "MANUFACTURER"
-    return "PUBLICATION"
-
-
-_MARKUP = re.compile(r"\\(?=[*_#|\\`\[\]()-])|[*#|`]+|(?<!\w)_+|_+(?!\w)")
-_GAP = re.compile(r"\s*(?:\.\.\.|…|\[\.\.\.\])\s*")
-
-
-def _norm(text: str) -> str:
-    """Text for literal comparison: Unicode-normalised, lower case, without markdown markup (bold, headings,
-    table pipes, escapes) and with collapsed whitespace. Page text is stored as markdown; models quote the
-    rendered words (user report 2026-11-02: the Tucson price "**36.075 euros**" failed the excerpt check)."""
-    t = unicodedata.normalize("NFKC", text).lower()
-    t = t.replace("\u00a0", " ").replace("\u202f", " ")
-    t = _MARKUP.sub(" ", t)
-    return re.sub(r"\s+", " ", t).strip()
-
-
-MAX_GAP_CHARS = 200  # FR-030: an ellipsis skips a few words, never half a page
-
-
-def occurs(excerpt: str, document_text: str, max_gap_chars: int = MAX_GAP_CHARS) -> bool:
-    """The excerpt occurs in the document; an ellipsis in the excerpt ("Klass ... Precio") skips at most
-    `max_gap_chars` of text, and the parts must occur in order (spec 007 FR-030: "Golf 1.0 TSI ... 1.500 kg"
-    with the parts 6,000 characters apart is not an excerpt)."""
-    doc = _norm(document_text)
-    parts = [p for p in (_norm(x) for x in _GAP.split(excerpt)) if p]
-    if not parts:
-        return False
-
-    def chain(k: int, pos: int) -> bool:
-        if k == len(parts):
-            return True
-        i = doc.find(parts[k], pos)
-        while i >= 0 and i - pos <= max_gap_chars:
-            if chain(k + 1, i + len(parts[k])):
-                return True
-            i = doc.find(parts[k], i + 1)
-        return False
-
-    start = doc.find(parts[0])
-    while start >= 0:
-        if chain(1, start + len(parts[0])):
-            return True
-        start = doc.find(parts[0], start + 1)
-    return False
-
-
-def _number_in(number: str, text: str) -> bool:
-    """The number occurs as a whole number (FR-031: "150" is not in "1500 rpm", nor "1,5" in "11,5")."""
-    return re.search(rf"(?<![\d.,]){re.escape(number)}(?![\d]|[.,]\d)", text) is not None
-
-
-def validate_excerpt(excerpt: str, raw_value: str, document_text: str) -> bool:
-    """The excerpt must literally occur in the document, and the raw value inside the excerpt."""
-    ex = _norm(excerpt)
-    if len(ex) < 4:
-        return False
-    if not occurs(excerpt, document_text):
-        return False
-    val = _norm(raw_value)
-    if re.search(r"\d", val) is None and val in ex:
-        return True
-    digits = re.findall(r"\d+(?:[.,]\d+)*", val)  # "44.250,00" is one number
-    return bool(digits) and all(_number_in(d, ex) for d in digits)
-
-
-def assign_provenance(source_type: str, attribute: str) -> str:
-    if source_type == "MANUFACTURER":
-        return "MANUFACTURER_CLAIM"
-    if source_type == "INSTRUMENTED_TEST" and attribute.startswith("measured_"):
-        return "MEASURED"
-    return "SOURCED_FACT"
 
 
 @dataclass
@@ -211,6 +42,8 @@ _FUELS = {
     "petrol": ("petrol", "gasoline", "gasolina", "benzin", "tsi", "tfsi", "бензин"),
     "electric": ("electric", "eléctrico", "electrico", "bev", "электро"),
 }
+
+
 _DRIVES = {
     "awd": "AWD",
     "4wd": "AWD",
@@ -389,7 +222,7 @@ def _mentions(code: str, text: str) -> bool:
 _CODE_RE = re.compile(r"^([a-z]+)\s?(\d+(?:\.\d)?)$")
 
 
-def _sibling_code(generation: str, low: str) -> bool:
+def sibling_code(generation: str, low: str) -> bool:
     """Another code of the same family on the page ("mk2" when the target is "Mk1", "j250" vs "J150")."""
     m = _CODE_RE.match(generation.strip().lower())
     if m is None:
@@ -415,7 +248,7 @@ def variant_match_uncertain(
     low = f"{title}\n{text}".lower()
     if any(_mentions(g, low) for g in other_generations if g and g != generation):
         return True
-    if generation and _sibling_code(generation, low):
+    if generation and sibling_code(generation, low):
         return True
     if generation and _mentions(generation, low):
         return False

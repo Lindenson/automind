@@ -21,7 +21,7 @@ from automind.chat.domain.assessment.metrics import ReliabilitySummary, ReviewSu
 from automind.chat.domain.cost import energy, tco
 from automind.chat.domain.identification import used
 from automind.chat.domain.verdict import insights as ins
-from automind.shared.evidence import evidence as evidence_rules
+from automind.shared import evidence as evidence_rules
 from automind.shared.infrastructure import db
 from automind.shared.vehicle import identity, specs, units
 

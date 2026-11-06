@@ -8,7 +8,7 @@ from typing import Any
 
 import yaml
 
-from automind.shared.evidence import evidence
+from automind.shared import evidence
 from automind.shared.infrastructure.config.settings import settings
 
 

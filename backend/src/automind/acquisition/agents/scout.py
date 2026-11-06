@@ -40,7 +40,7 @@ from automind.acquisition.registry.domain import limits
 from automind.acquisition.registry.domain.lifecycle import CapState, transition
 from automind.acquisition.registry.domain.seed_rules import denied
 from automind.acquisition.worker.budget import BudgetExceeded
-from automind.shared.evidence import evidence as ev
+from automind.shared import evidence as ev
 from automind.shared.infrastructure.config.loader import load_yaml
 from automind.shared.infrastructure.db import models as db
 from automind.shared.infrastructure.db.session import sessionmaker

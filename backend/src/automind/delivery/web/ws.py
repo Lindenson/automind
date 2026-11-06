@@ -20,7 +20,7 @@ from typing import Any
 from fastapi import WebSocket, WebSocketDisconnect
 
 from automind.chat.dialog.runner import Busy, ChatRunner
-from automind.shared.evidence.evidence import domain_of, is_denied
+from automind.shared.evidence import domain_of, is_denied
 
 log = logging.getLogger(__name__)
 _BAD_SOURCE_LOG: dict[str, list[float]] = {}  # chat -> times of "bad source" marks (max 20 per hour)

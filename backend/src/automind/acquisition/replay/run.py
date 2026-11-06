@@ -30,8 +30,8 @@ from automind.acquisition.parsing.spec import ParserSpec
 from automind.acquisition.replay.offline import NetworkForbidden, no_network
 from automind.acquisition.snapshots import store
 from automind.acquisition.snapshots.store import SnapshotRef
+from automind.shared import evidence as ev
 from automind.shared.contracts.web import WebDoc
-from automind.shared.evidence import evidence as ev
 from automind.shared.infrastructure.db import ExtractionCache, LLMCall, Variant, sessionmaker
 from automind.shared.provenance.versions import parse_key, prompt_key
 from automind.shared.vehicle import specs

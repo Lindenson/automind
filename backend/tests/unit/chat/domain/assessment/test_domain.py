@@ -2,8 +2,8 @@ import pytest
 
 from automind.chat.domain.assessment import dragrace
 from automind.chat.domain.assessment import metrics as scoring
-from automind.shared.evidence import evidence
-from automind.shared.evidence.evidence import ClaimIn
+from automind.shared import evidence
+from automind.shared.evidence import ClaimIn
 from automind.shared.vehicle import specs, units
 
 

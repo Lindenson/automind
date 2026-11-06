@@ -19,7 +19,7 @@ from typing import Any, Literal, Protocol, TypeVar
 from pydantic import BaseModel, Field
 
 from automind.acquisition.domain.blame import UNIT_RULES, near, numbers
-from automind.shared.evidence.evidence import occurs
+from automind.shared.evidence import occurs
 from automind.shared.provenance.versions import parse_key
 
 log = logging.getLogger(__name__)

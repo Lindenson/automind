@@ -12,7 +12,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from typing import Any, Literal
 
-from automind.shared.evidence.evidence import is_denied
+from automind.shared.evidence import is_denied
 
 Kind = Literal["FAVOURITE", "FAVOURITE_RETRY", "OPEN", "AI", "REGISTRY"]
 

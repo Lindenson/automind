@@ -1,6 +1,6 @@
 """Chat fcf5b3b8: three independent sources that agree beat one manufacturer page (engine-only torque)."""
 
-from automind.shared.evidence import evidence as ev
+from automind.shared import evidence as ev
 
 
 def c(i: int, v: float, t: str, d: str) -> ev.ClaimIn:

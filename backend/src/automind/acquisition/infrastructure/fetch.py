@@ -26,7 +26,7 @@ from urllib.robotparser import RobotFileParser
 import httpx
 
 from automind.shared.contracts.web import WebDoc
-from automind.shared.evidence.evidence import is_denied
+from automind.shared.evidence import is_denied
 from automind.shared.infrastructure.metrics import prom
 
 log = logging.getLogger(__name__)

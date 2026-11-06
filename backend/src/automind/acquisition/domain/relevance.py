@@ -15,8 +15,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from typing import Literal
 
-from automind.shared.evidence import sense
-from automind.shared.evidence.evidence import _sibling_code
+from automind.shared.evidence import sense, sibling_code
 
 Verdict = Literal["RELEVANT", "OTHER_VARIANT", "MULTI_VARIANT", "NOT_ABOUT_CAR", "UNCERTAIN"]
 
@@ -323,7 +322,7 @@ def judge(page: PageFacts, target: Target, generations: Sequence[GenerationInfo]
     if other is not None:
         return other
     other_in_head = next((g for g in siblings if _mentions(g.code, head)), None)
-    if other_in_head is not None or (gen and _sibling_code(gen, head)):
+    if other_in_head is not None or (gen and sibling_code(gen, head)):
         which = other_in_head.label() if other_in_head else "another generation"
         return Relevance("MULTI_VARIANT", f"the page also mentions {which}; each value is checked", which)
     if target_in_title or (gen and _mentions(gen, head)) or in_range:

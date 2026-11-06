@@ -36,8 +36,8 @@ from automind.acquisition.pipeline.validate import known_values
 from automind.acquisition.ports import AcqPorts
 from automind.acquisition.read import _have, missing_critical
 from automind.acquisition.registry.api import Attempt
+from automind.shared import evidence as ev
 from automind.shared.contracts.web import Page
-from automind.shared.evidence import evidence as ev
 from automind.shared.infrastructure import db
 from automind.shared.metering.usage import BudgetExceeded, current_job
 from automind.shared.research_order import plan as research_plan
