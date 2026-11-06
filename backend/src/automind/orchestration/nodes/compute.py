@@ -24,7 +24,7 @@ from automind.domain.metrics import new_generation_since
 from automind.domain.report_layout import annotate_sections, depths, order_blocks
 from automind.orchestration import report_text
 from automind.orchestration.guard import CheckInput as GuardInput
-from automind.orchestration.phrases import energy_input, t
+from automind.orchestration.phrases import energy_input, market_name, t
 from automind.orchestration.runner import TurnContext
 
 from .common import notice, record_intake
@@ -323,6 +323,18 @@ def _new_generation_notices(keyed: list[Any], year: int | None, lang: str | None
             for _, car in keyed if (since := _new_gen(car, year)) is not None]  # fmt: skip
 
 
+def _abroad_notices(keyed: list[Any], lang: str | None) -> list[dict[str, Any]]:
+    """A car not sold in Spain or the EU (chat 2026-11-06): its data come from its market, its price only from a
+    European source; without one, no euro price is given (spec 009 FR-009)."""
+    out = []
+    for x, car in keyed:
+        key = intake.abroad_note(x.market, compose.new_price(car) is not None)
+        if key is not None:
+            out.append(notice(t(key, lang, car=compose.short_name(car["variant"]), market=market_name(x.market, lang)),
+                              "info", car_key=x.key))  # fmt: skip
+    return out
+
+
 def _any_values(values: list[Any]) -> set[str]:
     return {k for cv in values for k in cv.values}
 
@@ -460,6 +472,7 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
     young = {x.key for x, car in keyed if _new_gen(car, year)}
     notices[:] = [n for n in notices if not (n.get("area") == "reliability" and n.get("car_key") in young)]
     notices += _new_generation_notices(keyed, year, lang)
+    notices += _abroad_notices(keyed, lang)
     facts = [
         compose.facts(
             car,

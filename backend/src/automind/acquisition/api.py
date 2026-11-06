@@ -301,28 +301,32 @@ class WebHint(BaseModel):
     text: str
 
 
-async def lineup(make: str, *, official: str | None, max_pages: int, ports: Any = None) -> LineupRead | None:
-    """A make's line-up in Spain as the `lineup` web reader reads it from a search and the official site."""
+async def lineup(make: str, *, official: str | None, max_pages: int, market: str = "ES",
+                 ports: Any = None) -> LineupRead | None:  # fmt: skip
+    """A make's line-up on a market (Spain; for a car not sold in Spain: "EU", its home market such as "CN", "ANY")
+    as the `lineup` web reader reads it from a search and the official site."""
     identity = _engine("acquisition.pipeline.identity")
-    return await identity.lineup(_ports(ports), make, official=official, max_pages=max_pages)  # type: ignore[no-any-return]
+    return await identity.lineup(_ports(ports), make, official=official, max_pages=max_pages, market=market)  # type: ignore[no-any-return]
 
 
 async def versions(
     make: str, model: str, generation: str | None, *, year: int | None, queries: list[str], limits: dict[str, Any],
-    done: set[str] | None = None, ports: Any = None,
+    done: set[str] | None = None, market: str = "ES", ports: Any = None,
 ) -> VersionsRead | None:  # fmt: skip
-    """The versions of a model generation as the `versions` web reader reads them from the searches' pages."""
+    """The versions of a model generation as the `versions` web reader reads them from the searches' pages
+    (`market`: the searches' locale; another than ES for a car not sold in Spain)."""
     identity = _engine("acquisition.pipeline.identity")
     return await identity.versions(_ports(ports), make, model, generation, year=year, queries=queries, limits=limits,  # type: ignore[no-any-return]
-                                   done=done)  # fmt: skip
+                                   done=done, market=market)  # fmt: skip
 
 
 async def generation_hints(query: str, *, lineup_url: str | None = None, user_url: str | None = None,
-                           prices: bool = False, ports: Any = None) -> list[WebHint]:  # fmt: skip
-    """Search results and pages for the resolver (generations, engines, and for new cars the Spanish versions)."""
+                           prices: bool = False, market: str = "ES", ports: Any = None) -> list[WebHint]:  # fmt: skip
+    """Search results and pages for the resolver (generations, engines, and for new cars the Spanish versions); a car
+    not sold in Spain is looked up on `market` too, with the registry's spec sources there."""
     identity = _engine("acquisition.pipeline.identity")
     return await identity.generation_hints(_ports(ports), query, lineup_url=lineup_url, user_url=user_url,  # type: ignore[no-any-return]
-                                           prices=prices)  # fmt: skip
+                                           prices=prices, market=market)  # fmt: skip
 
 
 class DatasetVersion(BaseModel):

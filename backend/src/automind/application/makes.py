@@ -21,6 +21,14 @@ FUZZY_MAKE = 85.0
 MODEL_MIN = 72.0
 MODEL_MARGIN = 4.0
 _URL = re.compile(r"https?://\S+|www\.\S+", re.I)
+_CJK = re.compile(r"[\u3400-\u9fff]")
+
+
+def alias_pattern(name: str) -> str:
+    """A make's alias as a whole word; a Chinese one is written without spaces ("理想L9"), so it has no word edges."""
+    if _CJK.search(name):
+        return re.escape(name)
+    return rf"(?<![\w]){re.escape(name)}(?![\w])"
 
 
 @dataclass
@@ -29,6 +37,8 @@ class MakeRegistry:
     sites: dict[str, str] = field(default_factory=dict)  # canonical -> "byd.com/es"
     groups: dict[str, str] = field(default_factory=dict)  # canonical -> parent group
     recent: set[str] = field(default_factory=set)  # canonical makes new in the Spanish market (spec 006)
+    homes: dict[str, str] = field(default_factory=dict)  # canonical -> the market it comes from ("CN")
+    home_sites: dict[str, str] = field(default_factory=dict)  # canonical -> the maker's site there ("lixiang.com")
 
     @classmethod
     def from_config(cls, d: Mapping[str, Any]) -> MakeRegistry:
@@ -43,6 +53,10 @@ class MakeRegistry:
                 reg.groups[canon] = str(info["group"])
             if info.get("new_in_market"):
                 reg.recent.add(canon)
+            if info.get("home"):
+                reg.homes[canon] = str(info["home"]).upper()
+            if info.get("home_site"):
+                reg.home_sites[canon] = str(info["home_site"])
         return reg
 
     @property
@@ -54,6 +68,22 @@ class MakeRegistry:
 
     def site(self, make: str) -> str | None:
         return self.sites.get(self.canonical(make) or make)
+
+    def home(self, make: str | None) -> str | None:
+        """The market the make comes from (makes.yaml `home`), None when not recorded."""
+        return self.homes.get(self.canonical(make) or make or "")
+
+    def sold_in_spain(self, make: str | None) -> bool:
+        """A make of the registry with a Spanish site; a make not in the registry is not known not to be."""
+        canon = self.canonical(make)
+        return canon is None or canon in self.sites
+
+    def site_on(self, make: str, market: str) -> str | None:
+        """The maker's site on a market: the Spanish one in Spain and Europe, `home_site` on its home market."""
+        canon = self.canonical(make) or make
+        if market in ("ES", "EU"):
+            return self.sites.get(canon)
+        return self.home_sites.get(canon) if self.homes.get(canon) == market else None
 
     def canonical(self, make: str | None) -> str | None:
         return self.names.get(make.lower()) if make else None
@@ -82,7 +112,7 @@ class MakeRegistry:
         low = _URL.sub(" ", text.lower())
         # longest alias first, as a whole word ("build your dream", "land rover" before "rover")
         for name in sorted(self.names, key=len, reverse=True):
-            if re.search(rf"(?<![\w]){re.escape(name)}(?![\w])", low):
+            if re.search(alias_pattern(name), low):
                 return self.names[name]
         words = re.findall(r"[\w&-]{3,}", low)
         best: tuple[float, str] | None = None

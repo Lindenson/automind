@@ -1,0 +1,22 @@
+{
+  "queries": [
+    {"match": ["deepal s09", "参数"], "results": [
+      {"url": "https://www.d1ev.com/carnews/pingce/deepal-s09", "title": "深蓝S09 增程 测试 | 第一电动", "doc": "d1ev_s09.txt"}
+    ]},
+    {"match": ["li auto l9", "参数"], "results": [
+      {"url": "https://www.d1ev.com/carnews/pingce/lixiang-l9", "title": "理想L9 增程 测试 | 第一电动", "doc": "d1ev_l9.txt"}
+    ]},
+    {"match": ["deepal", "europe", "range"], "results": [
+      {"url": "https://www.autonews.example/deepal-europe-range", "title": "Deepal in Europe: the range and prices", "doc": "deepal_eu.txt"},
+      {"url": "https://www.deepal.pl/modele", "title": "Deepal Polska — modele", "doc": "deepal_pl.txt"}
+    ]},
+    {"match": ["deepal", "车型"], "results": [
+      {"url": "https://www.deepal.com.cn", "title": "深蓝汽车 Deepal 官网", "doc": "deepal_cn.txt"},
+      {"url": "https://www.16888.com/deepal/", "title": "深蓝汽车 车型大全 报价 | 16888", "doc": "deepal_16888.txt"}
+    ]},
+    {"match": ["li auto", "车型"], "results": [
+      {"url": "https://www.lixiang.com", "title": "理想汽车 Li Auto 官网", "doc": "lixiang_cn.txt"}
+    ]}
+  ],
+  "default": []
+}

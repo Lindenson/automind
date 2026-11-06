@@ -40,13 +40,14 @@ async def ask_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str,
     if not items:  # nothing concrete to ask: fall back to the v1 templates (English, phrased by the asker)
         items = asking.fill_questions(decision["questions"], case, ref.questions, gens, decision["cars"])
     await c.status("asking", "Asking what I need to know")
-    ack = await asking.acknowledge(c.ports.llm, ref.prompts["asker"], lang, asking.understood_summary(case))
+    ack = await asking.acknowledge(c.ports.llm, ref.prompts["asker"], lang, asking.understood_summary(case), case.cars)
     if lang in ("ru", "es", "en") and ack and phrases.guess_language([ack]) != lang:
         ack = ""  # FR-023: a sentence in another language is dropped; the questions are templates in `lang`
     questions = [q["text"] for q in items]
     body = questions[0] if len(questions) == 1 else "\n".join(f"{i}. {q}" for i, q in enumerate(questions, 1))
     lead = _not_understood_lead(case, state, lang)
-    text = "\n\n".join(x for x in (lead, ack, body) if x)
+    found = _market_lines(case, lang)
+    text = "\n\n".join(x for x in (lead, ack, "\n".join(found), body) if x)
     case = asking.record(case, items)
     for q in items:
         if q.get("kind") == "PROPOSE" and q.get("choices"):
@@ -67,7 +68,8 @@ async def ask_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str,
                     t(f"why_{k}", lang) for k in str(ch["reason"]).split(",") if f"why_{k}" in PHRASES
                 )
     replies = asking.intake_quick_replies(items, case, labels)
-    blocks = [*state.get("notices", []), *([{"type": "quick_replies", "items": replies}] if replies else [])]
+    notices = [n for n in state.get("notices", []) if n.get("text") not in found]  # said in the reply already
+    blocks = [*notices, *([{"type": "quick_replies", "items": replies}] if replies else [])]
     return {"reply_text": text, "blocks": blocks, "action": "ASK", "case_version": version}
 
 
@@ -312,6 +314,14 @@ def _candidate_lines(case: Any, lang: str) -> str:
     return t("cand_intro_make", lang, make=make, replaces=replaces) + "\n" + "\n".join(lines)
 
 
+def _market_lines(case: Any, lang: str | None) -> list[str]:
+    """Cars not sold in Spain (chat 2026-11-06, owner): where each was found — a European country, else its home
+    market — and where its data and prices come from; said in the reply, not only in a notice."""
+    return [t(intake.market_note(x.market), lang, car=f"{x.make} {x.model}",
+              market=phrases.market_name(x.market, lang))
+            for x in case.cars if x.market is not None and x.variant_id]  # fmt: skip
+
+
 async def prepare_intake(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
     """One card: the cars as resolved, the person, the research cost; edited by chips, confirmed by one "yes"."""
     c = ctx(runtime)
@@ -343,6 +353,7 @@ async def prepare_intake(state: TurnState, runtime: Runtime[TurnContext]) -> dic
             x
             for x in (
                 _candidate_lines(case, lang),
+                "\n".join(_market_lines(case, lang)),
                 t("intake_card", lang, eur=f"{eur:.2f}") + (f" {over}" if over else ""),
             )
             if x

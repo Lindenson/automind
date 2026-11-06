@@ -24,6 +24,7 @@ markets:                    # case market → provider locale
   US: {gl: us, hl: en}
   JP: {gl: jp, hl: ja}
   RU: {gl: ru, hl: ru}
+  CN: {gl: cn, hl: zh-cn}    # identification of cars sold in China only (no prices from there: spec 009 FR-009)
   ANY: {gl: gb, hl: en}
 default_markets: [ES, EN]   # markets searched when the case does not name one (cars are priced for Spain)
 area_markets:               # markets searched per area (German instrumented tests and breakdown statistics help)
@@ -44,6 +45,34 @@ intake: {max_attempts_per_item: 2, max_attempts_per_car: 4, full_intake: true, l
          versions_ttl_days: 60, versions_read_pages: 6, versions_max_pages: 3, versions_min: 3, km_per_year_used: 15000, default_used_age: 5,
          catalog_stale_years: 0,  # owner 2026-11-05: no threshold — a new car whose versions list was not found is always asked once
          dataset_versions_timeout_s: 20, dataset_versions_min_registrations: 10}  # chat 6e001ee0: registered versions (EEA CO2)
+
+# Cars not on the Spanish line-up (chat 2026-11-06, Deepal S09 vs Li Auto L9): identified where they are sold —
+# Europe first, then the make's home market (config/makes.yaml `home`), then anywhere (domain/intake.lookup_markets).
+# Per market: the search locale, the line-up query, the resolver's query, the versions queries and the registry's
+# spec sources (`site:`) read for it. Prices are taken from European markets only (spec 009 FR-009): a line-up or a
+# version found outside Europe never carries a euro price.
+# `trusted`: sources a line-up outside Europe may come from besides the maker's site (registry survey 2026-11-05:
+# robots and terms allow them). `terms_exclude`: registry sources whose terms forbid commercial use (pcauto.com.cn:
+# "private, non-commercial use only"; autohome.com.cn: "must not exploit any part for commercial purposes").
+abroad:
+  EU:
+    search: EN
+    lineup: "{make} models range Europe prices €"
+    hints: "{query} Europe launch specifications versions"
+    versions: ["{make} {model} {when} Europe versions specifications power kW hp"]
+  CN:
+    search: CN
+    lineup: "{make} 车型 大全 报价 参数"
+    hints: "{query} 参数 配置 车型 续航 功率"
+    versions: ["{make} {model} {when} 参数配置 功率 kW 版本", "{make} {model} {when} specs versions power kW"]
+    spec_sources: 3
+    trusted: [d1ev.com, 16888.com, chexun.com, carnewschina.com, cnevpost.com]
+  ANY:
+    search: ANY
+    lineup: "{make} model lineup range"
+    hints: "{query} specifications versions"
+    versions: ["{make} {model} {when} versions specifications power kW hp"]
+  terms_exclude: [pcauto.com.cn, autohome.com.cn]
 
 # Interpreter context (spec 007 FR-005): the profile is inferred from the dialogue, so it sees more of it.
 interpret: {history_turns: 16, history_chars: 800}

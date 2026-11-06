@@ -12,7 +12,7 @@ from typing import Any
 from automind.acquisition.api import LineupOut, LineupRead, VersionsOut, VersionsRead, WebHint
 from automind.acquisition.ports import AcqPorts
 from automind.application.usage import current_budget
-from automind.domain import evidence
+from automind.domain import evidence, intake
 
 VERSION = "identity@1"
 
@@ -20,23 +20,57 @@ VERSION = "identity@1"
 # --- line-up of a make (spec 005 R2, FR-007, FR-008, FR-011) -------------------------------------------------------
 
 
-async def lineup(ports: AcqPorts, make: str, *, official: str | None, max_pages: int) -> LineupRead | None:
-    """One Spanish search plus the official site, ≤ `max_pages` pages read through the page store (robots respected,
-    deny-list never read), the `lineup` web reader extracts; None when no page could be read."""
-    hits = await ports.search.search(f"{make} gama modelos precios España", market="ES", area="price")
+def abroad(ports: AcqPorts, market: str) -> dict[str, Any]:
+    """config/search.yaml `abroad.<market>`: how a car not on the Spanish line-up is looked up there (a European
+    country: Europe's entry, one market with no country preferred; another market without its own entry: ANY's)."""
+    cfg = (ports.ref.search or {}).get("abroad") or {}
+    fallback = intake.EUROPE if intake.european(market) else intake.ANYWHERE
+    return dict(cfg.get(market) or cfg.get(fallback) or {})
+
+
+async def market_sites(ports: AcqPorts, market: str, area: str = "specs") -> list[str]:
+    """The registry's sources for `area` on a market (active, then surveyed candidates whose robots and terms allow
+    them), without those whose terms forbid commercial use (search.yaml `abroad.terms_exclude`)."""
+    cfg = abroad(ports, market)
+    n = int(cfg.get("spec_sources") or 0)
+    reg = ports.registry
+    if n <= 0 or reg is None or not hasattr(reg, "sources_for"):
+        return []
+    exclude = [str(d) for d in ((ports.ref.search or {}).get("abroad") or {}).get("terms_exclude") or []]
+    try:
+        found = await reg.sources_for(area, [market], n + len(exclude))
+    except Exception:  # noqa: BLE001 - the look-up works without the registry
+        return []
+    sites = [s.domain for s in found if not any(s.domain == d or s.domain.endswith("." + d) for d in exclude)]
+    return sites[:n]
+
+
+async def lineup(ports: AcqPorts, make: str, *, official: str | None, max_pages: int,
+                 market: str = "ES") -> LineupRead | None:  # fmt: skip
+    """One search on the market plus the official site, ≤ `max_pages` pages read through the page store (robots
+    respected, deny-list never read), the `lineup` web reader extracts; None when no page could be read. Spain: a
+    Spanish search; another market (a car not sold in Spain): that market's query and locale (search.yaml
+    `abroad`)."""
+    if market == "ES":
+        hits = await ports.search.search(f"{make} gama modelos precios España", market="ES", area="price")
+    else:
+        cfg = abroad(ports, market)
+        query = str(cfg.get("lineup") or "{make} model lineup").format(make=make)
+        hits = await ports.search.search(query, market=str(cfg.get("search") or "ANY"), area="specs")
     urls = [f"https://www.{official}" if official else None] + [h.url for h in hits[:4]]
     docs: dict[str, tuple[str, str]] = {}
     for u in [x for x in urls if x and not evidence.is_denied(x)]:
         if len(docs) >= max_pages:
             break
-        page = await ports.page_store.get(u, area="price")
+        page = await ports.page_store.get(u, area="price" if market == "ES" else "specs")
         if page and page.text:
             docs[page.url] = (page.title or "", page.text[:12000])
     if not docs:
         return None
     blob = "\n\n".join(f'<untrusted_document url="{u}">\n{t}\n{x[:6000]}\n</untrusted_document>'
                        for u, (t, x) in docs.items())  # fmt: skip
-    out = await ports.llm.structured("lineup", LineupOut, ports.ref.prompts["lineup"], f"Make: {make}\n\n{blob}")
+    where = "" if market == "ES" else f"Market: {market} (the models sold there)\n"
+    out = await ports.llm.structured("lineup", LineupOut, ports.ref.prompts["lineup"], f"Make: {make}\n{where}\n{blob}")
     return LineupRead(docs=docs, out=out)
 
 
@@ -74,7 +108,7 @@ def _rank(url: str, make: str) -> int:
 
 
 async def _read(ports: AcqPorts, make: str, queries: list[str], lim: dict[str, Any],
-                done: set[str] | None = None) -> dict[str, tuple[str, str]]:  # fmt: skip
+                done: set[str] | None = None, market: str = "ES") -> dict[str, tuple[str, str]]:  # fmt: skip
     """The searches, up to `versions_read_pages` pages read (range pages first; `done`: URLs read before, skipped
     and updated), the richest `versions_max_pages` kept. Identification, not research: counted apart."""
     budget = current_budget.get()
@@ -83,7 +117,7 @@ async def _read(ports: AcqPorts, make: str, queries: list[str], lim: dict[str, A
     try:
         urls: list[str] = []
         for q in queries:
-            for h in await ports.search.search(q, market="ES", area="specs"):
+            for h in await ports.search.search(q, market=market, area="specs"):
                 if h.url not in urls and h.url not in done and not evidence.is_denied(h.url):
                     urls.append(h.url)
         urls.sort(key=lambda u: -_rank(u, make))  # stable: the search order within a rank
@@ -104,11 +138,11 @@ async def _read(ports: AcqPorts, make: str, queries: list[str], lim: dict[str, A
 
 async def versions(
     ports: AcqPorts, make: str, model: str, generation: str | None, *, year: int | None, queries: list[str],
-    limits: dict[str, Any], done: set[str] | None = None,
+    limits: dict[str, Any], done: set[str] | None = None, market: str = "ES",
 ) -> VersionsRead | None:  # fmt: skip
     """The pages the searches find (range pages first, the richest kept) and what the `versions` web reader lists in
-    them; None when no page could be read."""
-    docs = await _read(ports, make, queries, limits, done)
+    them; None when no page could be read. `market`: the search locale (ES; another for a car not sold in Spain)."""
+    docs = await _read(ports, make, queries, limits, done, market)
     if not docs:
         return None
     blob = "\n\n".join(f'<untrusted_document url="{u}">\n{t}\n{x[:7000]}\n</untrusted_document>'
@@ -123,9 +157,10 @@ async def versions(
 
 
 async def generation_hints(ports: AcqPorts, query: str, *, lineup_url: str | None = None, user_url: str | None = None,
-                           prices: bool = False) -> list[WebHint]:  # fmt: skip
+                           prices: bool = False, market: str = "ES") -> list[WebHint]:  # fmt: skip
     """Search results for the resolver: generations and engines, and (new cars, `prices`) the Spanish price list of
-    versions. The line-up page that lists the model and a page the user sent come first."""
+    versions. The line-up page that lists the model and a page the user sent come first. A car not sold in Spain
+    (`market`): that market's search and the registry's spec sources for it (search.yaml `abroad`)."""
     docs: list[WebHint] = []
     store = ports.page_store
     if lineup_url:
@@ -137,7 +172,17 @@ async def generation_hints(ports: AcqPorts, query: str, *, lineup_url: str | Non
         if page:
             docs.append(WebHint(url=page.url, title=page.title, text=page.text))
     hits = await ports.search.search(f"{query} generation years engines specifications", market="EN", area="specs")
-    docs += [WebHint(url=h.url, title=h.title, text=h.snippet) for h in hits[:5]]
+    if market != "ES":  # where the car is sold first: that market's search, then its registry spec sources
+        cfg = abroad(ports, market)
+        local = str(cfg.get("search") or "ANY")
+        there = await ports.search.search(str(cfg.get("hints") or "{query}").format(query=query), market=local,
+                                          area="specs")  # fmt: skip
+        sites = await market_sites(ports, market)
+        on_sites = (await ports.search.search(f"{query} " + " OR ".join(f"site:{d}" for d in sites), market=local,
+                                              area="specs") if sites else [])  # fmt: skip
+        merged = [*there[:3], *on_sites[:2], *hits]
+        hits = [h for i, h in enumerate(merged) if all(h.url != x.url for x in merged[:i])]
+    docs += [WebHint(url=h.url, title=h.title, text=h.snippet) for h in hits[: 5 if market == "ES" else 7]]
     # the snippets alone rarely give production years: read the top two pages too (cache-first)
     for h in hits[:2]:
         page = await store.get(h.url, area="specs")

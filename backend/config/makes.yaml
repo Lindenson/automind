@@ -3,6 +3,9 @@
 # has none of its models; its line-up is looked up on the web with sources (application/lineup.py).
 # new_in_market (spec 006 FR-018): a recent make in Spain; without sourced resale values its depreciation is
 # "insufficient data", never a class curve.
+# home (chat 2026-11-06, Deepal S09 vs Li Auto L9): the market a make comes from. A model not on the Spanish line-up
+# (or a make with no es_site: not sold in Spain at all) is looked up where it is sold — Europe first, then `home`,
+# then elsewhere (config/search.yaml `abroad`); `home_site` is the maker's site there (its line-up page).
 version: 1
 makes:
   Abarth: {aliases: [abarth], translit: [абарт], es_site: abarth.es}
@@ -12,7 +15,7 @@ makes:
   Audi: {aliases: [audi], translit: [ауди], es_site: audi.es}
   Bentley: {aliases: [bentley], translit: [бентли], es_site: bentleymotors.com/es}
   BMW: {aliases: [bmw, бмв], translit: [бмв, бэмвэ, бумер], es_site: bmw.es}
-  BYD: {aliases: [byd, build your dream, b.y.d.], translit: [бид, биад, байд, бйд, би вай ди, бьд], es_site: byd.com/es, new_in_market: true}
+  BYD: {aliases: [byd, build your dream, b.y.d., 比亚迪], translit: [бид, биад, байд, бйд, би вай ди, бьд], es_site: byd.com/es, new_in_market: true, home: CN, home_site: bydauto.com.cn}
   Chery: {aliases: [chery], translit: [чери], es_site: cheryauto.es, new_in_market: true}
   Citroën: {aliases: [citroen, citroën], translit: [ситроен, ситроэн], es_site: citroen.es}
   Cupra: {aliases: [cupra], translit: [купра], es_site: cupraofficial.es, group: SEAT}
@@ -59,9 +62,20 @@ makes:
   Toyota: {aliases: [toyota], translit: [тойота], es_site: toyota.es}
   Volkswagen: {aliases: [volkswagen, vw, volks], translit: [фольксваген, фольц, фольк, вв], es_site: volkswagen.es}
   Volvo: {aliases: [volvo], translit: [вольво], es_site: volvocars.com/es}
-  Xpeng: {aliases: [xpeng, x peng], translit: [икспенг, хпенг], es_site: xpeng.com/es, new_in_market: true}
-  Zeekr: {aliases: [zeekr], translit: [зикр, зекр], es_site: zeekr.eu/es, new_in_market: true}
+  Xpeng: {aliases: [xpeng, x peng, xiaopeng, 小鹏], translit: [икспенг, хпенг, сяопэн], es_site: xpeng.com/es, new_in_market: true, home: CN, home_site: xiaopeng.com}
+  Zeekr: {aliases: [zeekr, 极氪], translit: [зикр, зекр], es_site: zeekr.eu/es, new_in_market: true, home: CN, home_site: zeekrlife.com}
   BAIC: {aliases: [baic], translit: [баик], es_site: baic.es}
   GWM: {aliases: [gwm, great wall, ora, wey], translit: [грейт вол], es_site: gwm-global.com/es, new_in_market: true}
   Mahindra: {aliases: [mahindra], translit: [махиндра], es_site: mahindra.es}
   Microlino: {aliases: [microlino], translit: [микролино], es_site: microlino-car.com/es}
+  # not sold in Spain (no es_site): Chinese makes people compare with what is sold here (chat 2026-11-06)
+  Li Auto: {aliases: [li auto, lixiang, li xiang, 理想, 理想汽车], translit: [ли авто, лиауто, лисян, ли сян, лисянг, лисиан], home: CN, home_site: lixiang.com}
+  Deepal: {aliases: [deepal, changan deepal, 深蓝, 深蓝汽车, shenlan], translit: [дипал, дипол, дипэл], group: Changan, home: CN, home_site: deepal.com.cn}
+  Changan: {aliases: [changan, 长安, 长安汽车], translit: [чанган, чанъань], home: CN, home_site: changan.com.cn}
+  Aito: {aliases: [aito, 问界, seres aito, 赛力斯], translit: [айто], home: CN, home_site: aito.auto}
+  NIO: {aliases: [nio, 蔚来], translit: [нио, ниу], home: CN, home_site: nio.cn}
+  Avatr: {aliases: [avatr, 阿维塔], translit: [аватр], group: Changan, home: CN, home_site: avatr.com}
+  Voyah: {aliases: [voyah, 岚图], translit: [воях], home: CN, home_site: voyah.com.cn}
+  Xiaomi: {aliases: [xiaomi, xiaomi auto, 小米汽车], translit: [сяоми, ксиаоми], home: CN, home_site: xiaomiev.com}
+  Hongqi: {aliases: [hongqi, 红旗], translit: [хунци, хончи], home: CN, home_site: faw-hongqi.com.cn}
+  Geely: {aliases: [geely, 吉利], translit: [джили, джилли], home: CN, home_site: geely.com}

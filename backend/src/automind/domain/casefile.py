@@ -258,6 +258,9 @@ class CaseCar(BaseModel):
     year_assumed: bool = False  # spec 008 FR-022: a used car's year assumed from mileage or generation
     ladder: LadderMemo | None = None  # spec 008
     replaced: bool = False  # 009 FR-022: the user's own car that the purchase replaces (compared, not a candidate)
+    # chat 2026-11-06: the market the car was identified on when it is not on the Spanish line-up ("EU", "CN",
+    # "ANY"); None: Spain. Outside Europe no price is taken (spec 009 FR-009)
+    market: str | None = None
 
     @property
     def display_name(self) -> str:

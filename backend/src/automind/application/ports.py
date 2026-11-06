@@ -254,13 +254,14 @@ class AcquisitionPort(Protocol):
 
     async def acquire(self, req: Any, emit: Callable[[str, str], Awaitable[None]] | None = None) -> Any: ...
 
-    async def lineup(self, make: str, *, official: str | None, max_pages: int) -> Any: ...
+    async def lineup(self, make: str, *, official: str | None, max_pages: int, market: str = "ES") -> Any: ...
 
     async def versions(self, make: str, model: str, generation: str | None, *, year: int | None, queries: list[str],
-                       limits: dict[str, Any], done: set[str] | None = None) -> Any: ...  # fmt: skip
+                       limits: dict[str, Any], done: set[str] | None = None,
+                       market: str = "ES") -> Any: ...  # fmt: skip
 
     async def generation_hints(self, query: str, *, lineup_url: str | None = None, user_url: str | None = None,
-                               prices: bool = False) -> list[Any]: ...  # fmt: skip
+                               prices: bool = False, market: str = "ES") -> list[Any]: ...  # fmt: skip
 
     async def dataset_versions(self, make: str, model: str, generation: str | None = None, fuel: str | None = None,
                                year_from: int | None = None) -> list[Any]: ...  # fmt: skip
@@ -283,7 +284,8 @@ class Ports:
     estimator: Estimator
     acquisition: AcquisitionPort | None = None  # spec 011 S8: the engine (search, pages, readers live there)
     feasibility: Any = None  # application.feasibility.FeasibilityStore (spec 003 US3)
-    lineup: Any = None  # async (ports, make) -> application.lineup.Lineup | None (spec 005); None: no lookup
+    # async (ports, make, market='ES') -> application.lineup.Lineup | None (spec 005); None: no lookup
+    lineup: Any = None
     # spec 006 US5: market facts (incentives): upsert(rows, evidence_id), done() -> datetime | None, load(); None: none
     market_facts: Any = None
     # spec 007 US7: async () -> [(make, domain.intake.LineupModel)] sold in ES, known without a search; None: none

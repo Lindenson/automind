@@ -23,7 +23,7 @@ from typing import Any
 
 from automind.acquisition.api import DatasetVersion, VersionEntry, VersionsOut, VersionsRead
 from automind.application.ports import Ports
-from automind.domain import evidence, identity, search_plan
+from automind.domain import evidence, identity, intake, search_plan
 from automind.domain.ladder import Generation, Version, sold_in
 
 
@@ -99,12 +99,21 @@ async def _harder_queries(ports: Ports, make: str, model: str, generation: str |
     return out[:HARDER_QUERIES]
 
 
+def abroad_queries(ports: Ports, market: str, make: str, model: str, when: str) -> tuple[list[str], str]:
+    """The versions searches for a car not sold in Spain, and their locale (config/search.yaml `abroad`)."""
+    every = (ports.ref.search or {}).get("abroad") or {}
+    cfg = dict(every.get(market) or every.get(intake.EUROPE if intake.european(market) else intake.ANYWHERE) or {})
+    tpl = [str(q) for q in cfg.get("versions") or ["{make} {model} {when} versions specifications power kW"]]
+    return [" ".join(q.format(make=make, model=model, when=when).split()) for q in tpl], str(cfg.get("search") or "ANY")
+
+
 async def lookup(ports: Ports, make: str, model: str, *, generation: str | None, year: int | None,
                  new: bool, current_year: int | None = None,
-                 fuel: str | None = None) -> Generation | None:  # fmt: skip
+                 fuel: str | None = None, market: str | None = None) -> Generation | None:  # fmt: skip
     """The versions of this model in the generation asked (or the one built in `year`, or on sale now); None when
     there is no store or no document supports any version (the fallback identifies then, FR-020). A new car
-    (`current_year` given) tries harder before giving up (the current year's range, the registry's spec sources)."""
+    (`current_year` given) tries harder before giving up (the current year's range, the registry's spec sources).
+    `market`: a car not sold in Spain (chat 2026-11-06) is searched on the market where it is sold."""
     store = ports.versions
     if store is None or "versions" not in (ports.ref.prompts or {}):
         return None
@@ -114,6 +123,12 @@ async def lookup(ports: Ports, make: str, model: str, *, generation: str | None,
         return hit  # type: ignore[no-any-return]
     if ports.acquisition is None:
         return None
+    if market is not None:
+        when = " ".join(x for x in (generation, str(year or "") or None) if x)
+        queries, locale = abroad_queries(ports, market, make, model, when)
+        got = await ports.acquisition.versions(make, model, generation, year=year, queries=queries, limits=lim,
+                                               done=set(), market=locale)  # fmt: skip
+        return await _from_docs(store, hit, make, model, generation, year, got, lim) if got else None
     since = None
     if new and current_year and year is None:  # the datasets first: cheap, and they know a facelift's year
         since = newer_engine_year(await dataset_versions(ports, make, model, generation, None,
