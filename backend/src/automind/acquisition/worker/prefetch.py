@@ -36,18 +36,6 @@ if TYPE_CHECKING:
 
 log = logging.getLogger(__name__)
 
-DEFAULTS: dict[str, Any] = {
-    "eur_per_day": 0.30,
-    "jobs_per_run": 6,
-    "variants_per_run": 3,
-    "window_days": 30,
-    "due_within_h": 48,
-    "short_retry_h": 72,
-    "other_fresh_days": 90,
-    "min_eur_per_job": 0.01,
-    "busy_min": 15,
-}
-
 _POPULAR = text(
     """
     SELECT variant_id, count(DISTINCT chat_id) AS chats, count(*) AS jobs
@@ -72,7 +60,10 @@ _LLM = text("SELECT coalesce(sum(cost_eur), 0) FROM llm_calls WHERE job_id = :i"
 
 
 def options(cfg: dict[str, Any] | None) -> dict[str, Any]:
-    return {**DEFAULTS, **(cfg or {})}
+    """The `prefetch` block of config/acquisition.yaml (the only source of its values; a missing key fails)."""
+    from automind.acquisition.worker.config import worker_config  # noqa: PLC0415
+
+    return dict(cfg) if cfg else worker_config()["prefetch"]
 
 
 def fresh_days(area: str, o: dict[str, Any]) -> float:

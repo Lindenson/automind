@@ -41,10 +41,6 @@ def settled(car: CaseCar) -> tuple[bool, Unsettled | None]:
     return False, "UNRESOLVED"
 
 
-def all_settled(cars: Iterable[CaseCar]) -> bool:
-    return all(settled(c)[0] for c in cars)
-
-
 def _identity(c: CaseCar | None) -> tuple[object, ...]:
     if c is None:
         return ()

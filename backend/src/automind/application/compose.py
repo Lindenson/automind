@@ -217,13 +217,6 @@ def _txt(car: dict, key: str) -> str | None:
     return sv.value_text if sv is not None and sv.available else None
 
 
-def completeness(car: dict) -> float:
-    vals = car["values"]
-    pt = car["variant"].powertrain
-    keys = [k for k in specs.ATTRS if relevant(k, pt) and not (k == "battery_kwh" and pt in ("MHEV", "HEV"))]
-    return sum(1 for k in keys if vals.get(k) is not None and vals[k].available) / len(keys)
-
-
 @lru_cache
 def severity_rules() -> reliability.SeverityRules:
     from automind.infrastructure.config import load_yaml

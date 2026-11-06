@@ -46,7 +46,7 @@ def cache_ttl(config: dict[str, Any], area: str | None, *, empty: bool) -> timed
     """Area TTL for results; a short TTL for an empty answer (spec 007 FR-021: empty `site:` answers were kept
     for a week and blocked every new search of that query)."""
     if empty:
-        return timedelta(hours=float(config.get("empty_result_ttl_hours", 6)))
+        return timedelta(hours=float(config["empty_result_ttl_hours"]))
     days = config.get("cache_ttl_days") or {}
     return timedelta(days=float(days.get(area or "", days.get("default", 7))))
 

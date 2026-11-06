@@ -140,7 +140,7 @@ async def run(day: date | None = None, reset: bool = True) -> dict[str, Any]:
         async with sessionmaker()() as s:
             await s.execute(update(CapabilityRow).values(explore_spent_eur=0.0))
             await s.commit()
-        hl = float(load_yaml("registry.yaml").get("half_life_days", 90))
+        hl = float(load_yaml("registry.yaml")["half_life_days"])
         out["components_faded"] = await components.decay_all(hl)
     try:
         out.update(await publish_gauges())

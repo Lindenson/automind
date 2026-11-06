@@ -199,7 +199,8 @@ async def test_retention_honours_the_cap_and_never_drops_pinned(cap_bytes):
             row.retention_class = cls
             row.keep_until = None if cls == "pinned" else now + timedelta(days=30)
             await s.commit()
-    cfg = codec.RetentionCfg(max_bytes=cap_bytes)
+    yaml_cfg = codec.RetentionCfg.from_config(load_yaml("acquisition.yaml")["snapshots"])
+    cfg = dataclasses.replace(yaml_cfg, max_bytes=cap_bytes)
     await run_snapshot_retention(cfg, now=now)
     async with db.sessionmaker()() as s:
         left = {

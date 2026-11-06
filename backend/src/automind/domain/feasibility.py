@@ -126,7 +126,7 @@ def budget_total(n: Needs, rules: Mapping[str, Any]) -> Num | None:
     if n.budget_amount is None:
         return None
     rate = float((rules.get("currency_to_eur") or {}).get(n.budget_currency, 1.0))
-    months = int(rules.get("monthly_budget_months", 48)) if n.budget_kind == "MONTHLY" else 1
+    months = int(rules["monthly_budget_months"]) if n.budget_kind == "MONTHLY" else 1
     inputs = []
     if n.budget_currency != "EUR":
         inputs.append(f"1 {n.budget_currency} = {rate} EUR")
@@ -149,7 +149,7 @@ def share_left(rules: Mapping[str, Any], vehicle_class: str | None, age: float) 
 
 
 def _depreciation_age(price: float, budget: float, car: CarFacts, rules: Mapping[str, Any]) -> int | None:
-    for age in range(1, int(rules.get("max_used_age_years", 20)) + 1):
+    for age in range(1, int(rules["max_used_age_years"]) + 1):
         if price * share_left(rules, car.vehicle_class, age) <= budget:
             return age
     return None
@@ -193,7 +193,7 @@ def _budget(n: Needs, car: CarFacts, rules: Mapping[str, Any], year: int) -> Che
         )
     editorial = _editorial_ages(car, budget, year)
     dep_age = _depreciation_age(car.price.value, budget, car, rules) if car.price else None
-    span = int(rules.get("used_age_span_years", 3))
+    span = int(rules["used_age_span_years"])
     if dep_age is not None and car.price is not None:
         compared.append(Num(f"estimated value at {dep_age} years", round(car.price.value * share_left(
             rules, car.vehicle_class, dep_age)), "EUR", "ASSUMPTION", (),
@@ -259,12 +259,12 @@ def _power(n: Needs, car: CarFacts, rules: Mapping[str, Any]) -> CheckResult | N
     if car.power_kw is None or car.mass_kg is None:
         missing = [m for m, f in (("power", car.power_kw), ("weight", car.mass_kg)) if f is None]
         return CheckResult("USAGE_POWER", "UNKNOWN", "Power or weight is not known.", missing=missing)
-    th = (rules.get("usage") or {}).get("min_kw_per_t", {})
+    th = rules["usage"]["min_kw_per_t"]
     out: list[Num] = []
     ok = True
     if n.mountains:
         kwt = car.power_kw.value / (car.mass_kg.value / 1000)
-        need = float(th.get("mountains", 60))
+        need = float(th["mountains"])
         out += [
             Num("power-to-weight", round(kwt), "kW/t"),
             Num("comfortable in mountains from", need, "kW/t", "ASSUMPTION"),
@@ -272,7 +272,7 @@ def _power(n: Needs, car: CarFacts, rules: Mapping[str, Any]) -> CheckResult | N
         ok = ok and kwt >= need
     if n.towing_kg:
         kwt = car.power_kw.value / ((car.mass_kg.value + n.towing_kg) / 1000)
-        need = float(th.get("towing", 45))
+        need = float(th["towing"])
         out += [Num("power per tonne with the trailer", round(kwt), "kW/t"),
                 Num("enough for towing from", need, "kW/t", "ASSUMPTION")]  # fmt: skip
         ok = ok and kwt >= need
@@ -296,7 +296,7 @@ def _range(n: Needs, car: CarFacts, rules: Mapping[str, Any]) -> CheckResult | N
         return None
     else:
         return CheckResult("USAGE_RANGE", "UNKNOWN", "Consumption is not known.", missing=["consumption"])
-    margin = float((rules.get("usage") or {}).get("bev_range_margin", 1.6))
+    margin = float(rules["usage"]["bev_range_margin"])
     need = n.daily_km * margin
     fits = rng >= need
     return CheckResult("USAGE_RANGE", "FITS" if fits else "DOES_NOT_FIT",

@@ -3,6 +3,7 @@ blocked a new search for a week."""
 
 from datetime import timedelta
 
+from automind.infrastructure.config import load_yaml
 from automind.infrastructure.search.cache import cache_ttl
 
 
@@ -13,5 +14,5 @@ def test_empty_result_gets_the_short_ttl():
     assert cache_ttl(cfg, "price", empty=False) == timedelta(days=3)
 
 
-def test_default_short_ttl_when_not_configured():
-    assert cache_ttl({}, None, empty=True) == timedelta(hours=6)
+def test_the_short_ttl_comes_from_search_yaml():
+    assert cache_ttl(load_yaml("search.yaml"), None, empty=True) == timedelta(hours=6)

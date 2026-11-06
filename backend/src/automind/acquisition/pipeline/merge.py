@@ -11,15 +11,10 @@ from sqlalchemy import delete, select, text
 
 from automind.acquisition.pipeline.validate import MONEY_ATTRS
 from automind.domain import evidence as ev
-from automind.domain import identity, sense
+from automind.domain import sense
 from automind.infrastructure import db
 
 VERSION = "merge@1"
-
-
-def same_model_generations(ref_generations: dict[str, list[tuple[str, Any, Any]]], v: db.Variant) -> list[str]:
-    make, model = identity.normalize_make_model(v.make, v.model)
-    return [g for g, _, _ in ref_generations.get(f"{make}|{model}", [])]
 
 
 async def _interval_from_schedule(session: Any, variant_id: str, selected: dict[str, Any]) -> dict[str, int]:

@@ -229,7 +229,7 @@ def agents_config() -> dict[str, Any]:
 
 def snapshot_retention() -> RetentionCfg:
     """Typed snapshot retention settings (research R1)."""
-    return RetentionCfg.from_config(acquisition_config().get("snapshots") or {})
+    return RetentionCfg.from_config(acquisition_config()["snapshots"])
 
 
 def gold_tolerances() -> dict[str, tuple[str, float]]:
@@ -278,5 +278,5 @@ def configure_domain() -> None:
     sense.configure(load_yaml("sense.yaml"))
     from automind.application.interpret import configure_history  # noqa: PLC0415
 
-    win = search_config().get("interpret") or {}
-    configure_history(int(win.get("history_turns", 16)), int(win.get("history_chars", 800)))
+    win = search_config()["interpret"]
+    configure_history(int(win["history_turns"]), int(win["history_chars"]))

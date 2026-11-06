@@ -162,7 +162,14 @@ Merges go to main without human review (owner's standing instruction), so automa
   this file, not the numbers in the spec text (the spec's "29 modules > 400" vs the reviewer's 30 is settled by
   the script).
 
-## R12. The engine's budget without the chat (review B5)
+## R12. The engine's budget without the chat (review B5) — revised in S2 (2026-11-06)
+
+Revision: measuring the imports showed the engine uses the chat's `application.usage` metering (TurnBudget, contextvar
+`current_budget`, BudgetExceeded) and `application.ports` shared types in 20 modules. The budget is already inverted
+(the caller installs its budget in the contextvar; prefetch installs a background one), so the fix is a move, not a
+new protocol: `application/usage.py` → `shared/metering/`, shared port types → `shared/contracts/` (S3a). The
+original decision below is superseded.
+
 
 - **Decision**: `acquisition/api.py` declares `Budget(Protocol)`: `charge(eur: float) -> None` (raises
   `BudgetExhausted` from the api module), `exhausted() -> bool`. `acquire(..., budget=...)` takes it; the chat passes

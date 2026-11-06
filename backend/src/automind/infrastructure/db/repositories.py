@@ -101,16 +101,6 @@ class ChatRepo:
                     assert chat is not None
             return chat
 
-    async def touch(self, chat_id: str, *, language: str | None = None, title: str | None = None) -> None:
-        values: dict[str, Any] = {"updated_at": now()}
-        if language:
-            values["language"] = language
-        if title:
-            values["title"] = title[:60]
-        async with sessionmaker()() as s:
-            await s.execute(update(Chat).where(Chat.id == chat_id).values(**values))
-            await s.commit()
-
     async def title_from_first_message(self, chat_id: str, text: str) -> None:
         """Set the title from the first user message (≤60 chars); bump updated_at otherwise."""
         title = " ".join(text.split())

@@ -21,20 +21,20 @@ GB = 1024**3
 
 @dataclass(frozen=True)
 class RetentionCfg:
-    plain_days: int = 30
-    accepted_days: int = 180
-    max_bytes: int = 5 * GB
-    level: int = 10
+    plain_days: int
+    accepted_days: int
+    max_bytes: int
+    level: int
 
     @classmethod
     def from_config(cls, snapshots: dict[str, Any]) -> RetentionCfg:
-        """From `config/acquisition.yaml: snapshots`."""
-        keep = snapshots.get("keep_days") or {}
+        """From `config/acquisition.yaml: snapshots` (the only source of these values; a missing key fails)."""
+        keep = snapshots["keep_days"]
         return cls(
-            plain_days=int(keep.get("plain", 30)),
-            accepted_days=int(keep.get("accepted", 180)),
-            max_bytes=int(float(snapshots.get("max_gb", 5)) * GB),
-            level=int(snapshots.get("zstd_level", 10)),
+            plain_days=int(keep["plain"]),
+            accepted_days=int(keep["accepted"]),
+            max_bytes=int(float(snapshots["max_gb"]) * GB),
+            level=int(snapshots["zstd_level"]),
         )
 
 
@@ -42,7 +42,7 @@ def sha256(raw: bytes) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
-def compress(raw: bytes, level: int = 10) -> bytes:
+def compress(raw: bytes, level: int) -> bytes:
     return zstandard.ZstdCompressor(level=level).compress(raw)
 
 

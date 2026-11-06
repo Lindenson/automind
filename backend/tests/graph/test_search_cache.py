@@ -21,7 +21,12 @@ from .conftest import budget_factory, engine, make_ports
 from .test_research_flow import INTERPRET, llm_for_research
 from .test_research_flow import fresh_variant as fresh_variant  # noqa: F401  (fixture)
 
-CFG = {"num": 10, "markets": {"ES": {"gl": "es", "hl": "es"}}, "cache_ttl_days": {"default": 7}}
+CFG = {
+    "num": 10,
+    "markets": {"ES": {"gl": "es", "hl": "es"}},
+    "cache_ttl_days": {"default": 7},
+    "empty_result_ttl_hours": 6,
+}
 PRICES = Prices(llm={}, default_llm=(1, 1), eur_per_credit=0.0074, credits={}, provider_query_eur={"fx": 0.001})
 
 

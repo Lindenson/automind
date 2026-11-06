@@ -363,11 +363,3 @@ async def handle(payload: dict[str, Any], *, guard: Any = None, llm: LLM | None 
     if why := await budgets.stop_reason(AGENT):
         return {"skipped": why}
     return await run_auditor(llm=llm, charge=guard.charge if guard is not None else None)
-
-
-def by_rule(rows: list[Rejected]) -> dict[str, int]:
-    """How many confirmed rejections each rule has (diagnostics)."""
-    n: dict[str, int] = defaultdict(int)
-    for r in rows:
-        n[r.rule] += 1
-    return dict(n)

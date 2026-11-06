@@ -23,7 +23,6 @@ from sqlalchemy import select
 
 from automind.acquisition.domain import gates
 from automind.acquisition.domain import replay as scoring
-from automind.acquisition.domain.versions import parse_key
 from automind.acquisition.parsing.spec import ParserSpec
 from automind.acquisition.snapshots.store import SnapshotRef
 from automind.infrastructure import config, overrides
@@ -276,10 +275,3 @@ async def measure(c: AcqChange, rs: list[SnapshotRef], *, since: datetime | None
         return metrics(pages, gold, yield_pages=sub)
 
     return m(got.old), m(got.new)
-
-
-def version_number(key: str | None) -> int | None:
-    try:
-        return parse_key(key)[1] if key else None
-    except ValueError:
-        return None

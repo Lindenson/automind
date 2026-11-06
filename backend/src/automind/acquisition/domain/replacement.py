@@ -1,9 +1,8 @@
 """Later replacement of a shown value by a more confident one (spec 010 T060, spec 011 FR-010). Pure.
 
 Read after the fact from the stored claims: a claim that was the only accepted claim of its attribute (so it was the
-shown value) and that disagrees with today's selection, made of claims that all came later, was replaced. The
-pipeline's merge can report a replacement directly (`signals.on_replacement`); this finds the same cases from the
-tables without a hook in the pipeline.
+shown value) and that disagrees with today's selection, made of claims that all came later, was replaced. Found
+from the tables, without a hook in the pipeline.
 """
 
 from __future__ import annotations

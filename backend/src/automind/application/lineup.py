@@ -41,7 +41,7 @@ _PTS = {"petrol", "diesel", "hybrid", "mhev", "phev", "bev", "lpg"}
 
 
 def _limits(ports: Ports) -> dict[str, Any]:
-    return dict(ports.ref.search.get("intake") or {})
+    return dict(ports.ref.search["intake"])
 
 
 def _price_in(excerpt: str, price: int) -> bool:
@@ -131,7 +131,7 @@ async def get_lineup(ports: Ports, make: str, market: str = "ES") -> Lineup | No
     """The make's line-up in Spain, or on `market` for a car not sold in Spain (cache-first), or None when no source
     supports one."""
     lim = _limits(ports)
-    if (hit := await cached(make, int(lim.get("lineup_ttl_days", 30)), market)) is not None:
+    if (hit := await cached(make, int(lim["lineup_ttl_days"]), market)) is not None:
         return hit
     reg = ports.ref.makes
     if reg is None:
@@ -142,7 +142,7 @@ async def get_lineup(ports: Ports, make: str, market: str = "ES") -> Lineup | No
         official = reg.site_on(make, market)
     if ports.acquisition is None:
         return None
-    pages = int(lim.get("lineup_max_pages", 2))
+    pages = int(lim["lineup_max_pages"])
     if market == "ES":
         read = await ports.acquisition.lineup(make, official=official, max_pages=pages)
     else:

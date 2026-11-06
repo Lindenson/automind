@@ -106,6 +106,7 @@ branches too, or local only; (c) `# fmt: skip` ×843 — leave as is (proposal) 
    between runs for the user. Fix after the refactoring: a stable tie-break (criterion key).
    Same diff: the order of engine options offered for a model (Kia Sorento "288/265/215 CV" vs "215/265/288 CV") and
    of sources in a block varies between runs (DB reads without ORDER BY / job completion order). Fix: explicit order.
+   And `tests/graph/test_limit_pause.py` is timing-dependent (scripts/refactor/racy_tests.txt): make it deterministic.
 
 ## 5. Rules that stay in force
 
