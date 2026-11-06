@@ -1,0 +1,2 @@
+# Justified exceptions to the structure rules (spec 012 R6): rule|path|reason (one line). Not a baseline:
+# an entry stays because the rule does not fit this module (data tables, generated code), never "to fix later".

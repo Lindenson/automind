@@ -1,0 +1,21 @@
+# Which area owns each database table (spec 012 research R13). Raw SQL that names a table of another area fails
+# scripts/check_structure.py rule 6, except the reads listed under `reads`.
+# Areas: chat (answer the person), acquisition (collect and improve data), observability (insight over both
+# cycles' journals), shared (used by every area).
+owners:
+  chat: [chats, chat_messages, case_files, turns, turn_events, deleted_chats, intake_events, feasibility_checks,
+         report_ratings, tco_estimates, simulations]
+  acquisition: [vehicle_variants, brand_lineups, model_versions, documents, evidence, claims, spec_values,
+                research_runs, research_jobs, search_calls, search_cache, learned_sources, market_facts,
+                page_relevance, used_price_ranges, site_reader_stats, maintenance_items, review_items, issues,
+                reliability_stats, manufacturer_facts, value_retention, value_challenges, sources, capabilities,
+                registry_attempts, truth_signals, registry_changes, registry_runs, snapshot_blobs, page_snapshots,
+                gold_datasets, gold_values, extraction_cache, acq_tasks, acq_workers, component_reputation, acq_daily,
+                kpi_baselines, parsers, parser_versions, parser_daily, acq_changes, prompt_versions,
+                role_model_overrides, rule_overrides, acq_experiments, change_blocks]
+  observability: [turn_outcomes, feedback, insight_issues, insight_runs]
+  shared: [llm_calls]
+# Read access across areas by raw SQL. Observability analyses the journals of both cycles: it may read every
+# table (never write another area's table).
+reads:
+  observability: ["*"]

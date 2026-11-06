@@ -1,7 +1,7 @@
 # Next session: start here (parked on 2026-11-06)
 
 **First task: refactoring — spec 012, executed by `specs/012-refactoring/tasks.md` (one phase = one PR).**
-Done: S0 hygiene (2026-11-06). Next: S1 tooling and safety net (T006–T019). No new features until it is done (owner, 2026-11-06). All functional work below is
+Done: S0 hygiene, S1 safety net (2026-11-06). Next: S2 shrink + typed facade (T020–T030). No new features until it is done (owner, 2026-11-06). All functional work below is
 parked, still valid, and resumes after the refactoring.
 
 Context to read first: `README.md` ("Acquisition engine"), `docs/adr/ADR-032-acquisition-engine.md`.
@@ -100,6 +100,12 @@ branches too, or local only; (c) `# fmt: skip` ×843 — leave as is (proposal) 
    the 53.49 kWh version's battery and lacks max_power; graph test for the market note and `market="CN"` jobs;
    unit tests for CLTC filing / Chinese units / `Aliases.names_of`; `Variant.market` at `upsert_variant`;
    electrive.com robots/terms (details: `docs/history/wip-home-market-research.md`).
+
+5. Found by the spec 012 behaviour diff (2026-11-06): the report's order of criteria with equal weights (e.g.
+   ownership_cost and reliability, both 6.2) depends on Python's hash seed (set iteration), so it can differ
+   between runs for the user. Fix after the refactoring: a stable tie-break (criterion key).
+   Same diff: the order of engine options offered for a model (Kia Sorento "288/265/215 CV" vs "215/265/288 CV") and
+   of sources in a block varies between runs (DB reads without ORDER BY / job completion order). Fix: explicit order.
 
 ## 5. Rules that stay in force
 

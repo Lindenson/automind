@@ -47,7 +47,10 @@ cd backend
 uv run ruff check src tests
 uv run ruff format --check src tests
 uv run mypy src/automind/domain
+# spec 012: mypy over all of src in report mode (the strict scope grows step by step, research R16)
+echo "mypy report (all of src): $(uv run mypy src/automind 2>/dev/null | tail -1)"
 uv run lint-imports
+uv run python ../scripts/check_structure.py  # spec 012: shape rules with a shrinking baseline (ratchet)
 # the frontend is checked even when a backend test fails, so one failure never hides another
 rc=0
 uv run pytest -q "$@" || rc=$?
