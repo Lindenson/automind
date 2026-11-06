@@ -625,9 +625,6 @@ order|chat/domain/intake/steps.py|is_repeat
 order|chat/domain/intake/steps.py|next_step
 order|chat/domain/intake/steps.py|question_hash
 order|chat/domain/intake/steps.py|record_asked
-order|chat/domain/policy.py|fingerprint
-order|chat/domain/policy.py|fingerprint_data
-order|chat/domain/policy.py|fingerprint_params
 order|chat/domain/understanding/distance.py|parse_distance
 order|chat/domain/understanding/energy_figures.py|energy_figures_of
 order|chat/domain/understanding/energy_figures.py|stated_for_cars

@@ -16,12 +16,13 @@ from automind.chat.dialog import phrases
 from automind.chat.dialog.nodes import feasibility as fz_nodes
 from automind.chat.dialog.nodes.common import ctx, current_year, history, load_case, notice, record_intake, save_case
 from automind.chat.dialog.phrases import t
+from automind.chat.dialog.policy import decide
 from automind.chat.dialog.runner import TurnContext
 from automind.chat.dialog.state import PER_TURN_RESET, TurnState
 from automind.chat.domain import intake, understanding
 from automind.chat.domain.case import CarRef, CaseDelta, CaseFile, Constraints, StatedEnergy, apply, apply_defaults
+from automind.chat.domain.decision import CarState
 from automind.chat.domain.identification import identification
-from automind.chat.domain.policy import CarState, decide
 from automind.shared.infrastructure.config.settings import settings
 from automind.shared.research_order import plan as research_plan
 from automind.shared.vehicle.identity import parse_engine

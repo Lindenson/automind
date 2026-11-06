@@ -14,7 +14,7 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field, ValidationError
 
 from automind.chat.domain.case import CRITERION_KEYS, CarRef, CaseDelta, CaseFile, Constraints
-from automind.chat.domain.policy import RequestKind
+from automind.chat.domain.decision import RequestKind
 from automind.shared.contracts.llm import LLM
 from automind.shared.vehicle.engine import EngineHint
 from automind.shared.vehicle.identity import parse_engine
