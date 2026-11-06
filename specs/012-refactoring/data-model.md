@@ -63,16 +63,18 @@ backend/src/automind/
 │   │   │   │                         intake_card.py: service.py + facts/ (car facts) + blocks/ (one per block) +
 │   │   │   │                         tco_inputs.py
 │   │   │   └── usage/              ← application/usage.py (turn budget)
-│   │   └── ports.py                ← application/ports.py (+ CarRepository, VariantRepository from compose/resolve)
+│   │   └── ports.py                ← application/ports.py (+ CarRepository, VariantCatalogue — adapters over
+│   │                                 acquisition.api, never over the engine's ORM; R13)
 │   └── infrastructure/
-│       ├── persistence/ models/ (chat, case, turn, usage, catalogue), repositories/ (one per aggregate)
-│       │                           ← infrastructure/db/models.py (chat part), repositories.py, outcomes.py
-│       ├── car_repository.py, variant_repository.py   ← DB reads of compose.load_car/tco_car, resolve catalogue
+│       ├── persistence/ models/ (chat, case, turn, usage), repositories/ (one per aggregate)
+│       │                           ← infrastructure/db/models.py (chat tables), repositories.py
+│       ├── engine_adapters.py      CarRepository / VariantCatalogue over acquisition.api (car_data, catalogue)
 │       ├── checkpoint.py, models_on_sale.py, adapters.py, retention.py
 │       └── mcp_tools.py            ← mcp_server.py tool bodies (server entry point → delivery)
 │
 ├── acquisition/                    AREA 2 — COLLECT, VALIDATE AND IMPROVE DATA (constitution XIII)
-│   ├── api.py                      the ONLY entry for the chat (typed facade, no type: ignore)
+│   ├── api.py                      the ONLY entry for the chat (typed facade, no type: ignore): acquire(…, budget),
+│   │                                 read model car_data() -> CarData, catalogue calls, Budget Protocol (R12, R13)
 │   ├── domain/                     today's acquisition/domain + validation/ (sense_ev, plausibility ← domain/),
 │   │                                 relevance.py (← domain/relevance.py), search_plan.py (← domain/search_plan.py)
 │   ├── pipeline/                   job.py = the staged pipeline (run() lists plan→locate→fetch→parse→relevance→
@@ -84,17 +86,25 @@ backend/src/automind/
 │   ├── gold/, snapshots/, gates/, reputation/, drift/, replay/, registry/   (as today, each with docs + __all__)
 │   ├── agents/                     one package per agent: scout/, parser_doctor/, rule_auditor/, extractor_tuner/,
 │   │                                 blame_judge/, evaluator; levers.py, budget.py shared by agents
-│   ├── insight/                    ← automind/insight (application, domain, infrastructure, metrics, loop)
 │   ├── worker/                     queue, scheduler, process, handlers, prefetch, heartbeat, exporter
 │   ├── admin/                      ← admin_api.py (1049): parsers.py, changes.py, accuracy.py, snapshots.py,
 │   │                                 engine.py, _common.py
 │   └── infrastructure/             fetch, pages, wiring, search/ (← infrastructure/search), persistence/ models
-│                                     (acq_*, registry, gold, insight tables ← db/models.py) + repos
+│                                     (catalogue, documents, evidence, claims, spec_values, research_runs, issues,
+│                                     acq_*, registry, gold ← db/models.py) + repos (R13)
+│
+├── observability/                  AREA 3 — SEE HOW BOTH CYCLES DO (← automind/insight; review B2)
+│   ├── domain/ (clusters, impact, issue_text, levers, outcome ← domain/outcome.py), application/ (analyse, seed),
+│   ├── infrastructure/ (journals reader: SQL on both areas' journals — the only area allowed to, table_owners.yaml;
+│   │                    turn_outcomes, feedback, insight issues ← db/outcomes.py, models), metrics/, loop.py
+│   └── imported by nobody except delivery; chat writes outcomes through its port
 │
 └── delivery/                       ADAPTERS TO THE OUTSIDE WORLD — composition roots, no logic
     ├── web/ app.py (composition root), rest.py, ws.py, admin.py, metrics.py, access.py   ← api/*
     ├── mcp/ server.py              ← mcp_server.py (entry point)
-    └── cli/ worker.py, replay.py, baseline.py   (`python -m automind.delivery.cli.worker`; compose files updated)
+    └── cli/ __main__.py — stable `python -m automind.cli <worker|replay|baseline|migrate|fit-physics>` (R14)
+backend/alembic/env.py               collects the model modules of all areas (outside the package; shared stays a
+                                     kernel; cross-area FKs by table name only — R13)
 ```
 
 ## Removed (FR-018)

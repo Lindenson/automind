@@ -48,6 +48,11 @@ async def run(self, req: IdentifyRequest) -> Identified:
     return settle(narrow_ladder(found, req.case))
 ```
 
+## Dialog state (review B3)
+
+Graph state holds plain data only: nested values are `TypedDict`s; a DTO crosses the node boundary with
+`Decision.from_state(state["decision"])` / `decision.to_state()`. Never put a class instance into the state.
+
 ## Dialog node (chat/dialog/nodes/*.py) — ≤ 30 lines, no business logic
 
 ```python
@@ -57,13 +62,17 @@ async def identify_node(state: TurnState, runtime: Runtime[TurnContext]) -> Stat
     return {"assessments": result.assessments_for_state()}
 ```
 
-## Patterns and vocabulary (FR-016)
+## Patterns and vocabulary (FR-016, revised after review I2)
 
 ```python
-# chat/domain/vocabulary/patterns.py
-DISTANCE_PER_MONTH = re.compile(r"...")   # "1–2 тыс км в месяц", "1500 km/mes"
+# chat/domain/vocabulary/distance.py — shared language patterns and word tables, by concept
+PER_MONTH = re.compile(r"...")   # "1–2 тыс км в месяц", "1500 km/mes"
+
+# a technical regex used once stays in its module, contracts section, named, with an example
+_ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")   # "2026-11-06"
 ```
-No `re.compile` and no word tables outside `patterns.py` / `vocabulary/` / `phrases/` modules.
+Forbidden: `re.compile` or a regex literal inside a function; word/phrase tables inside logic modules.
+Justified size/limit exceptions: `scripts/structure_exceptions.txt` (path, limit, reason).
 
 ## Naming
 

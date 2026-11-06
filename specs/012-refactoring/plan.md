@@ -35,7 +35,9 @@ LangChain model wrappers, SQLAlchemy 2 async + Alembic, Pydantic 2, import-linte
 id); external contracts unchanged (`/api/v1`, WebSocket v2, YAML formats, worker task kinds, `python -m` commands
 updated together with compose files); import contracts never loosened
 
-**Scale/Scope**: ~240 source modules, ~22k test lines move; ~15 PRs
+**Scale/Scope**: ~240 source modules, ~22k test lines move; ~18 PRs
+
+**Review**: plan review of 2026-11-06 (B1–B5, I1–I10) applied — see research R1, R4, R6, R7, R11–R16
 
 ## Constitution Check
 
@@ -73,6 +75,7 @@ Target tree and the full old → new map: [data-model.md](data-model.md). Summar
 
 ```text
 backend/src/automind/
+├── observability/ insight loop over both cycles' journals (leaf area, R1)
 ├── shared/       vehicle (identity, specs, units, markets), evidence (provenance, sense), research_order,
 │                 infrastructure (config, db base/session, llm gateway, events)
 ├── chat/         domain (case, intake, understanding, identification, assessment, cost, verdict, vocabulary)
@@ -94,22 +97,27 @@ docs/architecture.md
 
 | Step | Content | Kind | Size |
 |---|---|---|---|
-| **S0** | Hygiene: remove 31 worktrees, merged local branches (remote — ask owner); `sec.md` + closed `review-*`, `ux-audit-*`, `sources-revision-*` → `docs/history/` | repo | S |
-| **S1** | Tooling: `scripts/check_structure.py` + baseline (ratchet) in `check.sh`; `scripts/refactor/move.py` codemod with tests; mypy run extended to report mode for all of `src` | tooling | M |
-| **S2** | Shrink: dead code (FR-018), YAML single source + 3 direct reads via loader (FR-019; `locate.py` default → YAML), duplicate `_NUM`, typed `acquisition/api.py` facade (FR-014) | cleanup | M |
-| **S3** | **The tree move** (move-only, codemod): create `shared/ chat/ acquisition/ delivery/`, move every module to its area *as a whole file* per data-model, move tests to mirror, retarget `.importlinter` (same strength), update compose/Dockerfile `python -m`, Alembic env, docs links; constitution V amendment; package `__init__` docstrings for every new package (purpose + `__all__`) | move | L |
+| **S0** | Hygiene: remove 31 worktrees, merged local branches (remote — owner's answer); `sec.md` + closed `review-*`, `ux-audit-*`, `sources-revision-*` → `docs/history/` | repo | S |
+| **S1** | Tooling & safety net: `check_structure.py` (+ SQL-to-foreign-tables rule, `table_owners.yaml`, `structure_exceptions.txt`) with ratchet baseline; `refactor/move.py` codemod; `pytest-cov` + `coverage-before.txt`; `refactor/metrics.py` → `metrics-before.md`; `refactor/diff_behaviour.py` with 10–20 recorded chats; `check_checkpoints.py`; mypy report mode | tooling | L |
+| **S2** | Shrink + facade: dead code (FR-018); YAML single source + 3 direct reads via loader; duplicate `_NUM`; typed `acquisition/api.py` incl. read model `car_data()`, catalogue calls and `Budget` Protocol (R12, R13); `pipeline/relevance.py` off the chat | cleanup | M |
+| **S3a** | **Tree move of src** (move-only, codemod `moves/S3a.yaml`): `shared/ chat/ acquisition/ observability/ delivery/`, `.importlinter` retargeted (same strength), compose/Dockerfile, Alembic env collector, stable `python -m automind.cli` (R14), `next-session.md` §3.1 command updated | move | L |
+| **S3b** | Tests moved to the mirror tree (codemod `moves/S3b.yaml`) | move | L |
+| **S3c** | Package `__init__` docstrings + `__all__` for every package; constitution V MINOR amendment | docs | M |
 | **S4** | `shared` kernel split: evidence (provenance/confidence/conflicts), specs package; contract `shared-is-kernel` | split | M |
-| **S5** | `chat/domain`: casefile → `case/` package, `Fit.from_case`; intake → `intake/` + `understanding/` + `dialog/intake_steps`; tco, energy, ladder packages; all chat regexes/word tables → `vocabulary/`; mappers next to their objects | split | L |
-| **S6** | `chat/dialog`: phases + typed state DTOs, policy as rule chain behind `Policy` Protocol, confirmation pattern once, graph as transitions table (node ids unchanged), runner; nodes still call existing application functions | restructure | L |
-| **S7** | Services I — `identification` (identify, resolve, lineup, versions, makes, candidates): service + stages + fallback strategies; DB reads → `variant_repository` behind ports; drop resolve/lineup ignore_imports | restructure | L |
-| **S8** | Services II — `report` (compose, nodes/compute, electric block, car view, intake card): facts/, blocks/, tco_inputs; `load_car`/`tco_car`/`persist_computations` → `car_repository` behind ports; drop compose ignore_imports | restructure | L |
-| **S9** | Services III — `interpretation`, `research`, `feasibility`, `usage`; nodes reduced to ≤ 30-line adapters; `challenge` → use case + port (drop its ignore_imports); `chat.dialog`/`chat.application` purity contracts on | restructure | L |
-| **S10** | Use cases: `SendMessage`, `ConfirmAnswer`, `FindMore`, `EditCar`, `Rescore`, `OpenChat`, `DeleteChats`, `ChallengeValue`; `delivery/web/ws.py` and `rest.py` call use cases only; layers contract for `chat` | restructure | M |
-| **S11** | Acquisition I: pipeline as staged `job.run()` + `contracts.py`; one `parsing/` package (readers, extraction contracts vs logic, normalise, patterns) with flow docstring; `identity_readers/`; contract `engine-knows-no-chat` (fix `pipeline/relevance.py`) | restructure | L |
-| **S12** | Acquisition II: `admin/` package; `agents/<name>/` packages; `insight/` tidy; persistence models/repos split per area (`alembic check` empty); worker/registry/gates docs | split | L |
-| **S13** | Order & API pass: public-before-private in every module, `__all__` exact, cross-package private imports removed; mypy strict for the whole `src` (or a listed remainder) | polish | M |
-| **S14** | Docs: `docs/architecture.md` (areas, packages, flows: chat turn, acquisition job, worker loop; glossary concept → module), `baseline.md`, `deploy.md`, README links; `shims.md` empty; structure baseline empty | docs | M |
-| **S15** | Acceptance: live replay of chat ccd5f7d8 shown to the owner; readability walk-through (quickstart §5); handoff | verify | S |
+| **S5** | `chat/domain`: casefile → `case/`, `Fit.from_case`; intake → `intake/` + `understanding/` + `dialog/intake_steps`; tco, energy, ladder packages; vocabulary by concept (R7); mappers with their objects | split | L |
+| **S6** | `chat/dialog`: phases, state as TypedDicts + DTO `to_state/from_state` (R4), policy rule chain grouped by phase behind one `Policy` Protocol, confirmation pattern once, graph as transitions table (node ids frozen), runner; gate `check_checkpoints` | restructure | L |
+| **S7** | Services I — `identification`: service + stages + fallback strategies; catalogue via `VariantCatalogue` over `acquisition.api`; drop resolve/lineup ignore_imports | restructure | L |
+| **S8** | Services II — `report`: facts/, blocks/, tco_inputs; `CarRepository` over `acquisition.api.car_data`; drop compose ignore_imports | restructure | L |
+| **S9** | Services III — `interpretation`, `research`, `feasibility`, `usage`; nodes ≤ 30-line adapters; `challenge` → use case + port; chat purity contracts on | restructure | L |
+| **S10** | Use cases (`SendMessage`, `ConfirmAnswer`, `FindMore`, `EditCar`, `Rescore`, `OpenChat`, `DeleteChats`, `ChallengeValue`); web/ws call use cases only; `chat` layers contract | restructure | M |
+| **S11** | Acquisition I: staged `job.run()` + `contracts.py`; one `parsing/` package; `identity_readers/`; contract `engine-knows-no-chat` | restructure | L |
+| **S12** | Acquisition II + observability: `admin/`, `agents/<name>/`; persistence split per area (`alembic check` empty); observability contracts | split | L |
+| **S13** | Order & API pass; mypy strict in the narrowed scope (R16) | polish | M |
+| **S14** | Docs: `docs/architecture.md`, `baseline.md`, `deploy.md`; `shims.md` empty; structure baseline empty; comparison with `metrics-before.md` | docs | M |
+| **S15** | Acceptance: `check_checkpoints` on the live dump, live replay shown to the owner, readability walk-through | verify | S |
+
+Every step S3a–S13 is gated by the before/after behaviour diff; restructure steps start only at ≥ 80 % branch
+coverage of their modules (R11). Deploys: none before 2026-11-12, then only S3a, S6, S9, S12, S15 (R15).
 
 Order rationale: cheap shrinking first; one move-only step so later diffs land in final packages; inside-out per area
 (domain → dialog → services → use cases); engine after chat (it is already the better-structured half); docs last
@@ -123,8 +131,10 @@ but package docstrings written at creation time.
 | Pending interrupts after deploy | node ids frozen; measured checkpoint blobs carry no module paths |
 | Alembic sees model moves as drops | one `Base`/metadata; `alembic check` in the gate for S3/S12 |
 | Worker task kinds/handlers renamed | task kinds are strings in `HANDLERS`; kept identical |
-| Big-bang PR S3 hard to review | move-only, generated from `moves/S3.yaml`; reviewer reads the map, not the diff |
-| Behaviour drift hidden in a "restructure" step | goldens unedited; graph tests; live replay after S6 and S15 |
+| Big-bang move with no human reviewer | split S3a/b/c; move-only from `moves/*.yaml`; behaviour diff + checkpoint check are the reviewer |
+| Behaviour drift hidden in a "restructure" step | coverage ≥ 80 % first, byte diff of goldens + recorded chats every step, goldens unedited, live replay at checkpoints |
+| Class objects in checkpoints | state = TypedDicts only; `check_checkpoints.py` |
+| Owner's 2026-11-12 baseline command path changes | stable `python -m automind.cli`; no deploy before the baseline closes |
 | Over-abstraction (YAGNI) | Protocol only with ≥ 2 implementations or the clarified policy seam; structure checker forbids `utils/helpers/common` |
 
 ## Complexity Tracking
