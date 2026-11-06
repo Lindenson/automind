@@ -116,6 +116,7 @@ async def research_job(job: dict[str, Any], runtime: Runtime[TurnContext]) -> di
                     need=_need(job),
                     round=job["round"],
                     car_year=car.year if car else None,
+                    market=car.market if car else None,  # a car not sold in Spain: researched where it is sold
                 ),
                 emit,
             )

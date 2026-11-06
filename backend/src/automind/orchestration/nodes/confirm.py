@@ -317,9 +317,12 @@ def _candidate_lines(case: Any, lang: str) -> str:
 def _market_lines(case: Any, lang: str | None) -> list[str]:
     """Cars not sold in Spain (chat 2026-11-06, owner): where each was found — a European country, else its home
     market — and where its data and prices come from; said in the reply, not only in a notice."""
-    return [t(intake.market_note(x.market), lang, car=f"{x.make} {x.model}",
-              market=phrases.market_name(x.market, lang))
-            for x in case.cars if x.market is not None and x.variant_id]  # fmt: skip
+    return [_market_line(x, lang) for x in case.cars if x.market is not None and x.variant_id]
+
+
+def _market_line(car: Any, lang: str | None) -> str:
+    return t(intake.market_note(car.market), lang, car=f"{car.make} {car.model}",
+             market=phrases.market_name(car.market, lang))  # fmt: skip
 
 
 async def prepare_intake(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
@@ -444,12 +447,14 @@ async def agreed(c: TurnContext, case: Any, lang: str | None) -> None:
     try:
         views = await car_view.view(case)
         cars = [{"key": x.key, "label": x.label or x.request_text,
-                 "variant_label": (views.get(x.key) or {}).get("variant_label"), "basis": _basis(x)}
+                 "variant_label": (views.get(x.key) or {}).get("variant_label"), "basis": _basis(x),
+                 **({"note": _market_line(x, lang)} if x.market is not None else {})}
                 for x in case.cars if x.variant_id]  # fmt: skip
         if not cars:
             return
         names = "; ".join(f"{x['label']}" + (f" ({x['variant_label']})" if x["variant_label"] else "") for x in cars)
-        text = t("agreed", lang, cars=names)
+        # chat 2026-11-06 (owner): a car not sold in Spain says where it was found here too, not only in the report
+        text = "\n".join([t("agreed", lang, cars=names), *(str(x["note"]) for x in cars if x.get("note"))])
         blocks = [{"type": "agreed", "cars": cars}]
         msg = await c.ports.messages.save(c.chat_id, "assistant", text, blocks, turn_id=c.turn_id)
         await c.emit("agreed", {"message_id": msg.id, "created_at": msg.created_at.isoformat(), "text": text,

@@ -40,8 +40,10 @@ TABLE_ROWS = [
     "battery_gross_kwh",
     "range_wltp",
     "range_real",
+    "range_cltc",
     "consumption_ev",
     "consumption_ev_real",
+    "consumption_ev_cltc",
     "consumption_cs",
     "consumption_weighted",
     "charge_ac_kw",
@@ -56,6 +58,7 @@ TABLE_ROWS = [
 
 
 ELECTRIC_ONLY = frozenset({"battery_kwh", "battery_gross_kwh", "battery_chemistry", "range_wltp", "range_real",
+                           "range_cltc", "consumption_ev_cltc",
                            "consumption_ev", "consumption_ev_real", "consumption_ev_plug", "charge_ac_kw",
                            "charge_dc_peak_kw", "charge_dc_10_80_min", "heat_pump"})  # fmt: skip
 PLUG_IN_ONLY = frozenset({"consumption_cs", "consumption_weighted"})
@@ -848,6 +851,8 @@ async def tco_car(
         battery_kwh=_num(car, "battery_kwh"),
         range_wltp=_num(car, "range_wltp"),
         range_real=_num(car, "range_real"),
+        consumption_ev_cltc=_num(car, "consumption_ev_cltc"),
+        range_cltc=_num(car, "range_cltc"),
         use=use,
         vehicle_class=v.vehicle_class,
         condition=condition,

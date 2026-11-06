@@ -67,6 +67,38 @@ abroad:
     versions: ["{make} {model} {when} 参数配置 功率 kW 版本", "{make} {model} {when} specs versions power kW"]
     spec_sources: 3
     trusted: [d1ev.com, 16888.com, chexun.com, carnewschina.com, cnevpost.com]
+    # Research of a car sold only in China (chat 2026-11-06: Deepal S09 and Li Auto L9 were researched on European
+    # sites only — no spec, no consumption, "energy cost cannot be computed"). Per area: queries in Chinese with the
+    # model's Chinese name ({local}: aliases.yaml local_names, else make + model), one `site:` query to the registry's
+    # sources of the market (robots and terms allow them; `terms_exclude` never) and one English query to the English
+    # sites that cover Chinese cars (registry survey 2026-11-05: robots allow them, no automated-access clause).
+    # Never for prices (spec 009 FR-009). `target`: how Chinese pages label the figures, for the extractor.
+    research:
+      name: China
+      areas:
+        specs: ["{local} 参数配置 百公里电耗 纯电续航 亏电油耗", "{local} 0-100加速 CLTC纯电续航 整备质量 最大功率"]
+        engineering: ["{local} 增程器 发动机 电池 电机 技术解析"]
+        measured: ["{local} 实测 0-100加速 亏电油耗 续航"]
+        reliability: ["{local} 质量问题 故障 投诉 召回"]
+        used_issues: ["{local} 质量问题 故障 投诉 召回"]
+        reviews: ["{local} 车主 口碑 优缺点"]
+      english:
+        specs: "{make} {model} specs CLTC range kWh/100km fuel consumption"
+        engineering: "{make} {model} range extender battery motor"
+        measured: "{make} {model} test 0-100 km/h range consumption"
+        reliability: "{make} {model} problems recall complaints"
+        reviews: "{make} {model} review"
+      english_sites: [carnewschina.com, cnevpost.com]
+      site_template: "{local} {sites}"
+      sites: 3
+      pages: 4
+      target: >-
+        Chinese pages are this car's own sources. Their labels: 百公里电耗 / 电耗 (kWh/100km) = electric consumption
+        (consumption_ev_cltc unless the page says WLTP); 纯电续航里程 / 纯电续航 (km) = electric range (range_cltc
+        unless the page says WLTP; never range_wltp for a CLTC figure); 亏电油耗 / 馈电油耗 (L/100km) = fuel
+        consumption with an empty battery (consumption_cs); 百公里加速 / 0-100km/h加速 (s) = claimed_0_100; 最大功率
+        (kW) = max_power; 最大扭矩 (N·m) = max_torque; 整备质量 (kg) = curb_mass; 最高车速 (km/h) = top_speed; 电池容量
+        (kWh) = battery_kwh. Copy raw values and excerpts in the original Chinese.
   ANY:
     search: ANY
     lineup: "{make} model lineup range"

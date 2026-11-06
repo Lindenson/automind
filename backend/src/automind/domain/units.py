@@ -72,6 +72,7 @@ _UNIT_AFTER = re.compile(
     r"""\s*(
       mpg\s*\(?\s*(?:us|u\.s\.|uk|imp(?:erial)?)\.?\s*\)? | (?:us|u\.s\.|uk|imp(?:erial)?)\s+mpg | mpg
     | l\s*/\s*100\s*kms? | kwh\s*/\s*100\s*kms? | km/h | kmh | kph | mph
+    | 千瓦时\s*/\s*百公里 | 度\s*/\s*百公里 | 升\s*/\s*百公里 | 公里\s*/\s*小时 | 公里 | 千米 | 秒
     | kw | ps | cv | ch | pk | bhp | whp | hp
     | n\s*[·.\-]?\s*m | lb[\s.\-]*ft | ft[\s.\-]*lbs? | kgm
     | kgs? | lbs? | tonnes? | t
@@ -139,7 +140,7 @@ def mass_to_kg(value: float, unit: str | None) -> float:
 
 def speed_to_kmh(value: float, unit: str | None) -> float:
     u = _u(unit)
-    if u in ("km/h", "kmh", "kph", ""):
+    if u in ("km/h", "kmh", "kph", "", "公里/小时"):
         return value
     if u == "mph":
         return value * MPH_KMH

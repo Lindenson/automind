@@ -30,7 +30,7 @@ def _same(v: float, _u: str | None) -> float:
 
 
 def _seconds(v: float, u: str | None) -> float:
-    if (u or "s").strip().lower() not in ("s", "sec", "secs", "seconds", "seg", "segundos"):
+    if (u or "s").strip().lower() not in ("s", "sec", "secs", "seconds", "seg", "segundos", "秒"):
         raise units.UnitError(f"unknown time unit {u!r}")
     return v
 
@@ -63,7 +63,7 @@ def _kw(v: float, u: str | None) -> float:
 
 def _kwh100(v: float, u: str | None) -> float:
     unit = (u or "").strip().lower().replace(" ", "")
-    if unit in ("kwh/100km", "kwh/100", "kwh/100kms"):
+    if unit in ("kwh/100km", "kwh/100", "kwh/100kms", "千瓦时/百公里", "kwh/百公里", "度/百公里"):
         return v
     if unit in ("wh/km",):
         return v / 10
@@ -74,14 +74,14 @@ def _l100(v: float, u: str | None) -> float:
     unit = (u or "").strip().lower().replace(" ", "")
     if "mpg" in unit:
         return units.mpg_to_l100km(v, units.mpg_market(u))
-    if unit not in ("l/100km", "l/100", "l/100kms"):
+    if unit not in ("l/100km", "l/100", "l/100kms", "升/百公里", "l/百公里"):
         raise units.UnitError(f"fuel consumption needs l/100 km, got {u!r}")
     return v
 
 
 def _km(v: float, u: str | None) -> float:
     unit = (u or "km").strip().lower()
-    if unit in ("km", "kms", "kilómetros", "kilometros", "kilometres", "kilometers", "км"):
+    if unit in ("km", "kms", "kilómetros", "kilometros", "kilometres", "kilometers", "км", "公里", "千米"):
         return v
     if unit in ("mi", "miles", "mile", "millas"):
         return v * 1.609344
@@ -154,6 +154,29 @@ ATTRS: dict[str, Attr] = {
         Attr(
             "consumption_ev",
             "Electric consumption (WLTP)",
+            "kWh/100 km",
+            "number",
+            "specs",
+            0.05,
+            convert=_kwh100,
+            plausible=(8, 40),
+        ),
+        # chat 2026-11-06 (Deepal S09 vs Li L9): a car sold only in China states the Chinese CLTC cycle, more
+        # optimistic than WLTP — its own attributes, never filed or shown as WLTP; the energy model applies its own
+        # real-use allowance (config/rates.yaml real_world_factor.CLTC)
+        Attr(
+            "range_cltc",
+            "Electric range (CLTC, China)",
+            "km",
+            "number",
+            "specs",
+            0.03,
+            convert=_km,
+            plausible=(15, 1200),
+        ),
+        Attr(
+            "consumption_ev_cltc",
+            "Electric consumption (CLTC, China)",
             "kWh/100 km",
             "number",
             "specs",

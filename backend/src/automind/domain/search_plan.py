@@ -152,6 +152,12 @@ def market_names_of(config: Mapping[str, Any] | None, make: str, model: str, gen
 _SITE = re.compile(r"^[a-z0-9-]+(?:\.[a-z0-9-]+)+(?:/[\w./-]*)?$")
 
 
+def plain_site(domain: str) -> bool:
+    """A domain (or domain/path) fit for a `site:` query: plain, never deny-listed."""
+    d = domain.lower().removeprefix("www.")
+    return bool(_SITE.match(d)) and not is_denied(f"https://{d}/")
+
+
 def registry_queries(
     area: str,
     car: Identity,

@@ -53,3 +53,22 @@ market_names:
   # Search queries use it per market (spec 009 FR-017, FR-021): the Prado J150 is a "Land Cruiser" in Spain and
   # Germany (the big J200 is the "Land Cruiser V8" there); other markets keep the canonical "Land Cruiser Prado".
   "Toyota|Land Cruiser Prado": {ES: Land Cruiser, DE: Land Cruiser}
+local_names:
+  # "<canonical make>|<canonical model>" -> {market: the whole name as that market writes it}. A car sold only there
+  # is searched under it in that market's language and its pages pass relevance by it (chat 2026-11-06, Deepal S09 vs
+  # Li Auto L9: Chinese pages write 深蓝S09 / 理想L9, rarely "Deepal" / "Li Auto").
+  "Deepal|S09": {CN: 深蓝S09}
+  "Deepal|S07": {CN: 深蓝S07}
+  "Deepal|S05": {CN: 深蓝S05}
+  "Deepal|L07": {CN: 深蓝L07}
+  "Deepal|SL03": {CN: 深蓝SL03}
+  "Li Auto|L9": {CN: 理想L9}
+  "Li Auto|L8": {CN: 理想L8}
+  "Li Auto|L7": {CN: 理想L7}
+  "Li Auto|L6": {CN: 理想L6}
+  "Li Auto|MEGA": {CN: 理想MEGA}
+  "Aito|M9": {CN: 问界M9}
+  "Aito|M7": {CN: 问界M7}
+  "Aito|M5": {CN: 问界M5}
+  "Xiaomi|SU7": {CN: 小米SU7}
+  "Xiaomi|YU7": {CN: 小米YU7}

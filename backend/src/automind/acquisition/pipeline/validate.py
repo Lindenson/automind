@@ -18,7 +18,7 @@ from automind.domain import evidence as ev
 from automind.domain import plausibility, sense, sense_ev, specs
 from automind.infrastructure import db
 
-VERSION = "validate@1"
+VERSION = "validate@2"  # 2: CLTC ranges and kWh/100 km never filed as WLTP (chat 2026-11-06)
 
 
 def fuel_of(variant_name: str, powertrain: str | None) -> str | None:
@@ -125,7 +125,7 @@ def sense_before(
     if c.attribute == "boot_volume" and not (b := sense.boot_fits_body(_litres(c.raw_value), v.body_class, url)).ok:
         return c, ("REJECTED_IMPLAUSIBLE", None, None, b.rule_id or "sense.boot")
     if (v.powertrain or "").upper() in sense_ev.PLUG_IN or c.attribute in _EV_CLAIMS:
-        return _sense_ev_before(c, v)
+        return _sense_ev_before(c, v, url)
     if c.attribute != "consumption":
         return c, None
     r = sense.classify_consumption(c.raw_value, c.excerpt, v.generation_years_from, source_type)
@@ -135,7 +135,7 @@ def sense_before(
 
 
 _EV_CLAIMS = ("battery_kwh", "battery_gross_kwh", "charge_ac_kw", "charge_dc_peak_kw", "charge_dc_10_80_min",
-              *sense_ev.EV_ATTRS, "consumption_cs", "consumption_weighted")  # fmt: skip
+              *sense_ev.EV_ATTRS, "consumption_cs", "consumption_weighted", "range_wltp", "range_cltc")  # fmt: skip
 
 
 def _refile(c: Any, attribute: str | None, raw_value: Any) -> Any:
@@ -143,8 +143,9 @@ def _refile(c: Any, attribute: str | None, raw_value: Any) -> Any:
     return c.model_copy(update=update) if hasattr(c, "model_copy") else dataclasses.replace(c, **update)
 
 
-def _sense_ev_before(c: Any, v: db.Variant) -> tuple[Any, tuple[str, None, None, str] | None]:
-    """Electric values (spec 006 R4): a plug-in's consumption by its words; gross vs usable; kWh vs kW."""
+def _sense_ev_before(c: Any, v: db.Variant, url: str = "") -> tuple[Any, tuple[str, None, None, str] | None]:
+    """Electric values (spec 006 R4): a plug-in's consumption by its words; gross vs usable; kWh vs kW; the test
+    cycle of a range or kWh/100 km (a Chinese page's CLTC figure is never filed as WLTP, chat 2026-11-06)."""
     plug_in = (v.powertrain or "").upper() in sense_ev.PLUG_IN
     if plug_in and c.attribute in (*sense_ev.FUEL_ATTRS, *sense_ev.EV_ATTRS):
         r = sense_ev.plug_in_consumption(c.attribute, c.raw_value, c.unit, c.excerpt)
@@ -153,6 +154,11 @@ def _sense_ev_before(c: Any, v: db.Variant) -> tuple[Any, tuple[str, None, None,
         c = _refile(c, r.attribute, r.value)
     elif c.attribute in ("consumption_cs", "consumption_weighted"):  # only plug-ins have these
         return c, ("REJECTED_IMPLAUSIBLE", None, None, "sense.phev.not_plug_in")
+    if c.attribute in sense_ev.CYCLE_ATTRS:
+        r = sense_ev.ev_cycle(c.attribute, c.raw_value, c.excerpt, url)
+        if not r.ok:
+            return c, ("REJECTED_IMPLAUSIBLE", None, None, r.rule_id or "sense.ev")
+        c = _refile(c, r.attribute, c.raw_value)
     if c.attribute in ("battery_kwh", "battery_gross_kwh"):
         c = _refile(c, sense_ev.battery_kind(c.raw_value, c.excerpt), c.raw_value)
     r = sense_ev.check_claim(c.attribute, c.raw_value, c.unit, c.excerpt)

@@ -59,6 +59,7 @@ class Target:
     body: str | None = None
     transmission: str | None = None  # manual | automatic | dct | cvt | e-cvt | single (spec 004 FR-028)
     drive: str | None = None  # FWD | RWD | AWD
+    names: tuple[str, ...] = ()  # other written names of the model, lower case ("理想l9", "lixiang l9"; aliases.yaml)
 
 
 @dataclass(frozen=True)
@@ -111,7 +112,10 @@ def _model_words(target: Target) -> list[str]:
     words = [w for w in re.split(r"[\s\-]+", m) if len(w) >= 3 and not w.isdigit()]
     words += sorted(spellings)
     make = re.split(r"[\s\-]+", target.make.lower())[0]
-    return [make, *words]
+    # a Chinese page names the model in Chinese ("理想L9", "理想 L9"): every alias and local name, with and without
+    # its spaces (chat 2026-11-06)
+    names = {n for x in target.names for n in (x.lower(), x.lower().replace(" ", "")) if len(n) >= 3}
+    return [make, *words, *sorted(names)]
 
 
 def _same_power(a: float, b: float) -> bool:
