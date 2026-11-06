@@ -219,7 +219,8 @@ no code literal repeats a YAML default; `git worktree list` shows only the main 
   vocabulary tables, which are listed explicitly); a check enforces it.
 - **FR-005**: The top-level source tree MUST be organised by product area first, then by layer:
   `chat/` (domain, application, orchestration of the conversation), `acquisition/` (pipeline, parsing, agents,
-  worker, registry, reputation, insight, gold, snapshots, its own domain and infrastructure), `shared/` (concepts and
+  worker, registry, reputation, gold, snapshots, its own domain and infrastructure), `observability/` (the insight
+  loop over the journals of both cycles; imported by nobody but delivery — plan review B2), `shared/` (concepts and
   infrastructure both areas use: vehicle identity, units, evidence, config loading, database session and models)
   and `delivery/` (web API, WebSocket, worker and CLI entry points). Owner's choice A, 2026-11-06.
 - **FR-006**: Each aggregate or cohesive domain concept MUST live in its own module named after it; large concepts
@@ -261,9 +262,10 @@ no code literal repeats a YAML default; `git worktree list` shows only the main 
 
 **Text, patterns, parsing (owner point 7)**
 
-- **FR-016**: Compiled patterns and word/phrase tables MUST be defined in named, documented patterns/vocabulary
-  modules of their area, not inside business-logic modules; each pattern has a name and a one-line comment with an
-  example it matches.
+- **FR-016**: Word/phrase tables, language patterns and any pattern used by two or more modules MUST live in
+  vocabulary modules grouped by concept (not one patterns dump); a technical regex used once MAY stay in its module
+  as a named constant in the contracts section; no regex is compiled or written inside a function; every pattern
+  has a name and a one-line comment with an example it matches.
 - **FR-017**: All knowledge of how source answers are parsed (site readers, declarative parsers, extraction
   schemas, interpreter, unit and cycle normalisation) MUST be in one parsing package of the acquisition engine, with a
   docstring describing the path "fetched page → parsed fields → claims → validated values".
@@ -288,7 +290,8 @@ no code literal repeats a YAML default; `git worktree list` shows only the main 
 ### Key Entities
 
 - **Product area**: a top-level part of the system with one purpose — Chat (answer the person), Acquisition engine
-  (collect, validate and improve data, including its agents, worker, registry, reputation and insight), Shared
+  (collect, validate and improve data, including its agents, worker, registry and reputation), Observability (the
+  insight loop over both cycles' journals), Shared
   kernel (concepts both use), Delivery (web API, worker and CLI entry points).
 - **Package**: a folder with a documented purpose and explicit public API; belongs to exactly one product area and
   one layer.
