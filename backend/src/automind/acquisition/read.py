@@ -10,6 +10,7 @@ from typing import Any
 
 from sqlalchemy import func, select
 
+from automind.acquisition.pipeline import plan
 from automind.acquisition.pipeline.validate import CRITICAL
 from automind.domain import research_plan
 from automind.infrastructure import db
@@ -68,16 +69,20 @@ async def powertrains(variant_ids: list[str]) -> dict[str, str | None]:
 
 async def registry_done(variant_ids: list[str]) -> dict[str, dict[str, Any]]:
     """variant_id -> area -> when its research last tried the registry's sources with the escalation (spec 010
-    FR-022); areas that never did are absent."""
+    FR-022); areas that never did are absent. A run planned by an older planner counts as not tried: its markets
+    and queries were other ones (chat 2026-11-06: a run before the home-market research blocked the Chinese search
+    of an unmet area for the retry window), so the unmet area is tried again at once."""
     out: dict[str, dict[str, Any]] = defaultdict(dict)
     async with db.sessionmaker()() as s:
+        r = db.ResearchRun
         rows = await s.execute(
-            select(db.ResearchRun.variant_id, db.ResearchRun.area, db.ResearchRun.registry_at).where(
-                db.ResearchRun.variant_id.in_(variant_ids), db.ResearchRun.registry_at.is_not(None)
+            select(r.variant_id, r.area, r.registry_at, r.stage_versions).where(
+                r.variant_id.in_(variant_ids), r.registry_at.is_not(None)
             )
         )
-        for vid, area, at in rows.all():
-            out[str(vid)][str(area)] = at
+        for vid, area, at, versions in rows.all():
+            if (versions or {}).get("plan", plan.VERSION) == plan.VERSION:
+                out[str(vid)][str(area)] = at
     return out
 
 

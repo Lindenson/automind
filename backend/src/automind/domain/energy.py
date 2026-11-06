@@ -365,6 +365,16 @@ def _ev_kwh(
         how = (f"CLTC (China) {car.consumption_ev_cltc:g} kWh/100 km × {cltc:g} real-use allowance for the Chinese "
                "cycle (assumption)")  # fmt: skip
         return car.consumption_ev_cltc * cltc * f, [how], fl
+    if wltp is None and car.battery_kwh and car.range_cltc:
+        # Chinese pages rarely state kWh/100 km for a range-extended car (chat 2026-11-06): battery ÷ CLTC range is
+        # battery-side CLTC energy, so the CLTC allowance, the climate/motorway factors and the losses are applied
+        f, fl = factors(r.cfg, use)
+        cltc = r.real_world_factor.get("CLTC", CLTC_FACTOR)
+        base = car.battery_kwh / car.range_cltc * 100
+        fl.append(f"charging losses +{loss * 100:.0f}% (assumption)")
+        how = (f"ESTIMATE {base:.1f} kWh/100 km ({car.battery_kwh:g} kWh battery ÷ {car.range_cltc:g} km CLTC, China) "
+               f"× {cltc:g} real-use allowance for the Chinese cycle")  # fmt: skip
+        return base * cltc * f * (1 + loss), [how], fl
     if wltp is None:
         return None, [], []
     f, fl = factors(r.cfg, use)
