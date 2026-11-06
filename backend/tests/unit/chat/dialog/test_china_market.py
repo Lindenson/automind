@@ -9,10 +9,10 @@ from automind.acquisition.pipeline import identity as readers
 from automind.acquisition.registry.api import PlannedSource
 from automind.chat.application.services.identification import lineup
 from automind.chat.dialog.phrases import PHRASES, market_name, t
+from automind.chat.domain import intake
 from automind.chat.domain.case import CaseCar
-from automind.chat.domain.intake import intake
 from automind.shared.infrastructure.config.loader import load_yaml, search_config
-from automind.shared.vehicle import identity
+from automind.shared.vehicle import identity, markets
 from automind.shared.vehicle.makes import MakeRegistry
 
 REG = MakeRegistry.from_config(load_yaml("makes.yaml"))
@@ -45,12 +45,12 @@ def test_never_the_model_asked_as_its_own_alternative() -> None:
 
 
 def test_a_european_page_names_its_country() -> None:
-    assert intake.country_of_url("https://www.deepal.pl/modele") == "PL"
-    assert intake.country_of_url("https://www.autoexpress.co.uk/deepal") == "GB"
-    assert intake.country_of_url("https://www.autonews.com/x") is None
-    assert intake.country_of_url("https://www.16888.com/deepal/") is None
-    assert intake.european("UA") and intake.european("NO") and intake.european("TR") and not intake.european("CN")
-    assert intake.market_note("PL") == "sold_in_europe" and intake.market_note("CN") == "sold_abroad"
+    assert markets.country_of_url("https://www.deepal.pl/modele") == "PL"
+    assert markets.country_of_url("https://www.autoexpress.co.uk/deepal") == "GB"
+    assert markets.country_of_url("https://www.autonews.com/x") is None
+    assert markets.country_of_url("https://www.16888.com/deepal/") is None
+    assert markets.european("UA") and markets.european("NO") and markets.european("TR") and not markets.european("CN")
+    assert markets.market_note("PL") == "sold_in_europe" and markets.market_note("CN") == "sold_abroad"
     pl = [LineupEntry(model="S09", source_url="https://www.deepal.pl/modele")]
     docs = {"https://www.deepal.pl/modele": ("Deepal Polska", "Deepal S07 · Deepal S09")}
     lu = lineup.validate("Deepal", pl, docs, None, "EU")  # the maker's own country site counts as official
@@ -58,13 +58,15 @@ def test_a_european_page_names_its_country() -> None:
 
 
 def test_lookup_order_europe_first_then_home_then_anywhere() -> None:
-    assert intake.lookup_markets("CN") == ["EU", "CN", "ANY"]
-    assert intake.lookup_markets(None) == ["EU", "ANY"]
-    assert intake.lookup_markets("DE") == ["EU", "ANY"]
-    assert intake.european(None) and intake.european("EU") and not intake.european("CN")
-    assert intake.abroad_note("CN", priced=False) == "abroad_no_price"
-    assert intake.abroad_note("CN", priced=True) == "abroad_priced"
-    assert intake.abroad_note("PL", priced=False) == "sold_in_europe" and intake.abroad_note(None, priced=False) is None
+    assert markets.lookup_markets("CN") == ["EU", "CN", "ANY"]
+    assert markets.lookup_markets(None) == ["EU", "ANY"]
+    assert markets.lookup_markets("DE") == ["EU", "ANY"]
+    assert markets.european(None) and markets.european("EU") and not markets.european("CN")
+    assert markets.abroad_note("CN", priced=False) == "abroad_no_price"
+    assert markets.abroad_note("CN", priced=True) == "abroad_priced"
+    assert (
+        markets.abroad_note("PL", priced=False) == "sold_in_europe" and markets.abroad_note(None, priced=False) is None
+    )
 
 
 def test_chinese_makes_and_their_transliterations() -> None:

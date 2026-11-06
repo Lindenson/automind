@@ -11,7 +11,7 @@ import yaml
 from automind.chat.dialog.nodes.understand import _energy_from_text
 from automind.chat.domain.case import CaseCar, CaseFile, StatedEnergy
 from automind.chat.domain.cost import energy as en
-from automind.chat.domain.intake.intake import energy_figures_of, stated_for_cars
+from automind.chat.domain.understanding import energy_figures_of, stated_for_cars
 from automind.shared.vehicle.makes import MakeRegistry
 
 REG = MakeRegistry.from_config(yaml.safe_load((Path(__file__).parents[5] / "config" / "makes.yaml").read_text()))

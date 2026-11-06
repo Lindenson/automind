@@ -13,12 +13,11 @@ from pydantic import BaseModel
 
 from automind.acquisition.ports import AcqPorts
 from automind.acquisition.registry.api import Plan
-from automind.chat.domain.intake import intake
 from automind.shared.infrastructure import db
 from automind.shared.metering.usage import BudgetExceeded
 from automind.shared.research_order import plan as research_plan
 from automind.shared.research_order import search_plan
-from automind.shared.vehicle import specs
+from automind.shared.vehicle import markets, specs
 
 if TYPE_CHECKING:
     from automind.acquisition.pipeline.job import JobSpec
@@ -135,7 +134,7 @@ async def registry_queries(ports: AcqPorts, v: db.Variant, job: JobSpec,
 def home_market(v: db.Variant, job: JobSpec) -> str | None:
     """The market outside Europe the car is sold on (the case's, else the variant's), or None."""
     m = (getattr(job, "market", None) or getattr(v, "market", None) or "ES").upper()
-    return None if intake.european(m) else m
+    return None if markets.european(m) else m
 
 
 def _home_cfg(ports: AcqPorts, market: str) -> dict[str, Any]:

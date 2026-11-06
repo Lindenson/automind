@@ -19,19 +19,20 @@ from automind.chat.dialog.guard import CheckInput as GuardInput
 from automind.chat.dialog.nodes.common import notice, record_intake
 from automind.chat.dialog.phrases import energy_input, market_name, t
 from automind.chat.dialog.runner import TurnContext
+from automind.chat.domain import understanding
 from automind.chat.domain.assessment.criteria import CriteriaScore, score, weight_breakdown, weights_for
 from automind.chat.domain.assessment.metrics import new_generation_since
 from automind.chat.domain.case import CaseFile
 from automind.chat.domain.cost import incentives, tco
 from automind.chat.domain.cost.energy import UsageContext
 from automind.chat.domain.identification import used
-from automind.chat.domain.intake import intake
 from automind.chat.domain.verdict import insights as ins
 from automind.chat.domain.verdict import suggestions
 from automind.chat.domain.verdict import verdict as vd
 from automind.chat.domain.verdict.report_layout import annotate_sections, depths, order_blocks
 from automind.shared.evidence import sense
 from automind.shared.research_order import plan as research_plan
+from automind.shared.vehicle import markets
 
 
 @dataclass
@@ -332,7 +333,7 @@ def _abroad_notices(keyed: list[Any], lang: str | None) -> list[dict[str, Any]]:
     European source; without one, no euro price is given (spec 009 FR-009)."""
     out = []
     for x, car in keyed:
-        key = intake.abroad_note(x.market, compose.new_price(car) is not None)
+        key = markets.abroad_note(x.market, compose.new_price(car) is not None)
         if key is not None:
             out.append(notice(t(key, lang, car=compose.short_name(car["variant"]), market=market_name(x.market, lang)),
                               "info", car_key=x.key))  # fmt: skip
@@ -447,7 +448,7 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
     curve = (c.ports.ref.feasibility or {}).get("depreciation") or {}
     use = usage_context(case)
     recent = recent_make(c)
-    stated = intake.stated_for_cars(case.stated_energy, [(x.key, car["variant"].powertrain) for x, car in keyed])
+    stated = understanding.stated_for_cars(case.stated_energy, [(x.key, car["variant"].powertrain) for x, car in keyed])
     ages = {x.key: _age(x, car["variant"], c, notices, lang) for x, car in keyed}
     usedf = _used_facts(keyed, ages, c, notices, lang)
 

@@ -1,7 +1,7 @@
 """Intake loop (spec 005 R5, R6, R11): identity key, progress, next step without repeats, distances."""
 
+from automind.chat.domain import intake, understanding
 from automind.chat.domain.case import CaseCar, CaseFile, Constraints, IdentifyOutcome
-from automind.chat.domain.intake import intake
 from automind.shared.vehicle.engine import EngineHint
 
 LIMITS = intake.Limits(max_attempts_per_item=2, max_attempts_per_car=4, full_intake=True)
@@ -26,13 +26,13 @@ def test_identity_key_changes_with_engine_gearbox_year_condition_trim() -> None:
 
 
 def test_parse_distance() -> None:
-    assert intake.parse_distance("нужно 1-2 тыс км в месяц") == (12000, 24000)
-    assert intake.parse_distance("1–2k km a month") == (12000, 24000)
-    assert intake.parse_distance("20k a year") == (20000, 20000)
-    assert intake.parse_distance("2 000 km al mes") == (24000, 24000)
-    assert intake.parse_distance("около 15000 км в год") == (15000, 15000)
-    assert intake.parse_distance("Ateca 1.5") is None
-    assert intake.parse_distance("2019, 80 тыс км") is None  # a mileage of a used car, not a yearly distance
+    assert understanding.parse_distance("нужно 1-2 тыс км в месяц") == (12000, 24000)
+    assert understanding.parse_distance("1–2k km a month") == (12000, 24000)
+    assert understanding.parse_distance("20k a year") == (20000, 20000)
+    assert understanding.parse_distance("2 000 km al mes") == (24000, 24000)
+    assert understanding.parse_distance("около 15000 км в год") == (15000, 15000)
+    assert understanding.parse_distance("Ateca 1.5") is None
+    assert understanding.parse_distance("2019, 80 тыс км") is None  # a mileage of a used car, not a yearly distance
 
 
 def test_progress() -> None:
@@ -102,13 +102,13 @@ def test_condition_asked_once_for_all_cars() -> None:
 
 
 def test_condition_and_region_of_text() -> None:
-    assert intake.condition_of("Новые") == "NEW" and intake.condition_of("б/у") == "USED"
-    assert intake.condition_of("de segunda mano") == "USED" and intake.condition_of("hola") is None
+    assert understanding.condition_of("Новые") == "NEW" and understanding.condition_of("б/у") == "USED"
+    assert understanding.condition_of("de segunda mano") == "USED" and understanding.condition_of("hola") is None
     regions = {"SOUTH": {"names": ["юге испании"], "climate": "HOT"}, "AN": {"names": ["севилья"], "climate": "HOT"},
                "CT": {"names": ["barcelona"], "climate": "MILD"}}  # fmt: skip
-    assert intake.region_of("для эксплуатации на юге испании", regions) == ("SOUTH", "HOT", "юге испании")
-    assert intake.region_of("живу в Barcelona", regions)[:2] == ("CT", "MILD")  # type: ignore[index]
-    assert intake.region_of("для семьи", regions) is None
+    assert understanding.region_of("для эксплуатации на юге испании", regions) == ("SOUTH", "HOT", "юге испании")
+    assert understanding.region_of("живу в Barcelona", regions)[:2] == ("CT", "MILD")  # type: ignore[index]
+    assert understanding.region_of("для семьи", regions) is None
 
 
 def test_at_most_three_questions() -> None:

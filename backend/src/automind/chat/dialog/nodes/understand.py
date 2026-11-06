@@ -18,9 +18,9 @@ from automind.chat.dialog.nodes.common import ctx, current_year, history, load_c
 from automind.chat.dialog.phrases import t
 from automind.chat.dialog.runner import TurnContext
 from automind.chat.dialog.state import PER_TURN_RESET, TurnState
+from automind.chat.domain import intake, understanding
 from automind.chat.domain.case import CarRef, CaseDelta, CaseFile, Constraints, StatedEnergy, apply, apply_defaults
 from automind.chat.domain.identification import identification
-from automind.chat.domain.intake import intake
 from automind.chat.domain.policy import CarState, decide
 from automind.shared.infrastructure.config.settings import settings
 from automind.shared.research_order import plan as research_plan
@@ -200,12 +200,12 @@ def _charging_from_text(new: CaseFile, text: str) -> list[str]:
     """Where the user can charge and their own electricity price, from their words (spec 006 R5, R7)."""
     log: list[str] = []
     p = new.profile
-    if (ch := intake.charging_of(text)) is not None and ch[0] != p.home_charging:
+    if (ch := understanding.charging_of(text)) is not None and ch[0] != p.home_charging:
         p.home_charging = ch[0]  # type: ignore[assignment]
         p.evidence["home_charging"] = ch[1]
         new.basis["home_charging"] = "STATED"
         log.append(f'charging: {ch[0].lower()} ("{ch[1]}")')
-    if (pr := intake.electricity_price_of(text)) is not None:
+    if (pr := understanding.electricity_price_of(text)) is not None:
         r = new.rates_override
         if pr[0] != r.home_electricity_eur_per_kwh or (pr[1] and not r.night_tariff):
             r.home_electricity_eur_per_kwh, r.night_tariff = pr[0], (pr[1] or r.night_tariff)
@@ -236,7 +236,7 @@ def _energy_from_text(new: CaseFile, text: str, reg: Any) -> list[str]:
     the same sentence (or left to the one car it can apply to). The newest figure per car and kind wins."""
     log: list[str] = []
     prev = 0
-    for f in intake.energy_figures_of(text):
+    for f in understanding.energy_figures_of(text):
         sentence = max((m.end() for m in _SENTENCE.finditer(text, 0, f.start)), default=0)
         key = _car_named(new, text[max(prev, sentence) : f.start], reg)
         prev = f.start
@@ -253,11 +253,11 @@ def _person_from_text(new: CaseFile, before: CaseFile, text: str, regions: dict[
     climate, a yearly distance range, and the answer to "new or used?" for every car still UNKNOWN."""
     log: list[str] = []
     p = new.profile
-    if (r := intake.region_of(text, regions)) is not None and r[0] != p.region_code:
+    if (r := understanding.region_of(text, regions)) is not None and r[0] != p.region_code:
         p.region, p.region_code, p.climate = r[2][:60], r[0], r[1]  # type: ignore[assignment]
         p.evidence["region"] = r[2]
         log.append(f"region {r[2]} ({r[1].lower()} climate)")
-    if (d := intake.parse_distance(text)) is not None and (d[0], d[1]) != (p.annual_km_min, p.annual_km_max):
+    if (d := understanding.parse_distance(text)) is not None and (d[0], d[1]) != (p.annual_km_min, p.annual_km_max):
         p.annual_km_min, p.annual_km_max = d
         new.annual_km, new.annual_km_stated = round((d[0] + d[1]) / 2 / 500) * 500, True
         p.evidence["annual_km"] = text[:120]
@@ -267,7 +267,7 @@ def _person_from_text(new: CaseFile, before: CaseFile, text: str, regions: dict[
         new.wanted_body = body  # type: ignore[assignment]
         log.append(f"body wanted: {body}")
     asked_condition = before.pending is not None and any(it.get("kind") == "CONDITION" for it in before.pending.items)
-    if asked_condition and (cond := intake.condition_of(text)) is not None:
+    if asked_condition and (cond := understanding.condition_of(text)) is not None:
         for car in new.cars:
             if car.condition == "UNKNOWN":
                 car.condition = cond  # type: ignore[assignment]
@@ -279,10 +279,10 @@ def _cars_safety_net(new: CaseFile, i: Interpretation, text: str, reg: Any, year
                      request: str) -> tuple[CaseFile, str, list[str]]:  # fmt: skip
     """Two named cars are a comparison even when the interpreter called the message a general question or
     returned a comparison without cars (live run 2026-11-04, twice)."""
-    found = intake.cars_in_text(text, reg.match_make) if reg is not None else []
+    found = understanding.cars_in_text(text, reg.match_make) if reg is not None else []
     if len(found) < 2:
         return new, request, []
-    cond = intake.condition_of(text) or "UNKNOWN"
+    cond = understanding.condition_of(text) or "UNKNOWN"
     refs = [CarRef(request_text=words, make=make, condition=cond,
                    constraints=Constraints(engine_hint=parse_engine(words))) for words, make in found[:3]]  # fmt: skip
     out, log = apply(new, CaseDelta(add_cars=refs), current_year=year)

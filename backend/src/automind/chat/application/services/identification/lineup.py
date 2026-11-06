@@ -24,9 +24,10 @@ from sqlalchemy import select
 
 from automind.acquisition.api import LineupEntry
 from automind.chat.application.ports import Ports
-from automind.chat.domain.intake.intake import LineupModel, country_of_url, european
+from automind.chat.domain.intake import LineupModel
 from automind.shared import evidence
 from automind.shared.infrastructure import db
+from automind.shared.vehicle.markets import country_of_url, european
 
 
 @dataclass

@@ -7,6 +7,7 @@ Owns:
   `car` — a car in the case: request, constraints, options offered, identification outcome, ladder memo.
   `casefile` — `CaseFile`, the aggregate root, with the dialogue state it keeps (intake attempts, pending, shown).
   `delta` — `CaseDelta` (the interpreter's typed proposal) and `apply`, the only way a case changes (FR-003).
+  `fit` — `Fit` and `Fit.from_case`: what the person needs, for ranking line-ups and candidates.
   `weights` — `set_weights`: criteria weights adjusted by hand (spec 007).
 Flow: interpreter proposes a CaseDelta → delta.apply validates and merges it → a new CaseFile version is stored.
 Depends on: shared.vehicle (engine), pydantic. Must not depend on: sqlalchemy, langgraph, fastapi, the application,
@@ -58,6 +59,9 @@ from automind.chat.domain.case.enums import (
     Strength,
     Usage,
 )
+from automind.chat.domain.case.fit import (
+    Fit,
+)
 from automind.chat.domain.case.person import (
     Budget,
     Needs,
@@ -90,6 +94,7 @@ __all__ = [
     "IdentifyKind",
     "IdentifyOutcome",
     "Intake",
+    "Fit",
     "IntakeItem",
     "LadderMemo",
     "MAX_CARS",

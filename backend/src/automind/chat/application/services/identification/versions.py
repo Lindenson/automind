@@ -24,10 +24,9 @@ from typing import Any
 from automind.acquisition.api import DatasetVersion, VersionEntry, VersionsOut, VersionsRead
 from automind.chat.application.ports import Ports
 from automind.chat.domain.identification.ladder import Generation, Version, sold_in
-from automind.chat.domain.intake import intake
 from automind.shared import evidence
 from automind.shared.research_order import search_plan
-from automind.shared.vehicle import identity
+from automind.shared.vehicle import identity, markets
 
 
 def _power_written(v: VersionEntry, text: str) -> bool:
@@ -105,7 +104,7 @@ async def _harder_queries(ports: Ports, make: str, model: str, generation: str |
 def abroad_queries(ports: Ports, market: str, make: str, model: str, when: str) -> tuple[list[str], str]:
     """The versions searches for a car not sold in Spain, and their locale (config/search.yaml `abroad`)."""
     every = (ports.ref.search or {}).get("abroad") or {}
-    cfg = dict(every.get(market) or every.get(intake.EUROPE if intake.european(market) else intake.ANYWHERE) or {})
+    cfg = dict(every.get(market) or every.get(markets.EUROPE if markets.european(market) else markets.ANYWHERE) or {})
     tpl = [str(q) for q in cfg.get("versions") or ["{make} {model} {when} versions specifications power kW"]]
     return [" ".join(q.format(make=make, model=model, when=when).split()) for q in tpl], str(cfg.get("search") or "ANY")
 

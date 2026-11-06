@@ -47,7 +47,7 @@ cd backend
 uv run ruff check src tests
 uv run ruff format --check src tests
 # the former domain package (spec 012 moved its modules into the areas; same strict scope)
-uv run mypy src/automind/chat/domain src/automind/shared/vehicle/identity.py src/automind/shared/vehicle/specs \
+uv run mypy src/automind/chat/domain src/automind/shared/vehicle/identity.py src/automind/shared/vehicle/markets.py src/automind/shared/vehicle/engine.py src/automind/shared/vehicle/specs \
   src/automind/shared/vehicle/units.py src/automind/shared/evidence src/automind/shared/research_order \
   src/automind/acquisition/domain/plausibility.py src/automind/acquisition/domain/sense_ev.py \
   src/automind/acquisition/domain/relevance.py src/automind/observability/domain/outcome.py

@@ -7,8 +7,8 @@ from sqlalchemy import delete, select
 
 from automind.chat.dialog.graph import build_graph
 from automind.chat.dialog.runner import ChatRunner
-from automind.chat.domain.case import Budget, CaseCar, CaseFile
-from automind.chat.domain.intake import intake
+from automind.chat.domain import intake
+from automind.chat.domain.case import Budget, CaseCar, CaseFile, Fit
 from automind.chat.domain.policy import decide
 from automind.chat.infrastructure.persistence.repositories import MessageRepo
 from automind.shared.infrastructure import db
@@ -55,7 +55,7 @@ POOL = [
 
 
 def test_candidates_fit_the_body_and_the_budget_one_per_make_first():
-    fit = intake.Fit(family=True, annual_km=15000, budget_eur=25000)
+    fit = Fit(family=True, annual_km=15000, budget_eur=25000)
     got = intake.pick_candidates(POOL, fit, "suv")
     names = [f"{mk} {m.model}" for mk, m, _ in got]
     assert 2 <= len(got) <= 3 and "BMW X3" not in names and "Toyota Yaris" not in names
@@ -64,7 +64,7 @@ def test_candidates_fit_the_body_and_the_budget_one_per_make_first():
 
 
 def test_an_unpriced_model_fills_in_only_when_needed():
-    fit = intake.Fit(family=True, budget_eur=25000)
+    fit = Fit(family=True, budget_eur=25000)
     few = [p for p in POOL if p[0] in ("Toyota", "Kia")]
     got = intake.pick_candidates(few, fit, "suv")
     assert [m.model for _, m, _ in got] == ["C-HR", "Sportage"]

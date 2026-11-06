@@ -8,8 +8,8 @@ import pytest
 
 from automind.chat.application.services.identification.identify import year_conflict
 from automind.chat.dialog import phrases
+from automind.chat.domain import intake
 from automind.chat.domain.case import CaseCar, CaseFile, Choice, Constraints, Pending
-from automind.chat.domain.intake import intake
 from automind.shared.vehicle.engine import EngineHint
 
 REF = SimpleNamespace(generations={"Audi|A4": [("B8", 2008, 2015), ("B9", 2015, 2024)]})

@@ -10,9 +10,8 @@ proposed, of the body of the car they replace when it is known.
 from __future__ import annotations
 
 from automind.chat.application.ports import Ports
-from automind.chat.application.services.identification.identify import fit_of
-from automind.chat.domain.case import CaseCar, CaseFile
-from automind.chat.domain.intake import intake
+from automind.chat.domain import intake
+from automind.chat.domain.case import CaseCar, CaseFile, Fit
 
 
 def _same(a: str | None, b: str | None) -> bool:
@@ -57,7 +56,7 @@ async def propose(ports: Ports, case: CaseFile, limit: int = 3) -> list[dict[str
         make = reg.canonical(case.wanted_make) if reg is not None else None
         pool = [(mk, m) for mk, m in pool if _same(mk, make or case.wanted_make)]
         body = body or _replaced_body(known, case)
-    fit = fit_of(case)
+    fit = Fit.from_case(case)
     picked = intake.pick_candidates(pool, fit, body, limit=limit)
     if len(picked) < 2 and case.wanted_make and body and not case.wanted_body:
         picked = intake.pick_candidates(pool, fit, None, limit=limit)  # the make has no model of that body
