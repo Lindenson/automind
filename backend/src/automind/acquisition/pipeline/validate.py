@@ -13,10 +13,10 @@ from typing import Any
 
 from sqlalchemy import select
 
-from automind.application.ports import WebDoc
 from automind.domain import evidence as ev
 from automind.domain import plausibility, sense, sense_ev, specs
 from automind.infrastructure import db
+from automind.shared.contracts.web import WebDoc
 
 VERSION = "validate@2"  # 2: CLTC ranges and kWh/100 km never filed as WLTP (chat 2026-11-06)
 

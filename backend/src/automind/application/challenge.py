@@ -18,9 +18,9 @@ from typing import Any
 from sqlalchemy import select
 
 from automind.acquisition import api as acquisition
-from automind.application.ports import Reference
 from automind.domain import specs
 from automind.infrastructure import db
+from automind.shared.contracts.config import Reference
 
 GoldSink = Callable[..., Awaitable[bool]]  # acquisition.api.record_challenge_gold (spec 011 T027)
 

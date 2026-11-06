@@ -177,7 +177,7 @@ async def confirmed_rejections(since: datetime) -> list[Rejected]:
 
 
 def _cfg() -> dict[str, Any]:
-    from automind.infrastructure.config import agents_config  # noqa: PLC0415
+    from automind.acquisition.infrastructure.config import agents_config  # noqa: PLC0415
 
     return dict((agents_config().get("levers") or {}).get("rule_auditor") or {})
 

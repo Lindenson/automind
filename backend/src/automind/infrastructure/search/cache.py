@@ -14,13 +14,13 @@ from typing import Any
 
 from sqlalchemy.dialects.postgresql import insert
 
-from automind.application.ports import SearchHit, SearchProvider
 from automind.application.usage import current_budget, current_job
 from automind.domain.evidence import is_denied
 from automind.infrastructure.db import SearchCache, sessionmaker
 from automind.infrastructure.db.repositories import UsageRepo
 from automind.infrastructure.llm_gateway import prices
 from automind.insight.metrics import prom
+from automind.shared.contracts.web import SearchHit, SearchProvider
 
 from . import SearchUnavailable
 

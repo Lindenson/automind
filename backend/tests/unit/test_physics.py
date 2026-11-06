@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from automind.acquisition.domain.physics import Facts, Point, check_all, fit_envelope, outlier
-from automind.infrastructure.config import physics_config
+from automind.acquisition.infrastructure.config import physics_config
 
 CFG = {
     **physics_config()["checks"],

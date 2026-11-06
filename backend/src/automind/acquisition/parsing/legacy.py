@@ -13,7 +13,7 @@ from typing import Any
 from selectolax.lexbor import LexborHTMLParser
 
 from automind.acquisition.parsing.interpreter import value_and_unit
-from automind.application.ports import ReadingRow, SiteReading
+from automind.shared.contracts.site_readers import ReadingRow, SiteReading
 
 __all__ = ["MIN_ROWS", "read_pairs", "value_and_unit"]
 MIN_ROWS = 3

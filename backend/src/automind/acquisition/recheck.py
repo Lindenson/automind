@@ -14,9 +14,9 @@ from sqlalchemy import or_, select
 
 from automind.acquisition.api import Judged, RecheckResult, RevalidateResult
 from automind.acquisition.pipeline import job, merge, validate
-from automind.application.ports import WebDoc
 from automind.domain import research_plan, sense, specs
 from automind.infrastructure import db
+from automind.shared.contracts.web import WebDoc
 
 # REJECTED_IMPLAUSIBLE: a loosened range (EREV batteries, 2026-11-06) lets a value back
 RECHECK = ("ACCEPTED", "REJECTED_UNSUPPORTED", "REJECTED_UNIT", "REJECTED_IMPLAUSIBLE")

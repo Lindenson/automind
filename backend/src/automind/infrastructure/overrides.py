@@ -176,7 +176,7 @@ def role_model(role: str) -> str | None:
     model = STATE.models.get(role)
     if model is None:
         return None
-    from automind.infrastructure.config import agents_config  # noqa: PLC0415
+    from automind.acquisition.infrastructure.config import agents_config  # noqa: PLC0415
 
     try:
         allowed = set(agents_config().get("allowed_models") or [])

@@ -25,9 +25,9 @@ from urllib.robotparser import RobotFileParser
 
 import httpx
 
-from automind.application.ports import WebDoc
 from automind.domain.evidence import is_denied
 from automind.insight.metrics import prom
+from automind.shared.contracts.web import WebDoc
 
 log = logging.getLogger(__name__)
 

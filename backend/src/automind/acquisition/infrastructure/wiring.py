@@ -10,20 +10,21 @@ from pathlib import Path
 from typing import Any
 
 from automind.acquisition.gold.versions import live_rows
+from automind.acquisition.infrastructure.config import fetch_policy
 from automind.acquisition.infrastructure.fetch import Fetcher, FetchPolicy
 from automind.acquisition.infrastructure.pages import DbPageStore
 from automind.acquisition.parsing.registry import live_readers
 from automind.acquisition.ports import AcqPorts
 from automind.acquisition.registry.application.service import RegistryService
 from automind.acquisition.registry.infrastructure.repo import RegistryRepo
-from automind.application.ports import Reference
-from automind.infrastructure.config import fetch_policy, reference, search_config
+from automind.infrastructure.config import reference, search_config
 from automind.infrastructure.db.repositories import MarketFactRepo
 from automind.infrastructure.search.cache import CachedSearcher
 from automind.infrastructure.search.serpapi import SerpApiProvider
 from automind.infrastructure.search.serper import SerperProvider
 from automind.infrastructure.search.tavily import TavilyProvider
 from automind.insight.metrics import prom
+from automind.shared.contracts.config import Reference
 
 # the prompts are versioned files next to the chat's (orchestration/prompts/*.md); read as files, never imported
 PROMPTS = Path(__file__).resolve().parents[2] / "orchestration" / "prompts"

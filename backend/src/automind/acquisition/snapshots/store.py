@@ -16,9 +16,9 @@ from datetime import UTC, datetime
 from sqlalchemy import or_, select, tuple_
 from sqlalchemy.dialects.postgresql import insert
 
+from automind.acquisition.infrastructure import config as acq_config
 from automind.acquisition.snapshots import codec
 from automind.domain.evidence import domain_of
-from automind.infrastructure import config
 from automind.infrastructure.db import PageSnapshot, SnapshotBlob, sessionmaker, uid
 from automind.insight.metrics import prom
 
@@ -49,7 +49,7 @@ async def write(
     """Store one fetch event (and its compressed body when there is one); returns the snapshot id."""
     from automind.acquisition.infrastructure.pages import url_hash  # noqa: PLC0415 - the page store imports this module
 
-    cfg = config.snapshot_retention()
+    cfg = acq_config.snapshot_retention()
     now = datetime.now(UTC)
     sha: str | None = None
     if raw is not None:
@@ -82,7 +82,7 @@ async def write(
 
 async def mark(snapshot_id: str, accepted_values: int, variant_id: str | None) -> None:
     """Add accepted values and the variant the page was used for; a page with accepted values is kept longer."""
-    cfg = config.snapshot_retention()
+    cfg = acq_config.snapshot_retention()
     async with sessionmaker()() as s:
         row = (
             await s.execute(select(PageSnapshot).where(PageSnapshot.id == snapshot_id).with_for_update())

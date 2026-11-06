@@ -13,7 +13,7 @@ from automind.acquisition.infrastructure.wiring import engine_ports
 from automind.acquisition.registry.application.service import RegistryService
 from automind.acquisition.registry.infrastructure.repo import RegistryRepo
 from automind.application.lineup import get_lineup
-from automind.application.ports import Ports, Reference
+from automind.application.ports import Ports
 from automind.domain.cost import AreaAverage, CostPrices, estimate
 from automind.infrastructure import llm_gateway
 from automind.infrastructure.config import config_dir, reference, search_config
@@ -31,6 +31,7 @@ from automind.infrastructure.db.repositories import (
 from automind.infrastructure.events import EventBus
 from automind.infrastructure.models_on_sale import models_on_sale
 from automind.insight.metrics import prom
+from automind.shared.contracts.config import Reference
 
 T = TypeVar("T", bound=BaseModel)
 

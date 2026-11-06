@@ -9,7 +9,7 @@ import asyncio
 from collections import defaultdict
 from typing import Any
 
-from automind.application.ports import Page
+from automind.shared.contracts.web import Page
 
 VERSION = "fetch@1"
 

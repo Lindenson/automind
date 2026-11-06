@@ -17,8 +17,8 @@ from automind.acquisition.snapshots import store
 from automind.acquisition.worker import exporter
 from automind.acquisition.worker.config import worker_config
 from automind.acquisition.worker.process import Worker
-from automind.application.ports import Page
 from automind.infrastructure import db
+from automind.shared.contracts.web import Page
 
 FIX = Path(__file__).resolve().parents[1] / "fixtures" / "html"
 OLD = [(FIX / "km77_three" / f"car_{c}.html").read_bytes() for c in "abc"]

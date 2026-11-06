@@ -54,14 +54,14 @@ class _Web:
         self.read: list[str] = []
 
     async def search(self, query, *, market="ES", area=None, fresh=False):
-        from automind.application.ports import SearchHit
+        from automind.shared.contracts.web import SearchHit
 
         if "garantía oficial" in query:
             return [SearchHit(WARRANTY_URL, "Garantía Audi", "", 1)]
         return [SearchHit(f"https://{d}/audi-{abs(hash(query))}", "x", "", i) for i, d in enumerate(FAVOURITES, 1)]
 
     async def get(self, url, *, area=None):
-        from automind.application.ports import Page
+        from automind.shared.contracts.web import Page
 
         self.read.append(url)
         if url == WARRANTY_URL:

@@ -9,9 +9,9 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from automind.application.ports import LLM
 from automind.domain import intake, ladder
 from automind.domain.casefile import CaseCar, CaseFile, Pending, QuestionKind
+from automind.shared.contracts.llm import LLM
 
 
 def fill_questions(

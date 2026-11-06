@@ -8,16 +8,13 @@ scripted LLM and fixture search.
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Protocol, TypeVar
+from typing import Any, Protocol
 
-from pydantic import BaseModel
-
-from automind.domain.identity import Aliases
 from automind.domain.ladder import Generation
-
-T = TypeVar("T", bound=BaseModel)
+from automind.shared.contracts.config import Reference
+from automind.shared.contracts.llm import LLM
 
 
 class TurnBusy(RuntimeError):
@@ -30,141 +27,6 @@ class VersionConflict(RuntimeError):
     def __init__(self, current: int) -> None:
         super().__init__(f"the case is at version {current}")
         self.current = current
-
-
-@dataclass(frozen=True)
-class Reference:
-    """Static reference data from config/*.yaml, loaded by infrastructure and passed in."""
-
-    aliases: Aliases
-    generations: dict[str, list[tuple[str, int | None, int | None]]]
-    questions: dict[str, str]
-    prompts: dict[str, str]
-    queries: dict[str, list[str]]
-    criteria: Any = None  # domain.criteria.CriteriaModel (config/criteria.yaml)
-    rates: dict[str, Any] | None = None  # config/rates.yaml (TCO)
-    favourite_queries: dict[str, str] = field(default_factory=dict)  # area -> template with {sites}
-    search: dict[str, Any] = field(default_factory=dict)  # config/search.yaml
-    favourites: list[dict[str, Any]] = field(default_factory=list)  # config/sources.yaml favourites
-    manufacturer_sites: dict[str, str] = field(default_factory=dict)  # make -> official ES site
-    plausibility: dict[str, Any] = field(default_factory=dict)  # config/plausibility.yaml
-    feasibility: dict[str, Any] = field(default_factory=dict)  # config/feasibility.yaml
-    insights: dict[str, Any] = field(default_factory=dict)  # config/insights.yaml (spec 004)
-    layouts: dict[str, Any] = field(default_factory=dict)  # config/report_layouts.yaml (spec 004)
-    explainers: dict[str, Any] = field(default_factory=dict)  # config/tech_explainers.yaml (spec 004)
-    questions_i18n: dict[str, Any] = field(default_factory=dict)  # config/questions.yaml v2 (spec 005)
-    makes: Any = None  # application.makes.MakeRegistry (config/makes.yaml, spec 005)
-    regions: dict[str, Any] = field(default_factory=dict)  # config/regions.yaml (spec 005)
-    profile_defaults: dict[str, Any] = field(default_factory=dict)  # config/profile_defaults.yaml (spec 007)
-    gearboxes: dict[str, list[str]] = field(default_factory=dict)  # "Make|Model|generation" -> gearboxes sold new
-    outcome: dict[str, Any] = field(default_factory=dict)  # config/outcome.yaml (spec 010 US1)
-    insight: dict[str, Any] = field(default_factory=dict)  # config/insight.yaml (spec 010 US3)
-    registry: dict[str, Any] = field(default_factory=dict)  # config/registry.yaml (spec 010 US6-US8)
-
-
-@dataclass
-class WebDoc:
-    url: str
-    title: str
-    text: str
-    snippet_only: bool
-    snapshot_id: str | None = None  # spec 011: the stored raw page this text came from
-
-
-class LLM(Protocol):
-    """Model access per role. Usage is charged to the current TurnBudget by the implementation."""
-
-    async def structured(self, role: str, schema: type[T], system: str, user: str) -> T: ...
-
-    async def text(self, role: str, system: str, user: str) -> str: ...
-
-    def agent(self, role: str, tools: list[Any], system_prompt: str) -> Any:
-        """A `create_agent`-compatible runnable for analyst roles (scoped MCP tools)."""
-        ...
-
-
-@dataclass(frozen=True)
-class SearchHit:
-    """One web search result. Never carries page text: pages come from the PageStore (spec 003 R1)."""
-
-    url: str
-    title: str
-    snippet: str
-    rank: int
-
-
-class SearchProvider(Protocol):
-    """One external search API (Serper, SerpApi, Tavily …). Raises SearchUnavailable-like errors."""
-
-    name: str
-
-    async def search(self, query: str, *, gl: str, hl: str, num: int = 10) -> list[SearchHit]: ...
-
-
-class Searcher(Protocol):
-    """Cache-first search over the configured providers (search_cache → primary → fallback).
-
-    Records usage (cost 0 for cache hits), drops deny-listed URLs, and raises only when every
-    provider failed."""
-
-    async def search(
-        self, query: str, *, market: str = "ES", area: str | None = None, fresh: bool = False
-    ) -> list[SearchHit]: ...
-
-
-@dataclass(frozen=True)
-class Page:
-    """A fetched page: main content (markdown, tables kept) or PDF text (spec 003 R4)."""
-
-    url: str  # final URL
-    title: str
-    text: str
-    content_type: str = "text/html"
-    reader: str = "main_content"  # main_content | pdf | site:<id>
-    fetched_at: datetime | None = None
-    from_cache: bool = False
-    html: str | None = None  # raw HTML for site readers only; never stored
-    document_id: str | None = None
-    snapshot_id: str | None = None  # spec 011: the stored raw page of the fetch that produced this page
-
-    def as_doc(self) -> WebDoc:
-        return WebDoc(url=self.url, title=self.title, text=self.text, snippet_only=False, snapshot_id=self.snapshot_id)
-
-
-class PageStore(Protocol):
-    """Cache-first fetch under the fetch policy (deny-list, robots incl. Crawl-delay, rate, size).
-
-    Returns None when the page is refused, empty or failed; the reason is stored with the page."""
-
-    async def get(self, url: str, *, area: str | None = None) -> Page | None: ...
-
-    def last_reason(self, url: str) -> str | None: ...
-
-
-@dataclass(frozen=True)
-class ReadingRow:
-    attribute: str
-    raw_value: str
-    raw_unit: str | None
-    excerpt: str  # the table row text, so the 002 excerpt validation still applies
-
-
-@dataclass(frozen=True)
-class SiteReading:
-    reader: str
-    rows: list[ReadingRow]
-    ambiguous: bool = False
-
-
-class SiteReaders(Protocol):
-    """Deterministic table readers for favourite spec sites (spec 003 R6). None = layout not recognised."""
-
-    def read(self, page: Page, target: dict[str, Any]) -> SiteReading | None: ...
-
-
-class NoReaders:
-    def read(self, page: Page, target: dict[str, Any]) -> SiteReading | None:
-        return None
 
 
 class CaseRepo(Protocol):

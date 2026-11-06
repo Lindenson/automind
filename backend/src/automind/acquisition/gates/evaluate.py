@@ -23,6 +23,7 @@ from sqlalchemy import select
 
 from automind.acquisition.domain import gates
 from automind.acquisition.domain import replay as scoring
+from automind.acquisition.infrastructure import config as acq_config
 from automind.acquisition.parsing.spec import ParserSpec
 from automind.acquisition.snapshots.store import SnapshotRef
 from automind.infrastructure import config, overrides
@@ -184,8 +185,8 @@ async def _extractor_pair(c: AcqChange, rs: list[SnapshotRef], *, llm: Any = Non
     from automind.acquisition.pipeline import extract as extraction  # noqa: PLC0415
     from automind.acquisition.pipeline import job as pipeline_job  # noqa: PLC0415
     from automind.acquisition.replay import run  # noqa: PLC0415
-    from automind.application.ports import WebDoc  # noqa: PLC0415
     from automind.infrastructure import llm_gateway  # noqa: PLC0415
+    from automind.shared.contracts.web import WebDoc  # noqa: PLC0415
 
     if c.object_kind == "prompt":
         name, old_text, new_text = await _prompt_texts(c)
@@ -251,9 +252,9 @@ def metrics(pages: list[scoring.PageResult], gold: dict[tuple[str, str], scoring
             yield_pages: list[scoring.PageResult] | None = None) -> gates.Metrics:  # fmt: skip
     """Headline metrics; yield and pass rate from `yield_pages` when given (pages after a redesign), accuracy from
     every gold-covered page."""
-    rep = scoring.report("x", pages, gold, config.gold_tolerances())
+    rep = scoring.report("x", pages, gold, acq_config.gold_tolerances())
     if yield_pages is not None:
-        y = scoring.report("x", yield_pages, gold, config.gold_tolerances())
+        y = scoring.report("x", yield_pages, gold, acq_config.gold_tolerances())
         rep.update({k: y[k] for k in ("pages", "yield", "pass_rate", "rows_read", "rows_accepted")})
     found: dict[str, set[str]] = {}
     for p in yield_pages if yield_pages is not None else pages:

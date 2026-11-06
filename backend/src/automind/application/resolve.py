@@ -18,12 +18,13 @@ from rapidfuzz import fuzz
 from sqlalchemy import func, select
 
 from automind.acquisition import api as acquisition
-from automind.application.ports import Ports, Reference
+from automind.application.ports import Ports
 from automind.config import settings
 from automind.domain import identification, identity, intake, sense
 from automind.domain.casefile import CaseCar
 from automind.domain.policy import CarState
 from automind.infrastructure import db
+from automind.shared.contracts.config import Reference
 
 CATEGORIES = ("specs", "price", "maintenance")
 UNIQUE_MARGIN = 5.0  # a fuzzy winner must beat the runner-up by this many points

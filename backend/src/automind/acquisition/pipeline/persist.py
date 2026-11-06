@@ -24,10 +24,11 @@ from automind.acquisition.pipeline.validate import (
     plausibility_ctx,
     sense_before,
 )
-from automind.application.ports import Page, Ports, WebDoc
+from automind.acquisition.ports import AcqPorts
 from automind.domain import evidence as ev
 from automind.domain import sense, sense_ev, specs, used
 from automind.infrastructure import db
+from automind.shared.contracts.web import Page, WebDoc
 
 VERSION = "persist@1"
 
@@ -62,7 +63,7 @@ async def _evidence(s: Any, v: db.Variant, d: WebDoc, page: Page | None = None, 
 
 
 async def _persist(
-    ports: Ports,
+    ports: AcqPorts,
     v: db.Variant,
     area: str,
     d: WebDoc,
@@ -88,7 +89,7 @@ async def _persist(
 
 
 async def _spec_claims(
-    ports: Ports,
+    ports: AcqPorts,
     s: Any,
     v: db.Variant,
     area: str,
@@ -149,7 +150,7 @@ async def _spec_claims(
 
 
 async def _persist_reading(
-    ports: Ports,
+    ports: AcqPorts,
     v: db.Variant,
     area: str,
     d: WebDoc,

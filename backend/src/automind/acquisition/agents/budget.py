@@ -13,8 +13,8 @@ from typing import Any
 
 from sqlalchemy import text
 
+from automind.acquisition.infrastructure.config import agents_config
 from automind.acquisition.worker.budget import BudgetGuard
-from automind.infrastructure.config import agents_config
 from automind.infrastructure.db.session import sessionmaker
 
 AGENTS = ("scout", "parser_doctor", "rule_auditor", "extractor_tuner", "blame_judge")

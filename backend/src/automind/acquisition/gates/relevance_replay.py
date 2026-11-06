@@ -23,6 +23,7 @@ from sqlalchemy import text
 from automind.acquisition.domain import gates
 from automind.acquisition.domain import relevance_audit as ra
 from automind.acquisition.domain import replay as scoring
+from automind.acquisition.infrastructure import config as acq_config
 from automind.acquisition.snapshots.store import SnapshotRef
 from automind.infrastructure import config
 from automind.infrastructure.db import AcqChange, Variant, sessionmaker
@@ -37,7 +38,7 @@ def applies(c: AcqChange) -> bool:
 
 
 def gate_cfg() -> ra.RelevanceGateConfig:
-    return ra.RelevanceGateConfig.from_mapping(config.agents_config())
+    return ra.RelevanceGateConfig.from_mapping(acq_config.agents_config())
 
 
 @dataclass(frozen=True)
@@ -167,7 +168,7 @@ async def references(variant_ids: set[str]) -> References:
         async with sessionmaker()() as s:
             for vid, attr, x, dom, fam in (await s.execute(text(_AGREED), {"vids": sorted(variant_ids)})).all():
                 claims.setdefault((str(vid), str(attr)), []).append((float(x), str(dom), str(fam)))
-    return References(gold, claims, config.gold_tolerances())
+    return References(gold, claims, acq_config.gold_tolerances())
 
 
 # --- re-judging and reading -------------------------------------------------------------------------------------
@@ -273,8 +274,8 @@ async def _extracted(ref: SnapshotRef, raw: bytes, vs: Mapping[str, Variant], ru
     from automind.acquisition.infrastructure.pages import main_content  # noqa: PLC0415
     from automind.acquisition.pipeline import job as pipeline_job  # noqa: PLC0415
     from automind.acquisition.replay import run  # noqa: PLC0415
-    from automind.application.ports import WebDoc  # noqa: PLC0415
     from automind.infrastructure import llm_gateway, overrides  # noqa: PLC0415
+    from automind.shared.contracts.web import WebDoc  # noqa: PLC0415
 
     name = "extract_specs"
     path = run.PROMPTS_DIR / f"{name}.md"

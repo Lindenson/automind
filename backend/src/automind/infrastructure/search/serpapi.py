@@ -6,8 +6,8 @@ from typing import Any
 
 import httpx
 
-from automind.application.ports import SearchHit
 from automind.config import settings
+from automind.shared.contracts.web import SearchHit
 
 from . import SearchUnavailable
 

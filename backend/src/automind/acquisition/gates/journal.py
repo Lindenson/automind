@@ -27,6 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from automind.acquisition.agents import levers
 from automind.acquisition.domain import gates, relevance_audit
 from automind.acquisition.domain.versions import parse_key, spec_hash
+from automind.acquisition.infrastructure import config as acq_config
 from automind.infrastructure import config
 from automind.infrastructure.db import (
     OPEN_CHANGE_STATUSES,
@@ -86,7 +87,7 @@ async def lever_state() -> levers.LeverState:
         prompts = {n: k for n, k in (await s.execute(
             select(PromptVersion.name, PromptVersion.key).where(PromptVersion.status == "active"))).all()}  # fmt: skip
     return levers.LeverState(
-        agents_cfg=config.agents_config(), open_objects=open_objects, blocks=blocks, frozen_parsers=frozen_parsers,
+        agents_cfg=acq_config.agents_config(), open_objects=open_objects, blocks=blocks, frozen_parsers=frozen_parsers,
         frozen_sources={str(d) for d, _, fr in src_rows if fr}, reverted=reverted, newest_evidence=newest,
         rules=config.effective_rules(), sources={str(d): {"access": a, "frozen": fr} for d, a, fr in src_rows},
         denylist=tuple(denylist()), prompts=prompts,

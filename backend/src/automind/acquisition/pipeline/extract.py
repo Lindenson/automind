@@ -13,9 +13,10 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, create_model
 
-from automind.application.ports import LLM, WebDoc
 from automind.domain import evidence as ev
 from automind.domain import specs
+from automind.shared.contracts.llm import LLM
+from automind.shared.contracts.web import WebDoc
 
 AREA_ATTRS: dict[str, list[str]] = {
     "specs": [k for k, a in specs.ATTRS.items() if a.category == "specs"],

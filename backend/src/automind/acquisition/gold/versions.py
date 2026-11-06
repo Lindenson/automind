@@ -20,6 +20,7 @@ from sqlalchemy.dialects.postgresql import insert
 
 from automind.acquisition.gold.domain.match import DatasetRow, MatchCfg, norm_text
 from automind.acquisition.gold.domain.versions import IdRow, RegisteredVersion, group, rows_of_keys
+from automind.acquisition.infrastructure import config as acq_config
 from automind.infrastructure import config
 from automind.infrastructure.db import GoldValueRow, SearchCache, Variant, sessionmaker
 
@@ -31,11 +32,11 @@ MIN_REGISTRATIONS = 10  # default; config/search.yaml intake.dataset_versions_mi
 
 
 def _cfg() -> dict[str, Any]:
-    return dict((config.gold_datasets_config().get("datasets") or {}).get(DATASET) or {})
+    return dict((acq_config.gold_datasets_config().get("datasets") or {}).get(DATASET) or {})
 
 
 def _match_cfg() -> MatchCfg:
-    return MatchCfg.from_config(config.gold_datasets_config(), config.load_yaml("makes.yaml"))
+    return MatchCfg.from_config(acq_config.gold_datasets_config(), config.load_yaml("makes.yaml"))
 
 
 def _intake(ports: Any) -> dict[str, Any]:

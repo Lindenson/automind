@@ -24,8 +24,9 @@ from typing import Any
 from automind.acquisition.domain import drift
 from automind.acquisition.parsing import fingerprint, interpreter
 from automind.acquisition.parsing.spec import ParserSpec
-from automind.application.ports import Page, ReadingRow, SiteReading
 from automind.domain.evidence import domain_of
+from automind.shared.contracts.site_readers import ReadingRow, SiteReading
+from automind.shared.contracts.web import Page
 
 log = logging.getLogger(__name__)
 REFRESH_S = 60.0
@@ -91,7 +92,8 @@ class ParserRegistry:
 
     @classmethod
     def live_registry(cls) -> ParserRegistry:
-        from automind.infrastructure.config import acquisition_config, favourites  # noqa: PLC0415
+        from automind.acquisition.infrastructure.config import acquisition_config
+        from automind.infrastructure.config import favourites  # noqa: PLC0415
 
         cfg = drift.DriftConfig.from_mapping(acquisition_config().get("drift"))
         return cls.from_yaml(favourites(), live=True, cfg=cfg)

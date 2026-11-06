@@ -163,7 +163,7 @@ async def _last_model() -> str | None:
 
 async def why_now(payload: dict[str, Any], now: datetime, current_model: str) -> str | None:
     from automind.acquisition.domain.gates import GateConfig  # noqa: PLC0415
-    from automind.infrastructure.config import agents_config  # noqa: PLC0415
+    from automind.acquisition.infrastructure.config import agents_config  # noqa: PLC0415
 
     if payload.get("force"):
         return str(payload.get("reason") or "requested")
@@ -183,9 +183,10 @@ async def run_tuner(payload: dict[str, Any], *, llm: LLM | None = None, charge: 
     from sqlalchemy import select  # noqa: PLC0415
 
     from automind.acquisition.gates import journal  # noqa: PLC0415
+    from automind.acquisition.infrastructure.config import agents_config
     from automind.acquisition.worker.budget import BudgetExceeded  # noqa: PLC0415
     from automind.infrastructure import llm_gateway  # noqa: PLC0415
-    from automind.infrastructure.config import agents_config, prices  # noqa: PLC0415
+    from automind.infrastructure.config import prices  # noqa: PLC0415
     from automind.infrastructure.db import PromptVersion, sessionmaker  # noqa: PLC0415
 
     now = now or datetime.now(UTC)

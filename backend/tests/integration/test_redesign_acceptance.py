@@ -24,9 +24,9 @@ from automind.acquisition.parsing.registry import ParserRegistry
 from automind.acquisition.snapshots import store
 from automind.acquisition.worker.config import worker_config
 from automind.acquisition.worker.process import Worker
-from automind.application.ports import Page
 from automind.infrastructure import db, overrides
 from automind.infrastructure.config import config_dir
+from automind.shared.contracts.web import Page
 
 FIX = Path(__file__).resolve().parents[1] / "fixtures"
 OLD = [(FIX / "html" / "km77_three" / f"car_{c}.html").read_bytes() for c in "abc"]

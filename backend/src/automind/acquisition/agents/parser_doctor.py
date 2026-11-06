@@ -319,7 +319,7 @@ async def _drift_facts(version_key: str, change_id: str | None) -> dict[str, Any
     """The drift journal row's day and reason, and the first day of the window with the new structure."""
     from sqlalchemy import select  # noqa: PLC0415
 
-    from automind.infrastructure.config import acquisition_config  # noqa: PLC0415
+    from automind.acquisition.infrastructure.config import acquisition_config  # noqa: PLC0415
     from automind.infrastructure.db import AcqChange, ParserDaily, sessionmaker  # noqa: PLC0415
 
     async with sessionmaker()() as s:

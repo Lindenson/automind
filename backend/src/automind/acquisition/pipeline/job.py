@@ -31,14 +31,15 @@ from automind.acquisition.pipeline.persist import _evidence, _persist, _persist_
 from automind.acquisition.pipeline.plan import _plan, _variant, current_candidates, current_plan, known_makes
 from automind.acquisition.pipeline.relevance import _llm_per_job, _PageJudge, _relevance_target
 from automind.acquisition.pipeline.validate import known_values
+from automind.acquisition.ports import AcqPorts
 from automind.acquisition.read import _have, missing_critical
 from automind.acquisition.registry.api import Attempt
-from automind.application.ports import Page, Ports
 from automind.application.usage import BudgetExceeded, current_job
 from automind.domain import evidence as ev
 from automind.domain import relevance as rel
 from automind.domain import research_plan, search_plan
 from automind.infrastructure import db, overrides
+from automind.shared.contracts.web import Page
 
 VERSION = "job@1"
 # spec 011 FR-002: the versions of the stages a job ran, on every attempt and on the area's research run
@@ -94,7 +95,7 @@ def target_of(v: db.Variant, car_year: int | None = None, home: str | None = Non
 PageOutcome = tuple[str, str | None, int]  # (attempt outcome, reason, accepted values)
 
 
-async def _record_registry(ports: Ports, job: JobSpec, pages: list[Page], outcome_by_url: dict[str, PageOutcome],
+async def _record_registry(ports: AcqPorts, job: JobSpec, pages: list[Page], outcome_by_url: dict[str, PageOutcome],
                            url_market: dict[str, str]) -> None:  # fmt: skip
     """Every page read from a search is an attempt of its source for this kind of data (spec 010 FR-015)."""
     if ports.registry is None:
@@ -124,7 +125,7 @@ async def _shadow_extracted(area: str, pages: list[Page]) -> None:
             await shadow.notify_extracted(ex.PROMPT_FOR_AREA.get(area), ids)
 
 
-async def run_job(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
+async def run_job(ports: AcqPorts, job: JobSpec, emit: Emit) -> JobResult:
     await overrides.refresh()  # spec 011 T104: gated rule, prompt and model overrides (cached 60 s)
     token = current_job.set((job.job_id, job.area))
     the_plan = await _plan(ports, job)
@@ -150,7 +151,7 @@ async def run_job(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
         current_job.reset(token)
 
 
-async def _run(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
+async def _run(ports: AcqPorts, job: JobSpec, emit: Emit) -> JobResult:
     v = await _variant(job.variant_id)
     missing = await missing_critical(v.id, v.powertrain) if job.area == "specs" else []
     seen = await _used_urls(v.id, job.area)
@@ -233,7 +234,7 @@ async def _run(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
     )
 
 
-async def _run_market(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
+async def _run_market(ports: AcqPorts, job: JobSpec, emit: Emit) -> JobResult:
     """A market-level area (spec 006 US5): pages are about the market, not the car, so no relevance gate;
     every fact needs a verbatim excerpt with its amount and is stored once per market and key."""
     v = await _variant(job.variant_id)

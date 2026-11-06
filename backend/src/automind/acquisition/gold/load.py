@@ -24,6 +24,7 @@ from sqlalchemy import select
 
 from automind.acquisition.gold import repo
 from automind.acquisition.gold.domain.match import GoldValue, MatchCfg, VariantKey, match, norm_text, tokens
+from automind.acquisition.infrastructure import config as acq_config
 from automind.infrastructure import config
 from automind.infrastructure.db import ResearchJob, Variant, sessionmaker
 
@@ -64,7 +65,7 @@ async def candidates(make: str | None = None, recent: bool = False) -> list[Vari
 
 def dataset_cfg(name: str) -> dict[str, Any]:
     """The dataset's mapping under `datasets:` in config/gold_datasets.yaml (what the loaders take)."""
-    return dict((config.gold_datasets_config().get("datasets") or {}).get(name) or {})
+    return dict((acq_config.gold_datasets_config().get("datasets") or {}).get(name) or {})
 
 
 async def _write(dataset_id: str, variants: list[Variant], gold: list[GoldValue], dry_run: bool) -> None:
@@ -97,7 +98,7 @@ async def load_dataset(
             cfg, makes=sorted({norm_text(v.make).upper() for v in variants}), transport=transport
         )
         info = meta(cfg, mod.version(cfg))
-        mcfg = MatchCfg.from_config(config.gold_datasets_config(), config.load_yaml("makes.yaml"))
+        mcfg = MatchCfg.from_config(acq_config.gold_datasets_config(), config.load_yaml("makes.yaml"))
         gold = [g for v in variants for g in match(rows, variant_key(v, mcfg), mcfg, dataset_id=info.id)]
         rows_read = len(rows)
     if not dry_run:

@@ -16,8 +16,8 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.dialects.postgresql import insert
 
 from automind.acquisition.gold.domain.match import GoldValue
+from automind.acquisition.infrastructure import config as acq_config
 from automind.domain import specs
-from automind.infrastructure import config
 from automind.infrastructure.db import GoldDataset, GoldValueRow, sessionmaker, uid
 
 CHALLENGES = "challenges"  # gold_datasets.id of user challenges
@@ -122,7 +122,7 @@ async def flag(gold_id: str, flagged: bool, reason: str | None) -> None:
 
 def tolerance_of(attribute: str) -> tuple[str, float]:
     """(kind, tolerance) of an attribute: config/gold_datasets.yaml, else the attribute's own relative tolerance."""
-    tols = config.gold_tolerances()
+    tols = acq_config.gold_tolerances()
     if attribute in tols:
         return tols[attribute]
     a = specs.ATTRS.get(attribute)
@@ -132,7 +132,7 @@ def tolerance_of(attribute: str) -> tuple[str, float]:
 def unit_of(attribute: str) -> str:
     """The attribute's unit: as the datasets publish it (config/gold_datasets.yaml), else the canonical one."""
     units: dict[str, Any] = {}
-    for d in (config.gold_datasets_config().get("datasets") or {}).values():
+    for d in (acq_config.gold_datasets_config().get("datasets") or {}).values():
         units = {**(d.get("units") or {}), **units}
     a = specs.ATTRS.get(attribute)
     return str(units.get(attribute) or (a.unit if a is not None and a.unit else ""))

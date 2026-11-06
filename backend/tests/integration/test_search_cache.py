@@ -5,11 +5,11 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from sqlalchemy import delete, select
 
-from automind.application.ports import SearchHit
 from automind.application.usage import Limits, Prices, TurnBudget, current_budget
 from automind.infrastructure import db
 from automind.infrastructure.search import SearchUnavailable
 from automind.infrastructure.search.cache import CachedSearcher, cache_key
+from automind.shared.contracts.web import SearchHit
 
 CFG = {"num": 10, "markets": {"ES": {"gl": "es", "hl": "es"}}, "cache_ttl_days": {"default": 7, "price": 3}}
 PRICES = Prices(llm={}, default_llm=(1, 1), eur_per_credit=0.0074, credits={"search_advanced": 2},

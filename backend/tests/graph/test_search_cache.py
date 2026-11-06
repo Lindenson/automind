@@ -6,7 +6,6 @@ import uuid
 import pytest
 from sqlalchemy import delete, select
 
-from automind.application.ports import SearchHit
 from automind.application.usage import Prices
 from automind.infrastructure.db import models as m
 from automind.infrastructure.db.repositories import MessageRepo
@@ -15,6 +14,7 @@ from automind.infrastructure.search import SearchUnavailable
 from automind.infrastructure.search.cache import CachedSearcher
 from automind.orchestration.graph import build_graph
 from automind.orchestration.runner import ChatRunner
+from automind.shared.contracts.web import SearchHit
 from tests.fakes.fixture_search import FixtureSearch
 
 from .conftest import budget_factory, engine, make_ports
