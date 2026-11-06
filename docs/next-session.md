@@ -30,17 +30,24 @@ Older handoffs: `docs/history/next-session-until-2026-11-06.md`. Specs 001–009
 
 ## 2. Work in progress — resume here
 
-**Branch `fix-home-market-research` (NOT merged).** Live chat 2026-11-06 "я вот выбираю между Deepal S09 и Lixiang L9
-и хочу сделать однозначный выбор": identification now works (PR #79: Europe as one market with the country named,
-then home market China; no S09→S07; no "closest = same model"), but research still queried only European sites, so
-the report says "нет данных: расход электричества, запас хода, расход с разряженной батареей" for both cars.
-The fix on that branch: research uses the car's market — Chinese-language queries (深蓝S09, 理想L9, 参数配置, 百公里电耗,
-纯电续航, 亏电油耗), registry CN sources (pcauto/autohome excluded by terms), English China-car sites; CLTC labelled as
-CLTC with a real-use allowance; prices only from European markets. Its status and next steps:
-`docs/wip-home-market-research.md` on that branch. To finish: complete it, `scripts/check.sh` green, merge, deploy,
-replay the chat above live (≈ €0.2) and show the owner the report BEFORE he tests.
+**Home-market research is merged and deployed (PR #81).** Live replay 2026-11-06 of "я вот выбираю между Deepal S09
+и Lixiang L9 и хочу сделать однозначный выбор" with "find missing data" (chat a5fbdff4, €0.29: 164 LLM, 178 searches):
+Chinese queries ran and found data (Deepal S09: CLTC range 220 km, charge-sustaining 5.6 l, 0–100 4.9 s from
+chexun.com; Li L9: power, 0–100, charge-sustaining 6–7.8 l from 42how/ifeng/ithome/carnewschina…). The market note
+"в Европе не продаётся — нашёл на рынке Китая" is shown.
 
-Also check on the live path that the note "в Европе не продаётся — нашёл на рынке Китая" reaches the user.
+**Still wrong (do next, in this order):**
+1. **Energy cost still "нет данных: расход электричества (кВт·ч/100 км)"** for both cars → no running cost, verdict LOW.
+   Chinese pages rarely state kWh/100 km for EREVs. Fix: estimate EV consumption from battery usable kWh ÷ electric
+   range (CLTC → real allowance), labelled "estimate" (like the PHEV charge-sustaining estimate); also make extraction
+   pick 百公里电耗 / 电耗 when present. Check claims for battery_kwh on these variants.
+2. **The first, plain turn reuses cached "UNAVAILABLE" research** (12 h retry window, registry retry 7 days) — the
+   earlier failed run blocked the new Chinese search until "find" was pressed. When the market/queries changed since
+   the last run (new home-market research), the area must be retried at once.
+3. Li L9 power conflict (330 vs 420/442/449 kW) — system vs engine power; check fusion/labels.
+4. Remaining items listed in `docs/wip-home-market-research.md` (tests for CLTC filing/energy branch, market on the
+   version row for prefetch, electrive robots/terms).
+Verify live after each fix (replay the chat above) and show the owner the report first.
 
 ## 3. Owner decisions pending
 
