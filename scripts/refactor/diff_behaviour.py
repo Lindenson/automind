@@ -44,9 +44,11 @@ def main(argv: list[str] | None = None) -> int:
     env = _test_env()
     tmp = Path(tempfile.mkdtemp(prefix="behaviour-"))
     try:
+        # base, head, base: the test database accumulates rows run after run, so an effect of that drift shows up as
+        # a difference between the two base runs (unstable/racy), never as a false difference of the head
         base1 = _run(a.base, tmp / "base", tmp / "dump-base-1", a.pytest_args, env)
-        base2 = _run(a.base, tmp / "base", tmp / "dump-base-2", a.pytest_args, env, reuse=True)
         head = _run(a.head, tmp / "head", tmp / "dump-head", a.pytest_args, env)
+        base2 = _run(a.base, tmp / "base", tmp / "dump-base-2", a.pytest_args, env, reuse=True)
         return report(compare(base1, base2, head))
     finally:
         if a.keep:
