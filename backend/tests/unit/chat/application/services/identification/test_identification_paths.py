@@ -11,7 +11,14 @@ from typing import Any
 import pytest
 from sqlalchemy import delete
 
-from automind.chat.application.services.identification import identify, resolve
+from automind.chat.application.services.identification import (
+    IdentificationService,
+    IdentifyRequest,
+    catalogue,
+    resolver,
+    revalidation,
+)
+from automind.chat.application.services.identification.contracts import GenerationMismatch, NotOnSale, VariantIdentity
 from automind.chat.dialog.prompts import load_all
 from automind.chat.domain.case import CaseCar, CaseFile, Constraints
 from automind.delivery.bootstrap import reference
@@ -24,10 +31,10 @@ NOW = 2026
 class LLM:
     """The resolver's answers in order; the prompts it was given are kept."""
 
-    def __init__(self, *answers: resolve.VariantIdentity) -> None:
+    def __init__(self, *answers: VariantIdentity) -> None:
         self.answers, self.users = list(answers), []
 
-    async def structured(self, name: str, schema: Any, prompt: str, user: str) -> resolve.VariantIdentity:
+    async def structured(self, name: str, schema: Any, prompt: str, user: str) -> VariantIdentity:
         self.users.append(user)
         return self.answers.pop(0)
 
@@ -37,15 +44,19 @@ def _ref(make: str, gens: list[tuple[str, int | None, int | None]]) -> Any:
     return dataclasses.replace(ref, makes=None, generations={**ref.generations, f"{make}|Rav": gens})
 
 
-def _ident(make: str, **kw: Any) -> resolve.VariantIdentity:
+def _ident(make: str, **kw: Any) -> VariantIdentity:
     base: dict[str, Any] = dict(make=make, model="Rav", generation="G1", generation_years_from=2015,
                                 generation_years_to=2024, variant_name="2.0 diesel 150 CV", powertrain="ICE",
                                 certainty="exact", engine_cc=1998, power_kw=110, fuel="diesel")  # fmt: skip
-    return resolve.VariantIdentity(**{**base, **kw})
+    return VariantIdentity(**{**base, **kw})
 
 
-def _ports(ref: Any, *answers: resolve.VariantIdentity) -> SimpleNamespace:
+def _ports(ref: Any, *answers: VariantIdentity) -> SimpleNamespace:
     return SimpleNamespace(ref=ref, llm=LLM(*answers), acquisition=None, versions=None)
+
+
+async def _identify(ports: Any, case: CaseFile, car: CaseCar) -> Any:
+    return await IdentificationService(ports).run(IdentifyRequest(case, car, NOW))
 
 
 def _car(make: str, **kw: Any) -> CaseCar:
@@ -69,7 +80,7 @@ async def test_a_new_car_is_asked_again_for_the_generation_on_sale() -> None:
     ref = _ref(make, [("G1", 2015, 2024), ("G2", 2025, None)])
     ports = _ports(ref, _ident(make), _ident(make, generation="G2", generation_years_from=2025,
                                               generation_years_to=None))  # fmt: skip
-    v, ident = await resolve.resolve_with_llm(ports, _car(make, condition="NEW"), NOW)
+    v, ident = await resolver.resolve_with_llm(ports, _car(make, condition="NEW"), NOW)
     assert ident.generation == "G2" and v.generation == "G2"
     assert "it is the G2 generation (2025–)" in ports.llm.users[1]
 
@@ -78,7 +89,7 @@ async def test_a_new_car_keeps_the_generation_on_sale_when_the_resolver_insists_
     make = "S7Stampgen"
     ref = _ref(make, [("G1", 2015, 2024), ("G2", 2025, None)])
     ports = _ports(ref, _ident(make), _ident(make))
-    _, ident = await resolve.resolve_with_llm(ports, _car(make, condition="NEW"), NOW)
+    _, ident = await resolver.resolve_with_llm(ports, _car(make, condition="NEW"), NOW)
     assert (ident.generation, ident.generation_years_from, ident.generation_years_to) == ("G2", 2025, None)
     assert ident.note.endswith("Generation set to G2 (new car).")
 
@@ -87,23 +98,23 @@ async def test_an_engine_named_of_another_generation_is_not_on_sale() -> None:
     make = "S7Oldengine"
     ref = _ref(make, [("G1", 2015, 2024), ("G2", 2025, None)])
     car = _car(make, condition="NEW", constraints=Constraints(engine_hint=parse_engine("2.0 diesel 150 CV")))
-    with pytest.raises(resolve.NotOnSale):
-        await resolve.resolve_with_llm(_ports(ref, _ident(make), _ident(make)), car, NOW)
+    with pytest.raises(NotOnSale):
+        await resolver.resolve_with_llm(_ports(ref, _ident(make), _ident(make)), car, NOW)
 
 
 async def test_a_used_car_of_another_generation_is_a_mismatch() -> None:
     make = "S7Usedyear"
     ref = _ref(make, [("G1", 2015, 2024)])
-    with pytest.raises(resolve.GenerationMismatch):
-        await resolve.resolve_with_llm(_ports(ref, _ident(make)), _car(make, condition="USED", year=2008), NOW)
+    with pytest.raises(GenerationMismatch):
+        await resolver.resolve_with_llm(_ports(ref, _ident(make)), _car(make, condition="USED", year=2008), NOW)
 
 
 async def test_a_version_without_an_engine_is_never_stored() -> None:
     make = "S7Noengine"
     ref = _ref(make, [("G1", 2015, None)])
     bare = _ident(make, variant_name="Homura", engine_cc=None, power_kw=None, generation_years_to=None)
-    with pytest.raises(resolve.NotOnSale, match="no engine named"):
-        await resolve.resolve_with_llm(_ports(ref, bare), _car(make, condition="USED", year=2020), NOW)
+    with pytest.raises(NotOnSale, match="no engine named"):
+        await resolver.resolve_with_llm(_ports(ref, bare), _car(make, condition="USED", year=2020), NOW)
 
 
 async def test_no_euro_price_from_a_users_page_or_from_outside_europe() -> None:
@@ -111,12 +122,12 @@ async def test_no_euro_price_from_a_users_page_or_from_outside_europe() -> None:
     ref = _ref(make, [("G1", 2015, None)])
     priced = _ident(make, generation_years_to=None, price_eur=30000)
     page = _car(make, condition="USED", year=2020, constraints=Constraints(url="https://dealer.example/rav"))
-    _, ident = await resolve.resolve_with_llm(_ports(ref, priced), page, NOW)
+    _, ident = await resolver.resolve_with_llm(_ports(ref, priced), page, NOW)
     assert ident.price_eur is None
     china = _car(make, condition="USED", year=2020)
     china.market = "CN"
     ports = _ports(ref, priced)
-    _, ident = await resolve.resolve_with_llm(ports, china, NOW)
+    _, ident = await resolver.resolve_with_llm(ports, china, NOW)
     assert ident.price_eur is None
     assert "market: NOT sold in Spain; sold on the CN market" in ports.llm.users[0]
 
@@ -127,7 +138,7 @@ async def test_no_euro_price_from_a_users_page_or_from_outside_europe() -> None:
 async def _seed_petrol(make: str) -> None:
     ref = _ref(make, [("G1", 2015, None)])
     for name, cc, kw in (("1.0 TSI 110 CV", 999, 81), ("2.0 TSI 190 CV", 1984, 140)):
-        await resolve.upsert_variant(_ident(make, variant_name=name, engine_cc=cc, power_kw=kw, fuel="petrol",
+        await catalogue.upsert_variant(_ident(make, variant_name=name, engine_cc=cc, power_kw=kw, fuel="petrol",
                                             generation_years_to=None), ref)  # fmt: skip
 
 
@@ -137,7 +148,7 @@ async def test_a_generation_mismatch_with_the_year_known_offers_the_engines_of_t
     ref = _ref(make, [("G1", 2015, None)])
     car = _car(make, condition="USED", year=2018, constraints=Constraints(engine_hint=parse_engine("3.0 diesel")))
     ports = _ports(ref, _ident(make, generation="G0", generation_years_from=2001, generation_years_to=2006))
-    o = await identify.identify_car(ports, CaseFile(cars=[car]), car, NOW)
+    o = await _identify(ports, CaseFile(cars=[car]), car)
     assert (o.outcome, o.need) == ("CHOICES", "ENGINE")
     assert sorted(c.label for c in o.choices) == [f"{make} Rav G1 1.0 TSI 110 CV", f"{make} Rav G1 2.0 TSI 190 CV"]
     assert all(c.variant_id for c in o.choices) and "does not match ~2018" in (o.note or "")
@@ -148,7 +159,7 @@ async def test_a_generation_mismatch_without_engines_asks_the_year() -> None:
     ref = _ref(make, [("G1", 2015, None)])
     car = _car(make, condition="USED", year=2018)
     ports = _ports(ref, _ident(make, generation="G0", generation_years_from=2001, generation_years_to=2006))
-    o = await identify.identify_car(ports, CaseFile(cars=[car]), car, NOW)
+    o = await _identify(ports, CaseFile(cars=[car]), car)
     assert (o.outcome, o.need) == ("NEED", "YEAR")
 
 
@@ -158,7 +169,7 @@ async def test_a_version_not_on_sale_offers_the_catalogued_engines() -> None:
     ref = _ref(make, [("G1", 2015, None)])
     car = _car(make, condition="USED", year=2018, constraints=Constraints(engine_hint=parse_engine("3.0 diesel")))
     ports = _ports(ref, _ident(make, variant_name="Homura", engine_cc=None, power_kw=None, generation_years_to=None))
-    o = await identify.identify_car(ports, CaseFile(cars=[car]), car, NOW)
+    o = await _identify(ports, CaseFile(cars=[car]), car)
     assert (o.outcome, o.need, len(o.choices)) == ("CHOICES", "ENGINE", 2)
 
 
@@ -168,7 +179,7 @@ async def test_the_resolver_answering_another_model_twice_is_not_found() -> None
     car = _car(make, condition="USED", year=2018)
     other = _ident(make, model="Zorro", generation_years_to=None)
     ports = _ports(ref, other, other)
-    o = await identify.identify_car(ports, CaseFile(cars=[car]), car, NOW)
+    o = await _identify(ports, CaseFile(cars=[car]), car)
     assert (o.outcome, o.need, car.resolution) == ("NOT_FOUND", "MODEL", "UNRESOLVED")
     assert "NOT the model asked (Rav)" in ports.llm.users[1]
 
@@ -181,12 +192,12 @@ async def test_a_used_car_without_a_year_is_asked_once_then_assumed() -> None:
     ref = _ref(make, [("G1", 2015, None)])
     car = _car(make, condition="USED")
     case = CaseFile(cars=[car])
-    o = await identify.identify_car(_ports(ref), case, car, NOW)
+    o = await _identify(_ports(ref), case, car)
     assert (o.outcome, o.need) == ("NEED", "YEAR")
     case.intake.attempts["car#1"] = {"YEAR": 1}
     car.mileage_km = 60000
     ports = _ports(ref, _ident(make, generation_years_to=None))
-    o = await identify.identify_car(ports, case, car, NOW)
+    o = await _identify(ports, case, car)
     assert car.year_assumed and car.year is not None and car.age_years == NOW - car.year
     assert o.outcome == "IDENTIFIED"
 
@@ -197,23 +208,23 @@ async def test_a_used_car_without_a_year_is_asked_once_then_assumed() -> None:
 async def test_a_named_gearbox_of_a_variant_without_one_makes_its_own_variant() -> None:
     make = "S7Gearbox"
     ref = _ref(make, [("G1", 2015, None)])
-    v = await resolve.upsert_variant(_ident(make, generation_years_to=None), ref)
+    v = await catalogue.upsert_variant(_ident(make, generation_years_to=None), ref)
     car = _car(make, condition="USED", year=2020, variant_id=v.id, label=v.label, resolution="PROPOSED",
                constraints=Constraints(gearbox_hint="automatic"))  # fmt: skip
-    note = await resolve.split_by_gearbox(car, ref)
+    note = await revalidation.split_by_gearbox(car, ref)
     assert note is not None and note.endswith("(the gearbox you named)")
-    new = await resolve.get_variant(car.variant_id or "")
+    new = await catalogue.get_variant(car.variant_id or "")
     assert new is not None and new.id != v.id and new.transmission == "automatic"
     assert car.resolution == "CONFIRMED"
-    assert await resolve.split_by_gearbox(car, ref) is None  # the variant has the gearbox named now
+    assert await revalidation.split_by_gearbox(car, ref) is None  # the variant has the gearbox named now
 
 
 async def test_another_gearbox_than_the_variants_identifies_again() -> None:
     make = "S7Othergearbox"
     ref = _ref(make, [("G1", 2015, None)])
-    v = await resolve.upsert_variant(_ident(make, generation_years_to=None, transmission="manual"), ref)
+    v = await catalogue.upsert_variant(_ident(make, generation_years_to=None, transmission="manual"), ref)
     car = _car(make, condition="USED", year=2020, variant_id=v.id, label=v.label, resolution="PROPOSED",
                constraints=Constraints(gearbox_hint="automatic"))  # fmt: skip
-    note = await resolve.split_by_gearbox(car, ref)
+    note = await revalidation.split_by_gearbox(car, ref)
     assert note == f"car#1: {v.label} is another gearbox or drive; identified again"
     assert (car.variant_id, car.resolution) == (None, "UNRESOLVED")

@@ -107,7 +107,7 @@ def test_fuzzy_duplicate_threshold_92_same_make_model_generation_powertrain():
 
 
 def test_model_line_split():
-    from automind.chat.application.services.identification.resolve import model_line
+    from automind.chat.domain.identification.variant_match import model_line
 
     known = {"Golf", "i30 N", "i30", "3 Series"}
     assert model_line("Golf GTI", known) == ("Golf", "GTI")

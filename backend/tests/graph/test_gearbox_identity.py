@@ -5,7 +5,7 @@ import pytest
 from sqlalchemy import select
 
 from automind.acquisition.pipeline import merge
-from automind.chat.application.services.identification import resolve
+from automind.chat.application.services.identification import assessment, catalogue, revalidation
 from automind.chat.domain.case import CaseCar, Constraints
 from automind.shared.infrastructure.db import models as m
 from automind.shared.infrastructure.db.session import sessionmaker
@@ -36,18 +36,18 @@ async def _variant_with(*gearboxes: str) -> str:
 
 async def test_mixed_gearboxes_are_asked_and_split():
     vid = await _variant_with("manual 6-speed", "automatic 6-speed")
-    assert await resolve.gearbox_mixed(vid)
+    assert await assessment.gearbox_mixed(vid)
     car = CaseCar(key="car#1", request_text="Racer", make=MAKE, model="Racer", variant_id=vid, resolution="AUTO_OK",
                   constraints=Constraints(gearbox_hint="automatic"))  # fmt: skip
-    note = await resolve.split_by_gearbox(car, open_web_reference())
+    note = await revalidation.split_by_gearbox(car, open_web_reference())
     assert note and car.variant_id != vid and car.resolution == "CONFIRMED"
-    new = await resolve.get_variant(car.variant_id or "")
+    new = await catalogue.get_variant(car.variant_id or "")
     assert new is not None and new.transmission == "automatic" and "automatic" in new.variant_name
 
 
 async def test_unanimous_claims_fill_the_gearbox():
     vid = await _variant_with("automatic 6-speed", "Skyactiv-Drive automatic")
     await merge.reselect(vid)
-    v = await resolve.get_variant(vid)
+    v = await catalogue.get_variant(vid)
     assert v is not None and v.transmission == "automatic"
-    assert not await resolve.gearbox_mixed(vid)
+    assert not await assessment.gearbox_mixed(vid)

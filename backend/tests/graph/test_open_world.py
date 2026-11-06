@@ -128,10 +128,11 @@ async def test_a_stored_wrong_model_is_dropped_on_the_next_turn(saver):
     rn = await _runner(saver, llm)
     chat = str(uuid.uuid4())
     await rn.run_turn(chat, "byd")
-    from automind.chat.application.services.identification import resolve as rs
+    from automind.chat.application.services.identification.catalogue import upsert_variant
+    from automind.chat.application.services.identification.contracts import VariantIdentity
 
     v = await rn.ports.cases.latest(chat)
-    dolphin = await rs.upsert_variant(rs.VariantIdentity.model_validate(DOLPHIN), rn.ports.ref)
+    dolphin = await upsert_variant(VariantIdentity.model_validate(DOLPHIN), rn.ports.ref)
     _, data, _ = v
     data["cars"][0].update(
         {"model": "Seal U", "variant_id": dolphin.id, "label": dolphin.label, "resolution": "PROPOSED"}

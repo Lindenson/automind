@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from automind.chat.application.services.identification.identify import year_conflict
+from automind.chat.application.services.identification.stages.offer_engines import year_conflict
 from automind.chat.dialog import phrases
 from automind.chat.domain import intake
 from automind.chat.domain.case import CaseCar, CaseFile, Choice, Constraints, Pending

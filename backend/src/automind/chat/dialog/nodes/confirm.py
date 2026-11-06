@@ -12,7 +12,8 @@ from typing import Any
 from langgraph.runtime import Runtime
 from langgraph.types import interrupt
 
-from automind.chat.application.services.identification import candidates, resolve
+from automind.chat.application.services.identification import candidates, catalogue, resolver
+from automind.chat.application.services.identification.contracts import GenerationMismatch, UnknownModel
 from automind.chat.application.services.interpretation import ask as asking
 from automind.chat.application.services.report import car_view, intake_card
 from automind.chat.dialog import phrases
@@ -109,19 +110,19 @@ async def prepare_variants(state: TurnState, runtime: Runtime[TurnContext]) -> d
         car = case.car(key)
         cands = list(state.get("assessments", {}).get(key, {}).get("candidates", []))
         if car.resolution == "PROPOSED" and car.variant_id and not any(o["id"] == car.variant_id for o in cands):
-            v = await resolve.get_variant(car.variant_id)  # asked again: keep the proposal, no new lookup
+            v = await catalogue.get_variant(car.variant_id)  # asked again: keep the proposal, no new lookup
             if v is not None:
-                cands = [resolve.variant_dict(v), *cands]
+                cands = [catalogue.variant_dict(v), *cands]
         if not cands:
             try:
-                v, ident = await resolve.resolve_with_llm(c.ports, car, year, case.compare_level)
-                cands = [resolve.variant_dict(v)]
+                v, ident = await resolver.resolve_with_llm(c.ports, car, year, case.compare_level)
+                cands = [catalogue.variant_dict(v)]
                 if ident.note:
                     notices.append(notice(f"{v.label}: {ident.note}"))
-            except resolve.GenerationMismatch as e:
+            except GenerationMismatch as e:
                 notices.append(notice(f"{car.request_text}: {e}. Please tell me the generation or year.", "warning"))
                 continue
-            except resolve.UnknownModel as e:
+            except UnknownModel as e:
                 car.resolution, car.alternatives = "UNKNOWN_MODEL", [{"model": m} for m in e.closest]
                 unknown.append(key)
                 continue
@@ -192,7 +193,7 @@ async def apply_variants(state: TurnState, runtime: Runtime[TurnContext]) -> dic
     if choice.startswith("option:"):
         _, key, vid = choice.split(":", 2)
         car = case.car(key)
-        v = await resolve.get_variant(vid)
+        v = await catalogue.get_variant(vid)
         if v is not None:
             car.variant_id, car.label = v.id, v.label
     changes = _confirm_proposed(case)
@@ -334,11 +335,11 @@ async def prepare_intake(state: TurnState, runtime: Runtime[TurnContext]) -> dic
     variants: dict[str, Any] = {}
     options: dict[str, list[str]] = {}
     for car in case.cars:
-        v = await resolve.get_variant(car.variant_id or "")
+        v = await catalogue.get_variant(car.variant_id or "")
         if v is None:
             continue
         variants[v.id] = v
-        others = await resolve.catalog_for(v.make, v.model)
+        others = await catalogue.find_variants(v.make, v.model)
         options[car.key] = [x.label for x in others if x.id != v.id][:4]
     eur = float(state.get("cost_estimate") or 0)
     estimate = {"eur": eur, "cars": len(case.cars), "areas": _areas(state), "depth": case.depth}
@@ -372,7 +373,7 @@ async def prepare_intake(state: TurnState, runtime: Runtime[TurnContext]) -> dic
 async def _card_edit(c: TurnContext, case: Any, answer: dict[str, Any]) -> None:
     changes = intake_card.apply_edit(case, answer.get("car_key"), str(answer.get("field") or ""),
                                      str(answer.get("value") or ""), current_year(c))  # fmt: skip
-    if answer.get("field") == "variant" and (v := await resolve.get_variant(str(answer.get("value") or ""))):
+    if answer.get("field") == "variant" and (v := await catalogue.get_variant(str(answer.get("value") or ""))):
         case.car(str(answer.get("car_key"))).label = v.label
     case.pending = None
     await save_case(c, case, changes or ["card edit not applied"])
@@ -380,7 +381,7 @@ async def _card_edit(c: TurnContext, case: Any, answer: dict[str, Any]) -> None:
 
 async def _pick_option(case: Any, choice: str) -> None:
     _, key, vid = choice.split(":", 2)
-    if (v := await resolve.get_variant(vid)) is not None and any(x.key == key for x in case.cars):
+    if (v := await catalogue.get_variant(vid)) is not None and any(x.key == key for x in case.cars):
         case.car(key).variant_id, case.car(key).label = v.id, v.label
 
 

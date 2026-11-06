@@ -5,7 +5,8 @@ import json
 import pytest
 
 from automind.acquisition.pipeline import merge
-from automind.chat.application.services.identification import resolve as catalog
+from automind.chat.application.services.identification import catalogue as catalog
+from automind.chat.application.services.identification.contracts import VariantIdentity
 from automind.chat.application.services.report import compose as analysis
 from automind.chat.dialog.guard import check_numbers
 from automind.chat.dialog.guard import numbers_in as _numbers_in
@@ -24,7 +25,7 @@ DOC = (
 
 async def _seed():
     await db.init_db()
-    ident = catalog.VariantIdentity(
+    ident = VariantIdentity(
         make="TestMake",
         model="Golf",
         generation="Mk8",
@@ -101,7 +102,7 @@ async def test_blocks_from_seeded_claims():
     assert blocks[2]["results"][0]["t_0_100"] > 5
     crit = blocks[3]["cars"][0]["parts"]
     assert crit["performance"]["score"] is not None and crit["efficiency"]["insufficient"]
-    assert await catalog.stale_categories(v.id) == ["specs", "price", "maintenance"]
+    assert await catalog.stale_areas(v.id) == ["specs", "price", "maintenance"]
 
 
 def test_number_check():

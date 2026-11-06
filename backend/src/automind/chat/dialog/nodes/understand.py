@@ -9,7 +9,7 @@ from langgraph.runtime import Runtime
 
 from automind.acquisition import api as acquisition
 from automind.chat.application.services.feasibility import feasibility as fz_app
-from automind.chat.application.services.identification import resolve
+from automind.chat.application.services.identification import assessment, revalidation
 from automind.chat.application.services.interpretation.interpret import Interpretation, InterpretError, interpret
 from automind.chat.application.services.report import car_view
 from automind.chat.dialog import phrases
@@ -353,20 +353,20 @@ async def assess_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[s
     year = current_year(c)
     assessments: dict[str, dict[str, Any]] = {}
     changed: list[str] = []
-    level, source = await resolve.compare_level(case.cars)
+    level, source = await revalidation.compare_level(case.cars)
     if (level, source) != (case.compare_level, case.compare_level_source):
         case.compare_level, case.compare_level_source = level, source  # type: ignore[assignment]
         changed.append(f"comparison level: {level.lower()}")
     for car in case.cars:
         reason = (
-            await resolve.revalidate(car, c.ports.ref, year)
-            or await resolve.revalidate_level(car, level)
-            or await resolve.split_by_gearbox(car, c.ports.ref)
+            await revalidation.revalidate(car, c.ports.ref, year)
+            or await revalidation.revalidate_level(car, level)
+            or await revalidation.split_by_gearbox(car, c.ports.ref)
         )
         if reason:
             changed.append(reason)
-        a = await resolve.assess_car(car, c.ports.ref, year, level)
-        if resolve.auto_resolve(car, a):
+        a = await assessment.assess_car(car, c.ports.ref, year, level)
+        if assessment.auto_resolve(car, a):
             changed.append(f"{car.key} → {car.label}")
         assessments[car.key] = a.model_dump(mode="json")
     out: dict[str, Any] = {}

@@ -29,7 +29,7 @@ def accepted(generation: str | None, accept: list[str]) -> bool:
 
 @pytest.mark.live
 async def test_used_resolution_rate(migrated):
-    from automind.chat.application.services.identification import resolve
+    from automind.chat.application.services.identification import contracts, resolver
     from automind.chat.dialog.prompts import load_all
     from automind.chat.infrastructure.adapters import live_ports
     from automind.chat.infrastructure.events import EventBus
@@ -52,9 +52,9 @@ async def test_used_resolution_rate(migrated):
                 age_years=2026 - c["year"],
             )
             try:
-                v, _ = await resolve.resolve_with_llm(ports, car, 2026)
+                v, _ = await resolver.resolve_with_llm(ports, car, 2026)
                 gen, lo, hi = v.generation, v.generation_years_from, v.generation_years_to
-            except resolve.GenerationMismatch as e:
+            except contracts.GenerationMismatch as e:
                 gen, lo, hi = f"mismatch: {e}", None, None
             good = accepted(gen, c["accept"]) and generation_matches(c["year"], lo, hi, tolerance=1)
             ok += good

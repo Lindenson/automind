@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from automind.chat.application.services.identification import resolve
+from automind.chat.application.services.identification import catalogue
 from automind.chat.domain.case import CarContext, CaseCar, CaseDelta, CaseFile, Constraints
 from automind.shared.vehicle.identity import parse_engine
 
@@ -67,12 +67,12 @@ async def view(case: CaseFile) -> dict[str, dict[str, Any]]:
     out: dict[str, dict[str, Any]] = {}
     catalogs: dict[tuple[str, str], list[Any]] = {}
     for car in case.cars:
-        v = await resolve.get_variant(car.variant_id) if car.variant_id else None
+        v = await catalogue.get_variant(car.variant_id) if car.variant_id else None
         rows: list[Any] = []
         if car.make and car.model:
             k = (car.make.lower(), car.model.lower())
             if k not in catalogs:
-                catalogs[k] = await resolve.catalog_for(car.make, car.model)
+                catalogs[k] = await catalogue.find_variants(car.make, car.model)
             rows = catalogs[k]
         out[car.key] = {"variant_label": variant_label(car, v), "options": options(car, v, rows)}
     return out

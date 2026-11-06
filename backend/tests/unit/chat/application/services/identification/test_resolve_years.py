@@ -1,8 +1,8 @@
 """A new car is matched to the current generation from config, not to a stale catalog row (RAV4 XA50 vs XA60)."""
 
-from automind.chat.application.services.identification.resolve import _fits
 from automind.chat.dialog.prompts import load_all
 from automind.chat.domain.case import CaseCar
+from automind.chat.domain.identification.variant_match import fits_case as _fits
 from automind.delivery.bootstrap import reference
 from automind.shared.infrastructure import db
 
@@ -19,7 +19,7 @@ def test_new_rav4_is_not_the_previous_generation():
 
 
 def test_current_generation_for_new_cars():
-    from automind.chat.application.services.identification.resolve import current_generation
+    from automind.chat.domain.identification.variant_match import current_generation
 
     ref = reference(load_all())
     new = CaseCar(key="car#1", request_text="new RAV4", make="Toyota", model="RAV4", condition="NEW")
@@ -37,7 +37,7 @@ def test_catalog_row_without_generation_is_not_reused_when_config_knows_generati
 
 
 async def test_revalidate_resets_a_new_car_on_a_finished_generation(monkeypatch):
-    from automind.chat.application.services.identification import resolve
+    from automind.chat.application.services.identification import revalidation
 
     ref = reference(load_all())
     xa50 = db.Variant(id="v-xa50", make="Toyota", model="RAV4", generation="XA50", variant_name="2.5 Hybrid",
@@ -46,18 +46,18 @@ async def test_revalidate_resets_a_new_car_on_a_finished_generation(monkeypatch)
     async def fake_get(vid):
         return xa50
 
-    monkeypatch.setattr(resolve, "get_variant", fake_get)
+    monkeypatch.setattr(revalidation, "get_variant", fake_get)
     car = CaseCar(key="car#1", request_text="new RAV4", make="Toyota", model="RAV4", condition="NEW",
                   variant_id="v-xa50", label="Toyota RAV4 XA50", resolution="CONFIRMED")  # fmt: skip
-    reason = await resolve.revalidate(car, ref, 2026)
+    reason = await revalidation.revalidate(car, ref, 2026)
     assert reason and "XA50" in reason and car.variant_id is None and car.resolution == "UNRESOLVED"
     used = CaseCar(key="car#2", request_text="RAV4 2021", make="Toyota", model="RAV4", condition="USED", year=2021,
                    variant_id="v-xa50", resolution="CONFIRMED")  # fmt: skip
-    assert await resolve.revalidate(used, ref, 2026) is None and used.variant_id == "v-xa50"
+    assert await revalidation.revalidate(used, ref, 2026) is None and used.variant_id == "v-xa50"
 
 
 def test_same_model_spec_005() -> None:
-    from automind.chat.application.services.identification.resolve import same_model
+    from automind.chat.domain.identification.variant_match import same_model
 
     assert (
         same_model("Seal U", "Seal U DM-i") and same_model("Seal U DM-i", "Seal U") and same_model("SEAL U", "Seal U")

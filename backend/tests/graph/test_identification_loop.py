@@ -84,18 +84,18 @@ async def test_choose_for_me_confirms_the_proposal(saver):
 
 
 async def test_unknown_model_is_reported_with_the_closest_known_ones():
-    from automind.chat.application.services.identification import resolve
+    from automind.chat.application.services.identification import contracts, resolver
     from automind.chat.domain.case import CaseCar
 
     from .conftest import open_web_reference
 
     ref = open_web_reference()
     car = CaseCar(key="car#1", request_text="FixtureMake Racr", make=MAKE, model="Racr")
-    ident = resolve.VariantIdentity(make=MAKE, model="Racr", generation=None, generation_years_from=None,
+    ident = contracts.VariantIdentity(make=MAKE, model="Racr", generation=None, generation_years_from=None,
                                     generation_years_to=None, variant_name="?", powertrain="ICE",
                                     certainty="ambiguous", known_model=False)  # fmt: skip
-    with pytest.raises(resolve.UnknownModel) as e:
-        await resolve._check_known(ref, car, ident)  # noqa: SLF001
+    with pytest.raises(contracts.UnknownModel) as e:
+        await resolver._check_known(ref, car, ident)  # noqa: SLF001
     assert e.value.closest[0] == f"{MAKE} Racer"
     known = CaseCar(key="car#1", request_text="FixtureMake Racer", make=MAKE, model="Racer")
-    await resolve._check_known(ref, known, ident.model_copy(update={"model": "Racer"}))  # noqa: SLF001
+    await resolver._check_known(ref, known, ident.model_copy(update={"model": "Racer"}))  # noqa: SLF001
