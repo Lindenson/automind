@@ -225,6 +225,7 @@ def make_report_node():  # noqa: ANN201
         lang = state.get("language", "en")
         comp = await compute(c, case, list(state.get("notices", [])), lang)
         await compose.persist_computations(
+            c.ports.computations,
             c.turn_id,
             comp.tco,
             comp.cars,
@@ -293,7 +294,14 @@ async def answer_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[s
     comp = await compute(c, case, list(state.get("notices", [])), state.get("language", "en"))
     if state.get("case_changed") and case.race_settings is not None:  # a new race: keep it reproducible
         await compose.persist_computations(
-            c.turn_id, [], comp.cars, comp.race, {}, case.prediction.model_dump() if case.prediction else None, {}
+            c.ports.computations,
+            c.turn_id,
+            [],
+            comp.cars,
+            comp.race,
+            {},
+            case.prediction.model_dump() if case.prediction else None,
+            {},
         )
     facts = {"nothing_new": nothing_new, "case": _case_summary(case), "variants": [x.label for x in case.cars],
              **comp.facts}  # fmt: skip

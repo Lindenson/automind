@@ -8,12 +8,11 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import asdict
 from datetime import datetime
-from functools import lru_cache
 from typing import Any
 
-from sqlalchemy import select
-
 from automind.acquisition import api as acquisition
+from automind.acquisition.api import CatalogueVariant
+from automind.chat.application.ports import ComputationStore
 from automind.chat.domain.assessment import dragrace, reliability, reviews
 from automind.chat.domain.assessment import metrics as scoring  # noqa: F401 (CarFacts, metrics, ownership)
 from automind.chat.domain.assessment.criteria import CriteriaModel, CriteriaScore
@@ -22,7 +21,6 @@ from automind.chat.domain.cost import energy, tco
 from automind.chat.domain.identification import used
 from automind.chat.domain.verdict import insights as ins
 from automind.shared import evidence as evidence_rules
-from automind.shared.infrastructure import db
 from automind.shared.vehicle import identity, specs, units
 
 TABLE_ROWS = [
@@ -79,78 +77,30 @@ def relevant(key: str, powertrain: str | None) -> bool:
     return not (key == "displacement" and pt == "BEV")
 
 
+_SEVERITY: list[reliability.SeverityRules] = []  # config/severity.yaml, installed at startup
+
+
+def configure_severity(rules: reliability.SeverityRules) -> None:
+    """Install the severity rules of issues (config/severity.yaml; delivery.bootstrap.configure_domain)."""
+    _SEVERITY[:] = [rules]
+
+
 async def load_car(variant_id: str) -> dict:
-    async with db.sessionmaker()() as s:
-        v = await s.get(db.Variant, variant_id)
-        if v is None:
-            raise KeyError(f"unknown variant {variant_id}")
-        values = {
-            sv.attribute: sv
-            for sv in (await s.execute(select(db.SpecValue).where(db.SpecValue.variant_id == variant_id))).scalars()
-        }
-        rows = (
-            await s.execute(
-                select(db.Claim, db.Evidence)
-                .join(db.Evidence, db.Claim.evidence_id == db.Evidence.id)
-                .where(db.Claim.variant_id == variant_id, db.Claim.status == "ACCEPTED")
-            )
-        ).all()
-        runs = list((await s.execute(select(db.ResearchRun).where(db.ResearchRun.variant_id == variant_id))).scalars())
-        issues = (
-            await s.execute(
-                select(db.Issue, db.Evidence)
-                .join(db.Evidence, db.Issue.evidence_id == db.Evidence.id)
-                .where(db.Issue.variant_id == variant_id)
-            )
-        ).all()
-        reviews = (
-            await s.execute(
-                select(db.ReviewItem, db.Evidence)
-                .join(db.Evidence, db.ReviewItem.evidence_id == db.Evidence.id)
-                .where(db.ReviewItem.variant_id == variant_id)
-            )
-        ).all()
-        stats = list(
-            (await s.execute(select(db.ReliabilityStat).where(db.ReliabilityStat.variant_id == variant_id))).scalars()
-        )
-        facts_rows = list(
-            (await s.execute(select(db.ManufacturerFact).where(db.ManufacturerFact.make == v.make))).scalars()
-        )
-        retention = (
-            await s.execute(
-                select(db.ValueRetention, db.Evidence)
-                .join(db.Evidence, db.ValueRetention.evidence_id == db.Evidence.id, isouter=True)
-                .where(db.ValueRetention.variant_id == variant_id)
-            )
-        ).all()
-        used_rows = (
-            await s.execute(
-                select(db.UsedPriceRange, db.Evidence.url)
-                .join(db.Evidence, db.UsedPriceRange.evidence_id == db.Evidence.id)
-                .where(db.UsedPriceRange.variant_id == variant_id, db.UsedPriceRange.status == "ACCEPTED")
-            )
-        ).all()
-        rejected_rows = (
-            await s.execute(
-                select(db.PageRelevance, db.Document)
-                .join(db.Document, db.PageRelevance.document_id == db.Document.id)
-                .where(
-                    db.PageRelevance.variant_id == variant_id,
-                    db.PageRelevance.verdict.in_(("OTHER_VARIANT", "NOT_ABOUT_CAR")),
-                )
-                .order_by(db.PageRelevance.created_at.desc())
-                .limit(20)
-            )
-        ).all()
+    """One car as the report reads it: its stored data (`acquisition.api.car_data`) with the sources of its claims,
+    the pages rejected for it and the sources each area read."""
+    data = await acquisition.car_data(variant_id)
+    if data is None:
+        raise KeyError(f"unknown variant {variant_id}")
+    v = data.variant
     rejected_pages = [
         {
-            "name": (d.title or d.url)[:200],
-            "url": d.final_url or d.url,
-            "type": evidence_rules.classify_source(d.final_url or d.url),
-            "retrieved_at": (d.fetched_at or d.retrieved_at).isoformat(),
-            "rejected": {"reason": r.reason, "other": r.other},
+            "name": (p.title or p.url)[:200],
+            "url": p.final_url or p.url,
+            "type": evidence_rules.classify_source(p.final_url or p.url),
+            "retrieved_at": (p.fetched_at or p.retrieved_at).isoformat(),
+            "rejected": {"reason": p.reason, "other": p.other},
         }
-        for r, d in rejected_rows
+        for p in data.rejected_pages
     ]
     claim_src = {
         c.id: {
@@ -164,30 +114,31 @@ async def load_car(variant_id: str) -> dict:
             # spec 011 FR-022 (010 T059): read from a registry candidate, labelled "unverified source"
             **({"unverified": True} if e.unverified else {}),
         }
-        for c, e in rows
+        for c, e in data.claims
     }
-    researched = max((r.completed_at for r in runs), default=v.created_at)
+    researched = max((r.completed_at for r in data.runs), default=v.created_at)
     tried = await acquisition.tried_by_area(variant_id)
-    cltc_pair = _cltc_pair(rows, values.get("range_cltc"))
     return {
         "variant": v,
-        "values": values,
-        "cltc_pair": cltc_pair,
+        "values": data.values,
+        "cltc_pair": _cltc_pair(data.claims, data.values.get("range_cltc")),
         "claim_src": claim_src,
         "rejected_pages": rejected_pages,
-        "researched_at": researched.isoformat(),
-        "runs": {r.area: r for r in runs},
+        "researched_at": researched.isoformat() if researched else None,
+        "runs": {r.area: r for r in data.runs},
         "tried": {a: [t.model_dump() for t in ts] for a, ts in tried.items()},  # area -> sources read (T123)
-        "issues": [(i, e) for i, e in issues],
-        "reviews": [(r, e) for r, e in reviews],
-        "manufacturer_facts": facts_rows,
-        "stats": stats,
-        "retention": [(r, e) for r, e in retention],
+        "issues": list(data.issues),
+        "reviews": list(data.reviews),
+        "manufacturer_facts": data.manufacturer_facts,
+        "stats": data.stats,
+        "retention": list(data.retention),
         # spec 008: sourced used-price ranges (the purchase price and value now of a used car)
         "used_prices": [
-            used.UsedRange(float(r.min_eur), float(r.max_eur), r.model_year_from, r.model_year_to, url)
-            for r, url in used_rows
+            used.UsedRange(float(r.min_eur), float(r.max_eur), r.model_year_from, r.model_year_to, r.url)
+            for r in data.used_prices
         ],
+        "maintenance": data.maintenance,  # sourced maintenance items (the ownership cost)
+        "used_issues": data.used_issues,  # issues of used cars with an age or mileage (the ownership cost)
     }
 
 
@@ -220,11 +171,8 @@ def _txt(car: dict, key: str) -> str | None:
     return sv.value_text if sv is not None and sv.available else None
 
 
-@lru_cache
 def severity_rules() -> reliability.SeverityRules:
-    from automind.shared.infrastructure.config.loader import load_yaml
-
-    return reliability.SeverityRules.from_config(load_yaml("severity.yaml"))
+    return _SEVERITY[0]
 
 
 def merged_issues(car: dict) -> list[reliability.MergedIssue]:
@@ -822,15 +770,7 @@ async def tco_car(
     fuel = getattr(v, "fuel", None)
     if fuel not in ("petrol", "diesel"):  # a hybrid kind or unknown: the liquid fuel from the engine and the name
         fuel = identity.liquid_fuel(f"{_txt(car, 'engine') or ''} {v.model} {v.variant_name}") or "petrol"
-    async with db.sessionmaker()() as s:
-        maint = list(
-            (await s.execute(select(db.MaintenanceItem).where(db.MaintenanceItem.variant_id == v.id))).scalars()
-        )
-        used = list(
-            (
-                await s.execute(select(db.Issue).where(db.Issue.variant_id == v.id, db.Issue.area == "used_issues"))
-            ).scalars()
-        )
+    maint, used = car.get("maintenance", []), car.get("used_issues", [])
     sched = [
         tco.MaintenanceSched(m.item, m.interval_km, m.interval_months, m.cost_eur, list(m.evidence_ids or []))
         for m in maint
@@ -936,22 +876,11 @@ def tco_block(estimates: list[tco.TcoEstimate], evidence: dict[str, dict] | None
 
 
 async def evidence_refs(ids: list[str]) -> dict[str, dict]:
-    if not ids:
-        return {}
-    async with db.sessionmaker()() as s:
-        rows = (await s.execute(select(db.Evidence).where(db.Evidence.id.in_(ids)))).scalars()
-        return {
-            e.id: {
-                "name": e.source_name,
-                "url": e.url,
-                "type": e.source_type,
-                "retrieved_at": e.retrieved_at.isoformat(),
-            }
-            for e in rows
-        }
+    return await acquisition.evidence_refs(ids)
 
 
 async def persist_computations(
+    store: ComputationStore,
     turn_id: str,
     estimates: list[tco.TcoEstimate],
     cars: list[dict],
@@ -961,47 +890,43 @@ async def persist_computations(
     mileage: dict[str, int | None],
 ) -> None:
     """Store TCO estimates and the race simulation of a turn (inputs, assumptions, versions; constitution IX)."""
-    async with db.sessionmaker()() as s:
-        for e in estimates:
-            s.add(
-                db.TcoEstimateRow(
-                    turn_id=turn_id,
-                    variant_id=e.car_id,
-                    condition=e.condition,
-                    age_years=e.age_years,
-                    mileage_km=mileage.get(e.car_id),
-                    annual_km=e.annual_km,
-                    rates=rates,
-                    items=[{k: v for k, v in asdict(i).items() if k != "estimate"} for i in e.items],
-                    annual_total=e.annual_total,
-                    five_year_total=e.five_year_total,
-                    rules_version=e.rules_version,
-                )
-            )
-        if race is not None and race.results:
-            s.add(
-                db.Simulation(
-                    turn_id=turn_id,
-                    model_version=race.model_version,
-                    settings=asdict(race.settings),
-                    prediction=prediction,
-                    inputs=[asdict(race_inputs(c)) for c in cars],
-                    assumptions=[{"car_id": r.car_id, "items": r.assumptions} for r in race.results],
-                    results=[
-                        {
-                            "car_id": r.car_id,
-                            "rank": r.rank,
-                            "t_0_100": r.t_0_100,
-                            "t_0_200": r.t_0_200,
-                            "t_400m": r.t_400m,
-                            "v_400m": r.v_400m,
-                        }
-                        for r in race.results
-                    ],
-                    input_hash=race.input_hash,
-                )
-            )
-        await s.commit()
+    rows = [
+        {
+            "variant_id": e.car_id,
+            "condition": e.condition,
+            "age_years": e.age_years,
+            "mileage_km": mileage.get(e.car_id),
+            "annual_km": e.annual_km,
+            "rates": rates,
+            "items": [{k: v for k, v in asdict(i).items() if k != "estimate"} for i in e.items],
+            "annual_total": e.annual_total,
+            "five_year_total": e.five_year_total,
+            "rules_version": e.rules_version,
+        }
+        for e in estimates
+    ]
+    simulation = None
+    if race is not None and race.results:
+        simulation = {
+            "model_version": race.model_version,
+            "settings": asdict(race.settings),
+            "prediction": prediction,
+            "inputs": [asdict(race_inputs(c)) for c in cars],
+            "assumptions": [{"car_id": r.car_id, "items": r.assumptions} for r in race.results],
+            "results": [
+                {
+                    "car_id": r.car_id,
+                    "rank": r.rank,
+                    "t_0_100": r.t_0_100,
+                    "t_0_200": r.t_0_200,
+                    "t_400m": r.t_400m,
+                    "v_400m": r.v_400m,
+                }
+                for r in race.results
+            ],
+            "input_hash": race.input_hash,
+        }
+    await store.record(turn_id, rows, simulation)
 
 
 # ---------------- reliability and reviews (US5) ----------------
@@ -1101,7 +1026,7 @@ INSIGHT_ATTRS = ("boot_volume", "consumption", "measured_0_100", "max_power", "m
                  "official_price_es", "ground_clearance", "rear_legroom", "euro_ncap_stars", "top_speed")  # fmt: skip
 
 
-def short_name(v: db.Variant) -> str:
+def short_name(v: CatalogueVariant) -> str:
     """The name the text uses for a car: make and model (the full label is in the blocks)."""
     return f"{v.make} {v.model}".strip()
 

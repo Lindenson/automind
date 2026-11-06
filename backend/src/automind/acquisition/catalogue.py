@@ -35,13 +35,13 @@ async def find_variants(make: str, model: str) -> list[CatalogueVariant]:
     """Every catalogued version of this make and model (any case)."""
     async with db.sessionmaker()() as s:
         rows = await s.execute(select(db.Variant).where(*_same_model(make, model)))
-        return [_view(v) for v in rows.scalars()]
+        return [view_of(v) for v in rows.scalars()]
 
 
 async def get_variant(variant_id: str) -> CatalogueVariant | None:
     async with db.sessionmaker()() as s:
         v = await s.get(db.Variant, variant_id)
-        return _view(v) if v is not None else None
+        return view_of(v) if v is not None else None
 
 
 async def upsert_variant(draft: VariantDraft) -> CatalogueVariant:
@@ -56,7 +56,7 @@ async def upsert_variant(draft: VariantDraft) -> CatalogueVariant:
                 if getattr(found, col) is None and getattr(draft, col) is not None:
                     setattr(found, col, getattr(draft, col))
             await s.commit()
-            return _view(found)
+            return view_of(found)
         v = db.Variant(
             canonical_key=draft.canonical_key, make=draft.make, model=draft.model, generation=draft.generation,
             variant_name=draft.variant_name, powertrain=draft.powertrain, body_class=draft.body_class,
@@ -69,7 +69,7 @@ async def upsert_variant(draft: VariantDraft) -> CatalogueVariant:
         )  # fmt: skip
         s.add(v)
         await s.commit()
-        return _view(v)
+        return view_of(v)
 
 
 async def stale_areas(variant_id: str, areas: tuple[str, ...]) -> list[str]:
@@ -108,6 +108,19 @@ async def store_lineup(lineup: StoredLineup) -> None:
         await s.commit()
 
 
+def view_of(v: db.Variant) -> CatalogueVariant:
+    """A stored version as the chat reads it."""
+    return CatalogueVariant(
+        id=v.id, make=v.make, model=v.model, generation=v.generation, variant_name=v.variant_name,
+        powertrain=v.powertrain, body_class=v.body_class, model_year_from=v.model_year_from, market=v.market or "ES",
+        generation_years_from=v.generation_years_from, generation_years_to=v.generation_years_to,
+        vehicle_class=v.vehicle_class, segment=v.segment, brand_positioning=v.brand_positioning,
+        transmission=v.transmission, drive=v.drive, trim=v.trim, trim_level=v.trim_level,
+        price_eur=float(v.price_eur) if v.price_eur is not None else None, engine_cc=v.engine_cc,
+        power_kw=v.power_kw, fuel=v.fuel, created_at=v.created_at,
+    )  # fmt: skip
+
+
 def _same_model(make: str, model: str) -> tuple[Any, Any]:
     return func.lower(db.Variant.make) == make.lower(), func.lower(db.Variant.model) == model.lower()
 
@@ -120,24 +133,12 @@ async def _catalogued(s: Any, draft: VariantDraft) -> Any:
         return found
     new = {k: getattr(draft, k) for k in _MATCHED}
     for v in (await s.execute(select(db.Variant).where(*_same_model(draft.make, draft.model)))).scalars():
-        old = _view(v).model_dump()
+        old = view_of(v).model_dump()
         if identity.is_duplicate(old, new, fuzz.token_sort_ratio) or identity.same_version(
             old, new, trim_unknown_ok=False
         ):
             return v
     return None
-
-
-def _view(v: db.Variant) -> CatalogueVariant:
-    return CatalogueVariant(
-        id=v.id, make=v.make, model=v.model, generation=v.generation, variant_name=v.variant_name,
-        powertrain=v.powertrain, body_class=v.body_class, model_year_from=v.model_year_from, market=v.market or "ES",
-        generation_years_from=v.generation_years_from, generation_years_to=v.generation_years_to,
-        vehicle_class=v.vehicle_class, segment=v.segment, brand_positioning=v.brand_positioning,
-        transmission=v.transmission, drive=v.drive, trim=v.trim, trim_level=v.trim_level,
-        price_eur=float(v.price_eur) if v.price_eur is not None else None, engine_cc=v.engine_cc,
-        power_kw=v.power_kw, fuel=v.fuel,
-    )  # fmt: skip
 
 
 def _lineup_row(make: str, market: str) -> Any:

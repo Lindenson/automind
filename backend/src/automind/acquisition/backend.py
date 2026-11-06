@@ -9,7 +9,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from automind.acquisition import catalogue, facade, read, recheck
+from automind.acquisition import car_data, catalogue, facade, read, recheck
+from automind.acquisition.api.car import CarData
 from automind.acquisition.api.contracts import (
     AcquireRequest,
     AcquireResult,
@@ -126,6 +127,12 @@ class EngineBackend:
 
     async def store_lineup(self, lineup: StoredLineup) -> None:
         await catalogue.store_lineup(lineup)
+
+    async def car_data(self, variant_id: str) -> CarData | None:
+        return await car_data.car_data(variant_id)
+
+    async def evidence_refs(self, ids: list[str]) -> dict[str, dict[str, str]]:
+        return await car_data.evidence_refs(ids)
 
 
 BACKEND: Backend = EngineBackend()

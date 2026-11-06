@@ -4,7 +4,6 @@ func|acquisition/admin_api.py|accuracy
 func|acquisition/admin_api.py|value
 func|acquisition/pipeline/job.py|_run
 func|acquisition/registry/application/review.py|review
-func|chat/application/services/report/compose.py|load_car
 func|chat/dialog/nodes/compute.py|compute
 node|chat/dialog/nodes/compute.py|compute
 node|chat/dialog/nodes/compute.py|ownership_facts

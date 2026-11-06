@@ -62,8 +62,6 @@ forbidden_modules =
 # Legacy demo services still use the DB directly. New application code goes through ports
 # (chat/application/ports.py). Remove these lines as each module is moved behind a port.
 ignore_imports =
-    automind.chat.application.services.report.compose -> automind.shared.infrastructure.**
-    automind.chat.application.services.report.compose -> sqlalchemy
     # one-off data repair after the 004 verification fixes; uses the research persistence directly
     automind.chat.application.maintenance.repair -> automind.shared.infrastructure.**
     automind.chat.application.maintenance.repair -> sqlalchemy
@@ -248,8 +246,8 @@ forbidden_modules =
     automind.acquisition.reputation
     automind.acquisition.snapshots
     automind.acquisition.worker
-# direct imports, no ignore_imports: acquisition.api loads the engine at call time; the legacy compose ->
-# infrastructure.config edge (application-ports exception) would otherwise reach the snapshot store indirectly
+# direct imports, no ignore_imports: acquisition.api loads the engine at call time; the remaining legacy
+# application -> shared.infrastructure edges (application-ports exceptions) would otherwise reach the engine indirectly
 allow_indirect_imports = True
 
 [importlinter:contract:api-uses-engine-facades]
