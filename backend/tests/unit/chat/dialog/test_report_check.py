@@ -1,6 +1,7 @@
 """Report check: text vs blocks (spec 004 FR-012, SC-003; research R3)."""
 
-from automind.chat.dialog.guard import CheckInput, drop_sentences, report_violations, violations_prompt
+from automind.chat.application.services.report.contracts import CheckInput
+from automind.chat.dialog.guard import drop_sentences, report_violations, violations_prompt
 
 CI = CheckInput(
     has_data=frozenset({"tco", "price", "consumption"}),

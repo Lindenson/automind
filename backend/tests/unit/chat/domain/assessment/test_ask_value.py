@@ -70,7 +70,7 @@ def test_inferred_field_that_changes_nothing_is_not_asked():
 def test_report_shows_the_assumption_and_asks_once():
     from types import SimpleNamespace
 
-    from automind.chat.dialog.nodes.report import _confirm_inferred
+    from automind.chat.dialog.report_followup import confirm_inferred as _confirm_inferred
     from automind.chat.domain.case import CaseFile
 
     def car(i, name):
