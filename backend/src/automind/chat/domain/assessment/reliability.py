@@ -16,6 +16,8 @@ from automind.chat.domain.assessment.metrics import ReliabilitySummary
 Severity = Literal["LOW", "MEDIUM", "HIGH"]
 SUBJECTIVE = ("boring", "ugly", "design", "looks", "styling", "bland", "character", "dull", "fun to drive", "opinion")
 
+_SPACES = re.compile(r"\s+")  # a run of white space
+
 
 @dataclass(frozen=True)
 class SeverityRules:
@@ -70,7 +72,7 @@ class MergedIssue:
 
 
 def _norm(s: str) -> str:
-    return re.sub(r"\s+", " ", s.strip().lower())
+    return _SPACES.sub(" ", s.strip().lower())
 
 
 def is_subjective(i: IssueIn) -> bool:

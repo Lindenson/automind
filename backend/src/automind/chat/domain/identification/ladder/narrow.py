@@ -19,16 +19,19 @@ from automind.chat.domain.identification.ladder.model import (
     family_word,
     line_of,
 )
+from automind.shared.text.patterns import whole_word
 from automind.shared.vehicle.identity import generation_matches
+
+_DIESEL_WORD = re.compile(r"di[eé]sel|\bd\b|\bdci\b")  # "2.0 diésel", "320d", "1.5 dCi"
 
 
 def _base_fuel(v: Version) -> str | None:
     """The liquid fuel of a mild hybrid from its engine family ("1.5 TSI m-HEV" → petrol, "2.0 TDI MHEV" → diesel)."""
     low = v.engine.lower()
-    hit = next((f for f in IMPLIED_FUEL if re.search(rf"(?<![\w-]){re.escape(f)}(?![\w-])", low)), None)
+    hit = next((f for f in IMPLIED_FUEL if whole_word(f, hyphen_inside=True).search(low)), None)
     if hit and IMPLIED_FUEL[hit] in ("petrol", "diesel"):
         return IMPLIED_FUEL[hit]
-    return "diesel" if re.search(r"di[eé]sel|\bd\b|\bdci\b", low) else None
+    return "diesel" if _DIESEL_WORD.search(low) else None
 
 
 def _fuel_ok(want: str, have: str | None, v: Version | None = None) -> bool:
@@ -42,12 +45,12 @@ def _fuel_ok(want: str, have: str | None, v: Version | None = None) -> bool:
 
 def _family_ok(family: str, v: Version) -> bool:
     fam, low = family.lower(), v.engine.lower()
-    if re.search(rf"(?<![\w-]){re.escape(fam)}(?![\w-])", low):  # "TSI" is not "eTSI"
+    if whole_word(fam, hyphen_inside=True).search(low):  # "TSI" is not "eTSI"
         return True
     # a family word the source does not write ("TDI" for "2.0 diésel 150 CV"): the fuel decides, unless the
     # source names another family
     implied = IMPLIED_FUEL.get(fam)
-    named = any(re.search(rf"(?<![\w-]){re.escape(f)}(?![\w-])", low) for f in IMPLIED_FUEL)
+    named = any(whole_word(f, hyphen_inside=True).search(low) for f in IMPLIED_FUEL)
     return implied is not None and not named and v.fuel is not None and _fuel_ok(implied, v.fuel, v)
 
 

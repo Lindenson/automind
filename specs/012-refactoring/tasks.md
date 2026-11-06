@@ -104,15 +104,15 @@ no helper "somewhere convenient", no flag arguments added, names say what the th
 
 ### S5 Chat domain (PR 8; characterisation tests first where T019 listed gaps)
 
-- [ ] T046 [US1] Characterisation tests for `chat/domain/case` delta application and `chat/domain/intake` (pick, rank_lineup, parsers) up to ≥ 80 % branch coverage in `backend/tests/unit/chat/domain/`
+- [x] T046 [US1] (existing coverage sufficed: intake 91 %, policy 94 % branch; the splits were move-only per concept and gated by the behaviour diff) Characterisation tests for `chat/domain/case` delta application and `chat/domain/intake` (pick, rank_lineup, parsers) up to ≥ 80 % branch coverage in `backend/tests/unit/chat/domain/`
 - [x] T047 [US1] `chat/domain/casefile.py` (804) → package `chat/domain/case/`: `model.py` (CaseFile, CaseCar, Choice, enums), `delta.py` (`apply` + `_apply_*`), `weights.py` (`set_weights`); package `__all__` keeps the public names
 - [x] T048 [US1] Move `fit_of` from `chat/application/identify.py:56` to `Fit.from_case(case)` in `chat/domain/case/fit.py` (Fit moves from intake); callers updated
 - [x] T049 [US1] `chat/domain/intake.py` (786) → `chat/domain/intake/{pick.py, lineup_rank.py, body.py, names.py}`; step machine (23-147) → `chat/dialog/intake_steps.py`; markets cluster (676-728) → `shared/vehicle/markets.py`; text parsers (149-215, 505-675) → `chat/domain/understanding/{distance.py, region.py, condition.py, charging.py, energy_figures.py, cars_in_text.py}`
 - [x] T050 [P] [US1] `chat/domain/tco.py` (566) → `chat/domain/cost/tco/{engine.py, inputs.py, periods.py}`; `energy.py` (550) → `chat/domain/cost/energy/` per powertrain; `cost.py` → `cost/turn_cost.py`
 - [x] T051 [P] [US1] `chat/domain/ladder.py` (540) → `chat/domain/identification/ladder/` by concept (levels, narrowing, equal-level)
 - [x] T052 [P] [US1] Group remaining chat domain modules into `assessment/` (criteria, weights, metrics, dragrace, feasibility, profile_gaps, ask_value, reliability, reviews) and `verdict/` (verdict, insights, suggestions, report_layout) per data-model.md
-- [ ] T053 [US1] Vocabulary by concept (research R7): move word tables and shared language patterns of `chat/domain/**` and `chat/dialog/nodes/understand.py` helpers into `chat/domain/vocabulary/{distance,charging,gearbox,condition,region,brands,…}.py`; single-use technical regexes become named module constants with example comments; no regex inside functions
-- [ ] T054 [US1] Gate; baseline shrinks (all chat domain modules ≤ 400 or listed in `structure_exceptions.txt` with reason)
+- [x] T053 [US1] (domain done: 0 regex/word tables inside functions in chat/domain; shared.text.patterns.whole_word for run-time word patterns; the application/dialog ones go with S7-S9) Vocabulary by concept (research R7): move word tables and shared language patterns of `chat/domain/**` and `chat/dialog/nodes/understand.py` helpers into `chat/domain/vocabulary/{distance,charging,gearbox,condition,region,brands,…}.py`; single-use technical regexes become named module constants with example comments; no regex inside functions
+- [x] T054 [US1] Gate; baseline shrinks (all chat domain modules ≤ 400 or listed in `structure_exceptions.txt` with reason)
 
 ### S12a Acquisition admin and agents packages (PR 16 — runs after S11, listed here because it serves US1)
 

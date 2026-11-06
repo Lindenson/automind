@@ -7,10 +7,13 @@ import re
 from collections.abc import Iterable, Sequence
 
 from automind.chat.domain.case import CaseCar
+from automind.shared.text.patterns import word_after_any
+
+_NOT_ALNUM = re.compile(r"[\W_]")  # not a letter or digit: "Li-Auto L9" → "liautol9"
 
 
 def _name_key(s: str | None) -> str:
-    return re.sub(r"[\W_]", "", (s or "").lower())
+    return _NOT_ALNUM.sub("", (s or "").lower())
 
 
 def same_name(a: str | None, b: str | None) -> bool:
@@ -65,5 +68,5 @@ def keep_user_names(sentence: str, cars: Sequence[CaseCar]) -> str:
                 return m.group(0)
             return f"{m.group(1)}{first}"
 
-        out = re.sub(rf"(?i)((?<!\w)(?:{alts})\s+)([^\s,.;:!?»«]+)", put_back, out)
+        out = word_after_any(alts).sub(put_back, out)
     return out

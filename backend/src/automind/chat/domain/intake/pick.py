@@ -6,16 +6,21 @@ from __future__ import annotations
 import re
 
 from automind.chat.domain.case import CaseCar, CaseFile, Choice
+from automind.shared.text.patterns import whole_word
+
+_NOT_LABEL_CHAR = re.compile(
+    r"[^\w+.\-()]"
+)  # anything but letters, digits and + . - ( ): "Golf (Mk8)!" → "Golf (Mk8) "
 
 
 def _plain_text(s: str | None) -> str:
-    return " ".join(re.sub(r"[^\w+.\-()]", " ", (s or "").lower()).split())
+    return " ".join(_NOT_LABEL_CHAR.sub(" ", (s or "").lower()).split())
 
 
 def _without(label: str, *words: str | None) -> str:
     out = label
     for w in sorted({x for x in words if x}, key=len, reverse=True):
-        out = re.sub(rf"(?i)(?<![\w]){re.escape(w)}(?![\w])", " ", out)
+        out = whole_word(w, ignore_case=True).sub(" ", out)
     return " ".join(out.split())
 
 

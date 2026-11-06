@@ -16,6 +16,11 @@ StepKind = Literal["DONE", "FUEL", "ENGINE", "FAMILY", "POWER", "GEARBOX", "DRIV
 
 Origin = Literal["STATED", "CHOSEN", "LIMIT"]
 
+_POWER_SUFFIX = re.compile(
+    r"^(.*?)\s*\d{2,4}\s*(?:CV|PS|hp|HP|kW|cv|ps|CH|ch)\b"
+)  # the engine before its power: "2.0 TDI 150 CV" → "2.0 TDI"
+_DISPLACEMENT = re.compile(r"\b\d\.\d\b")  # a displacement: "2.0" in "2.0 TDI"
+
 
 MAX_OPTIONS = 6
 
@@ -80,7 +85,7 @@ class Version:
     @property
     def family(self) -> str:
         """The engine without its power: "2.0 TDI 150 CV" → "2.0 TDI"."""
-        m = re.match(r"^(.*?)\s*\d{2,4}\s*(?:CV|PS|hp|HP|kW|cv|ps|CH|ch)\b", self.engine)
+        m = _POWER_SUFFIX.match(self.engine)
         base = (m.group(1) if m else self.engine).strip(" ,-")
         return base or self.engine
 
@@ -149,7 +154,7 @@ class Narrowed:
 
 def family_word(v: Version) -> str | None:
     """ "2.0 TDI" → "TDI"; a word that fits an EngineHint family (≤ 16 characters)."""
-    word = re.sub(r"\b\d\.\d\b", " ", v.family).strip()
+    word = _DISPLACEMENT.sub(" ", v.family).strip()
     word = " ".join(word.split())
     return word if word and len(word) <= 16 else None
 

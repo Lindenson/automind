@@ -11,6 +11,8 @@ from automind.chat.domain.case.fit import Fit
 
 _FAMILY_BODIES = ("suv", "estate", "mpv", "crossover", "familiar", "monovolumen", "todocamino")
 
+_WORD = re.compile(r"[\w-]+")  # a word, hyphens kept: "plug-in"
+
 
 _SMALL_BODIES = ("city", "hatch", "urbano", "mini")
 
@@ -91,7 +93,7 @@ def body_class_of(body: str | None) -> str | None:
 
 def body_of(text: str) -> str | None:
     """The body class named in the user's words ("семейный кроссовер" → suv), or None."""
-    words = set(re.findall(r"[\w-]+", (text or "").lower()))
+    words = set(_WORD.findall((text or "").lower()))
     return next((b for b, ws in BODY_WORDS.items() if words & set(ws)), None)
 
 

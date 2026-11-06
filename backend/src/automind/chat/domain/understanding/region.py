@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import re
+from automind.shared.text.patterns import whole_word
 
 
 def region_of(text: str | None, regions: dict[str, dict[str, object]]) -> tuple[str, str, str] | None:
@@ -14,6 +14,6 @@ def region_of(text: str | None, regions: dict[str, dict[str, object]]) -> tuple[
     for code, info in regions.items():
         for name in info.get("names") or []:  # type: ignore[attr-defined]
             n = str(name).lower()
-            if re.search(rf"(?<![\w]){re.escape(n)}(?![\w])", low) and (best is None or len(n) > best[0]):
+            if whole_word(n).search(low) and (best is None or len(n) > best[0]):
                 best = (len(n), code, str(info.get("climate")), n)
     return (best[1], best[2], best[3]) if best else None

@@ -6,6 +6,9 @@ import re
 
 _NUM = r"\d{1,3}(?:[  .]\d{3})+|\d+(?:[.,]\d+)?"
 
+_THOUSANDS = re.compile(r"\d{1,3}(?:[ .]\d{3})+")  # grouped thousands: "12 000", "1.500"
+_GROUP_SEP = re.compile(r"[ .]")  # a thousands separator: the space or dot in "12 000"
+
 
 _DIST = re.compile(
     rf"({_NUM})(?:\s*[-–—]\s*({_NUM}))?\s*(тыс\w*\.?|k\b|mil\b)?\s*(?:км|km|kil[oó]metr\w*)?\.?\s*"
@@ -19,8 +22,8 @@ _PERIOD_MONTH = ("месяц", "mes", "month")
 
 def _num(s: str) -> float:
     s = s.replace(" ", " ").strip()
-    if re.fullmatch(r"\d{1,3}(?:[ .]\d{3})+", s):
-        return float(re.sub(r"[ .]", "", s))
+    if _THOUSANDS.fullmatch(s):
+        return float(_GROUP_SEP.sub("", s))
     return float(s.replace(",", "."))
 
 
