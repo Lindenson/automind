@@ -36,16 +36,25 @@ Chinese queries ran and found data (Deepal S09: CLTC range 220 km, charge-sustai
 chexun.com; Li L9: power, 0–100, charge-sustaining 6–7.8 l from 42how/ifeng/ithome/carnewschina…). The market note
 "в Европе не продаётся — нашёл на рынке Китая" is shown.
 
-**Still wrong (do next, in this order):**
-1. **Energy cost still "нет данных: расход электричества (кВт·ч/100 км)"** for both cars → no running cost, verdict LOW.
-   Chinese pages rarely state kWh/100 km for EREVs. Fix: estimate EV consumption from battery usable kWh ÷ electric
-   range (CLTC → real allowance), labelled "estimate" (like the PHEV charge-sustaining estimate); also make extraction
-   pick 百公里电耗 / 电耗 when present. Check claims for battery_kwh on these variants.
-2. **The first, plain turn reuses cached "UNAVAILABLE" research** (12 h retry window, registry retry 7 days) — the
-   earlier failed run blocked the new Chinese search until "find" was pressed. When the market/queries changed since
-   the last run (new home-market research), the area must be retried at once.
-3. Li L9 power conflict (330 vs 420/442/449 kW) — system vs engine power; check fusion/labels.
-4. Remaining items listed in `docs/wip-home-market-research.md` (tests for CLTC filing/energy branch, market on the
+**Done 2026-11-06 (PRs #83, #84, deployed, data repaired after a backup):**
+- EREV electric consumption ESTIMATE = battery kWh ÷ CLTC range × 1.4 (+ climate/motorway, + charging losses), only
+  from a battery and a range read on ONE page (one version), none outside 11–30 kWh/100 km (`energy._ev_kwh`,
+  `compose._cltc_pair`). PHEV battery plausibility 5–80 kWh (EREVs are stored as PHEV). Repair re-checks
+  REJECTED_IMPLAUSIBLE too. Live plain turn (chat ccd5f7d8, €0): Deepal S09 28.1 kWh/100 km (40.18 kWh ÷ 220 km,
+  chexun), €6.42/100 km at home, 90 % electric.
+- `registry_done` ignores runs of an older planner (`stage_versions.plan`): an unmet area is retried at once when
+  the planner changed (test `test_registry_done_planner.py`).
+
+**Still wrong (do next):**
+1. **Li L9 mixes two generations** (it was not a system/engine power label problem): the variant is "1st Gen
+   (2022–, no end) Pro 1.5T EREV AWD", but pages of the 2026 L9 (420 kW, 72.7 kWh, CLTC 420 km) are accepted
+   beside the 1st gen (330 kW, 42.8/44/52.3 kWh, 215 km). Selected range_cltc = 420 (2026 car), battery 42.8
+   (1st gen) → no energy estimate (correctly). Fix needs the owner's call: which L9 a buyer means in Nov 2026
+   (likely the current 2026 car) → add `generations.yaml "Li Auto|L9"` (1st gen 2022–2025, 2nd gen 2026–) so the
+   resolver picks the current one and relevance rejects the other generation; then repair + replay with "find".
+2. Deepal S09: selected battery 53.49 (larger-battery version) while range 220 belongs to 40.18 — the energy pair
+   is right, the spec table shows the other version's battery; max_power missing ("missing power, weight").
+3. Remaining items in `docs/wip-home-market-research.md` (graph test, CLTC filing unit tests, market on the
    version row for prefetch, electrive robots/terms).
 Verify live after each fix (replay the chat above) and show the owner the report first.
 
