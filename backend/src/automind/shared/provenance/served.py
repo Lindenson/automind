@@ -12,7 +12,7 @@ from __future__ import annotations
 from contextvars import ContextVar
 from dataclasses import dataclass
 
-from automind.acquisition.domain.versions import prompt_version_key
+from automind.shared.provenance.versions import prompt_version_key
 
 _LAST = "__last__"
 

@@ -148,7 +148,7 @@ def prompt_text(name: str, file_text: str) -> str:
     got = STATE.prompts.get(name)
     if got is None or not prompt_overridable(name):
         return file_text
-    from automind.acquisition.domain.versions import prompt_key  # noqa: PLC0415
+    from automind.shared.provenance.versions import prompt_key  # noqa: PLC0415
 
     text, base = got
     return text if base == prompt_key(file_text, name) else file_text

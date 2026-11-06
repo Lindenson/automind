@@ -9,7 +9,6 @@ from datetime import timedelta
 
 from sqlalchemy import delete, exists, select, text
 
-from automind.observability.metrics import heartbeat
 from automind.shared.infrastructure.db import (
     Document,
     Evidence,
@@ -19,6 +18,7 @@ from automind.shared.infrastructure.db import (
     sessionmaker,
 )
 from automind.shared.infrastructure.db.models import RegistryAttempt, now
+from automind.shared.infrastructure.metrics import heartbeat
 
 log = logging.getLogger(__name__)
 EVERY = timedelta(hours=24)

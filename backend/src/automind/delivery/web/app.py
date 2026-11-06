@@ -30,12 +30,12 @@ from automind.chat.infrastructure.adapters import live_ports
 from automind.chat.infrastructure.checkpoint import checkpointer
 from automind.chat.infrastructure.events import EventBus
 from automind.chat.infrastructure.persistence.repositories import CaseRepo, ChatRepo, EventRepo, MessageRepo, TurnRepo
+from automind.delivery.bootstrap import configure_domain
 from automind.delivery.web import access, rest
 from automind.delivery.web import admin as admin_api
 from automind.delivery.web import metrics as metrics_api
 from automind.delivery.web.ws import chat_socket
 from automind.shared.infrastructure import db
-from automind.shared.infrastructure.config.loader import configure_domain
 from automind.shared.infrastructure.config.settings import settings
 from automind.shared.infrastructure.llm.gateway import new_budget
 
@@ -90,7 +90,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         retention = asyncio.create_task(retention_loop())  # spec 003 FR-026; heartbeat "retention" (spec 010)
         stack.callback(retention.cancel)
         # Spec 011 (constitution XIII): the metrics snapshot, the registry review and the insight run are tasks of
-        # the acquisition worker (python -m automind.acquisition.worker), not loops of this process.
+        # the acquisition worker (python -m automind.cli worker), not loops of this process.
         resumed = await app.state.runner.resume_incomplete()
         if resumed:
             print(f"resuming {len(resumed)} interrupted turn(s)")

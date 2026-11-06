@@ -1,0 +1,6 @@
+# Spec 012 S4: what the shared kernel needs moves into it (it then depends on no area).
+moves:
+  automind.acquisition.domain.served: automind.shared.provenance.served
+  automind.acquisition.domain.versions: automind.shared.provenance.versions
+  automind.observability.metrics.prom: automind.shared.infrastructure.metrics.prom
+  automind.observability.metrics.heartbeat: automind.shared.infrastructure.metrics.heartbeat

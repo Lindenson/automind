@@ -139,7 +139,7 @@ def publish(snap: Snapshot) -> None:
 
 class SnapshotCollector(Collector):
     def collect(self) -> Iterator[GaugeMetricFamily]:
-        from automind.observability.metrics import heartbeat  # noqa: PLC0415
+        from automind.shared.infrastructure.metrics import heartbeat  # noqa: PLC0415
 
         values = dict(_LAST.values)
         for name, rows in heartbeat.samples().items():

@@ -3,21 +3,18 @@
 `migrate_v1(reader, block)` converts one `config/site_readers.yaml` entry (pure); `seed()` inserts `parsers` +
 `parser_versions` `<reader>@v1` (`active`, author `seed`; a reader whose domains are deny-listed — `auto_data` —
 is stored `retired`). Idempotent: an existing reader or version is left as it is. Run by the worker on start and by
-`python -m automind.acquisition.parsing.migrate_v1`. After the migration the YAML is read only here and as the
+`python -m automind.cli parsers-migrate-v1`. After the migration the YAML is read only here and as the
 registry's fallback when the database has no parser.
 """
 
 from __future__ import annotations
 
-import asyncio
-import json
-import sys
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from typing import Any
 
-from automind.acquisition.domain.versions import spec_hash
 from automind.acquisition.parsing.spec import FieldRule, ParserSpec
+from automind.shared.provenance.versions import spec_hash
 
 V1_NOTES = "v1: today's reader, migrated from config/site_readers.yaml"
 
@@ -75,15 +72,3 @@ async def seed() -> dict[str, Any]:
                 out["retired"].append(spec.key)
         await s.commit()
     return out
-
-
-def main() -> int:
-    from automind.shared.infrastructure.config.loader import configure_domain  # noqa: PLC0415
-
-    configure_domain()
-    print(json.dumps(asyncio.run(seed()), ensure_ascii=False))
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(main())

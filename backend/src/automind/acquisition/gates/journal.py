@@ -26,9 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from automind.acquisition.agents import levers
 from automind.acquisition.domain import gates, relevance_audit
-from automind.acquisition.domain.versions import parse_key, spec_hash
 from automind.acquisition.infrastructure import config as acq_config
-from automind.shared.infrastructure.config import loader as config
 from automind.shared.infrastructure.db import (
     OPEN_CHANGE_STATUSES,
     AcqChange,
@@ -42,6 +40,7 @@ from automind.shared.infrastructure.db import (
     sessionmaker,
     uid,
 )
+from automind.shared.provenance.versions import parse_key, spec_hash
 
 log = logging.getLogger(__name__)
 AGENT = "agent:"
@@ -89,7 +88,7 @@ async def lever_state() -> levers.LeverState:
     return levers.LeverState(
         agents_cfg=acq_config.agents_config(), open_objects=open_objects, blocks=blocks, frozen_parsers=frozen_parsers,
         frozen_sources={str(d) for d, _, fr in src_rows if fr}, reverted=reverted, newest_evidence=newest,
-        rules=config.effective_rules(), sources={str(d): {"access": a, "frozen": fr} for d, a, fr in src_rows},
+        rules=acq_config.effective_rules(), sources={str(d): {"access": a, "frozen": fr} for d, a, fr in src_rows},
         denylist=tuple(denylist()), prompts=prompts,
     )  # fmt: skip
 
@@ -156,7 +155,7 @@ async def _prompt_candidate(s: AsyncSession, change_id: str, agent: str, p: leve
 
 
 async def _rule_candidate(s: AsyncSession, change_id: str, agent: str, p: levers.RuleProposal) -> Candidate:
-    current = levers.rule_value(config.effective_rules(), p.path)
+    current = levers.rule_value(acq_config.effective_rules(), p.path)
     s.add(RuleOverride(id=uid(), path=p.path, value=p.value, status="candidate", change_id=change_id))
     return Candidate(_text(current), _text(p.value), {"path": p.path, "from": current, "to": p.value})
 

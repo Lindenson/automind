@@ -10,7 +10,8 @@ from langchain_core.tools import tool
 
 from automind.chat.dialog.graph import build_graph
 from automind.chat.dialog.runner import ChatRunner
-from automind.chat.infrastructure.persistence.repositories import MessageRepo, UsageRepo
+from automind.chat.infrastructure.persistence.repositories import MessageRepo
+from automind.shared.infrastructure.db.usage import UsageRepo
 from automind.shared.infrastructure.llm.usage_callback import UsageCallbackHandler
 from automind.shared.metering.usage import Prices
 from tests.fakes.fake_llm import FakeLLM

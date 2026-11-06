@@ -26,11 +26,12 @@ from urllib.parse import urlparse
 from automind.acquisition.api import DatasetVersion
 from automind.chat.application.ports import Ports
 from automind.chat.application.services.identification import resolve, versions
-from automind.chat.domain.case.casefile import CaseCar, CaseFile, Choice, EngineHint, IdentifyOutcome, LadderMemo
+from automind.chat.domain.case.casefile import CaseCar, CaseFile, Choice, IdentifyOutcome, LadderMemo
 from automind.chat.domain.identification import ladder, used
 from automind.chat.domain.intake import intake
 from automind.shared.evidence import evidence
 from automind.shared.vehicle import identity, makes
+from automind.shared.vehicle.engine import EngineHint
 
 LineupLookup = Callable[..., Awaitable[Any]]  # (ports, make[, market=]) -> application.lineup.Lineup | None
 

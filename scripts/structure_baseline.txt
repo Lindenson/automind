@@ -207,7 +207,6 @@ order|acquisition/gold/domain/match.py|power_key
 order|acquisition/gold/domain/versions.py|group
 order|acquisition/gold/domain/versions.py|rows_of_keys
 order|acquisition/gold/load.py|load_dataset
-order|acquisition/gold/load.py|main
 order|acquisition/gold/load.py|main_async
 order|acquisition/gold/load.py|parse
 order|acquisition/gold/load.py|summary
@@ -331,11 +330,10 @@ order|acquisition/registry/domain/seed_rules.py|from_favourite
 order|acquisition/registry/domain/seed_rules.py|from_survey
 order|acquisition/registry/infrastructure/repo.py|RegistryRepo
 order|acquisition/registry/infrastructure/terms.py|facts
-order|acquisition/replay/__main__.py|main
-order|acquisition/replay/__main__.py|main_async
-order|acquisition/replay/__main__.py|parse
-order|acquisition/replay/__main__.py|request
-order|acquisition/replay/__main__.py|text
+order|acquisition/replay/command.py|main_async
+order|acquisition/replay/command.py|parse
+order|acquisition/replay/command.py|request
+order|acquisition/replay/command.py|text
 order|acquisition/replay/offline.py|no_network
 order|acquisition/replay/run.py|read_page
 order|acquisition/replay/run.py|run
@@ -363,7 +361,6 @@ order|acquisition/reputation/signals.py|recent_variants
 order|acquisition/reputation/signals.py|scan
 order|acquisition/snapshots/retention.py|run_snapshot_retention
 order|acquisition/snapshots/store.py|iter_replayable
-order|acquisition/worker/__main__.py|main
 order|acquisition/worker/handlers.py|drift
 order|acquisition/worker/handlers.py|evaluator
 order|acquisition/worker/handlers.py|extractor_tuner
@@ -738,7 +735,6 @@ order|observability/infrastructure/outcomes.py|OutcomeRepo
 order|observability/infrastructure/repo.py|IssueRepo
 order|observability/infrastructure/repo.py|failures
 order|observability/loop.py|analyse
-order|observability/loop.py|main
 order|observability/loop.py|run_if_due
 order|observability/metrics/snapshot.py|refresh
 order|observability/metrics/snapshot.py|run_once
@@ -774,8 +770,6 @@ order|shared/evidence/sense.py|service_interval_from_items
 order|shared/evidence/sense.py|strip_document_manuals
 order|shared/evidence/sense.py|tco_per_year
 order|shared/infrastructure/config/loader.py|aliases
-order|shared/infrastructure/config/loader.py|configure_domain
-order|shared/infrastructure/config/loader.py|effective_rules
 order|shared/infrastructure/config/loader.py|favourite_queries
 order|shared/infrastructure/config/loader.py|favourites
 order|shared/infrastructure/config/loader.py|feasibility_rules
@@ -785,12 +779,10 @@ order|shared/infrastructure/config/loader.py|model_fallbacks
 order|shared/infrastructure/config/loader.py|model_options
 order|shared/infrastructure/config/loader.py|models
 order|shared/infrastructure/config/loader.py|open_queries
-order|shared/infrastructure/config/loader.py|plausibility_rules
 order|shared/infrastructure/config/loader.py|prices
 order|shared/infrastructure/config/loader.py|questions
 order|shared/infrastructure/config/loader.py|questions_i18n
 order|shared/infrastructure/config/loader.py|rates
-order|shared/infrastructure/config/loader.py|reference
 order|shared/infrastructure/config/loader.py|search_config
 order|shared/infrastructure/config/loader.py|source_policy
 order|shared/infrastructure/db/migrate.py|main
@@ -873,7 +865,7 @@ regex|acquisition/pipeline/validate.py|_litres
 regex|acquisition/pipeline/validate.py|_variant_gearbox
 regex|acquisition/pipeline/validate.py|re_diesel_suffix
 regex|acquisition/registry/domain/seed_rules.py|market_of
-regex|acquisition/replay/__main__.py|_since
+regex|acquisition/replay/command.py|_since
 regex|chat/application/services/identification/identify.py|_stale_asked
 regex|chat/application/services/identification/identify.py|_store_version
 regex|chat/application/services/identification/identify.py|_strip_make

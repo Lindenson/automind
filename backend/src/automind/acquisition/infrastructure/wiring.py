@@ -22,9 +22,10 @@ from automind.acquisition.ports import AcqPorts
 from automind.acquisition.registry.application.service import RegistryService
 from automind.acquisition.registry.infrastructure.repo import RegistryRepo
 from automind.chat.infrastructure.persistence.repositories import MarketFactRepo
-from automind.observability.metrics import prom
 from automind.shared.contracts.config import Reference
-from automind.shared.infrastructure.config.loader import reference, search_config
+from automind.shared.infrastructure.config.loader import search_config
+from automind.shared.infrastructure.config.runtime import reference
+from automind.shared.infrastructure.metrics import prom
 
 # the prompts are versioned files next to the chat's (orchestration/prompts/*.md); read as files, never imported
 PROMPTS = Path(__file__).resolve().parents[2] / "chat" / "dialog" / "prompts"

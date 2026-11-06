@@ -21,7 +21,6 @@ from typing import Any
 
 from sqlalchemy import func, select, text
 
-from automind.acquisition.domain.versions import parse_key, spec_hash
 from automind.shared.infrastructure.config.loader import load_yaml
 from automind.shared.infrastructure.db.models import (
     OPEN_CHANGE_STATUSES,
@@ -42,6 +41,7 @@ from automind.shared.infrastructure.db.models import (
     uid,
 )
 from automind.shared.infrastructure.db.session import sessionmaker
+from automind.shared.provenance.versions import parse_key, spec_hash
 
 log = logging.getLogger(__name__)
 

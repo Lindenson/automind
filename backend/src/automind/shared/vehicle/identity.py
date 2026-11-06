@@ -12,6 +12,8 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
+from automind.shared.vehicle.engine import EngineHint
+
 DUPLICATE_THRESHOLD = 92.0
 
 
@@ -228,8 +230,6 @@ def _last_positive(text: str, pattern: re.Pattern[str]) -> re.Match[str] | None:
 
 def parse_engine(text: str | None) -> Any:
     """Engine facts in the user's words → `EngineHint`, or None when the text names no engine (R4)."""
-    from automind.chat.domain.case.casefile import EngineHint  # local import: casefile does not import identity
-
     if not text:
         return None
     disp: float | None = None

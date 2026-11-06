@@ -10,9 +10,9 @@ from sqlalchemy import select
 
 from automind.chat.application.usecases import challenge
 from automind.chat.dialog.prompts import load_all
+from automind.delivery.bootstrap import reference
 from automind.delivery.web.ws import _BAD_SOURCE_LOG, ChatSocket
 from automind.observability.infrastructure.outcomes import OutcomeRepo
-from automind.shared.infrastructure.config.loader import reference
 from automind.shared.infrastructure.db import models as m
 from automind.shared.infrastructure.db.session import sessionmaker
 

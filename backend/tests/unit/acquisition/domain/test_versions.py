@@ -2,7 +2,7 @@
 
 import pytest
 
-from automind.acquisition.domain import versions
+from automind.shared.provenance import versions
 
 
 def test_reader_key():

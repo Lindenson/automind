@@ -78,7 +78,7 @@ async def test_blocked_analyst_sites_never_crowd_out_the_warranty_page():
     from automind.acquisition.pipeline import job as research
     from automind.acquisition.pipeline import locate
     from automind.chat.dialog.prompts import load_all
-    from automind.shared.infrastructure.config.loader import reference
+    from automind.delivery.bootstrap import reference
 
     web = _Web()
     ports = SimpleNamespace(search=web, page_store=web, ref=reference(load_all()))
@@ -98,7 +98,7 @@ def test_the_used_price_is_searched_for_the_car_s_model_year():
 
     from automind.acquisition.pipeline import plan
     from automind.chat.dialog.prompts import load_all
-    from automind.shared.infrastructure.config.loader import reference
+    from automind.delivery.bootstrap import reference
 
     ports = SimpleNamespace(ref=reference(load_all()))
     v = SimpleNamespace(make="Audi", model="A4", generation="B9", variant_name="35 TFSI 150 CV",

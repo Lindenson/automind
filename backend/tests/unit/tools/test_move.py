@@ -82,3 +82,11 @@ def test_run_moves_files_with_git_and_creates_packages(tmp_path: Path) -> None:
     assert (src / "chat/__init__.py").exists() and (src / "chat/domain/__init__.py").exists()
     assert not (src / "domain/intake.py").exists()
     assert (src / "user.py").read_text() == "from automind.chat.domain import intake\n"
+
+
+def test_a_module_renamed_inside_its_package_is_imported_under_its_old_name() -> None:
+    moves = {"automind.acquisition.replay.__main__": "automind.acquisition.replay.command"}
+    text = "from automind.acquisition.replay import __main__ as cli\nfrom automind.acquisition.replay import run\n"
+    assert mv.rewrite(text, moves) == (
+        "from automind.acquisition.replay import command as cli\nfrom automind.acquisition.replay import run\n"
+    )

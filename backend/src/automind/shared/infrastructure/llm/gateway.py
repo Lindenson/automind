@@ -11,6 +11,7 @@ import asyncio
 import logging
 import re
 import time
+from collections.abc import Callable
 from contextvars import ContextVar
 from functools import lru_cache
 from typing import Any, TypeVar
@@ -19,12 +20,12 @@ from langchain.chat_models import init_chat_model
 from langchain_core.language_models import BaseChatModel
 from pydantic import BaseModel
 
-from automind.acquisition.domain import served as _served
-from automind.acquisition.domain.served import ServedCall, served
 from automind.shared.infrastructure.config import loader as cfg
 from automind.shared.infrastructure.config.settings import settings
 from automind.shared.infrastructure.llm.usage_callback import UsageCallbackHandler, current_prompt, prompt_identity
 from automind.shared.metering.usage import BudgetExceeded, Limits, Prices, TurnBudget, current_budget
+from automind.shared.provenance import served as _served
+from automind.shared.provenance.served import ServedCall, served
 
 log = logging.getLogger(__name__)
 
@@ -84,9 +85,13 @@ def model_name(role: str) -> str:
     roles = cfg.models()
     if role not in roles:
         raise KeyError(f"no model configured for role {role!r} in config/models.yaml")
-    from automind.acquisition.infrastructure.overrides import role_model  # noqa: PLC0415
+    return _ROLE_MODEL(role) or roles[role]  # spec 011 T104: a gated model of an extractor role
 
-    return role_model(role) or roles[role]  # spec 011 T104: a gated model of an extractor role
+
+def set_role_model_source(source: Callable[[str], str | None]) -> None:
+    """Install where gated per-role model changes come from (the engine's overrides; delivery.bootstrap does it)."""
+    global _ROLE_MODEL
+    _ROLE_MODEL = source
 
 
 # Models whose provider quota is used up (e.g. a free tier's requests per day): name -> monotonic time it
@@ -231,3 +236,10 @@ async def text(role: str, system: str, user: str) -> str:
         current_prompt.reset(token)
     content = msg.text if isinstance(getattr(msg, "text", None), str) else str(msg.content)
     return str(content)
+
+
+def _no_role_model(role: str) -> str | None:
+    raise RuntimeError("delivery.bootstrap.configure_domain() was not called: gated role models unknown")
+
+
+_ROLE_MODEL: Callable[[str], str | None] = _no_role_model

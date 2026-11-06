@@ -131,6 +131,7 @@ def _rewrite_from_imports(text: str, moves: dict[str, str]) -> str:
         inner = raw.strip()[1:-1] if raw.strip().startswith("(") else raw
         names = [n.strip() for n in inner.replace("\n", " ").split(",") if n.strip()]
         groups: dict[str, list[str]] = {}
+        renamed = False
         for item in names:
             name = item.split(" as ")[0].strip()
             full = f"{mod}.{name}"
@@ -138,8 +139,9 @@ def _rewrite_from_imports(text: str, moves: dict[str, str]) -> str:
             parent = target.rsplit(".", 1)[0] if target else mod
             if target and target.rsplit(".", 1)[1] != name:
                 item = f"{target.rsplit('.', 1)[1]} as {item.split(' as ')[1] if ' as ' in item else name}"
+                renamed = True
             groups.setdefault(parent, []).append(item)
-        if list(groups) == [mod]:
+        if list(groups) == [mod] and not renamed:
             return m.group(0)
         return "\n".join(f"{m['ind']}from {p} import {', '.join(items)}" for p, items in groups.items())
 

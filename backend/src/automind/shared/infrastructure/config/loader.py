@@ -8,12 +8,8 @@ from typing import Any
 
 import yaml
 
-from automind.chat.domain.assessment.criteria import CriteriaModel
-from automind.shared.contracts.config import Reference
-from automind.shared.evidence import evidence, sense
+from automind.shared.evidence import evidence
 from automind.shared.infrastructure.config.settings import settings
-from automind.shared.vehicle.identity import Aliases
-from automind.shared.vehicle.makes import MakeRegistry
 
 
 def config_dir() -> Path:
@@ -178,63 +174,5 @@ def favourites() -> list[dict[str, Any]]:
     return out
 
 
-def plausibility_rules() -> dict[str, Any]:
-    """config/plausibility.yaml with the active gated `rule_overrides` layered on top (spec 011 T104)."""
-    from automind.acquisition.infrastructure import overrides  # noqa: PLC0415
-
-    return overrides.layer("plausibility", load_yaml("plausibility.yaml"))
-
-
-def effective_rules() -> dict[str, Any]:
-    """The rule files agents may tune, as in force now (YAML ⊕ active overrides): plausibility, sense, relevance."""
-    from automind.acquisition.domain import relevance  # noqa: PLC0415
-    from automind.acquisition.infrastructure import overrides  # noqa: PLC0415
-
-    keywords = {k: list(v) for k, v in relevance.KEYWORDS.items()}
-    return {"plausibility": plausibility_rules(), "sense": overrides.layer("sense", load_yaml("sense.yaml")),
-            "relevance": {"keywords": {k: keywords.get(k, []) for k in relevance.KEYWORD_LISTS}}}  # fmt: skip
-
-
 def feasibility_rules() -> dict[str, Any]:
     return load_yaml("feasibility.yaml")
-
-
-def reference(prompts: dict[str, str]) -> Reference:
-    from automind.acquisition.infrastructure.overrides import LayeredPrompts  # noqa: PLC0415
-
-    return Reference(
-        aliases=Aliases.from_config(aliases()),
-        generations=generations(),
-        questions=questions(),
-        prompts=LayeredPrompts(prompts),  # spec 011 T104: gated prompt versions of the extractor roles
-        queries=open_queries(),
-        favourite_queries=favourite_queries(),
-        search=search_config(),
-        favourites=favourites(),
-        manufacturer_sites=dict(load_yaml("sources.yaml").get("manufacturer_sites") or {}),
-        plausibility=plausibility_rules(),
-        feasibility=feasibility_rules(),
-        criteria=CriteriaModel.from_config(load_yaml("criteria.yaml"), load_yaml("profile_rules.yaml")),
-        rates=rates(),
-        insights=load_yaml("insights.yaml"),
-        layouts=load_yaml("report_layouts.yaml"),
-        explainers=load_yaml("tech_explainers.yaml"),
-        questions_i18n=questions_i18n(),
-        makes=MakeRegistry.from_config(load_yaml("makes.yaml")),
-        regions=dict(load_yaml("regions.yaml").get("regions") or {}),
-        profile_defaults=load_yaml("profile_defaults.yaml"),
-        gearboxes=gearboxes(),
-        outcome=load_yaml("outcome.yaml"),
-        insight=load_yaml("insight.yaml"),
-        registry=load_yaml("registry.yaml"),
-    )
-
-
-def configure_domain() -> None:
-    """Install config-driven policies into the pure domain (call once at startup and in tests)."""
-    evidence.configure(source_policy())
-    sense.configure(load_yaml("sense.yaml"))
-    from automind.chat.application.services.interpretation.interpret import configure_history  # noqa: PLC0415
-
-    win = search_config()["interpret"]
-    configure_history(int(win["history_turns"]), int(win["history_chars"]))

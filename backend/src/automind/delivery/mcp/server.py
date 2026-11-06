@@ -20,8 +20,9 @@ from automind.chat.domain.assessment.metrics import metrics
 from automind.chat.domain.case.casefile import CaseFile
 from automind.chat.domain.cost import tco
 from automind.chat.infrastructure.persistence.repositories import CaseRepo
+from automind.delivery.bootstrap import configure_domain
 from automind.shared.infrastructure import db
-from automind.shared.infrastructure.config.loader import configure_domain, load_yaml
+from automind.shared.infrastructure.config.loader import load_yaml
 from automind.shared.infrastructure.config.loader import rates as rates_config
 
 configure_domain()

@@ -1,14 +1,12 @@
 """The insight loop (spec 010 US3): daily, and earlier when failures pile up. Run by the acquisition worker
 (spec 011 task `insight_run`), never in the API process.
 
-python -m automind.observability.loop --once     # one analysis now (operator, tests)
+python -m automind.cli insight --once     # one analysis now (operator, tests)
 """
 
 from __future__ import annotations
 
-import asyncio
 import logging
-import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -71,17 +69,3 @@ async def run_if_due(llm: Any = "live") -> dict[str, Any]:
     stats = await analyse(kind, llm)
     log.info("insight.run kind=%s %s", kind, stats)
     return {"ran": kind, **stats}
-
-
-def main() -> None:
-    if "--once" not in sys.argv:
-        print(__doc__)
-        return
-    from automind.shared.infrastructure.config.loader import configure_domain  # noqa: PLC0415
-
-    configure_domain()
-    print(asyncio.run(analyse("manual")))
-
-
-if __name__ == "__main__":
-    main()

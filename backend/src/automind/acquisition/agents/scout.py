@@ -40,11 +40,11 @@ from automind.acquisition.registry.domain import limits
 from automind.acquisition.registry.domain.lifecycle import CapState, transition
 from automind.acquisition.registry.domain.seed_rules import denied
 from automind.acquisition.worker.budget import BudgetExceeded
-from automind.observability.metrics import prom
 from automind.shared.evidence import evidence as ev
 from automind.shared.infrastructure.config.loader import load_yaml
 from automind.shared.infrastructure.db import models as db
 from automind.shared.infrastructure.db.session import sessionmaker
+from automind.shared.infrastructure.metrics import prom
 from automind.shared.research_order import plan as research_plan
 from automind.shared.research_order import search_plan
 from automind.shared.research_order.search_plan import Identity

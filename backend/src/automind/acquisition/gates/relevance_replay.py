@@ -246,7 +246,7 @@ async def read_values(items: Sequence[Judged], bodies: Mapping[str, bytes], vs: 
     from automind.acquisition.replay.run import read_page  # noqa: PLC0415
 
     specs = await evaluate._running_specs()
-    rules = config.plausibility_rules()
+    rules = acq_config.plausibility_rules()
     out: ValuesByPage = {}
     for j in items:
         raw = bodies.get(j.ref.blob_sha256)

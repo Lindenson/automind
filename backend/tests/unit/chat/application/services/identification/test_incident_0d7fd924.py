@@ -21,19 +21,12 @@ from automind.chat.application.services.interpretation import ask
 from automind.chat.application.services.report.compose import data_panel_block
 from automind.chat.dialog import phrases
 from automind.chat.dialog.prompts import load_all
-from automind.chat.domain.case.casefile import (
-    CaseCar,
-    CaseFile,
-    Choice,
-    Constraints,
-    EngineHint,
-    IdentifyOutcome,
-    Pending,
-)
+from automind.chat.domain.case.casefile import CaseCar, CaseFile, Choice, Constraints, IdentifyOutcome, Pending
 from automind.chat.domain.intake import intake
+from automind.delivery.bootstrap import reference
 from automind.shared.infrastructure import db
-from automind.shared.infrastructure.config.loader import reference
 from automind.shared.vehicle import identity
+from automind.shared.vehicle.engine import EngineHint
 
 KF_VERSION = "Mazda CX-5 KF 2.0 e-Skyactiv G 165 PS"
 

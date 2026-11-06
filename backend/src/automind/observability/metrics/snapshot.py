@@ -14,9 +14,9 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy import text
 
-from automind.observability.metrics import prom
 from automind.shared.infrastructure.config.settings import settings
 from automind.shared.infrastructure.db.session import sessionmaker
+from automind.shared.infrastructure.metrics import prom
 
 log = logging.getLogger(__name__)
 

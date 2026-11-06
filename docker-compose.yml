@@ -39,7 +39,7 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://automind:${POSTGRES_PASSWORD:?run scripts/deploy.sh}@postgres:5432/automind
       AUTOMIND_WORKER_METRICS_ADDR: 0.0.0.0
-    command: ["python", "-m", "automind.acquisition.worker"]
+    command: ["python", "-m", "automind.cli", "worker"]
     stop_grace_period: 30s
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:9101/metrics', timeout=4).status == 200 else 1)"]

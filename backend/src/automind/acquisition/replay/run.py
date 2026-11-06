@@ -24,7 +24,6 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 
 from automind.acquisition.domain import replay as scoring
-from automind.acquisition.domain.versions import parse_key, prompt_key
 from automind.acquisition.gold import repo as gold_repo
 from automind.acquisition.infrastructure import config as acq_config
 from automind.acquisition.parsing.spec import ParserSpec
@@ -33,8 +32,8 @@ from automind.acquisition.snapshots import store
 from automind.acquisition.snapshots.store import SnapshotRef
 from automind.shared.contracts.web import WebDoc
 from automind.shared.evidence import evidence as ev
-from automind.shared.infrastructure.config import loader as config
 from automind.shared.infrastructure.db import ExtractionCache, LLMCall, Variant, sessionmaker
+from automind.shared.provenance.versions import parse_key, prompt_key
 from automind.shared.vehicle import specs
 
 PROMPTS_DIR = Path(__file__).resolve().parents[2] / "chat" / "dialog" / "prompts"
@@ -253,7 +252,7 @@ async def _corpus(req: ReplayRequest, domains: list[str] | None, limit: int | No
 
 async def _reader_pages(req: ReplayRequest) -> tuple[str, list[scoring.PageResult], int]:
     key, spec = await resolve_reader(req)
-    rules = config.plausibility_rules()
+    rules = acq_config.plausibility_rules()
     attempts = 0
 
     async def per_batch(refs: list[SnapshotRef], bodies: dict[str, bytes], variants: dict[str, Variant]) -> list[Any]:
@@ -327,7 +326,7 @@ async def _extractor_pages(req: ReplayRequest) -> tuple[str, list[scoring.PageRe
     if req.model and req.model != model:
         raise Refused(f"model override {req.model} needs role model overrides (US5); the extractor runs {model}")
     cap = int((acq_config.acquisition_config().get("replay") or {}).get("extractor_max_pages", 60))
-    rules = config.plausibility_rules()
+    rules = acq_config.plausibility_rules()
 
     async def per_batch(refs: list[SnapshotRef], bodies: dict[str, bytes], variants: dict[str, Variant]) -> list[Any]:
         from automind.acquisition.infrastructure.fetch import decode_body  # noqa: PLC0415

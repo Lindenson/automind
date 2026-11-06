@@ -19,8 +19,8 @@ from typing import Any, Literal, Protocol, TypeVar
 from pydantic import BaseModel, Field
 
 from automind.acquisition.domain.blame import UNIT_RULES, near, numbers
-from automind.acquisition.domain.versions import parse_key
 from automind.shared.evidence.evidence import occurs
+from automind.shared.provenance.versions import parse_key
 
 log = logging.getLogger(__name__)
 ROLE = "blame_judge"

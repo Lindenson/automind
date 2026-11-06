@@ -21,10 +21,10 @@ from sqlalchemy import select, text
 
 from automind.acquisition.agents.budget import AgentBudget
 from automind.acquisition.domain import gates, relevance_audit
-from automind.acquisition.domain.versions import parse_key
 from automind.acquisition.gates import evaluate, journal, relevance_replay, replay_gate
 from automind.acquisition.infrastructure import overrides
 from automind.shared.infrastructure.db import AcqChange, AcqExperiment, sessionmaker
+from automind.shared.provenance.versions import parse_key
 
 log = logging.getLogger(__name__)
 

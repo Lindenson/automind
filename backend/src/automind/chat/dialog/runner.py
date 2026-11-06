@@ -28,7 +28,7 @@ from automind.chat.application.ports import Ports, TurnBusy
 from automind.chat.dialog import outcomes
 from automind.chat.dialog.phrases import t
 from automind.chat.dialog.retry import transient_provider_error
-from automind.observability.metrics import prom
+from automind.shared.infrastructure.metrics import prom
 from automind.shared.metering.usage import BudgetExceeded, TurnBudget, current_budget
 
 log = logging.getLogger(__name__)

@@ -8,9 +8,10 @@ from datetime import UTC, datetime
 from prometheus_client import generate_latest
 from sqlalchemy import delete
 
-from automind.observability.metrics import heartbeat, snapshot
+from automind.observability.metrics import snapshot
 from automind.shared.infrastructure.db import models as m
 from automind.shared.infrastructure.db.session import sessionmaker
+from automind.shared.infrastructure.metrics import heartbeat
 
 NODATA = {"nodata_items": [{"car": "car#1", "area": "used_price"}]}
 

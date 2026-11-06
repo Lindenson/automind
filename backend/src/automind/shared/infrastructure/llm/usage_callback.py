@@ -17,10 +17,10 @@ from uuid import UUID
 from langchain_core.callbacks import AsyncCallbackHandler
 from langchain_core.outputs import LLMResult
 
-from automind.acquisition.domain.served import ServedCall, record
-from automind.chat.infrastructure.persistence.repositories import UsageRepo
-from automind.observability.metrics import prom
+from automind.shared.infrastructure.db.usage import UsageRepo
+from automind.shared.infrastructure.metrics import prom
 from automind.shared.metering.usage import Prices, current_budget, current_job
+from automind.shared.provenance.served import ServedCall, record
 
 # spec 010 FR-004: which prompt (name, version, hash) the current call uses; set by the gateway around each call
 current_prompt: ContextVar[tuple[str, str | None, str] | None] = ContextVar("current_prompt", default=None)

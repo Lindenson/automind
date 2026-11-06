@@ -86,7 +86,7 @@ def test_deny_listed_favourite_never_appears():
         qs = _plan("specs")
         assert "motor.es" not in {s for q in qs for s in q.sites}
     finally:
-        from automind.shared.infrastructure.config.loader import configure_domain
+        from automind.delivery.bootstrap import configure_domain
 
         configure_domain()
 

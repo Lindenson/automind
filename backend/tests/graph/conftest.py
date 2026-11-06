@@ -21,7 +21,7 @@ from automind.chat.infrastructure.persistence.repositories import (
     MessageRepo,
     TurnRepo,
 )
-from automind.shared.infrastructure.config.loader import reference
+from automind.delivery.bootstrap import reference
 from automind.shared.infrastructure.db import init_db
 from automind.shared.metering.usage import Limits, Prices, TurnBudget
 from tests.fakes.fake_llm import FakeLLM, FixedEstimator

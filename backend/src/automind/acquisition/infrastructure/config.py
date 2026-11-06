@@ -45,3 +45,20 @@ def gold_tolerances() -> dict[str, tuple[str, float]]:
         kind = "abs" if "abs" in t else "rel"
         out[str(attr)] = (kind, float(t[kind]))
     return out
+
+
+def plausibility_rules() -> dict[str, Any]:
+    """config/plausibility.yaml with the active gated `rule_overrides` layered on top (spec 011 T104)."""
+    from automind.acquisition.infrastructure import overrides  # noqa: PLC0415
+
+    return overrides.layer("plausibility", load_yaml("plausibility.yaml"))
+
+
+def effective_rules() -> dict[str, Any]:
+    """The rule files agents may tune, as in force now (YAML ⊕ active overrides): plausibility, sense, relevance."""
+    from automind.acquisition.domain import relevance  # noqa: PLC0415
+    from automind.acquisition.infrastructure import overrides  # noqa: PLC0415
+
+    keywords = {k: list(v) for k, v in relevance.KEYWORDS.items()}
+    return {"plausibility": plausibility_rules(), "sense": overrides.layer("sense", load_yaml("sense.yaml")),
+            "relevance": {"keywords": {k: keywords.get(k, []) for k in relevance.KEYWORD_LISTS}}}  # fmt: skip

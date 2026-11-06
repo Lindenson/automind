@@ -1,0 +1,3 @@
+moves:
+  automind.acquisition.worker.__main__: automind.acquisition.worker.entry
+  automind.acquisition.replay.__main__: automind.acquisition.replay.command

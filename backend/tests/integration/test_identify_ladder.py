@@ -10,7 +10,7 @@ from automind.chat.dialog.prompts import load_all
 from automind.chat.domain.case.casefile import CaseCar, CaseFile, Constraints, Pending
 from automind.chat.domain.identification.ladder import Generation, Version
 from automind.chat.domain.intake import intake
-from automind.shared.infrastructure.config.loader import reference
+from automind.delivery.bootstrap import reference
 from automind.shared.vehicle.identity import parse_engine
 
 OCTAVIA = [
