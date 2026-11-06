@@ -165,9 +165,11 @@ async def load_car(variant_id: str) -> dict:
     }
     researched = max((r.completed_at for r in runs), default=v.created_at)
     tried = await acquisition.tried_by_area(variant_id)
+    cltc_pair = _cltc_pair(rows, values.get("range_cltc"))
     return {
         "variant": v,
         "values": values,
+        "cltc_pair": cltc_pair,
         "claim_src": claim_src,
         "rejected_pages": rejected_pages,
         "researched_at": researched.isoformat(),
@@ -184,6 +186,20 @@ async def load_car(variant_id: str) -> dict:
             for r, url in used_rows
         ],
     }
+
+
+def _cltc_pair(rows: Any, selected: Any) -> tuple[float, float, str] | None:
+    """(battery kWh, CLTC range km, url) of accepted claims read on one page, the selected range's page first: one
+    version's pair. A battery and a range from different pages may be different versions (chat 2026-11-06: Li L9
+    1st gen 42.8 kWh beside the 2026 car's 420 km)."""
+    pages: dict[str, dict[str, float]] = {}
+    for c, e in rows:
+        if c.attribute in ("battery_kwh", "range_cltc") and c.value_num:
+            pages.setdefault(e.url, {}).setdefault(c.attribute, float(c.value_num))
+    pairs = [(p["battery_kwh"], p["range_cltc"], url) for url, p in pages.items() if len(p) == 2]
+    want = selected.value_num if selected is not None and selected.available else None
+    pairs.sort(key=lambda x: (x[1] != want, x[2]))
+    return pairs[0] if pairs else None
 
 
 def _num(car: dict, key: str) -> float | None:
@@ -853,6 +869,7 @@ async def tco_car(
         range_real=_num(car, "range_real"),
         consumption_ev_cltc=_num(car, "consumption_ev_cltc"),
         range_cltc=_num(car, "range_cltc"),
+        cltc_pair=car.get("cltc_pair"),
         use=use,
         vehicle_class=v.vehicle_class,
         condition=condition,
