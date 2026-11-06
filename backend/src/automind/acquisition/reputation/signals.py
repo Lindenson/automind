@@ -11,9 +11,7 @@ relevance, the stored page), so the pipeline needs no hook to produce them:
 
 Every wrong signal carries the vector blame of R9 computed from the claim's excerpt and stored page; a disputed one is
 recorded but applied only after the `blame_judge` task settles it. Each signal is emitted once (deduplicated against
-`truth_signals`). `scan()` is the worker's `reputation_signals` task; `after_job()` and `on_replacement()` are the
-calls the pipeline can make directly once it has them (pipeline/job.run_job, pipeline/merge.reselect). Errors never
-fail a job.
+`truth_signals`). `scan()` is the worker's `reputation_signals` task. Errors never fail a job.
 """
 
 from __future__ import annotations
@@ -407,36 +405,3 @@ async def scan(
     if judge and disputed:
         total["judge_tasks"] = await _enqueue_judges(disputed)
     return dict(total)
-
-
-async def after_job(variant_id: str, area: str) -> dict[str, int]:
-    """Hook for `pipeline/job.run_job` (T070): the signals of the job's variant right after it. Never raises."""
-    try:
-        return await scan([variant_id])
-    except Exception:  # noqa: BLE001 - errors never fail a job
-        log.exception("reputation.after_job_failed variant=%s area=%s", variant_id, area)
-        return {}
-
-
-async def on_replacement(old_claim_id: str, new_value: float, reg: Any = None) -> bool:
-    """Hook for `pipeline/merge.reselect`: the selected value changed from `old_claim_id`'s value to a more
-    confident `new_value` (weight `replacement`, 0.7). Never raises; emitted once per claim."""
-    try:
-        async with sessionmaker()() as s:
-            c = await s.get(Claim, old_claim_id)
-        if c is None:
-            return False
-        ctx = await _load(c.variant_id, load_yaml("registry.yaml").get("families") or {})
-        if ctx is None or (old_claim_id, "replacement") in ctx.done or c.value_num is None:
-            return False
-        if near(float(c.value_num), new_value, _tol(c.attribute)):
-            return False
-        row = next(r for r in ctx.claims if r.c.id == old_claim_id)
-        vec, comps, _ = await _blame(ctx, row, new_value, _tol(c.attribute), "MEDIUM")
-        reg = reg or _registry(load_yaml("registry.yaml"))
-        sid = await reg.signal(_sig(ctx, row, "replacement", "wrong", c.attribute, blame_vector=vec,
-                                    components=comps, details={"replaced_by": new_value}))  # fmt: skip
-        return sid is not None
-    except Exception:  # noqa: BLE001 - errors never fail a job
-        log.exception("reputation.on_replacement_failed claim=%s", old_claim_id)
-        return False

@@ -67,7 +67,7 @@ def validate(out: VersionsOut, docs: dict[str, tuple[str, str]]) -> list[Version
 
 
 def _limits(ports: Ports) -> dict[str, Any]:
-    return dict((ports.ref.search or {}).get("intake") or {})
+    return dict(ports.ref.search["intake"])
 
 
 def _first_queries(when_query: str) -> list[str]:
@@ -118,7 +118,7 @@ async def lookup(ports: Ports, make: str, model: str, *, generation: str | None,
     if store is None or "versions" not in (ports.ref.prompts or {}):
         return None
     lim = _limits(ports)
-    hit = await store.get(make, model, generation, year, new, int(lim.get("versions_ttl_days", 60)))
+    hit = await store.get(make, model, generation, year, new, int(lim["versions_ttl_days"]))
     if hit is not None and covers(hit, year):
         return hit  # type: ignore[no-any-return]
     if ports.acquisition is None:
@@ -143,7 +143,7 @@ async def lookup(ports: Ports, make: str, model: str, *, generation: str | None,
         got = await ports.acquisition.versions(make, model, generation, year=year, queries=more, limits=lim, done=read)
         g = await _from_docs(store, hit, make, model, generation, year, got, lim) if got else None
     if g is None and hit is None:  # no sourced list: a combustion car's registered versions build it (2026-11-05)
-        min_regs = int(lim.get("dataset_versions_min_registrations", 10))
+        min_regs = int(lim["dataset_versions_min_registrations"])
         found = await dataset_versions(ports, make, model, generation, fuel, None)
         g = registered_generation(found, make, model, generation, year, fuel, min_regs)
     return g
@@ -156,11 +156,11 @@ async def _from_docs(store: Any, hit: Generation | None, make: str, model: str, 
     out, docs = got.out, got.docs
     kept = validate(out, docs)
     if hit is not None:  # the cached list did not cover the car's year: the versions found for it are added
-        return await _merge(store, hit, kept, docs, year, int(lim.get("versions_min", 3)))
+        return await _merge(store, hit, kept, docs, year, int(lim["versions_min"]))
     gen = generation or out.generation
     # a list of one or two versions is a page about one version, not the range: it cannot say what does not
     # exist, so it is neither used nor kept (the fallback identifies, less certain)
-    if len(kept) < int(lim.get("versions_min", 3)) or not gen:
+    if len(kept) < int(lim["versions_min"]) or not gen:
         return None
     srcs = [{"url": u, "name": t or u} for u, (t, _) in docs.items() if any(v.source_url == u for v in kept)]
     g = Generation(make, model, gen, out.generation_years_from, out.generation_years_to, out.body_class, kept, srcs)

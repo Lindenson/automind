@@ -63,7 +63,7 @@ class Interpretation(BaseModel):
     )
 
 
-HISTORY_WINDOW = (16, 800)  # turns × characters; configure_history() sets it from search.yaml
+HISTORY_WINDOW: tuple[int, int] | None = None  # turns × characters; configure_history() sets it from search.yaml
 
 
 def configure_history(turns: int, chars: int) -> None:
@@ -95,6 +95,8 @@ CRITERIA_HELP = {
 def build_user_prompt(case: CaseFile, history: list[dict[str, str]], user_text: str) -> str:
     compact = case.model_dump(mode="json", exclude={"shown", "next_car_no"}, exclude_defaults=True)
     criteria = "\n".join(f"- {k}: {CRITERIA_HELP[k]}" for k in CRITERION_KEYS)
+    if HISTORY_WINDOW is None:
+        raise RuntimeError("configure_domain() was not called: search.yaml interpret window unknown")
     turns, chars = HISTORY_WINDOW  # spec 007 FR-005: the profile is inferred from the dialogue, not one message
     hist = "\n".join(f"{m['role']}: {m['text'][:chars]}" for m in history[-turns:]) or "(start of the chat)"
     pending = json.dumps(case.pending.model_dump(mode="json"), ensure_ascii=False) if case.pending else "none"

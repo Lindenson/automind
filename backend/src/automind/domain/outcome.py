@@ -64,7 +64,7 @@ def score(f: TurnFacts, cfg: Mapping[str, Any]) -> float:
         r = min(5, max(1, int(f.rating)))
         return (r - 1) / 4
     w: Mapping[str, float] = cfg.get("weights") or {}
-    s = float(cfg.get("start", 0.6))
+    s = float(cfg["start"])
     present: set[str] = {k for k, v in f.signals.items() if float(v or 0) > 0}
     if f.relation_next in RELATIONS:
         present.add(f.relation_next)

@@ -35,7 +35,7 @@ area_markets:               # markets searched per area (German instrumented tes
   depreciation: [ES, EN]   # residual values: Spanish and UK analysts (spec 004)
 sites_per_query: 4          # favourite sites grouped into one `site:a OR site:b` query
 ai_followup: {max_queries_per_area: 3, depths: [DEEP, STANDARD]}
-limits: {max_pages_per_job: 6, max_fetch_bytes_per_turn: 40000000}
+limits: {max_pages_per_job: 6}
 # Parallel research (spec 004 FR-032): pages of a job run as independent pipelines (relevance → extraction →
 # validation → storage). llm_per_job bounds model calls of one job; llm_total bounds them across all jobs.
 concurrency: {llm_per_job: 6, llm_total: 16}

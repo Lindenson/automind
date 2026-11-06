@@ -55,11 +55,6 @@ class CriteriaModel:
         )
 
 
-def _normalize(raw: Mapping[str, float]) -> dict[str, float]:
-    total = sum(v for v in raw.values() if v > 0)
-    return {k: round(v * 100 / total, 4) for k, v in raw.items() if v > 0} if total else {}
-
-
 def weight_breakdown(case: CaseFile, model: CriteriaModel) -> weights.WeightBreakdown:
     """Persona + profile rules + wishes + the user's adjustments, each with its reason (spec 007 FR-008)."""
     return weights.breakdown(case, model.personas, model.strength_points, model.rules)

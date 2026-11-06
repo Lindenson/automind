@@ -577,7 +577,7 @@ async def run(
     disc = reg.get("discovery") or {}
     search_cfg = load_yaml("search.yaml")
     scout_spent = await _scout_spent_today()
-    spend = Spend(float((load_yaml("agents.yaml").get("budgets") or {}).get("scout", 0.10)),
+    spend = Spend(float(load_yaml("agents.yaml")["budgets"]["scout"]),
                   float(disc.get("eur_per_day", 0.20)), scout_spent,
                   scout_spent + await admission.spent_today(), charge)  # fmt: skip
     r = Run(search, llm or GatewayLLM(), gather, spend, reg, search_cfg, admission.denylist(), _query_eur(search_cfg),

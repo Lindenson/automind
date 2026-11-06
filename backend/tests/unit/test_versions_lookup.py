@@ -7,6 +7,9 @@ from automind.acquisition.api import VersionEntry as _V
 from automind.acquisition.api import VersionsOut
 from automind.acquisition.engine import Engine
 from automind.application import versions
+from automind.infrastructure.config import load_yaml
+
+INTAKE = load_yaml("search.yaml")["intake"]
 
 DOC = (
     "Skoda Octavia: versiones",
@@ -99,7 +102,7 @@ async def test_second_look_up_in_the_freshness_period_makes_no_search() -> None:
         search=SimpleNamespace(search=search),
         page_store=SimpleNamespace(get=get),
         llm=SimpleNamespace(structured=structured),
-        ref=SimpleNamespace(prompts={"versions": "p"}, search={"intake": {"versions_ttl_days": 60}}),
+        ref=SimpleNamespace(prompts={"versions": "p"}, search={"intake": INTAKE}),
     )
     ports.acquisition = Engine(ports)  # type: ignore[arg-type]
     g = await versions.lookup(ports, "Skoda", "Octavia", generation="Mk4", year=None, new=True)  # type: ignore[arg-type]
@@ -109,7 +112,7 @@ async def test_second_look_up_in_the_freshness_period_makes_no_search() -> None:
 
 
 async def test_no_store_no_ladder() -> None:
-    ports = SimpleNamespace(versions=None, ref=SimpleNamespace(prompts={"versions": "p"}, search={}))
+    ports = SimpleNamespace(versions=None, ref=SimpleNamespace(prompts={"versions": "p"}, search={"intake": INTAKE}))
     assert await versions.lookup(ports, "Skoda", "Octavia", generation=None, year=None, new=True) is None  # type: ignore[arg-type]
 
 
@@ -129,7 +132,7 @@ async def test_a_list_of_one_or_two_versions_is_not_the_range() -> None:
         search=SimpleNamespace(search=search),
         page_store=SimpleNamespace(get=get),
         llm=SimpleNamespace(structured=structured),
-        ref=SimpleNamespace(prompts={"versions": "p"}, search={}),
+        ref=SimpleNamespace(prompts={"versions": "p"}, search={"intake": INTAKE}),
     )
     ports.acquisition = Engine(ports)  # type: ignore[arg-type]
     assert await versions.lookup(ports, "Audi", "A4", generation="B9", year=2023, new=False) is None  # type: ignore[arg-type]
@@ -182,7 +185,7 @@ async def test_a_cached_list_that_does_not_cover_the_year_is_completed_for_it() 
         search=SimpleNamespace(search=search),
         page_store=SimpleNamespace(get=get),
         llm=SimpleNamespace(structured=structured),
-        ref=SimpleNamespace(prompts={"versions": "p"}, search={}),
+        ref=SimpleNamespace(prompts={"versions": "p"}, search={"intake": INTAKE}),
     )
     ports.acquisition = Engine(ports)  # type: ignore[arg-type]
     g = await versions.lookup(ports, "Audi", "A4", generation="B9", year=2023, new=False)  # type: ignore[arg-type]

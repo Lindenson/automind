@@ -61,7 +61,7 @@ class ProfileRules:
                 if bad:
                     raise ValueError(f"profile_rules.yaml: unknown criteria {bad} in {f}.{value}")
                 rules[f][str(value)] = {k: float(v) for k, v in pts.items()}
-        return cls(float(d.get("cap", 50)), rules)
+        return cls(float(d["cap"]), rules)
 
 
 def _in_band(band: str, x: float) -> bool:

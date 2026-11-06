@@ -561,11 +561,11 @@ def electricity_price_of(text: str | None) -> tuple[float, bool] | None:
 
 # ---- the user's own consumption figures (spec 006 follow-up: the BYD charge-sustaining figure is not published) ----
 
-_NUM = r"(\d{1,3}(?:[.,]\d{1,2})?)"
+_FIGURE = r"(\d{1,3}(?:[.,]\d{1,2})?)"  # a consumption or distance figure: "6,5", "18"
 _PER_100 = r"\s*(?:/|на|per|a\s+los|por|cada|every)\s*100(?!\d)"
-_LITRES = re.compile(_NUM + r"\s*(?:l|л|литр\w*|litros?|lit(?:er|re)s?)(?!\w)(" + _PER_100 + r")?", re.I)
-_KWH_100 = re.compile(_NUM + r"\s*(?:kwh|квт\W?ч|квтч|кв\W?ч)(" + _PER_100 + r")?", re.I)
-_KM = re.compile(_NUM + r"\s*(?:km|км)(?!\s*/\s*[hч])(?!\w)", re.I)
+_LITRES = re.compile(_FIGURE + r"\s*(?:l|л|литр\w*|litros?|lit(?:er|re)s?)(?!\w)(" + _PER_100 + r")?", re.I)
+_KWH_100 = re.compile(_FIGURE + r"\s*(?:kwh|квт\W?ч|квтч|кв\W?ч)(" + _PER_100 + r")?", re.I)
+_KM = re.compile(_FIGURE + r"\s*(?:km|км)(?!\s*/\s*[hч])(?!\w)", re.I)
 _CONSUMPTION = (r"расход", r"\bест\b", r"жр[её]т", r"потребля", r"тратит", r"consum", r"gasta", r"\buses\b",
                 r"burns", r"real", r"реальн")  # fmt: skip
 _CS_WORDS = (r"гибридн\w* режим", r"разряж", r"пуст\w* батаре", r"сел\w* батаре", r"без заряд", r"на бензине",

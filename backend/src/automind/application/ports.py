@@ -195,10 +195,6 @@ class CatalogRepo(Protocol):
     async def find(self, make: str, model: str, generation: str | None, year: int | None) -> list[Any]: ...
 
 
-class EvidenceRepo(Protocol):
-    async def selected_values(self, variant_id: str) -> dict[str, Any]: ...
-
-
 class JobRepo(Protocol):
     async def create(self, chat_id: str, turn_id: str, variant_id: str, area: str, round_: int) -> Any: ...
 

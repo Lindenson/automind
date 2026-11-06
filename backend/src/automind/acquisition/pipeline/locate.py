@@ -38,9 +38,6 @@ VERSION = "locate@2"  # 2: the home-market searches (chat 2026-11-06)
 Emit = Callable[[str, str], Awaitable[None]]
 
 
-MAX_DOCS_PER_JOB = 8  # default; config/search.yaml limits.max_pages_per_job
-
-
 NO_FAVOURITE = 9
 
 
@@ -158,7 +155,7 @@ async def _collect(
 ) -> tuple[list[Page], dict[str, Any]]:
     """Search (cache-first) → rank favourites first → fetch pages through the page store (R2–R4)."""
     found = await search(ports, planned, seen, area, v, fresh=fresh)
-    limit = limit or int(((ports.ref.search or {}).get("limits") or {}).get("max_pages_per_job", MAX_DOCS_PER_JOB))
+    limit = limit or int(ports.ref.search["limits"]["max_pages_per_job"])
     pages, rejected = await fetch.pages(ports.page_store, found.order, area, limit)
     stats = {
         "pages_found": len(found.ranked),

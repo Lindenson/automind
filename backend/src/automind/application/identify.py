@@ -640,7 +640,7 @@ def _decide(ports: Ports, case: CaseFile, car: CaseCar, pool: list[ladder.Versio
     cfg = _intake_cfg(ports)
     asks = {i: case.intake.attempt(car.key, i) for i in ladder.ITEMS}
     before = _wanted(car)
-    d = ladder.decide(pool, before, asks, limit=int(cfg.get("max_attempts_per_item", 2)), chosen=car.chosen_for_me)
+    d = ladder.decide(pool, before, asks, limit=int(cfg["max_attempts_per_item"]), chosen=car.chosen_for_me)
     if d.auto:
         old = _levels(car, before)
         _write(car, d.wanted)

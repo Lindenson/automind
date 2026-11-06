@@ -73,8 +73,8 @@ async def retention_snapshots(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any
 
 
 async def prune_tasks(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any]:
-    t = ctx.cfg.get("tasks") or {}
-    n = await queue.prune(int(t.get("done_days", 30)), int(t.get("dead_days", 90)), dict(t.get("short_days") or {}))
+    t = ctx.cfg["tasks"]
+    n = await queue.prune(int(t["done_days"]), int(t["dead_days"]), dict(t["short_days"]))
     return {"deleted": n}
 
 
@@ -132,7 +132,7 @@ async def scout(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any]:
     from automind.acquisition.agents import scout as agent  # noqa: PLC0415
     from automind.acquisition.infrastructure.wiring import live_search  # noqa: PLC0415
 
-    max_runs = int((load_yaml("agents.yaml").get("max_runs_per_day") or {}).get("scout", 3))
+    max_runs = int(load_yaml("agents.yaml")["max_runs_per_day"]["scout"])
     if await agent.runs_today() >= max_runs:
         return {"skipped": "runs"}
     return await agent.run(live_search(), charge=ctx.budget().charge, used=await agent.used_today(), task_id=task.id)

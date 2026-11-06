@@ -10,7 +10,7 @@ from automind.acquisition.snapshots.codec import RetentionCfg, SnapshotRow
 KM77 = Path(__file__).resolve().parents[1] / "fixtures" / "html" / "km77_bmw_520d_g30.html"
 T0 = datetime(2026, 1, 1, tzinfo=UTC)
 NOW = datetime(2026, 11, 5, tzinfo=UTC)
-CFG = RetentionCfg(plain_days=30, accepted_days=180, max_bytes=10_000)
+CFG = RetentionCfg(plain_days=30, accepted_days=180, max_bytes=10_000, level=10)
 
 
 def test_round_trip_and_hash_of_raw_body():
@@ -23,7 +23,7 @@ def test_round_trip_and_hash_of_raw_body():
 
 def test_compression_ratio_on_a_spec_page():
     raw = KM77.read_bytes()
-    assert len(codec.compress(raw)) / len(raw) < 0.3
+    assert len(codec.compress(raw, 10)) / len(raw) < 0.3
 
 
 def test_retention_class():

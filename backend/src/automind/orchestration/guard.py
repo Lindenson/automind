@@ -88,14 +88,6 @@ def check_numbers(text: str, allowed: set[float], cars: int = 0) -> tuple[str, i
     return "\n".join(kept).strip(), dropped
 
 
-def removal_notice(dropped: int) -> dict[str, str]:
-    return {
-        "type": "notice",
-        "level": "info",
-        "text": f"{dropped} sentence(s) removed by the number check (numbers not found in validated data).",
-    }
-
-
 # --- report check (spec 004 FR-012; research R3) ---------------------------------------------------------------
 # The text must not contradict the blocks: no "no data" where a block has data, no advantage below the
 # threshold, no winner in a tie. Numbers are checked by `check_numbers` above.

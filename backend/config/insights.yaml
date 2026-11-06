@@ -23,7 +23,5 @@ attributes:
   rear_legroom:       {label: Rear legroom, unit: mm, threshold_abs: 30, direction: higher, criterion: comfort}
   euro_ncap_stars:    {label: Euro NCAP, unit: stars, threshold_abs: 1, direction: higher, criterion: safety}
   top_speed:          {label: Top speed, unit: km/h, threshold_rel: 0.05, direction: higher, criterion: performance}
-# Cars whose totals differ less than this are "too close to call" (kept equal to the criteria tie margin).
-tie_margin_points: 3
 # Relevance weight of an insight whose criterion is not among the user's priorities.
 background_weight: 0.3

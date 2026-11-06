@@ -4,12 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import event, select
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
 from automind.config import settings
-
-from .models import ChatMessage, uid
 
 _engine: AsyncEngine | None = None
 _sessionmaker: async_sessionmaker[AsyncSession] | None = None
@@ -54,21 +52,3 @@ async def init_db() -> None:
 
     sessionmaker()
     await upgrade_head()
-
-
-async def chat_history(chat_id: str) -> list[ChatMessage]:
-    async with sessionmaker()() as s:
-        rows = await s.execute(
-            select(ChatMessage).where(ChatMessage.chat_id == chat_id).order_by(ChatMessage.created_at)
-        )
-        return list(rows.scalars())
-
-
-async def save_message(
-    chat_id: str, role: str, text: str, blocks: list | None = None, message_id: str | None = None
-) -> ChatMessage:
-    async with sessionmaker()() as s:
-        m = ChatMessage(id=message_id or uid(), chat_id=chat_id, role=role, text=text, blocks=blocks or [])
-        s.add(m)
-        await s.commit()
-        return m
