@@ -16,7 +16,7 @@ from automind.application.usage import BudgetExceeded
 from automind.domain import relevance as rel
 from automind.infrastructure import db
 
-VERSION = "relevance@1"
+VERSION = "relevance@2"  # 2: a model named by its local (Chinese) names (chat 2026-11-06)
 
 
 MAX_LLM_RELEVANCE_PER_JOB = 4
@@ -33,18 +33,20 @@ def _llm_per_job(ports: Ports) -> int:
 
 
 def _relevance_target(v: db.Variant, ports: Ports) -> tuple[rel.Target, list[rel.GenerationInfo]]:
-    return relevance_target(v, ports.ref.generations)
+    aliases = getattr(ports.ref, "aliases", None)
+    names = aliases.names_of(v.make, v.model) if hasattr(aliases, "names_of") else []
+    return relevance_target(v, ports.ref.generations, names)
 
 
-def relevance_target(v: db.Variant, generations: Mapping[str, Sequence[tuple[str, int | None, int | None]]]
-                     ) -> tuple[rel.Target, list[rel.GenerationInfo]]:  # fmt: skip
+def relevance_target(v: db.Variant, generations: Mapping[str, Sequence[tuple[str, int | None, int | None]]],
+                     names: Sequence[str] = ()) -> tuple[rel.Target, list[rel.GenerationInfo]]:  # fmt: skip
     """The relevance rules' target and the model's known generations (live, and the offline relevance measure)."""
     gens = [rel.GenerationInfo(g, a, b) for g, a, b in generations.get(f"{v.make}|{v.model}", [])]
     if v.generation and not any(g.code == v.generation for g in gens):
         gens.append(rel.GenerationInfo(v.generation, v.generation_years_from, v.generation_years_to))
     tgt = rel.Target(v.make, v.model, v.generation, v.generation_years_from, v.generation_years_to,
                      v.variant_name, fuel_of(v.variant_name, v.powertrain), v.body_class,
-                     v.transmission or _variant_gearbox(v), v.drive)  # fmt: skip
+                     v.transmission or _variant_gearbox(v), v.drive, tuple(names))  # fmt: skip
     return tgt, gens
 
 

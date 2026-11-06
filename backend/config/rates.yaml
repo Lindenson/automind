@@ -30,4 +30,6 @@ max_maintenance_eur_per_year: {small: 1200, compact: 1500, mid_large: 2200, prem
 # Official cycle → real use (spec 004 FR-027): the fuel bill uses a sourced real-world figure when one exists,
 # else the WLTP figure × this allowance per powertrain (labelled ASSUMPTION). NEDC (old cycle) only when no
 # WLTP figure exists. Typical gaps from editorial and owner data (ICCT, Spritmonitor summaries); review yearly.
-real_world_factor: {ICE: 1.15, MHEV: 1.15, HEV: 1.15, BEV: 1.2, NEDC: 1.40}  # PHEV: energy model (energy.yaml)
+# CLTC (chat 2026-11-06, Deepal S09 vs Li L9): the range and kWh/100 km of a car sold only in China; the Chinese
+# cycle reads ≈ WLTP × 1.15–1.2 and real use ≈ WLTP ÷ 1.2, so CLTC ÷ 1.4 for the range and × 1.4 for kWh/100 km
+real_world_factor: {ICE: 1.15, MHEV: 1.15, HEV: 1.15, BEV: 1.2, NEDC: 1.40, CLTC: 1.40}  # PHEV: energy model (energy.yaml)

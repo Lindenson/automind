@@ -17,6 +17,9 @@ from automind.acquisition.pipeline.plan import (
     SITE_QUERY_PAGES,
     _ai_queries,
     current_plan,
+    home_market,
+    home_pages,
+    home_queries,
     identity_of,
     market_names,
     queries_for,
@@ -30,7 +33,7 @@ from automind.infrastructure import db
 if TYPE_CHECKING:
     from automind.acquisition.pipeline.job import JobSpec
 
-VERSION = "locate@1"
+VERSION = "locate@2"  # 2: the home-market searches (chat 2026-11-06)
 
 Emit = Callable[[str, str], Awaitable[None]]
 
@@ -72,6 +75,14 @@ def _skipped(url: str) -> bool:
     return any(d == x or d.endswith("." + x) for x in plan.skip)
 
 
+def terms_excluded(ports: Ports, url: str) -> bool:
+    """A site whose terms forbid commercial use (config/search.yaml `abroad.terms_exclude`: pcauto, autohome) is
+    never read, whichever search found it (chat 2026-11-06: the Chinese queries find them first)."""
+    terms = ((ports.ref.search or {}).get("abroad") or {}).get("terms_exclude") or []
+    d = ev.domain_of(url)
+    return any(d == x or d.endswith("." + x) for x in terms)
+
+
 WARRANTY_PAGES = 3  # pages read for the brand's warranty terms in round 0 of the manufacturer area
 
 
@@ -95,7 +106,7 @@ def _rank_hits(
             empty.append(q)
         for h in r:
             url_market.setdefault(h.url, q.market)
-            if h.url in seen or ev.is_denied(h.url) or _skipped(h.url):
+            if h.url in seen or ev.is_denied(h.url) or _skipped(h.url) or terms_excluded(ports, h.url):
                 continue
             fav = favourite_priority(ports, v, h.url)
             key = (NO_FAVOURITE if fav is None else fav, ev.AUTHORITY.index(ev.classify_source(h.url)), h.rank)
@@ -186,6 +197,14 @@ async def pages_for(
         more, more_stats = await _collect(ports, retry, seen | {p.url for p in pages}, job.area, v)
         pages += more
         planned += retry
+        stats = _merge_stats(stats, more_stats)
+    home = [q for q in await home_queries(ports, v, job) if q.text not in {p.text for p in planned}]
+    if home:  # a car sold only outside Europe: its own market's pages, in its language (chat 2026-11-06)
+        await emit("searching", f"{job.area}: {len(home)} searches on the car's home market")
+        more, more_stats = await _collect(ports, home, seen | {p.url for p in pages}, job.area, v, fresh=job.fresh,
+                                          limit=home_pages(ports, home_market(v, job)))  # fmt: skip
+        pages += more
+        planned += home
         stats = _merge_stats(stats, more_stats)
     site = await registry_queries(ports, v, job, planned)
     if site:  # spec 010: the registry's sources, with their own few pages so the favourites cannot crowd them out

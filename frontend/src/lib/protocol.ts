@@ -231,6 +231,8 @@ export const AgreedBlockSchema = z.object({
       label: z.string(),
       variant_label: z.string().nullish(),
       basis: z.string().default("LOOKED_UP"),
+      // a car not sold in Spain: where it was found ("… в Европе не продаётся — нашёл на рынке Китая")
+      note: z.string().nullish(),
     }),
   ),
 });

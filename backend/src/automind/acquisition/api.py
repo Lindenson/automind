@@ -87,6 +87,9 @@ class AcquireRequest(BaseModel):
     round: int = 0
     deadline: datetime | None = None  # the job timeout; the caller's asyncio.timeout enforces it today
     car_year: int | None = None
+    # where the car is sold when not in Spain (CaseCar.market: "EU", "CN", …; chat 2026-11-06). Outside Europe the
+    # research also reads that market's sources in its language; prices still come from Europe only (009 FR-009)
+    market: str | None = None
 
 
 class SourceRef(BaseModel):

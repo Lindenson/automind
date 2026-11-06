@@ -58,6 +58,7 @@ class JobSpec:
     car_year: int | None = None  # the user's car year (validator compares claims with the case, FR-016)
     fresh: bool = False  # the user asked to search again: bypass the search cache and widen the queries
     escalate: bool = False  # an area left short: round 0 also queries the registry's other markets (010 FR-022)
+    market: str | None = None  # where the car is sold when not in Spain (CaseCar.market; chat 2026-11-06)
 
     @property
     def escalated(self) -> bool:
@@ -81,11 +82,13 @@ class JobResult:
     planned: list[str] = field(default_factory=list)  # the active sources of the registry's plan (not_reached input)
 
 
-def target_of(v: db.Variant, car_year: int | None = None) -> str:
+def target_of(v: db.Variant, car_year: int | None = None, home: str | None = None) -> str:
+    """The car for the extractor, the relevance role and the validator. `home`: what `plan.home_target` says about
+    a car sold only outside Europe (its market, its local name, how its pages label the figures)."""
     years = f" ({v.generation_years_from}–{v.generation_years_to or 'now'})" if v.generation_years_from else ""
     body = f", body {v.body_class.lower()}" if v.body_class else ""
     year = f", the user's car is from ~{car_year}" if car_year else ""
-    return f"{v.label}{years}, powertrain {v.powertrain}{body}, market ES{year}"
+    return f"{v.label}{years}, powertrain {v.powertrain}{body}, {home or 'market ES'}{year}"
 
 
 PageOutcome = tuple[str, str | None, int]  # (attempt outcome, reason, accepted values)
@@ -152,7 +155,7 @@ async def _run(ports: Ports, job: JobSpec, emit: Emit) -> JobResult:
     missing = await missing_critical(v.id, v.powertrain) if job.area == "specs" else []
     seen = await _used_urls(v.id, job.area)
     planned, pages, stats = await pages_for(ports, v, job, missing, seen, emit)
-    target = target_of(v, job.car_year)
+    target = target_of(v, job.car_year, plan.home_target(ports, v, plan.home_market(v, job)))
     # One pipeline per page (spec 004 FR-032): relevance → table reader or extraction → validation → storage.
     # Pages run concurrently; the model calls are bounded per job here and in total by the gateway.
     await emit("reading", f"{job.area}: reading {len(pages)} sources ({stats['pages_cached']} from cache)")

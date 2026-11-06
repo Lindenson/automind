@@ -14,6 +14,13 @@ export function Agreed({ b }: { b: BlockOf<"agreed"> }) {
         <span className="min-w-0 truncate text-muted">
           {b.cars.map((c) => c.label).join(" · ")}
         </span>
+        {b.cars
+          .filter((c) => c.note)
+          .map((c) => (
+            <span key={c.key} className="basis-full text-xs text-muted" data-testid="agreed-market">
+              {c.note}
+            </span>
+          ))}
       </summary>
       <ul className="mt-2 space-y-1.5">
         {b.cars.map((c) => (
