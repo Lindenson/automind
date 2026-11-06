@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from automind.delivery.web import metrics as m
-from automind.observability.metrics import heartbeat, prom
+from automind.shared.infrastructure.metrics import heartbeat, prom
 
 
 def _app() -> FastAPI:

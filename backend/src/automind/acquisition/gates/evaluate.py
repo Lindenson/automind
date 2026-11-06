@@ -116,7 +116,7 @@ def _read(rs: list[SnapshotRef], bodies: dict[str, bytes], variants: dict[str, V
 async def _parser_pair(c: AcqChange, rs: list[SnapshotRef], **_: Any) -> Pair:
     old, new = await spec_of(c.from_version), await spec_of(c.to_version)
     bodies, variants = await _bodies_variants(rs)
-    rules = config.plausibility_rules()
+    rules = acq_config.plausibility_rules()
     return Pair(_read(rs, bodies, variants, old, rules), _read(rs, bodies, variants, new, rules))
 
 
@@ -136,7 +136,7 @@ def rule_sets(c: AcqChange) -> tuple[dict[str, Any], dict[str, Any]]:
     if section not in ("plausibility", "sense"):
         raise NoMeasure(f"no offline measure for {c.object_key}")
     path = c.object_key.removeprefix(section + ".")
-    current = {"plausibility": config.plausibility_rules(),
+    current = {"plausibility": acq_config.plausibility_rules(),
                "sense": overrides.layer("sense", config.load_yaml("sense.yaml"))}  # fmt: skip
     value = (c.diff or {}).get("to")
     before = (c.diff or {}).get("from")
@@ -213,7 +213,7 @@ async def _extractor_pair(c: AcqChange, rs: list[SnapshotRef], *, llm: Any = Non
     if area is None:
         raise NoMeasure(f"{name} is not an extraction prompt")
     bodies, variants = await _bodies_variants(rs)
-    rules = config.plausibility_rules()
+    rules = acq_config.plausibility_rules()
     out = Pair([], [])
     for r in rs:
         if r.blob_sha256 not in bodies:

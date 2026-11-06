@@ -15,12 +15,12 @@ from typing import Any
 from sqlalchemy.dialects.postgresql import insert
 
 from automind.acquisition.infrastructure.search import SearchUnavailable
-from automind.chat.infrastructure.persistence.repositories import UsageRepo
-from automind.observability.metrics import prom
 from automind.shared.contracts.web import SearchHit, SearchProvider
-from automind.shared.evidence.evidence import is_denied
+from automind.shared.evidence import is_denied
 from automind.shared.infrastructure.db import SearchCache, sessionmaker
+from automind.shared.infrastructure.db.usage import UsageRepo
 from automind.shared.infrastructure.llm.gateway import prices
+from automind.shared.infrastructure.metrics import prom
 from automind.shared.metering.usage import current_budget, current_job
 
 

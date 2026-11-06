@@ -10,7 +10,7 @@ from typing import Any
 from sqlalchemy import delete, select, text
 
 from automind.acquisition.pipeline.validate import MONEY_ATTRS
-from automind.shared.evidence import evidence as ev
+from automind.shared import evidence as ev
 from automind.shared.evidence import sense
 from automind.shared.infrastructure import db
 

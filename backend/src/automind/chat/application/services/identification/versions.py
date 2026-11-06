@@ -25,7 +25,7 @@ from automind.acquisition.api import DatasetVersion, VersionEntry, VersionsOut, 
 from automind.chat.application.ports import Ports
 from automind.chat.domain.identification.ladder import Generation, Version, sold_in
 from automind.chat.domain.intake import intake
-from automind.shared.evidence import evidence
+from automind.shared import evidence
 from automind.shared.research_order import search_plan
 from automind.shared.vehicle import identity
 

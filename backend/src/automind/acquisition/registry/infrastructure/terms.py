@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from automind.acquisition.infrastructure.config import fetch_policy
 from automind.acquisition.infrastructure.fetch import Fetcher, FetchPolicy, FetchRefused
 from automind.acquisition.registry.domain.admission import AdmissionFacts
-from automind.shared.evidence import evidence as ev
+from automind.shared import evidence as ev
 from automind.shared.infrastructure.llm import gateway as llm_gateway
 
 log = logging.getLogger(__name__)

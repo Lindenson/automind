@@ -10,7 +10,7 @@ os.environ["DATABASE_URL"] = (
 
 import pytest  # noqa: E402
 
-from automind.shared.infrastructure.config.loader import configure_domain  # noqa: E402
+from automind.delivery.bootstrap import configure_domain  # noqa: E402
 
 configure_domain()
 

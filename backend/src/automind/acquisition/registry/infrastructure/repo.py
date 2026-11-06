@@ -14,7 +14,6 @@ from automind.acquisition.registry.domain.model import Capability, Source
 from automind.acquisition.registry.domain.score import Counts, decay, score_of
 from automind.acquisition.reputation import components
 from automind.acquisition.snapshots import store
-from automind.observability.metrics import prom
 from automind.shared.infrastructure.db.models import (
     CapabilityRow,
     Claim,
@@ -25,6 +24,7 @@ from automind.shared.infrastructure.db.models import (
     now,
 )
 from automind.shared.infrastructure.db.session import sessionmaker
+from automind.shared.infrastructure.metrics import prom
 
 log = logging.getLogger(__name__)
 RECENT = 20  # last outcomes kept per capability

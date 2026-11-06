@@ -1,7 +1,7 @@
 # Next session: start here (parked on 2026-11-06)
 
 **First task: refactoring — spec 012, executed by `specs/012-refactoring/tasks.md` (one phase = one PR).**
-Done: S0–S3c (2026-11-06): hygiene, safety net, shrink + typed facade, tree move, tests mirrored, package docs. Next: S4 shared kernel (T043–T045). No new features until it is done (owner, 2026-11-06). All functional work below is
+Done: S0–S3c (2026-11-06): hygiene, safety net, shrink + typed facade, tree move, tests mirrored, package docs. S4 shared kernel done. Next: S5 chat domain (T046–T054). No new features until it is done (owner, 2026-11-06). All functional work below is
 parked, still valid, and resumes after the refactoring.
 
 Context to read first: `README.md` ("Acquisition engine"), `docs/adr/ADR-032-acquisition-engine.md`.

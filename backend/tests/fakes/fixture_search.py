@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from automind.shared.contracts.web import Page, SearchHit
-from automind.shared.evidence.evidence import is_denied
+from automind.shared.evidence import is_denied
 from automind.shared.metering.usage import current_budget
 
 SCENARIOS = Path(__file__).resolve().parents[1] / "fixtures" / "scenarios"

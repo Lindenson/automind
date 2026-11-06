@@ -21,7 +21,6 @@ from automind.acquisition.registry.domain.model import ACCESS_BLOCKING
 from automind.acquisition.registry.domain.seed_rules import denied
 from automind.delivery.web import access
 from automind.observability.domain.issue_text import copy_text
-from automind.observability.metrics import prom
 from automind.shared.infrastructure.config.loader import load_yaml
 from automind.shared.infrastructure.config.settings import settings
 from automind.shared.infrastructure.db.models import (
@@ -33,6 +32,7 @@ from automind.shared.infrastructure.db.models import (
     now,
 )
 from automind.shared.infrastructure.db.session import sessionmaker
+from automind.shared.infrastructure.metrics import prom
 
 router = APIRouter(prefix="/api/v1/admin")
 

@@ -1,16 +1,12 @@
-"""Observability · automind.observability.metrics: Prometheus metrics of both cycles and the health of their loops.
+"""Observability · automind.observability.metrics: the slow Prometheus values computed from the journals.
 
-Owns:
-- `prom` — the metric families: live counters/histograms (`inc`, `observe_turn`, `add_cost`) and the
-  `SnapshotCollector` that serves the last `Snapshot`.
-- `snapshot` — the slow values (KPIs, source scores, loop health), recomputed from the journals every minute.
-- `heartbeat` — in-memory health of the background loops (`register`, `beat`), exported to Prometheus.
-Flow: code increments `prom` where things happen; the worker refreshes `snapshot`; delivery.web.metrics and the
-worker exporter serve the scrape from memory, never from the database (FR-031).
-Depends on: prometheus_client, shared.infrastructure (config, db, llm). Must not depend on: delivery.
-Note: `prom` and `heartbeat` are imported across chat, acquisition and shared (not yet a leaf); `snapshot` reads
-chat.infrastructure and acquisition.parsing lazily.
+Owns: `snapshot` — KPIs, source scores and loop health, recomputed from the journals every minute and served by the
+  `SnapshotCollector` of shared.infrastructure.metrics.prom.
+Flow: the worker refreshes `snapshot`; delivery.web.metrics and the worker exporter serve the scrape from memory,
+  never from the database (FR-031). Live counters and the loop heartbeat live in shared.infrastructure.metrics.
+Depends on: prometheus_client, shared.infrastructure (config, db, metrics). Must not depend on: delivery.
+Note: `snapshot` reads chat.infrastructure and acquisition.parsing lazily (it analyses both cycles).
 Public API: the modules in __all__ (callers import from them).
 """
 
-__all__ = ["heartbeat", "prom", "snapshot"]
+__all__ = ["snapshot"]

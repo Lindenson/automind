@@ -13,9 +13,10 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, ValidationError
 
-from automind.chat.domain.case.casefile import CRITERION_KEYS, CarRef, CaseDelta, CaseFile, Constraints, EngineHint
+from automind.chat.domain.case.casefile import CRITERION_KEYS, CarRef, CaseDelta, CaseFile, Constraints
 from automind.chat.domain.policy import RequestKind
 from automind.shared.contracts.llm import LLM
+from automind.shared.vehicle.engine import EngineHint
 from automind.shared.vehicle.identity import parse_engine
 
 Relation = Literal["continues", "rephrase", "correction", "complaint", "thanks", "new_topic"]

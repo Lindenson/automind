@@ -1,6 +1,6 @@
 """Load gold values from open datasets (spec 011 T023, FR-003).
 
-    python -m automind.acquisition.gold.load --dataset {reference_set,eea_co2,eea_obfcm,rdw,all}
+    python -m automind.cli gold-load --dataset {reference_set,eea_co2,eea_obfcm,rdw,all}
         [--make M] [--recent] [--dry-run]
 
 Candidate variants are all `vehicle_variants` (or, with `--recent`, those asked in the last 30 days); the dataset's
@@ -11,7 +11,6 @@ gold values of each (dataset, variant) replace the previous load. Prints counts 
 from __future__ import annotations
 
 import argparse
-import asyncio
 import importlib
 import importlib.util
 import logging
@@ -135,20 +134,9 @@ async def main_async(args: argparse.Namespace) -> int:
 
 
 def parse(argv: list[str] | None = None) -> argparse.Namespace:
-    p = argparse.ArgumentParser(prog="python -m automind.acquisition.gold.load", description=__doc__)
+    p = argparse.ArgumentParser(prog="python -m automind.cli gold-load", description=__doc__)
     p.add_argument("--dataset", required=True, choices=[*DATASETS, "all"])
     p.add_argument("--make")
     p.add_argument("--recent", action="store_true", help="only variants asked in the last 30 days")
     p.add_argument("--dry-run", action="store_true")
     return p.parse_args(argv)
-
-
-def main(argv: list[str] | None = None) -> int:
-    from automind.shared.infrastructure.config.loader import configure_domain  # noqa: PLC0415
-
-    configure_domain()
-    return asyncio.run(main_async(parse(argv)))
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

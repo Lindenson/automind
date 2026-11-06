@@ -71,7 +71,7 @@ async def tried(job_id: str, variant_id: str, planned: list[str] | None = None) 
                 .order_by(db.RegistryAttempt.created_at)
             )
         ).all()
-    from automind.shared.evidence.evidence import domain_of  # noqa: PLC0415
+    from automind.shared.evidence import domain_of  # noqa: PLC0415
 
     out = best_per_domain([(domain_of(url or ""), outcome, reason) for url, outcome, reason in rows])
     reached = {t.domain for t in out}
@@ -106,7 +106,7 @@ async def tried_by_area(variant_id: str) -> dict[str, list[Tried]]:
                 .order_by(db.RegistryAttempt.created_at)
             )
         ).all()  # fmt: skip
-    from automind.shared.evidence.evidence import domain_of  # noqa: PLC0415
+    from automind.shared.evidence import domain_of  # noqa: PLC0415
 
     last_job = {str(area): job_id for area, job_id, *_ in rows}  # rows are in time order: the last one wins
     by_area: dict[str, list[tuple[str, str, str | None]]] = {}

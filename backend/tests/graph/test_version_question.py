@@ -18,8 +18,8 @@ from automind.chat.application.services.identification import resolve
 from automind.chat.dialog.graph import build_graph
 from automind.chat.dialog.runner import ChatRunner
 from automind.chat.infrastructure.persistence.repositories import MessageRepo
+from automind.delivery.bootstrap import reference
 from automind.shared.infrastructure import db
-from automind.shared.infrastructure.config.loader import reference
 from tests.fakes.fake_llm import FakeLLM
 from tests.fakes.fixture_search import FixtureSearch
 

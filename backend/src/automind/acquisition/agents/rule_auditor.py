@@ -184,8 +184,8 @@ def _cfg() -> dict[str, Any]:
 
 async def run_auditor(*, llm: LLM | None = None, charge: Any = None, now: datetime | None = None) -> dict[str, Any]:
     from automind.acquisition.gates import journal  # noqa: PLC0415
+    from automind.acquisition.infrastructure.config import effective_rules  # noqa: PLC0415
     from automind.acquisition.worker.budget import BudgetExceeded  # noqa: PLC0415
-    from automind.shared.infrastructure.config.loader import effective_rules  # noqa: PLC0415
 
     now = now or datetime.now(UTC)
     cfg = _cfg()

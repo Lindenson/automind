@@ -319,7 +319,7 @@ def _apply_choice(car: CaseCar, ch: Choice) -> str:
 def _apply_level(car: CaseCar, ch: Choice) -> str:
     """An option of one ladder level (spec 008): its facts become the user's statement of that level; the levels
     above are kept, nothing is parsed from the label."""
-    from automind.chat.domain.case.casefile import EngineHint  # noqa: PLC0415
+    from automind.shared.vehicle.engine import EngineHint  # noqa: PLC0415
 
     k = car.constraints
     e = k.engine_hint.model_copy() if k.engine_hint else EngineHint()

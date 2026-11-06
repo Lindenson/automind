@@ -311,13 +311,13 @@ Where to start reading: `domain/policy.py` (what happens next), `domain/casefile
 Data acquisition is a separate engine (`backend/src/automind/acquisition`) that the chat reaches only through
 `acquisition.api.acquire()`. Decision record: [ADR-032](docs/adr/ADR-032-acquisition-engine.md).
 
-- **Worker.** `python -m automind.acquisition.worker` (compose service `worker`, started by `scripts/dev.sh` unless
+- **Worker.** `python -m automind.cli worker` (compose service `worker`, started by `scripts/dev.sh` unless
   `--no-worker`) runs prefetch, roll-ups, drift, registry review, retention and the agents from a Postgres queue
   (`acq_tasks`, `SKIP LOCKED`). `--once <kind>` runs one task and exits. Stopping the API does not stop it.
 - **Snapshots and gold.** Every fetched page is kept (zstd, deduplicated, capped by `snapshots.max_gb`); every value
   names its producer version. Gold values come from EEA CO2, EEA OBFCM, RDW (`RDW_APP_TOKEN` optional) and the
-  reference set: `python -m automind.acquisition.gold.load --dataset reference_set`.
-- **Replay.** `python -m automind.acquisition.replay --reader km77@v1 --since 30d --json` measures a parser version on
+  reference set: `python -m automind.cli gold-load --dataset reference_set`.
+- **Replay.** `python -m automind.cli replay --reader km77@v1 --since 30d --json` measures a parser version on
   stored pages against gold, with no network and no model calls.
 - **Admin.** `/admin` has **Parsers** (versions, daily metrics, drift, canary) and **Changes** (every gated change
   with its one-sentence explanation; revert, freeze, forbid similar).

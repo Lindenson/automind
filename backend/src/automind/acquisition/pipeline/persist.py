@@ -27,8 +27,8 @@ from automind.acquisition.pipeline.validate import (
 )
 from automind.acquisition.ports import AcqPorts
 from automind.chat.domain.identification import used
+from automind.shared import evidence as ev
 from automind.shared.contracts.web import Page, WebDoc
-from automind.shared.evidence import evidence as ev
 from automind.shared.evidence import sense
 from automind.shared.infrastructure import db
 from automind.shared.vehicle import specs

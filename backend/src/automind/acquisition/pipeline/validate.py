@@ -14,8 +14,8 @@ from typing import Any
 from sqlalchemy import select
 
 from automind.acquisition.domain import plausibility, sense_ev
+from automind.shared import evidence as ev
 from automind.shared.contracts.web import WebDoc
-from automind.shared.evidence import evidence as ev
 from automind.shared.evidence import sense
 from automind.shared.infrastructure import db
 from automind.shared.vehicle import specs

@@ -63,7 +63,7 @@ if [[ "$in_docker" == 1 ]]; then
     "${DOCKER[@]}" run -d --name "$wrk" --network host --user "$(id -u):$(id -g)" \
       -e HOME=/tmp -e PYTHONDONTWRITEBYTECODE=1 -e DATABASE_URL \
       -v "$PWD/backend:/app/backend" -v /app/backend/.venv -v "$PWD/.env:/app/.env:ro" \
-      "$image" python -m automind.acquisition.worker >/dev/null
+      "$image" python -m automind.cli worker >/dev/null
     say "Worker: docker logs -f $wrk   metrics http://127.0.0.1:9101/metrics"
   fi
   say "Vite in node:22 (npm ci into a volume on first start)"
@@ -90,7 +90,7 @@ cd backend
 uv run python -m automind.shared.infrastructure.db.migrate
 if [[ "$worker" == 0 ]]; then exec uv run automind-api; fi
 mkdir -p ../logs
-uv run python -m automind.acquisition.worker >>../logs/worker.log 2>&1 &
+uv run python -m automind.cli worker >>../logs/worker.log 2>&1 &
 wpid=$!
 trap 'kill -TERM "$wpid" 2>/dev/null; wait "$wpid" 2>/dev/null || true' EXIT INT TERM
 say "Worker started (pid $wpid, log logs/worker.log, metrics http://127.0.0.1:9101/metrics); --no-worker skips it"

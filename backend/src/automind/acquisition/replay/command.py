@@ -1,6 +1,6 @@
-"""`python -m automind.acquisition.replay` (contracts/replay-cli.md).
+"""`python -m automind.cli replay` (contracts/replay-cli.md).
 
-    python -m automind.acquisition.replay
+    python -m automind.cli replay
         (--reader KEY | --reader-spec FILE.json | --extractor KEY [--model MODEL] --allow-llm)
         [--since 30d | --from 2026-10-01 --to 2026-11-05]
         [--domain km77.com] [--attribute max_power ...] [--limit-pages N] [--json] [--mismatches N]
@@ -11,7 +11,6 @@ Exit codes: 0 ok · 1 no pages in the period · 2 invalid spec · 3 extractor re
 from __future__ import annotations
 
 import argparse
-import asyncio
 import json
 import re
 import sys
@@ -33,7 +32,7 @@ def _day(text: str) -> datetime:
 
 
 def parse(argv: list[str] | None = None) -> argparse.Namespace:
-    p = argparse.ArgumentParser(prog="python -m automind.acquisition.replay", description=__doc__,
+    p = argparse.ArgumentParser(prog="python -m automind.cli replay", description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)  # fmt: skip
     who = p.add_mutually_exclusive_group(required=True)
     who.add_argument("--reader", help="a stored parser version, e.g. km77@v2")
@@ -96,14 +95,3 @@ async def main_async(argv: list[str] | None = None) -> int:
         return e.code
     print(json.dumps(report.as_json(), ensure_ascii=False, indent=2) if a.json else text(report, a.mismatches))
     return 0
-
-
-def main(argv: list[str] | None = None) -> int:
-    from automind.shared.infrastructure.config.loader import configure_domain  # noqa: PLC0415
-
-    configure_domain()
-    return asyncio.run(main_async(argv))
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

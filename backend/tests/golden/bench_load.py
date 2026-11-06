@@ -21,7 +21,7 @@ from automind.acquisition.worker import prefetch, queue
 from automind.acquisition.worker.config import worker_config
 from automind.acquisition.worker.handlers import HANDLERS
 from automind.acquisition.worker.process import Worker
-from automind.shared.infrastructure.config.loader import configure_domain
+from automind.delivery.bootstrap import configure_domain
 from tests.fakes.fake_llm import FakeLLM
 from tests.fakes.fixture_search import FixtureSearch
 

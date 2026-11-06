@@ -25,7 +25,7 @@ def clean() -> Iterator[None]:
 
 
 def test_nothing_changes_without_overrides() -> None:
-    assert config.plausibility_rules() is config.load_yaml("plausibility.yaml")
+    assert acq_config.plausibility_rules() is config.load_yaml("plausibility.yaml")
     assert relevance.KEYWORDS == {}
     prompts = overrides.LayeredPrompts({"extract_specs": PROMPT_FILE, "interpreter": "chat"})
     assert prompts["extract_specs"] == PROMPT_FILE and dict(prompts.items()) == {"extract_specs": PROMPT_FILE,
@@ -43,11 +43,11 @@ def test_set_path_into_a_min_max_pair_and_new_keys() -> None:
 
 def test_rule_override_changes_plausibility_without_touching_the_yaml() -> None:
     ctx = plausibility.Context(powertrain="BEV", fuel=None, known={})
-    assert not plausibility.check("consumption", 37.0, ctx, config.plausibility_rules()).ok
+    assert not plausibility.check("consumption", 37.0, ctx, acq_config.plausibility_rules()).ok
     overrides.install(rules={"plausibility.by_powertrain.consumption.BEV.max": 38})
-    assert plausibility.check("consumption", 37.0, ctx, config.plausibility_rules()).ok
+    assert plausibility.check("consumption", 37.0, ctx, acq_config.plausibility_rules()).ok
     assert config.load_yaml("plausibility.yaml")["by_powertrain"]["consumption"]["BEV"][1] == 35  # file value
-    assert config.effective_rules()["plausibility"]["by_powertrain"]["consumption"]["BEV"] == [10, 38]
+    assert acq_config.effective_rules()["plausibility"]["by_powertrain"]["consumption"]["BEV"] == [10, 38]
 
 
 def test_relevance_keywords_layered_into_the_domain() -> None:
@@ -56,7 +56,7 @@ def test_relevance_keywords_layered_into_the_domain() -> None:
     overrides.install(rules={"relevance.keywords.not_manual": ["libro manual"], "relevance.keywords.auto": ["aisin"]})
     assert not relevance._manual(title)
     assert relevance._automatic("caja aisin de 8 marchas")
-    assert config.effective_rules()["relevance"]["keywords"]["not_manual"] == ["libro manual"]
+    assert acq_config.effective_rules()["relevance"]["keywords"]["not_manual"] == ["libro manual"]
     overrides.clear()
     assert relevance._manual(title) and not relevance._automatic("caja aisin de 8 marchas")
 

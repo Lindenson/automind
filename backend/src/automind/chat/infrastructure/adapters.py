@@ -25,13 +25,14 @@ from automind.chat.infrastructure.persistence.repositories import (
     MessageRepo,
     ModelVersionsRepo,
     TurnRepo,
-    UsageRepo,
 )
 from automind.observability.infrastructure.outcomes import OutcomeRepo, settings_version
-from automind.observability.metrics import prom
 from automind.shared.contracts.config import Reference
-from automind.shared.infrastructure.config.loader import config_dir, reference, search_config
+from automind.shared.infrastructure.config.loader import config_dir, search_config
+from automind.shared.infrastructure.config.runtime import reference
+from automind.shared.infrastructure.db.usage import UsageRepo
 from automind.shared.infrastructure.llm import gateway as llm_gateway
+from automind.shared.infrastructure.metrics import prom
 
 T = TypeVar("T", bound=BaseModel)
 

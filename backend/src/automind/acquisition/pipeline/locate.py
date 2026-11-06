@@ -26,8 +26,8 @@ from automind.acquisition.pipeline.plan import (
     registry_queries,
 )
 from automind.acquisition.ports import AcqPorts
+from automind.shared import evidence as ev
 from automind.shared.contracts.web import Page
-from automind.shared.evidence import evidence as ev
 from automind.shared.infrastructure import db
 from automind.shared.research_order import search_plan
 

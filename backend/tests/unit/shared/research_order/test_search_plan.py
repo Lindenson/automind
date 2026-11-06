@@ -1,6 +1,6 @@
 """Search plan (spec 003 FR-002, FR-003; research R2): favourites first, grouped, by market; open web later."""
 
-from automind.shared.evidence import evidence
+from automind.shared import evidence
 from automind.shared.research_order.search_plan import Identity, PlannedQuery, queries
 
 FAV = [
@@ -86,7 +86,7 @@ def test_deny_listed_favourite_never_appears():
         qs = _plan("specs")
         assert "motor.es" not in {s for q in qs for s in q.sites}
     finally:
-        from automind.shared.infrastructure.config.loader import configure_domain
+        from automind.delivery.bootstrap import configure_domain
 
         configure_domain()
 

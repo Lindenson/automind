@@ -10,9 +10,9 @@ from typing import Any
 from sqlalchemy import select
 
 from automind.observability.domain import outcome as oc
-from automind.observability.metrics import prom
 from automind.shared.infrastructure.db.models import Feedback, Turn, TurnOutcome, now
 from automind.shared.infrastructure.db.session import sessionmaker
+from automind.shared.infrastructure.metrics import prom
 
 log = logging.getLogger(__name__)
 

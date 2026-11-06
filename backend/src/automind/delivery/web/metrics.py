@@ -12,8 +12,8 @@ import ipaddress
 from fastapi import APIRouter, Request, Response
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
-from automind.observability.metrics import prom  # noqa: F401 - registers the metric families
 from automind.shared.infrastructure.config.settings import settings
+from automind.shared.infrastructure.metrics import prom  # noqa: F401 - registers the metric families
 
 router = APIRouter()
 

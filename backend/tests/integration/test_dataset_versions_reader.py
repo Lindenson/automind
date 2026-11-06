@@ -15,8 +15,8 @@ from automind.acquisition.gold import repo
 from automind.acquisition.gold import versions as gv
 from automind.acquisition.gold.domain.match import DatasetRow, GoldValue
 from automind.chat.application.services.identification import resolve
+from automind.delivery.bootstrap import reference
 from automind.shared.infrastructure import db
-from automind.shared.infrastructure.config.loader import reference
 
 
 def _row(model: str, fuel: str, kw: float, cc: int, year: int, regs: int = 50, make: str = "KIA") -> DatasetRow:

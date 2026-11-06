@@ -299,3 +299,15 @@ ignore_imports =
     automind.delivery.web.app -> automind.acquisition.infrastructure.retention
 # direct imports, no ignore_imports: the facades themselves reach the engine
 allow_indirect_imports = True
+
+# --- spec 012 -------------------------------------------------------------------------------------
+[importlinter:contract:shared-is-kernel]
+name = The shared kernel depends on no area (spec 012 FR-013, constitution V)
+type = forbidden
+source_modules =
+    automind.shared
+forbidden_modules =
+    automind.chat
+    automind.acquisition
+    automind.observability
+    automind.delivery

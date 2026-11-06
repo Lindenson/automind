@@ -11,8 +11,6 @@ from tests.fakes.fake_llm import FakeLLM
 from tests.fakes.fixture_search import FixtureSearch
 from tests.graph.conftest import engine, make_ports, open_web_reference
 
-from automind.acquisition.domain import served
-from automind.acquisition.domain.versions import prompt_key_from_header
 from automind.acquisition.infrastructure.fetch import Fetcher, FetchPolicy
 from automind.acquisition.infrastructure.pages import DbPageStore
 from automind.acquisition.parsing.registry import ParserRegistry
@@ -24,6 +22,8 @@ from automind.acquisition.snapshots.retention import run_snapshot_retention
 from automind.shared.infrastructure import db
 from automind.shared.infrastructure.config.loader import load_yaml
 from automind.shared.infrastructure.db import models as m
+from automind.shared.provenance import served
+from automind.shared.provenance.versions import prompt_key_from_header
 
 PAGES = Path(__file__).resolve().parents[1] / "fixtures" / "pages"
 KM77 = {"domain": "km77.com", "source_type": "SPEC_DATABASE", "areas": ["specs"], "markets": ["ES"], "priority": 1,

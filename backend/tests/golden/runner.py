@@ -440,7 +440,7 @@ async def _run_dialogue(d: Dialogue, saver: Any, *, live: bool, record: bool) ->
     from automind.acquisition.engine import Engine
     from automind.acquisition.ports import AcqPorts
     from automind.chat.dialog.prompts import load_all
-    from automind.shared.infrastructure.config.loader import reference
+    from automind.delivery.bootstrap import reference
     from tests.graph.conftest import open_web_reference
 
     ref = reference(load_all()) if live else open_web_reference()

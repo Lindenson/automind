@@ -3,8 +3,8 @@
 from automind.chat.application.services.identification.resolve import _fits
 from automind.chat.dialog.prompts import load_all
 from automind.chat.domain.case.casefile import CaseCar
+from automind.delivery.bootstrap import reference
 from automind.shared.infrastructure import db
-from automind.shared.infrastructure.config.loader import reference
 
 
 def test_new_rav4_is_not_the_previous_generation():

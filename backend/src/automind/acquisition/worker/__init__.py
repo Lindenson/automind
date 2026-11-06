@@ -6,7 +6,8 @@ Owns:
   `handlers` — HANDLERS[kind](task, ctx): one handler per task kind.
   `budget` — daily budgets per task kind; `heartbeat` — worker registration and loop health.
   `prefetch` — refresh the most asked cars before users ask; `exporter` — the worker's Prometheus exporter.
-  `config` — worker settings from config/acquisition.yaml; `__main__` — `python -m automind.acquisition.worker`.
+  `config` — worker settings from config/acquisition.yaml.
+  `entry` — the worker process (arguments, start, `--once`), run by `python -m automind.cli worker`.
 Flow: scheduler.tick → queue.enqueue → process claims → handlers[kind] (budget checked) → queue.complete / fail.
 Depends on: agents, drift, gates, parsing, registry, reputation, snapshots, infrastructure,
   shared (infrastructure, metering), observability (metrics, loop); prometheus_client, sqlalchemy.
@@ -18,6 +19,7 @@ Note: the worker also runs observability jobs (metrics snapshot, the insight loo
 __all__: list[str] = [
     "budget",
     "config",
+    "entry",
     "exporter",
     "handlers",
     "heartbeat",

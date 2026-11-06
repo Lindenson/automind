@@ -13,7 +13,7 @@ import pytest
 import yaml
 
 from automind.acquisition.worker import exporter
-from automind.observability.metrics.prom import metric_names
+from automind.shared.infrastructure.metrics.prom import metric_names
 
 DEPLOY = Path(__file__).resolve().parents[5] / "deploy" / "prometheus"
 RULES = DEPLOY / "automind-rules.yml"

@@ -13,9 +13,9 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, create_model
 
+from automind.shared import evidence as ev
 from automind.shared.contracts.llm import LLM
 from automind.shared.contracts.web import WebDoc
-from automind.shared.evidence import evidence as ev
 from automind.shared.vehicle import specs
 
 AREA_ATTRS: dict[str, list[str]] = {

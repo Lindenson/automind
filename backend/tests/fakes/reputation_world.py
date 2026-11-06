@@ -12,7 +12,7 @@ from sqlalchemy import delete, select
 
 from automind.acquisition.gold import repo as gold_repo
 from automind.acquisition.gold.domain.match import GoldValue
-from automind.shared.evidence import evidence as ev
+from automind.shared import evidence as ev
 from automind.shared.infrastructure import db
 from automind.shared.infrastructure.db import models as m
 

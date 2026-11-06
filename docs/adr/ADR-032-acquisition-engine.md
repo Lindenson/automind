@@ -22,7 +22,7 @@ The external review of 2026-11-05 (commit 652e691) found a good registry foundat
    only engine module the chat may import (import contract `chat-uses-acquire-only`). The stages plan → locate →
    fetch → parse → validate → persist/merge → job → identity readers moved out of `application/research.py` one by
    one (strangler S0–S8, goldens g1–g12 after every step); the file is deleted.
-2. **A worker process and a Postgres queue** (XIII). `python -m automind.acquisition.worker`, same image, compose
+2. **A worker process and a Postgres queue** (XIII). `python -m automind.cli worker`, same image, compose
    service `worker` (metrics on `worker:9101`, heartbeat in `acq_workers`). Queue table `acq_tasks` with a unique
    `dedupe_key`; a claim is one `UPDATE … WHERE id IN (…FOR UPDATE SKIP LOCKED)` statement, the candidate select in
    a `MATERIALIZED` CTE so the planner cannot re-evaluate it per row; expired leases are reclaimed, failures back
@@ -40,7 +40,7 @@ The external review of 2026-11-05 (commit 652e691) found a good registry foundat
    `RDW_APP_TOKEN`), the reference set and confirmed challenges; `gold_datasets` + `gold_values` with origin, date,
    matching rule and confidence. Matching keys on make, model, fuel, power ± 1 kW and generation years; an
    ambiguous group gives no gold.
-6. **Replay offline.** `python -m automind.acquisition.replay --reader km77@v1 --since 30d` runs the same pure
+6. **Replay offline.** `python -m automind.cli replay --reader km77@v1 --since 30d` runs the same pure
    interpreter and validation over stored snapshots and reports yield, pass rate and accuracy against gold, with a
    socket guard: zero network and model calls.
 7. **Declarative parser specs with drift.** A closed Pydantic schema (`acquisition/parsing/spec.py`), stored in

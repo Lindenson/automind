@@ -45,7 +45,7 @@ async def reclassify_sources() -> dict[str, int]:
     """Source types again with the current rules (reviewer 2026-11-03): fan clubs, dealers and part shops typed
     MANUFACTURER, favourites without their own type. Claims follow with their provenance; selected values and
     area minimums are recomputed for every changed car. Idempotent."""
-    from automind.shared.evidence import evidence as ev
+    from automind.shared import evidence as ev
 
     stats: Counter[str] = Counter()
     changed: set[str] = set()

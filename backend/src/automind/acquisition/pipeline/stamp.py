@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from automind.acquisition.domain.served import served
-from automind.acquisition.domain.versions import parse_key, reader_key
+from automind.shared.provenance.served import served
+from automind.shared.provenance.versions import parse_key, reader_key
 
 LEGACY_READER_VERSION = 1
 
