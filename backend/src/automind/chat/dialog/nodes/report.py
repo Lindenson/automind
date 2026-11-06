@@ -17,13 +17,15 @@ from typing import Any
 from langgraph.runtime import Runtime
 
 from automind.chat.application.services.report.computations import persist_computations
+from automind.chat.application.services.report.contracts import Computed
 from automind.chat.application.services.report.facts.car import short_name
+from automind.chat.application.services.report.service import ReportService
 from automind.chat.dialog import agents
 from automind.chat.dialog import tracing as outcomes
-from automind.chat.dialog.context import ctx, history, load_case, save_case
+from automind.chat.dialog.context import ctx, history, load_case, record_intake, save_case
 from automind.chat.dialog.guard import check_numbers, drop_sentences, numbers_in, report_violations, violations_prompt
-from automind.chat.dialog.nodes.compute import compute
 from automind.chat.dialog.phrases import t
+from automind.chat.dialog.report_wording import WORDING
 from automind.chat.dialog.runner import TurnContext
 from automind.chat.dialog.state import TurnState
 from automind.chat.domain.assessment import ask_value, profile_gaps
@@ -32,6 +34,15 @@ from automind.chat.domain.fingerprint import fingerprint
 from automind.shared.metering.usage import BudgetExceeded
 
 log = logging.getLogger(__name__)  # one logging stack: stdlib everywhere (spec 007 J, T079)
+
+
+async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]], lang: str = "en") -> Computed:
+    """The report's numbers and blocks for this turn (the report service, in the person's language)."""
+
+    async def log(kind: str, **details: object) -> None:
+        await record_intake(c, kind, **details)
+
+    return await ReportService(c.ports, WORDING, log).run(case, notices, lang)
 
 
 def _log_removed(c: TurnContext, where: str, n: int) -> None:

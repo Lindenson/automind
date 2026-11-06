@@ -23,8 +23,9 @@ from tests.graph.conftest import engine, make_ports, open_web_reference
 from automind.acquisition import api as acquisition
 from automind.acquisition.registry.api import PlannedSource
 from automind.chat.application.services.report.facts.car import load_car
+from automind.chat.application.services.report.stages.ownership import energy_notices
 from automind.chat.application.services.report.tco_inputs import tco_car
-from automind.chat.dialog.nodes.compute import energy_notices
+from automind.chat.dialog.report_wording import WORDING
 from automind.chat.domain.cost import tco
 from automind.shared.infrastructure import db
 from automind.shared.infrastructure.db import models as m
@@ -177,7 +178,7 @@ async def test_a_china_market_car_is_researched_in_china_and_its_energy_cost_com
         assert not energy.missing and energy.annual_eur > 0
         assert any("CLTC" in line for line in energy.inputs)
         # the report no longer says "стоимость энергии не посчитать — нет данных"
-        assert energy_notices([est], {vid: name}, "ru") == []
+        assert energy_notices([est], {vid: name}, "ru", WORDING) == []
 
     # every page read from these searches is an attempt of its Chinese source in the registry
     assert {a.market for a in reg.attempts if "d1ev.com" in a.url or "chexun.com" in a.url} == {"CN"}

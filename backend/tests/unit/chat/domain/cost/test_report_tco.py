@@ -12,9 +12,12 @@ from pathlib import Path
 import pytest
 import yaml
 
+from automind.chat.application.services.report.case_facts import assumption_lines
+from automind.chat.application.services.report.contracts import CheckInput
+from automind.chat.application.services.report.stages.ownership import costlier_names, ownership_facts
 from automind.chat.dialog import report_text
-from automind.chat.dialog.guard import CheckInput, report_violations, saving_for_costlier, violations_prompt
-from automind.chat.dialog.nodes.compute import assumption_lines, costlier_names, ownership_facts
+from automind.chat.dialog.guard import report_violations, saving_for_costlier, violations_prompt
+from automind.chat.dialog.report_wording import WORDING
 from automind.chat.domain.assessment.criteria import CarScore, CriteriaModel, CriteriaScore, score
 from automind.chat.domain.assessment.metrics import CarFacts
 from automind.chat.domain.case import CaseFile
@@ -204,14 +207,14 @@ def test_ownership_score_uses_the_period_total_including_depreciation():
 
 def test_assumed_mileage_and_period_are_said_once_with_the_value():
     case = CaseFile(annual_km=15000, basis={"annual_km": "ASSUMED", "ownership_years": "ASSUMED"}, ownership_years=5)
-    assert assumption_lines(case, RATES, "en") == [
+    assert assumption_lines(case, RATES, "en", WORDING) == [
         "Assumed 15,000 km/year and 5 years of ownership — tell me your mileage and period and I will recount the "
         "costs."
     ]
     km_only = CaseFile(annual_km=15000, basis={"annual_km": "ASSUMED", "ownership_years": "STATED"}, ownership_years=5)
-    assert assumption_lines(km_only, RATES, "ru") == [
+    assert assumption_lines(km_only, RATES, "ru", WORDING) == [
         "Принято 15.000 км в год — напишите свой пробег, и я пересчитаю расходы."
     ]
     stated = CaseFile(annual_km=8000, annual_km_stated=True, basis={"annual_km": "STATED", "ownership_years": "STATED"},
                       ownership_years=7)  # fmt: skip
-    assert assumption_lines(stated, RATES, "es") == []
+    assert assumption_lines(stated, RATES, "es", WORDING) == []

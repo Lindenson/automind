@@ -2,7 +2,8 @@
 
 import pytest
 
-from automind.chat.dialog.guard import CheckInput, check_numbers, numbers_in, report_violations
+from automind.chat.application.services.report.contracts import CheckInput
+from automind.chat.dialog.guard import check_numbers, numbers_in, report_violations
 from automind.shared import evidence
 from automind.shared.evidence import ClaimIn
 

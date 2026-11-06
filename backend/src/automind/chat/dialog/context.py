@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 from langgraph.runtime import Runtime
 
 from automind.chat.application.services.report.blocks import car_view
@@ -36,11 +34,6 @@ async def history(c: TurnContext, limit: int = 12) -> list[dict[str, str]]:
     msgs = [m for m in await c.ports.messages.history(c.chat_id) if m.role != "edit"]  # panel edits: not words
     prior = msgs[:-1] if msgs and msgs[-1].role == "user" else msgs
     return [{"role": m.role, "text": m.text} for m in prior[-limit:]]
-
-
-def notice(text: str, level: str = "info", **about: str) -> dict[str, Any]:
-    """`about` (car_key, area) lets a later step drop a notice that another one explains better."""
-    return {"type": "notice", "level": level, "text": text, **about}
 
 
 async def record_intake(c: TurnContext, kind: str, car_key: str | None = None, item: str | None = None,

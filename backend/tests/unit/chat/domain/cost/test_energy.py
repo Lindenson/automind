@@ -109,7 +109,8 @@ def test_tco_energy_item_carries_parts_and_missing():
 
 
 def test_a_cost_without_energy_is_named_and_not_compared():
-    from automind.chat.dialog.nodes.compute import _checked_costs, energy_notices
+    from automind.chat.application.services.report.stages.ownership import checked_costs, energy_notices
+    from automind.chat.dialog.report_wording import WORDING
 
     rates = tco.TcoRates.from_config(
         {
@@ -123,9 +124,9 @@ def test_a_cost_without_energy_is_named_and_not_compared():
     )  # fmt: skip
     byd = tco.compute(tco.TcoCar("b", "BYD", "PHEV", "petrol", consumption=0.9, vehicle_class="compact"), rates, KM)
     ateca = tco.compute(tco.TcoCar("a", "Ateca", "ICE", "petrol", consumption=6.3, vehicle_class="compact"), rates, KM)
-    costs = _checked_costs([byd, ateca], {}, [])
+    costs = checked_costs([byd, ateca], {}, [])
     assert set(costs) == {"a"}
-    (n,) = energy_notices([byd, ateca], {"b": "BYD Seal U"}, "ru")
+    (n,) = energy_notices([byd, ateca], {"b": "BYD Seal U"}, "ru", WORDING)
     assert "BYD Seal U" in n["text"] and "разряженной батареей" in n["text"] and n["level"] == "warning"
 
 

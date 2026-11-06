@@ -7,7 +7,8 @@ from __future__ import annotations
 from typing import Any
 
 from automind.chat.application.services.identification.service import CarIdentified
-from automind.chat.dialog.context import notice, record_intake
+from automind.chat.application.services.report.blocks.notice import notice
+from automind.chat.dialog.context import record_intake
 from automind.chat.dialog.phrases import market_name, t
 from automind.chat.dialog.runner import TurnContext
 from automind.chat.dialog.state import TurnState

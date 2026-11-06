@@ -7,6 +7,8 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
+from automind.chat.application.services.report.contracts import CheckInput
+
 # A number as written in any of our languages: "25 000", "25.000", "25,000", "1.234,5", "6,58", "20k", "20 тыс".
 _NUM = r"\d{1,3}(?:[ \u00a0\u202f]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)*"
 _MULT = r"(?:\s?([kк](?![a-zа-яё])|тыс\.?|mil\b|thousand))?"
@@ -178,15 +180,6 @@ class Violation:
     rule: str  # absence | sub_threshold | tie_winner | saving_costlier
     sentence: str
     topic: str = ""
-
-
-@dataclass(frozen=True)
-class CheckInput:
-    has_data: frozenset[str]  # topics with data in the blocks (TOPIC_WORDS keys)
-    ties: frozenset[str]  # insight attributes whose cars are about the same
-    tie: bool  # the verdict is a tie
-    car_names: tuple[str, ...]  # short names of the cars as the text may write them
-    costlier: tuple[str, ...] = ()  # short names of the cars whose total over the period (incl. depreciation) is higher
 
 
 def _mentions(sentence: str, topic: str) -> bool:
