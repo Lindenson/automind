@@ -15,7 +15,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable, Sequence
 from typing import Literal
 
-from automind.chat.domain.case.casefile import CaseCar
+from automind.chat.domain.case import CaseCar
 
 Level = Literal["BASE", "MID", "TOP"]
 LevelSource = Literal["DEFAULT", "USER_TRIM"]

@@ -61,7 +61,8 @@ def main(argv: list[str] | None = None) -> int:
 
 def compare(base1: Path, base2: Path, head: Path) -> dict[str, list[str]]:
     names = sorted({p.name for p in base1.glob("*.json")} | {p.name for p in head.glob("*.json")})
-    out: dict[str, list[str]] = {"same": [], "unstable": [], "racy": [], "differs": [], "missing": [], "added": []}
+    out: dict[str, list[str]] = {"same": [], "unstable": [], "order-only": [], "racy": [], "differs": [], "missing": [],
+                                 "added": []}  # fmt: skip
     for n in names:
         b1, b2, h = (_load(d / n) for d in (base1, base2, head))
         if n in KNOWN_RACY:
@@ -70,8 +71,13 @@ def compare(base1: Path, base2: Path, head: Path) -> dict[str, list[str]]:
             out["added"].append(n)
         elif h is None:
             out["missing"].append(n)
+        elif b1 == b2 and h == b1:
+            out["same"].append(n)
+        elif b1 == b2 and _same_but_list_order(b1, h):
+            # equal content, other list order: the order of unordered DB reads (backlog §4.5) — listed, not gated
+            out["order-only"].append(n)
         elif b1 == b2:
-            out["same" if h == b1 else "differs"].append(n + ("" if h == b1 else _first_diff(b1, h)))
+            out["differs"].append(n + _first_diff(b1, h))
         elif _multiset(b1) != _multiset(b2):
             out["racy"].append(n)  # timing decides even the canonical content on the base: reported, not gated
         else:
@@ -81,7 +87,7 @@ def compare(base1: Path, base2: Path, head: Path) -> dict[str, list[str]]:
 
 
 def report(r: dict[str, list[str]]) -> int:
-    for k in ("differs", "missing", "added", "racy"):
+    for k in ("differs", "missing", "added", "racy", "order-only"):
         for n in r[k]:
             print(f"{k.upper():8} {n}")
     print(", ".join(f"{k} {len(v)}" for k, v in r.items()))
@@ -130,6 +136,11 @@ def _multiset(events: list[dict]) -> Counter[str]:
     tests are still compared byte for byte, order included."""
     return Counter(json.dumps(_canonical(json.loads(re.sub(r"<id\d+>", "<id>", json.dumps(e)))), sort_keys=True)
                    for e in events)  # fmt: skip
+
+
+def _same_but_list_order(a: list[dict], b: list[dict]) -> bool:
+    """The same events in the same order, differing only in the order of list items inside them."""
+    return len(a) == len(b) and all(_canonical(x) == _canonical(y) for x, y in zip(a, b, strict=True))
 
 
 def _canonical(v: object) -> object:

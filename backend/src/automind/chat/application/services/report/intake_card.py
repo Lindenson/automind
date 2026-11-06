@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from automind.chat.domain.case.casefile import CaseCar, CaseFile
+from automind.chat.domain.case import CaseCar, CaseFile
 from automind.shared.vehicle.identity import parse_engine
 
 FUEL = {"petrol": {"en": "petrol", "ru": "бензин", "es": "gasolina"},

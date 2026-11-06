@@ -8,7 +8,7 @@ from langgraph.runtime import Runtime
 
 from automind.chat.application.services.report import car_view
 from automind.chat.dialog.runner import TurnContext
-from automind.chat.domain.case.casefile import CaseFile
+from automind.chat.domain.case import CaseFile
 
 
 def ctx(runtime: Runtime[TurnContext]) -> TurnContext:

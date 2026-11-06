@@ -6,7 +6,7 @@ from __future__ import annotations
 from typing import Any
 
 from automind.chat.application.services.identification import resolve
-from automind.chat.domain.case.casefile import CarContext, CaseCar, CaseDelta, CaseFile, Constraints
+from automind.chat.domain.case import CarContext, CaseCar, CaseDelta, CaseFile, Constraints
 from automind.shared.vehicle.identity import parse_engine
 
 EDIT_FIELDS = ("generation", "engine", "gearbox", "trim", "not_this_car", "remove")

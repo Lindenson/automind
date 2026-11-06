@@ -85,7 +85,7 @@ async def test_choose_for_me_confirms_the_proposal(saver):
 
 async def test_unknown_model_is_reported_with_the_closest_known_ones():
     from automind.chat.application.services.identification import resolve
-    from automind.chat.domain.case.casefile import CaseCar
+    from automind.chat.domain.case import CaseCar
 
     from .conftest import open_web_reference
 

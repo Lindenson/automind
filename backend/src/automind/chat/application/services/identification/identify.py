@@ -26,11 +26,11 @@ from urllib.parse import urlparse
 from automind.acquisition.api import DatasetVersion
 from automind.chat.application.ports import Ports
 from automind.chat.application.services.identification import resolve, versions
-from automind.chat.domain.case.casefile import CaseCar, CaseFile, Choice, IdentifyOutcome, LadderMemo
+from automind.chat.domain import intake
+from automind.chat.domain.case import CaseCar, CaseFile, Choice, Fit, IdentifyOutcome, LadderMemo
 from automind.chat.domain.identification import ladder, used
-from automind.chat.domain.intake import intake
 from automind.shared import evidence
-from automind.shared.vehicle import identity, makes
+from automind.shared.vehicle import identity, makes, markets
 from automind.shared.vehicle.engine import EngineHint
 
 LineupLookup = Callable[..., Awaitable[Any]]  # (ports, make[, market=]) -> application.lineup.Lineup | None
@@ -57,23 +57,11 @@ def _lineup_models(lineup: Any) -> list[Any]:
     return list(getattr(lineup, "models", None) or [])
 
 
-def fit_of(case: CaseFile) -> intake.Fit:
-    """What the person needs, for ranking models of a line-up (FR-008) and candidates (spec 007 US7)."""
-    others = [int(p) for p in (getattr(c, "price_eur", None) for c in case.cars) if p]  # set by the caller if known
-    return intake.Fit(
-        family=case.profile.family == "FAMILY" or "FAMILY" in case.usage or (case.needs.passengers or 0) >= 4,
-        annual_km=case.profile.annual_km_max or case.annual_km,
-        priorities=tuple(p.criterion for p in case.priorities),
-        budget_eur=case.budget.max_eur if case.budget.kind == "TOTAL" and case.budget.currency == "EUR" else None,
-        reference_price_eur=others[0] if others else None,
-    )
-
-
 def _choices_from_lineup(lineup: Any, make: str, case: CaseFile | None = None) -> list[Choice]:
     """Models of the line-up as options; the 1–3 that fit the person come first, marked as suggestions with
     machine reasons (FR-008, FR-024)."""
     models = _lineup_models(lineup)
-    ranked = intake.rank_lineup(models, fit_of(case)) if case is not None else []
+    ranked = intake.rank_lineup(models, Fit.from_case(case)) if case is not None else []
     why = {m.model: r for m, r in ranked if r}
     order = [m for m, _ in ranked if m.model in why] + [m for m in models if m.model not in why]
     out = []
@@ -152,10 +140,10 @@ async def _place(ports: Ports, car: CaseCar, lookup: LineupLookup | None, lineup
     market, there = await _where_sold(ports, car, reg, lookup)
     # a make not sold in Spain is of its home market even when no line-up names the model
     home = reg.home(car.make) if reg is not None else None
-    car.market = market or (None if in_spain else home or intake.ANYWHERE)
-    if market == intake.EUROPE:  # the European country whose page lists it, when its domain says ("PL")
+    car.market = market or (None if in_spain else home or markets.ANYWHERE)
+    if market == markets.EUROPE:  # the European country whose page lists it, when its domain says ("PL")
         car.market = next((m.country for m in _lineup_models(there) if m.country and _listed_as(m, car.model)),
-                          intake.EUROPE)  # fmt: skip
+                          markets.EUROPE)  # fmt: skip
     if there is None:
         return lineup
     if market is not None:
@@ -174,12 +162,12 @@ def _listed(lineup: Any, model: str | None) -> bool:
 async def _where_sold(ports: Ports, car: CaseCar, reg: Any, lookup: LineupLookup | None,
                       any_model: bool = False) -> tuple[str | None, Any]:  # fmt: skip
     """The first market whose line-up lists the car's model (any model with `any_model`): Europe, then the make's
-    home market, then anywhere (domain/intake.lookup_markets). When none lists it: (None, the first line-up found),
+    home market, then anywhere (domain/markets.lookup_markets). When none lists it: (None, the first line-up found),
     whose models are the nearest ones to offer."""
     if lookup is None or not car.make:
         return None, None
     first = None
-    for market in intake.lookup_markets(reg.home(car.make) if reg is not None else None):
+    for market in markets.lookup_markets(reg.home(car.make) if reg is not None else None):
         try:
             lu = await lookup(ports, car.make, market=market)
         except Exception:  # noqa: BLE001 - a failed look-up never blocks the intake
@@ -193,7 +181,7 @@ async def _where_sold(ports: Ports, car: CaseCar, reg: Any, lookup: LineupLookup
 def _abroad(car: CaseCar, o: IdentifyOutcome) -> IdentifyOutcome:
     """An identified car not sold in Spain says where its data and prices come from (spec 009 FR-009)."""
     if car.market is not None and o.outcome == "IDENTIFIED":
-        kind = intake.market_note(car.market)
+        kind = markets.market_note(car.market)
         if not any(e.get("kind") == kind for e in o.events):
             o.events.append({"kind": kind, "market": car.market})
     return o

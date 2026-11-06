@@ -22,16 +22,7 @@ from automind.chat.domain.assessment.criteria import (
     weight_breakdown,
     weights_for,
 )
-from automind.chat.domain.case.casefile import (
-    Budget,
-    CaseDelta,
-    CaseFile,
-    Needs,
-    PersonaChange,
-    Rates,
-    RunningLimit,
-    apply,
-)
+from automind.chat.domain.case import Budget, CaseDelta, CaseFile, Needs, PersonaChange, Rates, RunningLimit, apply
 from automind.delivery.web import access
 from automind.shared.infrastructure.config import loader as cfg
 from automind.shared.infrastructure.config.loader import search_config

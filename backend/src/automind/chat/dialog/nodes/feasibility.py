@@ -18,7 +18,7 @@ from automind.chat.dialog.nodes.common import ctx, load_case, save_case
 from automind.chat.dialog.phrases import t
 from automind.chat.dialog.runner import TurnContext
 from automind.chat.dialog.state import TurnState
-from automind.chat.domain.case.casefile import CaseFile
+from automind.chat.domain.case import CaseFile
 
 
 def needs_ack(case: CaseFile) -> str:

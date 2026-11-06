@@ -69,6 +69,7 @@ def test_regex_and_word_table_inside_function(tmp_path: Path) -> None:
         "def g(s, p):\n    return re.search(p, s)\n"  # a pattern from elsewhere is fine
         "def h(s):\n    return s in {'a','b','c','d','e','f','g','h'}\n"
         "def k(s):\n    return s in {'a','b'}\n"
+        "def r(v):\n    return {'a': v.a, 'b': v.b, 'c': v.c, 'd': v.d, 'e': v.e, 'f': v.f, 'g': v.g, 'h': v.h}\n"
     )
     root = _tree(tmp_path, {"chat/__init__.py": DOC_INIT, "chat/m.py": code})
     assert _rules(root) == {"regex|chat/m.py|f", "table|chat/m.py|h"}

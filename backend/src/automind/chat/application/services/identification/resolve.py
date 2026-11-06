@@ -19,15 +19,15 @@ from sqlalchemy import func, select
 
 from automind.acquisition import api as acquisition
 from automind.chat.application.ports import Ports
-from automind.chat.domain.case.casefile import CaseCar
+from automind.chat.domain import intake
+from automind.chat.domain.case import CaseCar
 from automind.chat.domain.identification import identification
-from automind.chat.domain.intake import intake
 from automind.chat.domain.policy import CarState
 from automind.shared.contracts.config import Reference
 from automind.shared.evidence import sense
 from automind.shared.infrastructure import db
 from automind.shared.infrastructure.config.settings import settings
-from automind.shared.vehicle import identity
+from automind.shared.vehicle import identity, markets
 
 CATEGORIES = ("specs", "price", "maintenance")
 UNIQUE_MARGIN = 5.0  # a fuzzy winner must beat the runner-up by this many points
@@ -296,7 +296,7 @@ async def resolve_with_llm(
     )  # fmt: skip
     ident = await ports.llm.structured("resolver", VariantIdentity, ports.ref.prompts["resolver"], user)
     await _check_known(ports.ref, car, ident, lineup)
-    if not intake.european(car.market) and ident.price_eur is not None:
+    if not markets.european(car.market) and ident.price_eur is not None:
         ident = ident.model_copy(update={"price_eur": None})  # never a euro price from outside Europe
     if current is not None and (ident.generation or "").lower() != current[0].lower():
         # a NEW car must be the current generation: ask once more with the generation named, then take it
@@ -357,7 +357,7 @@ def _context(car: CaseCar, current: tuple[str, int] | None, level: str) -> list[
         where = "in Spain" if car.market is None else "on its market"
         context.append(f"equipment level wanted: {level} (BASE = the cheapest version OF THIS MODEL on sale {where})")
     if car.market is not None:  # chat 2026-11-06: a car not sold in Spain
-        sold = "in other European countries" if car.market == intake.EUROPE else f"on the {car.market} market"
+        sold = "in other European countries" if car.market == markets.EUROPE else f"on the {car.market} market"
         context.append(f"market: NOT sold in Spain; sold {sold}: return its version sold there; price_eur only "
                        "when a European list price in euros is written, else null")  # fmt: skip
     return context
@@ -378,7 +378,7 @@ async def _resolver_docs(ports: Ports, car: CaseCar, lineup: Any = None) -> list
     else:  # a car not sold in Spain: read where it is sold (no prices from outside Europe)
         hints = await ports.acquisition.generation_hints(
             query, lineup_url=url, user_url=car.constraints.url, market=car.market,
-            prices=car.condition != "USED" and intake.european(car.market),
+            prices=car.condition != "USED" and markets.european(car.market),
         )  # fmt: skip
     return [(h.url, h.title, h.text) for h in hints]
 

@@ -11,9 +11,9 @@ from typing import Any
 
 from automind.acquisition.api import LineupOut, LineupRead, VersionsOut, VersionsRead, WebHint
 from automind.acquisition.ports import AcqPorts
-from automind.chat.domain.intake import intake
 from automind.shared import evidence
 from automind.shared.metering.usage import current_budget
+from automind.shared.vehicle import markets
 
 VERSION = "identity@1"
 
@@ -25,7 +25,7 @@ def abroad(ports: AcqPorts, market: str) -> dict[str, Any]:
     """config/search.yaml `abroad.<market>`: how a car not on the Spanish line-up is looked up there (a European
     country: Europe's entry, one market with no country preferred; another market without its own entry: ANY's)."""
     cfg = (ports.ref.search or {}).get("abroad") or {}
-    fallback = intake.EUROPE if intake.european(market) else intake.ANYWHERE
+    fallback = markets.EUROPE if markets.european(market) else markets.ANYWHERE
     return dict(cfg.get(market) or cfg.get(fallback) or {})
 
 

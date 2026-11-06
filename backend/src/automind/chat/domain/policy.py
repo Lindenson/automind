@@ -17,9 +17,9 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from automind.chat.domain.case.casefile import MAX_CARS, CaseFile, QuestionKind
+from automind.chat.domain import intake
+from automind.chat.domain.case import MAX_CARS, CaseFile, QuestionKind
 from automind.chat.domain.identification.identification import REASK
-from automind.chat.domain.intake import intake
 
 ActionKind = Literal[
     "RESCORE",  # spec 007: recompute scores, cost and verdict from the data already validated

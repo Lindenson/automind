@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from sqlalchemy import select
 
-from automind.chat.domain.intake import intake
+from automind.chat.domain import intake
 from automind.shared.infrastructure import db
 
 _PT = {"ICE": "petrol", "HEV": "hybrid", "MHEV": "mhev", "PHEV": "phev", "BEV": "bev"}

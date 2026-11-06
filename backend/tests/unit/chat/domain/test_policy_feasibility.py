@@ -1,6 +1,6 @@
 """Policy additions for spec 003 US3 (T040): budget-intent question, FEASIBILITY before REPORT."""
 
-from automind.chat.domain.case.casefile import Budget, CaseCar, CaseDelta, CaseFile, Needs, RunningLimit, apply
+from automind.chat.domain.case import Budget, CaseCar, CaseDelta, CaseFile, Needs, RunningLimit, apply
 from automind.chat.domain.policy import CarState, decide, fingerprint
 from automind.shared.research_order.plan import CarToPlan, plan
 

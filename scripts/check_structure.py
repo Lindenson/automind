@@ -5,7 +5,7 @@ Rules (id: what fails):
   size      a module over 400 lines
   pkgdoc    a package `__init__.py` without a docstring or without `__all__`
   order     a public top-level function/class after the first private one
-  regex     a regex compiled or used with a literal pattern inside a function
+  regex     a regex compiled or used with a literal pattern inside a function (patterns.py / vocabulary/ excepted)
   table     a word table (a collection of >= 8 string literals) inside a function
   func      a function over 80 lines
   node      a dialog graph node over 30 lines; a use case `run` over 30; a service `run` over 60
@@ -175,12 +175,15 @@ def _functions(rel: str, tree: ast.Module) -> list[Violation]:
 
 
 def _inside(rel: str, qual: str, fn: ast.FunctionDef | ast.AsyncFunctionDef) -> list[Violation]:
+    builds_patterns = rel.endswith("/patterns.py") or "/vocabulary/" in rel  # pattern builders and word tables live here
     out = []
     for n in _own_nodes(fn):
+        if builds_patterns:
+            continue
         if isinstance(n, ast.Call) and _is_regex_call(n):
             out.append(Violation("regex", rel, qual))
         elif isinstance(n, ast.List | ast.Tuple | ast.Set | ast.Dict):
-            items = n.keys if isinstance(n, ast.Dict) else n.elts
+            items = n.values if isinstance(n, ast.Dict) else n.elts  # dict keys build a record, not a word table
             strings = sum(isinstance(x, ast.Constant) and isinstance(x.value, str) for x in items)
             if strings >= TABLE_MIN_STRINGS:
                 out.append(Violation("table", rel, qual))

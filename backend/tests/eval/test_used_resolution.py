@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from automind.chat.domain.case.casefile import CaseCar
+from automind.chat.domain.case import CaseCar
 from automind.shared.vehicle.identity import generation_matches
 
 CASES = yaml.safe_load((Path(__file__).parent / "used_resolution.yaml").read_text())["cases"]

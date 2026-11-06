@@ -5,10 +5,10 @@ from pathlib import Path
 import pytest
 import yaml
 
+from automind.chat.domain import understanding
 from automind.chat.domain.assessment import ask_value
-from automind.chat.domain.case.casefile import CaseFile
+from automind.chat.domain.case import CaseFile
 from automind.chat.domain.cost import tco
-from automind.chat.domain.intake import intake
 
 CONFIG = Path(__file__).parents[5] / "config"
 RATES = {
@@ -71,7 +71,7 @@ def test_outdated_price_is_labelled():
     ],
 )
 def test_charging_from_words(text, want):
-    got = intake.charging_of(text)
+    got = understanding.charging_of(text)
     assert (got[0] if got else None) == want
 
 
@@ -87,7 +87,7 @@ def test_charging_from_words(text, want):
     ],
 )
 def test_electricity_price_from_words(text, want):
-    assert intake.electricity_price_of(text) == want
+    assert understanding.electricity_price_of(text) == want
 
 
 def test_home_charging_asked_only_when_it_flips_the_winner():

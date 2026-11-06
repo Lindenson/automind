@@ -54,7 +54,7 @@ def test_constraint_numbers_must_be_in_this_message():
         _constraints_from_this_message,
         numbers_in,
     )
-    from automind.chat.domain.case.casefile import Budget, CaseDelta, Needs, RunningLimit
+    from automind.chat.domain.case import Budget, CaseDelta, Needs, RunningLimit
 
     assert {25000.0, 150.0} <= numbers_in("tengo 25.000 € y no más de 150 al mes")
     assert 25000.0 in numbers_in("бюджет 25 тыс") and 25000.0 in numbers_in("budget 25k")

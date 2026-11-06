@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from automind.chat.domain.case.casefile import CaseDelta, CaseFile, PriorityChange, apply
+from automind.chat.domain.case import CaseDelta, CaseFile, PriorityChange, apply
 from automind.delivery.web.rest import CasePatch, apply_patch
 
 
@@ -44,7 +44,7 @@ def test_patch_rates_can_be_cleared_back_to_default():
 
 
 def test_patch_constraints_partial_and_clear():
-    from automind.chat.domain.case.casefile import Budget, CaseFile
+    from automind.chat.domain.case import Budget, CaseFile
     from automind.delivery.web.rest import CasePatch, apply_patch
 
     c = CaseFile(budget=Budget(max_eur=25000, intent="USED"))

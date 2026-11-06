@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from automind.chat.domain.case.casefile import CaseFile, QuestionKind
+from automind.chat.domain.case import CaseFile, QuestionKind
 
 ELECTRIFIED = {"HEV", "PHEV", "BEV"}
 MAX_PROFILE_QUESTIONS = 2

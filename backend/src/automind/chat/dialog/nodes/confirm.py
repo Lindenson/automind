@@ -20,9 +20,10 @@ from automind.chat.dialog.nodes.common import ctx, current_year, load_case, noti
 from automind.chat.dialog.phrases import PHRASES, t
 from automind.chat.dialog.runner import TurnContext
 from automind.chat.dialog.state import TurnState
-from automind.chat.domain.case.casefile import Choice, Pending
-from automind.chat.domain.intake import intake
+from automind.chat.domain import intake
+from automind.chat.domain.case import Choice, Pending
 from automind.shared.infrastructure.config.settings import settings
+from automind.shared.vehicle import markets
 
 
 async def ask_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
@@ -321,7 +322,7 @@ def _market_lines(case: Any, lang: str | None) -> list[str]:
 
 
 def _market_line(car: Any, lang: str | None) -> str:
-    return t(intake.market_note(car.market), lang, car=f"{car.make} {car.model}",
+    return t(markets.market_note(car.market), lang, car=f"{car.make} {car.model}",
              market=phrases.market_name(car.market, lang))  # fmt: skip
 
 

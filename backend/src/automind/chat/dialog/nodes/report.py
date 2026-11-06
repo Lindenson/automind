@@ -25,7 +25,7 @@ from automind.chat.dialog.phrases import t
 from automind.chat.dialog.runner import TurnContext
 from automind.chat.dialog.state import TurnState
 from automind.chat.domain.assessment import ask_value, profile_gaps
-from automind.chat.domain.case.casefile import CaseFile, Shown
+from automind.chat.domain.case import CaseFile, Shown
 from automind.chat.domain.policy import fingerprint
 from automind.shared.metering.usage import BudgetExceeded
 

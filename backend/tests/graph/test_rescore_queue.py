@@ -7,7 +7,7 @@ import pytest
 
 from automind.chat.application.ports import VersionConflict
 from automind.chat.dialog.nodes.common import history
-from automind.chat.domain.case.casefile import CaseFile
+from automind.chat.domain.case import CaseFile
 from automind.chat.infrastructure.persistence.repositories import CaseRepo, MessageRepo, TurnRepo
 from automind.delivery.web import rest
 from automind.delivery.web.rest import CasePatch

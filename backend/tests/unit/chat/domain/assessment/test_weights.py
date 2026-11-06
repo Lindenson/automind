@@ -10,7 +10,7 @@ from automind.chat.domain.assessment.criteria import (
     weight_breakdown,
     weights_for,
 )
-from automind.chat.domain.case.casefile import CaseFile, Priority
+from automind.chat.domain.case import CaseFile, Priority
 from automind.shared.infrastructure.config.loader import load_yaml
 
 MODEL = CriteriaModel.from_config(load_yaml("criteria.yaml"), load_yaml("profile_rules.yaml"))

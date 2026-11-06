@@ -1,175 +1,13 @@
-"""Ownership cost (TCO) engine (FR-033..FR-035; research R9). Pure and deterministic.
-
-Items: MAINTENANCE, ENERGY, TYRES, ROAD_TAX and, for used cars, BIG_TICKET (documented age/mileage
-items due within the horizon) and BASE_RESERVE (age band × class table). DEPRECIATION (spec 007 FR-016) is the
-value lost over the user's ownership period: it is part of the period total, not of the yearly running cost
-(the running cost is what the monthly limit and the ownership-cost score compare).
-
-Horizon: `years` (the user's ownership period) or `rates.horizon_years`. Every item is labelled
-SOURCED or ASSUMPTION and lists its inputs (constitution XI). Items without data are "not included",
-never guessed.
-"""
+"""Each item of the ownership cost on its own: maintenance (sourced or default), energy, tyres, road tax, big tickets
+due, depreciation (new and used), repair reserve by age band."""
 
 from __future__ import annotations
 
-import math
-from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field, replace
-from typing import Any, Literal
+from collections.abc import Mapping
+from dataclasses import replace
 
 from automind.chat.domain.cost import energy as en
-
-RULES_VERSION = "tco-1.2"  # 1.2: energy model per powertrain (spec 006)
-Basis = Literal["SOURCED", "ASSUMPTION"]
-Kind = Literal["MAINTENANCE", "ENERGY", "TYRES", "ROAD_TAX", "BIG_TICKET", "BASE_RESERVE", "DEPRECIATION"]
-CLASSES = ("small", "compact", "mid_large", "premium_suv_4x4")
-
-
-@dataclass(frozen=True)
-class TcoRates:
-    fuel_eur_per_l: float
-    diesel_eur_per_l: float
-    electricity_eur_per_kwh: float
-    labour_eur_per_h: float
-    annual_km: int
-    horizon_years: int
-    tyre_life_km: Mapping[str, float]
-    tyre_set_eur: Mapping[str, float]
-    service_hours: Mapping[str, float]
-    service_parts_eur: Mapping[str, float]
-    default_interval_km: Mapping[str, float]
-    big_ticket_default_eur: float
-    road_tax_eur_per_cvf: float | None
-    base_reserve: Mapping[str, list[float]]  # class -> per age band [0-4, 5-9, 10-14, 15+]
-    max_maintenance_eur: Mapping[str, float] = field(default_factory=dict)  # sanity cap per class and year
-    real_world_factor: Mapping[str, float] = field(default_factory=dict)  # official cycle → real use, per powertrain
-    energy: en.EnergyConfig = field(default_factory=en.EnergyConfig)  # config/energy.yaml (spec 006)
-
-    @classmethod
-    def from_config(cls, d: Mapping[str, Any], overrides: Mapping[str, float | None] | None = None) -> TcoRates:
-        o = {k: v for k, v in (overrides or {}).items() if v is not None}
-        table = d["base_reserve_eur_per_year"]
-        energy = en.EnergyConfig.from_config(
-            d.get("energy"),
-            home_override=o.get("home_electricity_eur_per_kwh", o.get("electricity_eur_per_kwh")),
-            ac_override=o.get("public_ac_eur_per_kwh"),
-            dc_override=o.get("public_dc_eur_per_kwh"),
-            night=bool(o.get("night_tariff")),
-            today=d.get("today"),
-        )
-        petrol = energy.petrol.value if energy.petrol else d["fuel_eur_per_l"]
-        diesel = energy.diesel.value if energy.diesel else d["diesel_eur_per_l"]
-        return cls(
-            fuel_eur_per_l=float(o.get("fuel_eur_per_l", petrol)),
-            diesel_eur_per_l=float(o.get("diesel_eur_per_l", diesel)),
-            electricity_eur_per_kwh=float(o.get("electricity_eur_per_kwh", d["electricity_eur_per_kwh"])),
-            labour_eur_per_h=float(o.get("labour_eur_per_h", d["labour_eur_per_h"])),
-            annual_km=int(d["annual_km"]),
-            horizon_years=int(d["horizon_years"]),
-            tyre_life_km=dict(d["tyre_life_km"]),
-            tyre_set_eur=dict(d["tyre_set_eur"]),
-            service_hours=dict(d["service_hours"]),
-            service_parts_eur=dict(d["service_parts_eur"]),
-            default_interval_km=dict(d["default_interval_km"]),
-            big_ticket_default_eur=float(d["big_ticket_default_eur"]),
-            road_tax_eur_per_cvf=d.get("road_tax_eur_per_cvf"),
-            base_reserve={k: [float(x) for x in v] for k, v in table.items() if k in CLASSES},
-            max_maintenance_eur={k: float(v) for k, v in (d.get("max_maintenance_eur_per_year") or {}).items()},
-            real_world_factor={k: float(v) for k, v in (d.get("real_world_factor") or {}).items()},
-            energy=energy,
-        )
-
-
-@dataclass(frozen=True)
-class MaintenanceSched:
-    item: str
-    interval_km: float | None = None
-    interval_months: float | None = None
-    cost_eur: float | None = None  # sourced price of this service, if published
-    evidence_ids: list[str] = field(default_factory=list)
-
-
-@dataclass(frozen=True)
-class BigTicket:
-    component: str
-    age_from: int | None = None
-    age_to: int | None = None
-    mileage_from: int | None = None
-    mileage_to: int | None = None
-    cost_eur: float | None = None
-    evidence_ids: list[str] = field(default_factory=list)
-
-
-@dataclass(frozen=True)
-class TcoCar:
-    car_id: str
-    label: str
-    powertrain: str
-    fuel: str | None = None  # petrol | diesel (ICE/hybrids)
-    consumption: float | None = None  # official WLTP, l/100 km or kWh/100 km (BEV)
-    consumption_real: float | None = None  # real-world (tests), preferred for the fuel bill
-    consumption_nedc: float | None = None  # old cycle, used only without WLTP and real-world figures
-    vehicle_class: str | None = None
-    condition: str = "NEW"
-    age_years: int | None = None
-    mileage_km: int | None = None
-    fiscal_hp: float | None = None
-    road_tax_eur: float | None = None  # sourced annual road tax
-    maintenance: list[MaintenanceSched] = field(default_factory=list)
-    big_tickets: list[BigTicket] = field(default_factory=list)
-    price_eur: float | None = None  # official new price (ES)
-    used_price_eur: float | None = None  # spec 008: sourced used price for its year (a used car's value now)
-    retention: Mapping[int, float] = field(default_factory=dict)  # sourced value share after N years (3, 5)
-    retention_curve: Mapping[float, float] = field(default_factory=dict)  # class curve (assumption), age -> share
-    # spec 006: electric facts and the user's use (daily km, climate, home charging) for the energy model
-    consumption_ev: float | None = None
-    consumption_ev_real: float | None = None
-    ev_real_meter: str | None = None
-    consumption_cs: float | None = None
-    consumption_weighted: float | None = None  # PHEV official WLTP weighted l/100 km (spec 009 FR-014 estimate)
-    battery_kwh: float | None = None
-    range_wltp: float | None = None
-    range_real: float | None = None
-    consumption_ev_cltc: float | None = None  # a car sold only in China: its CLTC figures (chat 2026-11-06)
-    range_cltc: float | None = None
-    # (battery kWh, CLTC range km, url) read on one page: one version's pair for the kWh/100 km estimate
-    cltc_pair: tuple[float, float, str] | None = None
-    use: en.UsageContext | None = None
-    new_in_market: bool = False  # a make recently arrived in Spain: no class depreciation curve (spec 006 FR-018)
-    stated: Mapping[str, tuple[float, str]] = field(default_factory=dict)  # the user's own consumption figures
-
-
-@dataclass(frozen=True)
-class TcoItem:
-    kind: Kind
-    label: str
-    annual_eur: float | None
-    five_year_eur: float | None
-    basis: Basis
-    inputs: list[str]
-    evidence_ids: list[str] = field(default_factory=list)
-    parts: list[en.EnergyPart] = field(default_factory=list)  # ENERGY only: electricity / fuel split (spec 006)
-    missing: list[str] = field(default_factory=list)  # ENERGY only: inputs that stop the computation
-    estimate: en.EnergyEstimate | None = None  # ENERGY only
-
-
-@dataclass(frozen=True)
-class TcoEstimate:
-    car_id: str
-    label: str
-    condition: str
-    age_years: int | None
-    annual_km: int
-    items: list[TcoItem]
-    annual_total: float  # running cost per year (without depreciation)
-    five_year_total: float  # total over `years` (running + depreciation); the name is kept for stored rows
-    rules_version: str = RULES_VERSION
-    years: int = 5  # the period the totals cover
-    depreciation_left_out: bool = False  # another compared car has no value data: totals are running cost only
-
-    @property
-    def period_total(self) -> float:
-        return self.five_year_total
+from automind.chat.domain.cost.tco.model import CLASSES, Basis, BigTicket, Kind, TcoCar, TcoItem, TcoRates
 
 
 def _item(
@@ -200,7 +38,7 @@ def _services_per_year(interval_km: float | None, interval_months: float | None,
     return max(by_km, by_time)
 
 
-def _maintenance(car: TcoCar, r: TcoRates, km: int, years: int) -> TcoItem:
+def maintenance_item(car: TcoCar, r: TcoRates, km: int, years: int) -> TcoItem:
     pt = car.powertrain if car.powertrain in r.service_hours else "ICE"
     assumed = r.service_hours[pt] * r.labour_eur_per_h + r.service_parts_eur[pt]
     sourced = _sourced_maintenance(car, r, km, years, assumed, pt) if car.maintenance else None
@@ -266,10 +104,10 @@ def _sourced_maintenance(car: TcoCar, r: TcoRates, km: int, years: int, assumed:
 
 def energy_consumption(car: TcoCar, r: TcoRates) -> tuple[float | None, str]:
     """Fuel consumption for a combustion car or hybrid (kept for callers; the model is in domain/energy.py)."""
-    return en.fuel_consumption(_energy_car(car), r.real_world_factor)
+    return en.fuel_consumption(energy_car(car), r.real_world_factor)
 
 
-def _energy_car(car: TcoCar) -> en.EnergyCar:
+def energy_car(car: TcoCar) -> en.EnergyCar:
     return en.EnergyCar(
         powertrain=(car.powertrain or "ICE").upper(), fuel=car.fuel, consumption=car.consumption,
         consumption_real=car.consumption_real, consumption_nedc=car.consumption_nedc,
@@ -301,16 +139,16 @@ def energy_estimate(car: TcoCar, r: TcoRates, km: int) -> en.EnergyEstimate:
     use = car.use or en.UsageContext(annual_km=km)
     if use.annual_km != km:
         use = replace(use, annual_km=km)
-    return en.estimate(_energy_car(car), energy_rates(r), use)
+    return en.estimate(energy_car(car), energy_rates(r), use)
 
 
-def _energy(car: TcoCar, r: TcoRates, km: int, years: int) -> TcoItem:
+def energy_item(car: TcoCar, r: TcoRates, km: int, years: int) -> TcoItem:
     e = energy_estimate(car, r, km)
     item = _item("ENERGY", e.label, e.annual_eur, "ASSUMPTION", e.inputs, years)
     return replace(item, parts=list(e.parts), missing=list(e.missing), estimate=e)
 
 
-def _tyres(car: TcoCar, r: TcoRates, km: int, years: int) -> TcoItem:
+def tyres_item(car: TcoCar, r: TcoRates, km: int, years: int) -> TcoItem:
     cls, notes = _cls(car)
     annual = r.tyre_set_eur[cls] * km / r.tyre_life_km[cls]
     return _item(
@@ -323,7 +161,7 @@ def _tyres(car: TcoCar, r: TcoRates, km: int, years: int) -> TcoItem:
     )
 
 
-def _road_tax(car: TcoCar, r: TcoRates, years: int) -> TcoItem:
+def road_tax_item(car: TcoCar, r: TcoRates, years: int) -> TcoItem:
     if car.road_tax_eur is not None:
         return _item("ROAD_TAX", "Road tax (IVTM)", car.road_tax_eur, "SOURCED", ["sourced annual rate"], years)
     if r.road_tax_eur_per_cvf is not None and car.fiscal_hp:
@@ -357,7 +195,7 @@ def _due(b: BigTicket, age: int | None, mileage: int | None, km: int, years: int
     return False
 
 
-def _big_tickets(car: TcoCar, r: TcoRates, km: int, years: int) -> list[TcoItem]:
+def big_tickets_item(car: TcoCar, r: TcoRates, km: int, years: int) -> list[TcoItem]:
     out = []
     for b in car.big_tickets:
         if not _due(b, car.age_years, car.mileage_km, km, years):
@@ -445,7 +283,7 @@ def _used_depreciation(car: TcoCar, years: int) -> TcoItem | None:
                    "SOURCED" if b0 == b1 == "SOURCED" else "ASSUMPTION", inputs)  # fmt: skip
 
 
-def _depreciation(car: TcoCar, years: int) -> TcoItem:
+def depreciation_item(car: TcoCar, years: int) -> TcoItem:
     if (used := _used_depreciation(car, years)) is not None:
         return used
     if not car.price_eur:
@@ -476,7 +314,7 @@ def _band(age: int) -> int:
     return 0 if age <= 4 else 1 if age <= 9 else 2 if age <= 14 else 3
 
 
-def _reserve(car: TcoCar, r: TcoRates, years: int) -> TcoItem:
+def reserve_item(car: TcoCar, r: TcoRates, years: int) -> TcoItem:
     cls, notes = _cls(car)
     age = max(1, car.age_years or 0)
     annual = r.base_reserve[cls][_band(age)]
@@ -489,78 +327,3 @@ def _reserve(car: TcoCar, r: TcoRates, years: int) -> TcoItem:
         [f"age band {bands[_band(age)]} years", *notes, "table in config/rates.yaml"],
         years,
     )
-
-
-def compute(car: TcoCar, rates: TcoRates, annual_km: int | None = None, years: int | None = None) -> TcoEstimate:
-    km = annual_km or rates.annual_km
-    years = years or rates.horizon_years
-    items = [
-        _maintenance(car, rates, km, years),
-        _energy(car, rates, km, years),
-        _tyres(car, rates, km, years),
-        _road_tax(car, rates, years),
-    ]
-    if car.condition == "USED":
-        items += _big_tickets(car, rates, km, years)
-        items.append(_reserve(car, rates, years))
-    items.append(_depreciation(car, years))
-    running = [i for i in items if i.kind != "DEPRECIATION"]
-    annual = round(sum(i.annual_eur for i in running if i.annual_eur is not None), 2)
-    period = round(sum(i.five_year_eur for i in items if i.five_year_eur is not None), 2)
-    return TcoEstimate(car.car_id, car.label, car.condition, car.age_years, km, items, annual, period, years=years)
-
-
-MAX_PAYBACK_YEARS = 15  # beyond this a payback is no payback (incident 2026-11-03: "after 77 years")
-
-
-def depreciation_known(e: TcoEstimate) -> bool:
-    """The period total of `e` includes the value the car loses (chat 5821ac77: a verdict on running costs alone
-    called the dearer car the saving)."""
-    return not e.depreciation_left_out and any(i.kind == "DEPRECIATION" and i.five_year_eur is not None
-                                               for i in e.items)  # fmt: skip
-
-
-def cost_curve(car: TcoCar, rates: TcoRates, annual_km: int | None = None,
-               max_years: int = MAX_PAYBACK_YEARS) -> tuple[float, ...]:  # fmt: skip
-    """Total cost of owning `car` (running costs + value lost) after 1..max_years years, from the same model as the
-    period total. Empty when the value loss is not known: a payback is never computed from running costs alone."""
-    out = []
-    for t in range(1, max_years + 1):
-        e = compute(car, rates, annual_km, t)
-        if not depreciation_known(e):
-            return ()
-        out.append(e.period_total)
-    return tuple(out)
-
-
-def payback_years(dear: Sequence[float], cheap: Sequence[float]) -> float | None:
-    """When the total cost of `dear` (the car that costs more at first) drops to the total of `cheap`: years,
-    interpolated between whole years, rounded up to 0.5. None when it never does within the curves."""
-    n = min(len(dear), len(cheap))
-    prev = 0.0
-    for t in range(n):
-        d = dear[t] - cheap[t]
-        if d <= 0:
-            if t == 0:
-                return 1.0
-            frac = prev / (prev - d) if prev != d else 1.0
-            return max(1.0, math.ceil(round((t + frac) * 2, 6)) / 2)
-        prev = d
-    return None
-
-
-def like_for_like(estimates: list[TcoEstimate]) -> list[TcoEstimate]:
-    """When depreciation is known for some cars and not for others, the period totals leave it out for all, so
-    one car is never cheaper only because its value loss is unknown (spec 006 FR-014)."""
-
-    def known(e: TcoEstimate) -> bool:
-        return any(i.kind == "DEPRECIATION" and i.annual_eur is not None for i in e.items)
-
-    if len({known(e) for e in estimates}) < 2:
-        return estimates
-    out = []
-    for e in estimates:
-        running = round(sum(i.five_year_eur for i in e.items if i.kind != "DEPRECIATION"
-                            and i.five_year_eur is not None), 2)  # fmt: skip
-        out.append(replace(e, five_year_total=running, depreciation_left_out=True))
-    return out

@@ -6,7 +6,7 @@ from pathlib import Path
 
 from automind.chat.dialog.graph import build_graph
 from automind.chat.dialog.runner import ChatRunner
-from automind.chat.domain.case.casefile import CaseFile
+from automind.chat.domain.case import CaseFile
 from automind.chat.infrastructure.persistence.repositories import CaseRepo, MessageRepo
 from automind.delivery.web.rest import CasePatch, apply_patch
 from tests.fakes.fake_llm import FakeLLM

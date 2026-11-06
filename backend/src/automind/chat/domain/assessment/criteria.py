@@ -13,7 +13,7 @@ from typing import Any
 
 from automind.chat.domain.assessment import weights
 from automind.chat.domain.assessment.metrics import CarFacts, ReliabilitySummary, ReviewSummary, lin, metrics
-from automind.chat.domain.case.casefile import CRITERION_KEYS, CaseFile
+from automind.chat.domain.case import CRITERION_KEYS, CaseFile
 
 __all__ = ["CriteriaModel", "CriteriaScore", "ReliabilitySummary", "ReviewSummary", "score", "weights_for"]
 

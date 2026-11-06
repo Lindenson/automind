@@ -11,10 +11,10 @@ from dataclasses import asdict
 from typing import Any, Protocol
 
 from automind.chat.application.services.report import compose
+from automind.chat.domain import understanding
 from automind.chat.domain.assessment import feasibility as fz
-from automind.chat.domain.case.casefile import CaseFile
+from automind.chat.domain.case import CaseFile
 from automind.chat.domain.cost import tco
-from automind.chat.domain.intake import intake
 
 
 class FeasibilityStore(Protocol):
@@ -78,7 +78,9 @@ async def car_facts(case: CaseFile, rates_cfg: dict[str, Any], store: Feasibilit
     rates = tco.TcoRates.from_config(rates_cfg, case.rates_override.model_dump())
     out = []
     loaded = [(x, await compose.load_car(x.variant_id)) for x in case.cars if x.variant_id]
-    stated = intake.stated_for_cars(case.stated_energy, [(x.key, car["variant"].powertrain) for x, car in loaded])
+    stated = understanding.stated_for_cars(
+        case.stated_energy, [(x.key, car["variant"].powertrain) for x, car in loaded]
+    )
     for x, car in loaded:
         cond = x.condition if x.condition in ("NEW", "USED") else "NEW"
         t = await compose.tco_car(car, cond, x.age_years, x.mileage_km, stated=stated.get(x.key))

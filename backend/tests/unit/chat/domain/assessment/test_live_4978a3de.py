@@ -2,7 +2,7 @@
 
 from automind.chat.dialog.report_text import gap_text
 from automind.chat.domain.assessment import ask_value
-from automind.chat.domain.case.casefile import CaseFile
+from automind.chat.domain.case import CaseFile
 from automind.shared.research_order.plan import SourceHit, minimum_met
 
 
@@ -85,7 +85,7 @@ def test_a_mild_hybrid_diesel_is_a_diesel():
 
 def test_an_identified_car_is_not_asked_its_engine_and_used_is_never_cut():
     from automind.chat.application.services.interpretation import ask
-    from automind.chat.domain.case.casefile import CaseCar, Choice, IdentifyOutcome
+    from automind.chat.domain.case import CaseCar, Choice, IdentifyOutcome
 
     bmw = CaseCar(key="car#1", request_text="bmw 320d m line", make="BMW", model="3 Series")
     bmw.identify = IdentifyOutcome(outcome="CHOICES", need="ENGINE",

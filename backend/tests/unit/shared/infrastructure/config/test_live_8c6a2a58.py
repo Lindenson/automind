@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 from automind.chat.application.services.interpretation import ask
 from automind.chat.application.services.report import compose, intake_card
-from automind.chat.domain.case.casefile import CaseCar, CaseFile, LadderMemo
+from automind.chat.domain.case import CaseCar, CaseFile, LadderMemo
 from automind.chat.domain.cost import tco
 from automind.shared.infrastructure.config.loader import questions_i18n, rates
 
@@ -39,7 +39,7 @@ def test_unpriced_jobs_cost_service_visits_not_one_full_service_each() -> None:
         ("sustitución de líquidos (frenos)", None, 24), ("spark plugs", 60000, 48),
         ("battery inspection", None, 12))]  # fmt: skip
     car = tco.TcoCar("a4", "A4", "ICE", fuel="petrol", maintenance=jobs)
-    item = tco._maintenance(car, r, 15000, 5)
+    item = tco.maintenance_item(car, r, 15000, 5)
     one = r.service_hours["ICE"] * r.labour_eur_per_h + r.service_parts_eur["ICE"]
     assert abs((item.annual_eur or 0) - one) < 1  # one visit a year does all of them
     assert sum("visit" in x for x in item.inputs) == 1

@@ -17,7 +17,7 @@ from automind.chat.dialog.guard import CheckInput, report_violations, saving_for
 from automind.chat.dialog.nodes.compute import assumption_lines, costlier_names, ownership_facts
 from automind.chat.domain.assessment.criteria import CarScore, CriteriaModel, CriteriaScore, score
 from automind.chat.domain.assessment.metrics import CarFacts
-from automind.chat.domain.case.casefile import CaseFile
+from automind.chat.domain.case import CaseFile
 from automind.chat.domain.cost import tco
 from automind.chat.domain.verdict import insights as ins
 from automind.chat.domain.verdict import verdict as vd
