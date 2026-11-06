@@ -36,21 +36,21 @@ MAKE_LINEUP:
     ru: "Какая именно модель {make}? Достаточно названия модели (например, с сайта {make}) — или скажите «выбери сам»."
     es: "¿Qué modelo de {make} exactamente? Basta con el nombre del modelo (por ejemplo, de la web de {make}) o di «elige tú»."
 UNKNOWN_MODEL:
-  en: "I could not find «{car}» on sale in Spain. Closest: {options}. Which one?"
-  ru: "Я не нашёл «{car}» в продаже в Испании. Ближайшие: {options}. Какую из них?"
-  es: "No he encontrado «{car}» a la venta en España. Los más parecidos: {options}. ¿Cuál?"
+  en: "I could not find «{car}» on sale in Europe or on its home market. Closest: {options}. Which one?"
+  ru: "Я не нашёл «{car}» ни в Европе, ни на родном рынке марки. Ближайшие: {options}. Какую из них?"
+  es: "No he encontrado «{car}» ni en Europa ni en su mercado de origen. Los más parecidos: {options}. ¿Cuál?"
   bare:
-    en: "I could not find «{car}» on sale in Spain. Please write the car's name in other words, or send a link to the maker's page."
-    ru: "Я не нашёл «{car}» в продаже в Испании. Напишите марку и модель по-другому или пришлите ссылку на страницу производителя."
-    es: "No he encontrado «{car}» a la venta en España. Escribe la marca y el modelo de otra forma o envía un enlace a la página del fabricante."
+    en: "I could not find «{car}» in Europe or on its home market. Please write the car's name in other words, or send a link to the maker's page."
+    ru: "Я не нашёл «{car}» ни в Европе, ни на родном рынке марки. Напишите марку и модель по-другому или пришлите ссылку на страницу производителя."
+    es: "No he encontrado «{car}» ni en Europa ni en su mercado de origen. Escribe la marca y el modelo de otra forma o envía un enlace a la página del fabricante."
   rephrase:
     en: "Still nothing for «{car}». Is it one of these: {options}?"
     ru: "По «{car}» по-прежнему ничего. Может быть, это одна из этих: {options}?"
     es: "Sigo sin encontrar «{car}». ¿Es alguno de estos: {options}?"
   rephrase_bare:
-    en: "I still cannot find «{car}». Is the name written differently in Spain, or is it sold under another brand?"
-    ru: "Я всё ещё не нахожу «{car}». Может быть, в Испании модель называется иначе или продаётся под другой маркой?"
-    es: "Sigo sin encontrar «{car}». ¿Se llama distinto en España o se vende con otra marca?"
+    en: "I still cannot find «{car}». Is the model called differently in Europe, or is it sold under another brand?"
+    ru: "Я всё ещё не нахожу «{car}». Может быть, в Европе модель называется иначе или продаётся под другой маркой?"
+    es: "Sigo sin encontrar «{car}». ¿Se llama distinto en Europa o se vende con otra marca?"
 CONDITION:
   en: "Are you looking at new cars or used ones?"
   ru: "Вы рассматриваете новые машины или подержанные?"
