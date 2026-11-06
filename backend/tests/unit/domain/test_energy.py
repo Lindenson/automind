@@ -133,7 +133,10 @@ def test_a_cost_without_energy_is_named_and_not_compared():
 
 RWF_CN = {**RWF, "CLTC": 1.4}
 R_CN = en.Rates(R.petrol, R.diesel, RWF_CN, R.cfg)
-S09 = en.EnergyCar("PHEV", "petrol", consumption_cs=5.6, battery_kwh=40.18, range_cltc=220)
+PAGE = "http://m.chexun.com/2025-05-23/114219481.html"
+S09 = en.EnergyCar(
+    "PHEV", "petrol", consumption_cs=5.6, battery_kwh=53.49, range_cltc=220, cltc_pair=(40.18, 220, PAGE)
+)
 
 
 def test_erev_kwh_estimated_from_battery_and_cltc_range():
@@ -142,20 +145,30 @@ def test_erev_kwh_estimated_from_battery_and_cltc_range():
     loss = 0.85 * 0.10 + 0.15 * 0.10  # plug-in mix: home + public AC
     assert e.parts[0].per_100km == pytest.approx(40.18 / 220 * 100 * 1.4 * (1 + loss), abs=0.02)
     how = next(i for i in e.inputs if i.startswith("electricity"))
-    assert "ESTIMATE" in how and "CLTC" in how and "40.18 kWh battery" in how
+    assert "ESTIMATE" in how and "CLTC" in how and "40.18 kWh battery" in how and PAGE in how
     assert any("losses" in f for f in e.factors)
     assert any("CLTC, China 220 km" in i for i in e.inputs)  # the real range is CLTC ÷ 1.4 too
 
 
 def test_sourced_cltc_kwh_wins_over_the_battery_estimate():
-    car = en.EnergyCar("PHEV", "petrol", consumption_cs=5.6, battery_kwh=40.18, range_cltc=220, consumption_ev_cltc=19)
+    car = en.EnergyCar(
+        "PHEV", "petrol", consumption_cs=5.6, range_cltc=220, cltc_pair=(40.18, 220, PAGE), consumption_ev_cltc=19
+    )
     e = en.estimate(car, R_CN, en.UsageContext(KM, home_charging="YES"))
     assert e.parts[0].per_100km == pytest.approx(19 * 1.4, abs=0.01)
     assert not any("ESTIMATE" in i for i in e.inputs)
 
 
 def test_wltp_figures_win_over_cltc():
-    car = en.EnergyCar("PHEV", "petrol", consumption_cs=5.6, battery_kwh=20, range_wltp=100, range_cltc=220)
+    car = en.EnergyCar(
+        "PHEV",
+        "petrol",
+        consumption_cs=5.6,
+        battery_kwh=20,
+        range_wltp=100,
+        range_cltc=220,
+        cltc_pair=(40.18, 220, PAGE),
+    )
     e = en.estimate(car, R_CN, en.UsageContext(KM, home_charging="YES"))
     assert not any("CLTC" in i for i in e.inputs)
 
@@ -163,3 +176,14 @@ def test_wltp_figures_win_over_cltc():
 def test_erev_without_battery_names_the_missing_kwh():
     car = en.EnergyCar("PHEV", "petrol", consumption_cs=5.6, range_cltc=220)
     assert en.estimate(car, R_CN, en.UsageContext(KM)).missing == [en.EV_MISSING]
+
+
+def test_no_estimate_from_a_battery_and_a_range_of_different_pages():
+    # Li L9: 1st gen 42.8 kWh (one page) beside the 2026 car's 420 km CLTC (another page)
+    car = en.EnergyCar("PHEV", "petrol", consumption_cs=6.0, battery_kwh=42.8, range_cltc=420)
+    assert en.estimate(car, R_CN, en.UsageContext(KM)).missing == [en.EV_MISSING]
+
+
+def test_an_implausible_pair_gives_no_estimate():
+    car = en.EnergyCar("PHEV", "petrol", consumption_cs=6.0, range_cltc=420, cltc_pair=(42.8, 420, PAGE))
+    assert en.estimate(car, R_CN, en.UsageContext(KM)).missing == [en.EV_MISSING]  # 10.2 kWh/100 km

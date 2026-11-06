@@ -132,6 +132,8 @@ class TcoCar:
     range_real: float | None = None
     consumption_ev_cltc: float | None = None  # a car sold only in China: its CLTC figures (chat 2026-11-06)
     range_cltc: float | None = None
+    # (battery kWh, CLTC range km, url) read on one page: one version's pair for the kWh/100 km estimate
+    cltc_pair: tuple[float, float, str] | None = None
     use: en.UsageContext | None = None
     new_in_market: bool = False  # a make recently arrived in Spain: no class depreciation curve (spec 006 FR-018)
     stated: Mapping[str, tuple[float, str]] = field(default_factory=dict)  # the user's own consumption figures
@@ -275,7 +277,7 @@ def _energy_car(car: TcoCar) -> en.EnergyCar:
         ev_real_meter=car.ev_real_meter, consumption_cs=car.consumption_cs, battery_kwh=car.battery_kwh,
         consumption_weighted=car.consumption_weighted,
         range_wltp=car.range_wltp, range_real=car.range_real, stated=car.stated,
-        consumption_ev_cltc=car.consumption_ev_cltc, range_cltc=car.range_cltc,
+        consumption_ev_cltc=car.consumption_ev_cltc, range_cltc=car.range_cltc, cltc_pair=car.cltc_pair,
     )  # fmt: skip
 
 

@@ -22,6 +22,8 @@ ELECTRIC = ("BEV", *PLUG_IN)
 MAX_SHARE = 0.95
 CLTC_FACTOR = 1.4  # default real-use allowance of a CLTC figure (config/rates.yaml real_world_factor.CLTC)
 CS_MISSING = "fuel consumption with an empty battery"
+# battery ÷ CLTC range outside this (kWh/100 km, battery side) is no road car's consumption: no estimate
+EV_CLTC_PLAUSIBLE = (11.0, 30.0)
 EV_MISSING = "electric consumption (kWh/100 km)"
 FUEL_MISSING = "fuel consumption"
 
@@ -164,6 +166,9 @@ class EnergyCar:
     # their own real-use allowance (rates.yaml real_world_factor.CLTC)
     consumption_ev_cltc: float | None = None
     range_cltc: float | None = None
+    # (battery kWh, CLTC range km, url) read on one page: the kWh/100 km estimate only from such a pair, never
+    # from a battery and a range of different versions (Li L9 1st gen 42.8 kWh with the 2026 car's 420 km)
+    cltc_pair: tuple[float, float, str] | None = None
     # the user's own figures (FUEL, CS, KWH, RANGE -> (value, their words)): used instead of sourced or estimated
     stated: Mapping[str, tuple[float, str]] = field(default_factory=dict)
 
@@ -365,14 +370,17 @@ def _ev_kwh(
         how = (f"CLTC (China) {car.consumption_ev_cltc:g} kWh/100 km × {cltc:g} real-use allowance for the Chinese "
                "cycle (assumption)")  # fmt: skip
         return car.consumption_ev_cltc * cltc * f, [how], fl
-    if wltp is None and car.battery_kwh and car.range_cltc:
+    if wltp is None and car.cltc_pair and car.cltc_pair[0] and car.cltc_pair[1]:
         # Chinese pages rarely state kWh/100 km for a range-extended car (chat 2026-11-06): battery ÷ CLTC range is
         # battery-side CLTC energy, so the CLTC allowance, the climate/motorway factors and the losses are applied
+        kwh_b, km, url = car.cltc_pair
         f, fl = factors(r.cfg, use)
         cltc = r.real_world_factor.get("CLTC", CLTC_FACTOR)
-        base = car.battery_kwh / car.range_cltc * 100
+        base = kwh_b / km * 100
+        if not EV_CLTC_PLAUSIBLE[0] <= base <= EV_CLTC_PLAUSIBLE[1]:
+            return None, [], []
         fl.append(f"charging losses +{loss * 100:.0f}% (assumption)")
-        how = (f"ESTIMATE {base:.1f} kWh/100 km ({car.battery_kwh:g} kWh battery ÷ {car.range_cltc:g} km CLTC, China) "
+        how = (f"ESTIMATE {base:.1f} kWh/100 km ({kwh_b:g} kWh battery ÷ {km:g} km CLTC, China, both from {url}) "
                f"× {cltc:g} real-use allowance for the Chinese cycle")  # fmt: skip
         return base * cltc * f * (1 + loss), [how], fl
     if wltp is None:
@@ -414,11 +422,12 @@ def electric_range(car: EnergyCar, r: Rates, use: UsageContext) -> tuple[float |
         return v, f"real electric range {_yours(v, 'km', words)}"
     if car.range_real:
         return car.range_real, f"real-world electric range {car.range_real:g} km (sourced)"
-    if not car.range_wltp and car.range_cltc:
+    rng_cltc = car.cltc_pair[1] if car.cltc_pair else car.range_cltc
+    if not car.range_wltp and rng_cltc:
         f, _ = factors(r.cfg, use)
         cltc = r.real_world_factor.get("CLTC", CLTC_FACTOR)
-        real = car.range_cltc / (cltc * f)
-        return real, (f"real electric range ≈ {real:.0f} km (CLTC, China {car.range_cltc:g} km ÷ {cltc * f:.2f}, "
+        real = rng_cltc / (cltc * f)
+        return real, (f"real electric range ≈ {real:.0f} km (CLTC, China {rng_cltc:g} km ÷ {cltc * f:.2f}, "
                       "assumption)")  # fmt: skip
     if not car.range_wltp:
         return None, ""
