@@ -1,10 +1,21 @@
-"""Spec 011 loaders of open datasets for gold values (research R3, config/gold_datasets.yaml).
+"""Acquisition · acquisition.gold.loaders: loaders of open datasets for gold values (config/gold_datasets.yaml).
 
-Each loader module exposes `async def fetch_rows(cfg, make=None, *, makes=None, transport=None) -> list[DatasetRow]`
-where `cfg` is the dataset's mapping under `datasets:` in config/gold_datasets.yaml and `transport` an optional
-httpx transport (tests pass `httpx.MockTransport`). Requests go straight to the official open-data APIs with a
-timeout — never through the web fetch policy (datasets are not web pages). A pinned column missing from a response
-raises `SchemaChanged`: a new release is checked by a person and pinned again, never guessed.
+Owns:
+  `eea_co2` — EEA CO2 monitoring of new cars (Discodata SQL API).
+  `eea_obfcm` — EEA real-world fuel/energy consumption (OBFCM CSV).
+  `rdw` — RDW Open Data, the Dutch vehicle register (Socrata SODA API).
+  `reference_set` — the hand-checked reference set eval/reference_vehicles.yaml.
+  This `__init__` — helpers the loaders share: SchemaChanged, DatasetMeta, meta, wanted_makes, quote, require,
+  num, pos, fuel_of, weighted_median, year_of.
+Flow: each loader exposes `async def fetch_rows(cfg, make=None, *, makes=None, transport=None) -> list[DatasetRow]`
+  (`cfg`: the dataset's mapping under `datasets:`; `transport`: an optional httpx transport, tests pass
+  `httpx.MockTransport`). Requests go straight to the official open-data APIs with a timeout, never through the web
+  fetch policy (datasets are not web pages). A pinned column missing from a response raises `SchemaChanged`: a new
+  release is checked by a person and pinned again, never guessed.
+Depends on: gold.domain, gold.repo, shared (infrastructure.config, vehicle); httpx.
+Must not depend on: as acquisition/__init__ (registry-no-chat).
+Public API: the names in __all__ (shared helpers) and the loader modules (callers import from them).
+Note: the shared helpers are code in this `__init__`, not in a module of their own.
 """
 
 from __future__ import annotations
@@ -15,6 +26,21 @@ from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
+
+__all__ = [
+    "USER_AGENT",
+    "DatasetMeta",
+    "SchemaChanged",
+    "fuel_of",
+    "meta",
+    "num",
+    "pos",
+    "quote",
+    "require",
+    "wanted_makes",
+    "weighted_median",
+    "year_of",
+]
 
 USER_AGENT = "AutoMind gold loader (spec 011; open-data re-use with attribution)"
 

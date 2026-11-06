@@ -1,15 +1,18 @@
-"""The acquisition engine's public interface (spec 011, contracts/acquire.md).
+"""Acquisition · acquisition.api: the engine's public interface — the chat orders data here and reads what is stored.
 
-The only engine module the chat (`automind.application`, `automind.chat.dialog`, `automind.domain`) may import
-(FR-005, FR-006). The chat orders data here — "these kinds of data for this car, by this deadline" — and receives
-values with confidence and sources, and for gaps the sources tried. Live calls run in the caller's process within
-the caller's deadline and budget (research R5); background work runs in the worker. Everything else under
-`automind.acquisition` is internal.
-
-This module imports only its models at import time: the engine (pipeline, read model, gold store) is loaded when a
-function is called (`_backend`, implemented by `acquisition/backend.py`), so the chat's import graph holds this
-contract and nothing behind it (import-linter `application-ports`, `chat-uses-acquire-only`; constitution XIII).
-Requests, results and the `Backend` protocol: `api/contracts.py`.
+Owns: `contracts` — requests, results and the `Backend` protocol the engine implements (data only).
+  This `__init__` — the functions: acquire, missing_critical, last_done, ev_counts, powertrains, registry_done,
+  unmet_areas, tried_by_area, gearbox_families_mixed, reselect, recheck_value, revalidate_claims, recheck_minimums,
+  lineup, versions, generation_hints, dataset_versions, record_challenge_gold.
+Flow: caller → function here → `_backend()` loads `acquisition.backend` by name at the first call → engine.
+  The chat orders "these kinds of data for this car, by this deadline" and gets values with confidence and sources,
+  and for gaps the sources tried. Live calls run in the caller's process within its deadline and budget;
+  background work runs in the worker.
+Depends on: its own `contracts` only at import time (the engine is loaded at call time).
+Must not depend on: any engine module at import time, so the chat's import graph holds this contract and nothing
+  behind it (import-linter chat-uses-acquire-only, application-ports; constitution XIII).
+Public API: the names in __all__; the only engine module the chat (chat.application, chat.dialog, chat.domain) and
+  the web may import. Everything else under `automind.acquisition` is internal.
 """
 
 from __future__ import annotations
