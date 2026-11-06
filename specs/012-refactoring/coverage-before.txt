@@ -1,0 +1,21 @@
+# Branch coverage before spec 012 restructure steps (main b2ceb96 + S1, 2026-11-06, full suite 1463 passed).
+# Rule (research R11): a restructure step starts only when branch coverage of its modules is >= 80 %;
+# below that, characterisation tests first. Format: module | lines % | branches covered/total (%) | missing branch lines
+
+application/compose.py | 94 % | 169/186 (91 %) | 82,522,523,619,744,763,780,793,843,895,943,1037,1213,1225,1226
+application/identify.py | 89 % | 137/166 (83 %) | 100,102,111,128,175,193,203,205,262,268,270,340,391,405,429,479,494,496,592,594,596,608,610,612,614,692
+application/resolve.py | 88 % | 131/160 (82 %) | 122,125,127,212,297,305,313,324,331,340,350,352,365,413,454,468,470,472,479,484,488,494,498,532,558,595,599,601
+application/interpret.py | 96 % | 57/60 (95 %) | 163,265,320
+orchestration/nodes/compute.py | 95 % | 114/126 (90 %) | 211,332,374,378,404,406,424,427,540,672,677,689
+orchestration/nodes/understand.py | 90 % | 103/126 (82 %) | 185,199,214,216,278,301,306,340,341,342,345,346,347,349,362,406,448
+orchestration/nodes/confirm.py | 58 % | 46/98 (47 %) | 40,53,107,110,112,114,118,129,142,172,174,175,176,185,191,195,200,207,208,246,249,282,283,300,337,374,382,405,415,436,453  <-- characterisation needed
+domain/policy.py | 96 % | 83/88 (94 %) | 224,269,271,290,292
+domain/intake.py | 95 % | 191/210 (91 %) | 61,157,248,253,266,314,327,330,333,338,341,346,378,443,488,666,776
+acquisition/pipeline/job.py | 81 % | 39/64 (61 %) | 104,117,122,194,256,261,268,328,329,331,347,414,424,426,428,434  <-- characterisation needed
+orchestration/nodes/research.py | 93 % | 44/52 (85 %) | 84,89,99,130,197,221,240,290
+orchestration/nodes/report.py | 88 % | 70/88 (80 %) | 82,111,113,115,137,142,146,161,172,176,190,220,276,281,315  <-- characterisation needed
+orchestration/nodes/feasibility.py | 95 % | 9/12 (75 %) | 48,64,73  <-- characterisation needed
+orchestration/runner.py | 85 % | 42/52 (81 %) | 128,143,150,204,216,249,310,356,413
+application/ask.py | 80 % | 89/120 (74 %) | 27,29,32,33,35,37,48,68,70,72,74,77,124,143,189,191,276,324,374  <-- characterisation needed
+application/lineup.py | 95 % | 26/30 (87 %) | 65,123,137,143
+application/versions.py | 90 % | 52/60 (87 %) | 52,89,97,124,126,212,229,258
