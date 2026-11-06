@@ -6,7 +6,7 @@
 
 **Status**: Draft
 
-**Input**: User description: "011 — Acquisition engine: a self-improving data-acquisition engine separated from the chat." Source documents: `docs/review-2026-11-05-acquisition.md` (external review, accepted by the owner) and constitution 1.3.0 (principle XII amended, XIII new).
+**Input**: User description: "011 — Acquisition engine: a self-improving data-acquisition engine separated from the chat." Source documents: `docs/history/review-2026-11-05-acquisition.md` (external review, accepted by the owner) and constitution 1.3.0 (principle XII amended, XIII new).
 
 ## Context
 

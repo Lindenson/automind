@@ -112,7 +112,7 @@ Paths are relative to `backend/` unless they start with `frontend/`, `deploy/`, 
 
 **Independent test**: the queue lists every 009 item with its chat and a copy text.
 
-- [X] T046 [US5] Add `config/seed_issues.yaml` with one entry per 009 flaw and per UX finding F7–F15 of `docs/ux-audit-2026-11-05.md` not covered by US10 (component `ui`, fix kind `code`, files from the report) (spec US5 list; chats 20b5b7f9, 8c6a2a58; component, class, title, examples as quotes from spec 009, proposed fix: code (files from docs/baseline.md) or config (`sense.yaml`/`plausibility.yaml`/`queries.yaml` keys where they apply), verify step) and an idempotent seeder `src/automind/insight/application/seed.py` (`source=seed:009`, fingerprint `seed:<slug>`), run from the insight loop on start.
+- [X] T046 [US5] Add `config/seed_issues.yaml` with one entry per 009 flaw and per UX finding F7–F15 of `docs/history/ux-audit-2026-11-05.md` not covered by US10 (component `ui`, fix kind `code`, files from the report) (spec US5 list; chats 20b5b7f9, 8c6a2a58; component, class, title, examples as quotes from spec 009, proposed fix: code (files from docs/baseline.md) or config (`sense.yaml`/`plausibility.yaml`/`queries.yaml` keys where they apply), verify step) and an idempotent seeder `src/automind/insight/application/seed.py` (`source=seed:009`, fingerprint `seed:<slug>`), run from the insight loop on start.
 - [X] T047 [US5] Test `tests/integration/test_seed_issues.py`: seeding twice gives one row per item; seeded issues appear in `GET /problems` ranked by a fixed seed impact.
 
 ## Phase 9: User Story 8 — registry seeded, same behaviour (P2)
@@ -189,7 +189,7 @@ Owner's requirement (2026-11-05): the whole project runs in Docker and moves to 
 - [X] T080 Add `scripts/deploy.sh export [file]`: one archive (`automind-bundle-<time>.tar.gz`, mode 600) with a fresh DB dump, `.env`, `.env.docker`, the git commit id, and `deploy/prometheus/metrics_token`; and `scripts/deploy.sh import <bundle>` on a fresh clone: checks out the commit, restores secrets, `up`, restores the dump, waits healthy. Optionally `--encrypt` with `age`/`gpg` when available.
 - [X] T081 Add `scripts/deploy.sh move user@host [dir]`: over SSH, installs nothing but requires Docker + git on the target, clones the repo at the same commit, copies the bundle via `scp`, runs `import` remotely, prints the target URL; the source stack keeps running until the owner runs `down` (no silent cut-over).
 - [X] T082 Add `scripts/deploy.sh bootstrap` for an empty Ubuntu/Debian server: checks Docker and the compose plugin, prints the exact install commands if missing (never runs `sudo` silently), creates `.env` from `.env.example` interactively.
-- [X] T083 Optional reverse proxy with TLS: compose profile `public` with Caddy (`caddy:2.10`, automatic HTTPS for `AUTOMIND_DOMAIN`), app bound to the internal network only when the profile is on; documented in README. (Public exposure still requires the security list in `docs/review-2026-11-03.md`.)
+- [X] T083 Optional reverse proxy with TLS: compose profile `public` with Caddy (`caddy:2.10`, automatic HTTPS for `AUTOMIND_DOMAIN`), app bound to the internal network only when the profile is on; documented in README. (Public exposure still requires the security list in `docs/history/review-2026-11-03.md`.)
 - [X] T084 Tests and checks in Docker: `scripts/check.sh --docker` runs ruff, mypy, import-linter, pytest (against the compose Postgres, test DBs `automind_test`, `automind_mig`) and the frontend tests inside a `check` stage of the `Dockerfile` (dev dependencies), so the host needs only Docker. Keep the host mode as the default for speed.
 - [X] T085 `scripts/dev.sh --docker`: run the API from the image with the source mounted and `uvicorn --reload`, frontend via Vite in a node container; host `uv`/`node` become optional.
 - [X] T086 Monitoring profile (T073) and the bundle (T080) include Prometheus/Alertmanager config; `deploy.sh up --monitoring` starts both profiles. Document a full move in `docs/deploy.md`: export → move → verify `/api/v1/health`, `/metrics`, admin login → `down` on the old host.
@@ -197,7 +197,7 @@ Owner's requirement (2026-11-05): the whole project runs in Docker and moves to 
 
 ## Phase 15: User Story 10 — the user sees what was understood and corrects it cheaply (P1)
 
-**Goal**: UI audit F1–F6 + quick wins + English interface (`docs/ux-audit-2026-11-05.md`). Independent of the backend phases except T090 (car edit endpoint).
+**Goal**: UI audit F1–F6 + quick wins + English interface (`docs/history/ux-audit-2026-11-05.md`). Independent of the backend phases except T090 (car edit endpoint).
 
 **Independent test**: see spec US10; plus an axe scan with no critical/serious issues and light-theme badge contrast ≥ 4.5:1.
 

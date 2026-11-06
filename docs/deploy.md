@@ -107,7 +107,7 @@ delivers nowhere) and run `scripts/deploy.sh monitoring up` again.
 
 `AUTOMIND_DOMAIN=automind.example.com` in `.env.docker`, DNS pointing at the server, ports 80/443 open, then
 `scripts/deploy.sh up --public`. Caddy obtains the certificate and proxies to the app; `/metrics` is not proxied.
-AutoMind has no login yet: work through the security list in [review-2026-11-03.md](review-2026-11-03.md) first.
+AutoMind has no login yet: work through the security list in [review-2026-11-03.md](history/review-2026-11-03.md) first.
 
 ## Rehearsal (T087), 2026-11-05
 

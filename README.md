@@ -401,7 +401,7 @@ Moving to another server step by step, and how to verify it: [docs/deploy.md](do
 automatic Let's Encrypt certificates on ports 80/443, reverse-proxying to the app (`/metrics` is not proxied). Set
 `AUTOMIND_DOMAIN=automind.example.com` in `.env.docker`, point DNS at the server, keep `AUTOMIND_BIND=127.0.0.1`, and
 run `scripts/deploy.sh up --public`. AutoMind has no login yet: before a public exposure, work through the security
-list in [docs/review-2026-11-03.md](docs/review-2026-11-03.md) (and the limits below).
+list in [docs/history/review-2026-11-03.md](docs/history/review-2026-11-03.md) (and the limits below).
 
 ---
 

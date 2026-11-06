@@ -1,6 +1,7 @@
 # Next session: start here (parked on 2026-11-06)
 
-**First task: refactoring.** No new features until it is done (owner, 2026-11-06). All functional work below is
+**First task: refactoring — spec 012, executed by `specs/012-refactoring/tasks.md` (one phase = one PR).**
+Done: S0 hygiene (2026-11-06). Next: S1 tooling and safety net (T006–T019). No new features until it is done (owner, 2026-11-06). All functional work below is
 parked, still valid, and resumes after the refactoring.
 
 Context to read first: `README.md` ("Acquisition engine"), `docs/adr/ADR-032-acquisition-engine.md`.

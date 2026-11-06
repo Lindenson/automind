@@ -96,7 +96,7 @@ issues:
     component: ui
     klass: ux
     title: "UI F7: long-research progress grid replaces the timeline and is cut on mobile"
-    quote: "docs/ux-audit-2026-11-05.md F7"
+    quote: "docs/history/ux-audit-2026-11-05.md F7"
     fix: {kind: code, files: [frontend/src/components/ProgressGrid.tsx, frontend/src/components/StatusTimeline.tsx],
           direction: "Keep the stage timeline with the 'Resolved: …' line next to the grid; scrollable grid at 390 px."}
     verify: "Screenshot at 390 px."
@@ -104,7 +104,7 @@ issues:
     component: ui
     klass: ux
     title: "UI F8: connection, error, limit and busy states give no next step"
-    quote: "docs/ux-audit-2026-11-05.md F8"
+    quote: "docs/history/ux-audit-2026-11-05.md F8"
     fix: {kind: code, files: [frontend/src/App.tsx, frontend/src/components/Message.tsx],
           direction: "Each state shows what happened and one action (retry, continue, wait)."}
     verify: "Component tests for each state."
@@ -112,7 +112,7 @@ issues:
     component: ui
     klass: ux
     title: "UI F10: intake card chips and actions are ambiguous"
-    quote: "docs/ux-audit-2026-11-05.md F10"
+    quote: "docs/history/ux-audit-2026-11-05.md F10"
     fix: {kind: code, files: [frontend/src/components/IntakeCard.tsx],
           direction: "Label what each chip changes; separate 'confirm' from 'edit'."}
     verify: "Audit screenshots."
@@ -120,7 +120,7 @@ issues:
     component: ui
     klass: ux
     title: "UI F11-F13: report hierarchy, rating discoverability, mobile layout"
-    quote: "docs/ux-audit-2026-11-05.md F11, F12, F13"
+    quote: "docs/history/ux-audit-2026-11-05.md F11, F12, F13"
     fix: {kind: code, files: [frontend/src/components/Message.tsx, frontend/src/components/RatingControl.tsx],
           direction: "See the audit: fewer duplicated actions, rating near the verdict, 390 px fixes."}
     verify: "Audit screenshots at 390/1280."
@@ -128,7 +128,7 @@ issues:
     component: ui
     klass: ux
     title: "UI F14-F15: accessibility basics and a mock that covers the real flows"
-    quote: "docs/ux-audit-2026-11-05.md F14, F15"
+    quote: "docs/history/ux-audit-2026-11-05.md F14, F15"
     fix: {kind: code, files: [frontend/src/mock/mockTransport.ts],
           direction: "Mock intake, case file, progress, verdict, error and limit messages; axe scan in CI (T097)."}
     verify: "axe scan: no critical/serious issues."

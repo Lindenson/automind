@@ -3,7 +3,7 @@
 **Branch**: `011-acquisition-engine` | **Date**: 2026-11-05 | **Spec**: [spec.md](spec.md)
 
 **Input**: Feature specification from `specs/011-acquisition-engine/spec.md`; external review
-`docs/review-2026-11-05-acquisition.md`; constitution 1.3.0 (XII amended, XIII new).
+`docs/history/review-2026-11-05-acquisition.md`; constitution 1.3.0 (XII amended, XIII new).
 
 ## Summary
 

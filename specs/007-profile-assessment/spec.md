@@ -325,7 +325,7 @@ An option the system offered is always accepted when the user picks it. For a ne
   - a daily budget cap;
   - logging the real model.
 
-  They are listed in docs/review-2026-11-03.md.
+  They are listed in docs/history/review-2026-11-03.md.
 - Spec 006 (electrified cars) is independent. Its energy cost plugs into the same ownership-cost period (FR-016).
 
 ## Out of Scope

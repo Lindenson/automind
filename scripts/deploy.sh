@@ -420,7 +420,7 @@ case "$cmd" in
     if running prometheus && [[ " ${profiles[*]-} " != *" monitoring "* ]]; then profiles+=(--profile monitoring); fi
     if running caddy && [[ " ${profiles[*]-} " != *" public "* ]]; then profiles+=(--profile public); fi
     if [[ " ${profiles[*]-} " == *" public "* ]]; then
-      [[ -n "${AUTOMIND_DOMAIN:-}" ]] || die "--public needs AUTOMIND_DOMAIN=<your domain> in .env.docker (see docs/review-2026-11-03.md first)"
+      [[ -n "${AUTOMIND_DOMAIN:-}" ]] || die "--public needs AUTOMIND_DOMAIN=<your domain> in .env.docker (see docs/history/review-2026-11-03.md first)"
     fi
     if [[ " ${profiles[*]-} " == *" monitoring "* ]]; then write_metrics_token; fi
     port_free

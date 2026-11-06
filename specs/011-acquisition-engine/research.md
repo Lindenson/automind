@@ -1,7 +1,7 @@
 # Research: Spec 011 — Acquisition Engine
 
 Decisions taken from the code as it is on 2026-11-05 (branch `011-acquisition-engine`, after spec 010), the external
-review `docs/review-2026-11-05-acquisition.md` and constitution 1.3.0 (XII amended, XIII new). Each decision lists
+review `docs/history/review-2026-11-05-acquisition.md` and constitution 1.3.0 (XII amended, XIII new). Each decision lists
 what was rejected and why. Paths are relative to `backend/` unless they start with `frontend/`, `deploy/`,
 `specs/`, `docs/` or `scripts/`.
 
