@@ -18,7 +18,8 @@ from automind.application.ports import WebDoc
 from automind.domain import research_plan, sense, specs
 from automind.infrastructure import db
 
-RECHECK = ("ACCEPTED", "REJECTED_UNSUPPORTED", "REJECTED_UNIT")
+# REJECTED_IMPLAUSIBLE: a loosened range (EREV batteries, 2026-11-06) lets a value back
+RECHECK = ("ACCEPTED", "REJECTED_UNSUPPORTED", "REJECTED_UNIT", "REJECTED_IMPLAUSIBLE")
 
 
 async def recheck_value(variant_id: str, attribute: str, *, rules: dict[str, Any] | None = None) -> RecheckResult:

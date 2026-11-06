@@ -6,7 +6,9 @@ by_powertrain:
   claimed_0_100:  {ICE_DIESEL: [4.0, 25], ICE_PETROL: [2.3, 25], BEV: [1.8, 20], ANY: [1.8, 25]}
   measured_0_100: {ICE_DIESEL: [4.0, 25], ICE_PETROL: [2.3, 25], BEV: [1.8, 20], ANY: [1.8, 25]}
   consumption:    {ICE_DIESEL: [3.0, 15], ICE_PETROL: [3.5, 25], BEV: [10, 35], ANY: [1.0, 35]}
-  battery_kwh:    {BEV: [15, 150], PHEV: [5, 40], HEV: [0.5, 3], MHEV: [0.2, 2]}
+  # PHEV up to 80: range-extended cars (EREV) are stored as PHEV and carry 40–73 kWh (Deepal S09 40.18/53.49,
+  # Li L9 52.3/72.7; chat 2026-11-06)
+  battery_kwh:    {BEV: [15, 150], PHEV: [5, 80], HEV: [0.5, 3], MHEV: [0.2, 2]}
   gear_count:     {BEV: [1, 2], ANY: [2, 10]}   # "1 speed" for a hybrid e-CVT is not a gear count
 # Cross-attribute checks; each id is stored as the claim's reject_rule when it fails.
 cross:

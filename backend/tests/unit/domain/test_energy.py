@@ -127,3 +127,39 @@ def test_a_cost_without_energy_is_named_and_not_compared():
     assert set(costs) == {"a"}
     (n,) = energy_notices([byd, ateca], {"b": "BYD Seal U"}, "ru")
     assert "BYD Seal U" in n["text"] and "разряженной батареей" in n["text"] and n["level"] == "warning"
+
+
+# ---- a car sold only in China: CLTC figures (chat 2026-11-06, Deepal S09 vs Li L9) ----------------------------
+
+RWF_CN = {**RWF, "CLTC": 1.4}
+R_CN = en.Rates(R.petrol, R.diesel, RWF_CN, R.cfg)
+S09 = en.EnergyCar("PHEV", "petrol", consumption_cs=5.6, battery_kwh=40.18, range_cltc=220)
+
+
+def test_erev_kwh_estimated_from_battery_and_cltc_range():
+    e = en.estimate(S09, R_CN, en.UsageContext(KM, home_charging="YES"))
+    assert not e.missing and [p.energy for p in e.parts] == ["electricity", "petrol"]
+    loss = 0.85 * 0.10 + 0.15 * 0.10  # plug-in mix: home + public AC
+    assert e.parts[0].per_100km == pytest.approx(40.18 / 220 * 100 * 1.4 * (1 + loss), abs=0.02)
+    how = next(i for i in e.inputs if i.startswith("electricity"))
+    assert "ESTIMATE" in how and "CLTC" in how and "40.18 kWh battery" in how
+    assert any("losses" in f for f in e.factors)
+    assert any("CLTC, China 220 km" in i for i in e.inputs)  # the real range is CLTC ÷ 1.4 too
+
+
+def test_sourced_cltc_kwh_wins_over_the_battery_estimate():
+    car = en.EnergyCar("PHEV", "petrol", consumption_cs=5.6, battery_kwh=40.18, range_cltc=220, consumption_ev_cltc=19)
+    e = en.estimate(car, R_CN, en.UsageContext(KM, home_charging="YES"))
+    assert e.parts[0].per_100km == pytest.approx(19 * 1.4, abs=0.01)
+    assert not any("ESTIMATE" in i for i in e.inputs)
+
+
+def test_wltp_figures_win_over_cltc():
+    car = en.EnergyCar("PHEV", "petrol", consumption_cs=5.6, battery_kwh=20, range_wltp=100, range_cltc=220)
+    e = en.estimate(car, R_CN, en.UsageContext(KM, home_charging="YES"))
+    assert not any("CLTC" in i for i in e.inputs)
+
+
+def test_erev_without_battery_names_the_missing_kwh():
+    car = en.EnergyCar("PHEV", "petrol", consumption_cs=5.6, range_cltc=220)
+    assert en.estimate(car, R_CN, en.UsageContext(KM)).missing == [en.EV_MISSING]
