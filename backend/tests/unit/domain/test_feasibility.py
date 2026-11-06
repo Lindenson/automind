@@ -2,8 +2,8 @@
 
 import yaml
 
-from automind.domain.feasibility import CarFacts, Fact, Needs, UsedRange, evaluate, fingerprint
-from automind.infrastructure.config import config_dir
+from automind.chat.domain.assessment.feasibility import CarFacts, Fact, Needs, UsedRange, evaluate, fingerprint
+from automind.shared.infrastructure.config.loader import config_dir
 
 RULES = yaml.safe_load((config_dir() / "feasibility.yaml").read_text(encoding="utf-8"))
 YEAR = 2026

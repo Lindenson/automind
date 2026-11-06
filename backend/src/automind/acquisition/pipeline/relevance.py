@@ -7,14 +7,15 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 
+from automind.acquisition.domain import relevance as rel
 from automind.acquisition.pipeline import extract as ex
 from automind.acquisition.pipeline import stamp
 from automind.acquisition.pipeline.plan import known_makes
 from automind.acquisition.pipeline.validate import _variant_gearbox, fuel_of
-from automind.application.ports import Page, Ports
-from automind.application.usage import BudgetExceeded
-from automind.domain import relevance as rel
-from automind.infrastructure import db
+from automind.acquisition.ports import AcqPorts
+from automind.shared.contracts.web import Page
+from automind.shared.infrastructure import db
+from automind.shared.metering.usage import BudgetExceeded
 
 VERSION = "relevance@2"  # 2: a model named by its local (Chinese) names (chat 2026-11-06)
 
@@ -28,11 +29,11 @@ SERVICE_AREAS = ("maintenance",)  # brand-wide service pages count (spec 009 FR-
 LLM_PER_JOB = 6  # default; config/search.yaml concurrency.llm_per_job
 
 
-def _llm_per_job(ports: Ports) -> int:
+def _llm_per_job(ports: AcqPorts) -> int:
     return int(((ports.ref.search or {}).get("concurrency") or {}).get("llm_per_job", LLM_PER_JOB))
 
 
-def _relevance_target(v: db.Variant, ports: Ports) -> tuple[rel.Target, list[rel.GenerationInfo]]:
+def _relevance_target(v: db.Variant, ports: AcqPorts) -> tuple[rel.Target, list[rel.GenerationInfo]]:
     aliases = getattr(ports.ref, "aliases", None)
     names = aliases.names_of(v.make, v.model) if hasattr(aliases, "names_of") else []
     return relevance_target(v, ports.ref.generations, names)
@@ -54,7 +55,7 @@ class _PageJudge:
     """Relevance of one page: rules first, the relevance role for uncertain pages (at most
     MAX_LLM_RELEVANCE_PER_JOB per job). Safe to call concurrently: the budget is taken before any await."""
 
-    def __init__(self, ports: Ports, v: db.Variant, tgt: rel.Target, gens: list[rel.GenerationInfo], target: str,
+    def __init__(self, ports: AcqPorts, v: db.Variant, tgt: rel.Target, gens: list[rel.GenerationInfo], target: str,
                  area: str | None = None):  # fmt: skip
         self.ports, self.v, self.tgt, self.gens, self.target = ports, v, tgt, gens, target
         self.service = area in SERVICE_AREAS

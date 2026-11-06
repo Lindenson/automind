@@ -6,7 +6,7 @@ import re
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from .model import Capability, Source
+from automind.acquisition.registry.domain.model import Capability, Source
 
 AREA_OF_KIND = {
     "specs": "specs",
@@ -68,7 +68,7 @@ def _clause(text: str) -> str:
 def from_survey(
     e: Mapping[str, Any], deny: Sequence[str], families: Mapping[str, Sequence[str]] | None = None
 ) -> tuple[Source, list[Capability]]:
-    from .families import family_of  # noqa: PLC0415
+    from automind.acquisition.registry.domain.families import family_of  # noqa: PLC0415
 
     domain = str(e["domain"]).lower().removeprefix("www.")
     access, status = VERDICT.get(str(e.get("verdict")), ("unknown", "candidate"))
@@ -103,7 +103,7 @@ def from_survey(
 def from_favourite(
     f: Mapping[str, Any], deny: Sequence[str], families: Mapping[str, Sequence[str]] | None = None
 ) -> tuple[Source, list[Capability]]:
-    from .families import family_of  # noqa: PLC0415
+    from automind.acquisition.registry.domain.families import family_of  # noqa: PLC0415
 
     domain = str(f["domain"]).lower()
     blocked = denied(domain, deny)

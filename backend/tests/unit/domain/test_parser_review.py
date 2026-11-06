@@ -2,8 +2,8 @@
 
 import pytest
 
-from automind.domain import specs, units
-from automind.domain.identity import parse_engine
+from automind.shared.vehicle import specs, units
+from automind.shared.vehicle.identity import parse_engine
 
 A = specs.ATTRS
 

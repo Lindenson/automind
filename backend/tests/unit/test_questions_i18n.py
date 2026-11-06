@@ -2,8 +2,8 @@
 
 import re
 
-from automind.application.ask import template
-from automind.infrastructure.config import load_yaml
+from automind.chat.application.services.interpretation.ask import template
+from automind.shared.infrastructure.config.loader import load_yaml
 
 Q = {k: v for k, v in load_yaml("questions.yaml").items() if k not in ("version", "LADDER_WORDS")}
 LADDER = ("FUEL", "POWER", "DRIVE")  # spec 008: always asked with the options that exist

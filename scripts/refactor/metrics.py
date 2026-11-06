@@ -21,10 +21,11 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 SRC = REPO / "backend/src/automind"
 TESTS = REPO / "backend/tests"
-WATCHED = ("application/compose.py", "application/identify.py", "application/resolve.py",
-           "application/interpret.py", "orchestration/nodes/compute.py", "orchestration/nodes/understand.py",
-           "orchestration/nodes/confirm.py", "domain/policy.py", "domain/intake.py",
-           "acquisition/pipeline/job.py")  # fmt: skip
+WATCHED = ("chat/application/services/report/compose.py", "chat/application/services/identification/identify.py",
+           "chat/application/services/identification/resolve.py",
+           "chat/application/services/interpretation/interpret.py", "chat/dialog/nodes/compute.py",
+           "chat/dialog/nodes/understand.py", "chat/dialog/nodes/confirm.py", "chat/domain/policy.py",
+           "chat/domain/intake/intake.py", "acquisition/pipeline/job.py")  # fmt: skip
 
 
 def main(argv: list[str] | None = None) -> int:

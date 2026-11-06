@@ -7,12 +7,12 @@ import pytest
 
 from automind.acquisition.engine import Engine
 from automind.acquisition.ports import AcqPorts
-from automind.application.ports import Ports
-from automind.application.usage import Limits, Prices, TurnBudget
-from automind.infrastructure.checkpoint import checkpointer
-from automind.infrastructure.config import reference
-from automind.infrastructure.db import init_db
-from automind.infrastructure.db.repositories import (
+from automind.chat.application.ports import Ports
+from automind.chat.dialog.prompts import load_all
+from automind.chat.infrastructure.checkpoint import checkpointer
+from automind.chat.infrastructure.events import EventBus
+from automind.chat.infrastructure.models_on_sale import models_on_sale
+from automind.chat.infrastructure.persistence.repositories import (
     CaseRepo,
     EventRepo,
     FeasibilityRepo,
@@ -21,9 +21,9 @@ from automind.infrastructure.db.repositories import (
     MessageRepo,
     TurnRepo,
 )
-from automind.infrastructure.events import EventBus
-from automind.infrastructure.models_on_sale import models_on_sale
-from automind.orchestration.prompts import load_all
+from automind.shared.infrastructure.config.loader import reference
+from automind.shared.infrastructure.db import init_db
+from automind.shared.metering.usage import Limits, Prices, TurnBudget
 from tests.fakes.fake_llm import FakeLLM, FixedEstimator
 
 PRICES = Prices(llm={}, default_llm=(1.0, 4.0), eur_per_credit=0.0074, credits={"search_advanced": 2})
@@ -112,7 +112,7 @@ async def forget_make(make: str) -> None:
     are renamed to a throw-away make (they are referenced from research tables), the line-up is deleted."""
     from sqlalchemy import delete, update
 
-    from automind.infrastructure import db
+    from automind.shared.infrastructure import db
 
     async with db.sessionmaker()() as s:
         hidden = {

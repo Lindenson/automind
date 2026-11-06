@@ -1,6 +1,6 @@
 """Spec 005 R12 (FR-008): 1–3 models of a make that fit the person, with machine reasons. Deterministic."""
 
-from automind.domain.intake import Fit, LineupModel, rank_lineup
+from automind.chat.domain.intake.intake import Fit, LineupModel, rank_lineup
 
 BYD = [
     LineupModel("Dolphin", "hatchback", ("bev",), 29990),

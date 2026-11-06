@@ -1,7 +1,7 @@
 # ruff: noqa: E501
 """Spec 005 R13: intake metrics (SC-002, SC-003, SC-004)."""
 
-from automind.domain.metrics import intake_summary
+from automind.chat.domain.assessment.metrics import intake_summary
 
 
 def test_intake_summary() -> None:

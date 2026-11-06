@@ -9,7 +9,7 @@ import pytest
 
 from automind.acquisition.parsing import spec as ps
 from automind.acquisition.parsing.migrate_v1 import migrate_v1
-from automind.infrastructure.config import load_yaml
+from automind.shared.infrastructure.config.loader import load_yaml
 
 READERS = {k: v for k, v in load_yaml("site_readers.yaml").items() if k != "version"}
 SOURCES = {"km77.com": {"access": "ok"}, "ultimatespecs.com": {"access": "ok"}}

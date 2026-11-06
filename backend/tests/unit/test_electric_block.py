@@ -2,9 +2,9 @@
 
 from types import SimpleNamespace as NS
 
-from automind.application import electric_block
-from automind.domain import tco
-from automind.domain.energy import UsageContext
+from automind.chat.application.services.report import electric_block
+from automind.chat.domain.cost import tco
+from automind.chat.domain.cost.energy import UsageContext
 from tests.unit.domain.test_energy import RWF
 
 RATES = tco.TcoRates.from_config(

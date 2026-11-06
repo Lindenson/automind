@@ -22,9 +22,9 @@ from pathlib import Path
 import pytest
 from sqlalchemy import delete
 
-from automind.infrastructure import db
-from automind.infrastructure.db import models as m
-from automind.orchestration.runner import ChatRunner
+from automind.chat.dialog.runner import ChatRunner
+from automind.shared.infrastructure import db
+from automind.shared.infrastructure.db import models as m
 
 from .runner import GOLDEN_DIR, run_dialogue
 

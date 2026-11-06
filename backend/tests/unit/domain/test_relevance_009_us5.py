@@ -7,8 +7,7 @@
 
 import pytest
 
-from automind.domain import sense
-from automind.domain.relevance import (
+from automind.acquisition.domain.relevance import (
     GenerationInfo,
     PageFacts,
     Target,
@@ -17,6 +16,7 @@ from automind.domain.relevance import (
     judge_service,
     resolve_generation,
 )
+from automind.shared.evidence import sense
 
 MAKES = ["Audi", "BMW", "Kia", "Hyundai", "Toyota", "Mazda", "MG", "DS"]
 
@@ -114,7 +114,7 @@ def test_bare_year_without_a_known_generation_does_not_reject_nearby_years() -> 
 
 
 def test_the_sorento_generations_are_known_to_the_config() -> None:
-    from automind.infrastructure.config import generations  # noqa: PLC0415
+    from automind.shared.infrastructure.config.loader import generations  # noqa: PLC0415
 
     gens = [GenerationInfo(g, a, b) for g, a, b in generations()["Kia|Sorento"]]
     tgt, _ = resolve_generation(SORENTO_2024, gens)

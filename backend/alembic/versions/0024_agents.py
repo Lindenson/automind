@@ -24,7 +24,7 @@ depends_on: str | Sequence[str] | None = None
 
 _TS = sa.DateTime(timezone=True)
 _ID = sa.String(36)
-PROMPTS = Path(__file__).resolve().parents[2] / "src" / "automind" / "orchestration" / "prompts"
+PROMPTS = Path(__file__).resolve().parents[2] / "src" / "automind" / "chat" / "dialog" / "prompts"
 _HEADER = re.compile(r"<!--\s*prompt:\s*([\w-]+)\s+v(\d+)", re.I)
 _VERSIONED = ("candidate", "active", "superseded", "rejected")
 

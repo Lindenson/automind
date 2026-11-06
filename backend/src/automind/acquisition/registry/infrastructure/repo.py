@@ -14,7 +14,8 @@ from automind.acquisition.registry.domain.model import Capability, Source
 from automind.acquisition.registry.domain.score import Counts, decay, score_of
 from automind.acquisition.reputation import components
 from automind.acquisition.snapshots import store
-from automind.infrastructure.db.models import (
+from automind.observability.metrics import prom
+from automind.shared.infrastructure.db.models import (
     CapabilityRow,
     Claim,
     RegistryAttempt,
@@ -23,8 +24,7 @@ from automind.infrastructure.db.models import (
     TruthSignal,
     now,
 )
-from automind.infrastructure.db.session import sessionmaker
-from automind.insight.metrics import prom
+from automind.shared.infrastructure.db.session import sessionmaker
 
 log = logging.getLogger(__name__)
 RECENT = 20  # last outcomes kept per capability
@@ -83,7 +83,7 @@ def _refresh(cap: CapabilityRow, source_type: str, cfg: Mapping[str, Any]) -> No
 class RegistryRepo:
     def __init__(self, cfg: Mapping[str, Any] | None = None) -> None:
         if cfg is None:
-            from automind.infrastructure.config import load_yaml  # noqa: PLC0415
+            from automind.shared.infrastructure.config.loader import load_yaml  # noqa: PLC0415
 
             cfg = load_yaml("registry.yaml")
         self.cfg = cfg

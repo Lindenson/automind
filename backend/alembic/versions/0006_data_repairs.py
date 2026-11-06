@@ -20,7 +20,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    from automind.domain.specs import normalize_transmission
+    from automind.shared.vehicle.specs import normalize_transmission
 
     conn = op.get_bind()
     op.execute(

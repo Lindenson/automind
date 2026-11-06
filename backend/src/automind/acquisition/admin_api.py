@@ -1,6 +1,6 @@
 """What the admin page reads from, and asks of, the acquisition engine (spec 011 US6, FR-021, contracts/admin-api.md).
 
-The admin API (`automind.api.admin`) reaches the engine only through this module (import contract
+The admin API (`automind.delivery.web.admin`) reaches the engine only through this module (import contract
 `api-uses-engine-facades`). Reads: parsers with their versions and daily metrics, the change journal of every agent
 (engine `acq_changes` and registry `registry_changes` in one shape), the accuracy drill-down down to the page text,
 the engine status strip. Owner levers: roll a parser back, freeze it, revert / reject a journalled engine change,
@@ -22,8 +22,8 @@ from typing import Any
 from sqlalchemy import func, select, text
 
 from automind.acquisition.domain.versions import parse_key, spec_hash
-from automind.infrastructure.config import load_yaml
-from automind.infrastructure.db.models import (
+from automind.shared.infrastructure.config.loader import load_yaml
+from automind.shared.infrastructure.db.models import (
     OPEN_CHANGE_STATUSES,
     AcqChange,
     AcqWorker,
@@ -41,7 +41,7 @@ from automind.infrastructure.db.models import (
     Variant,
     uid,
 )
-from automind.infrastructure.db.session import sessionmaker
+from automind.shared.infrastructure.db.session import sessionmaker
 
 log = logging.getLogger(__name__)
 

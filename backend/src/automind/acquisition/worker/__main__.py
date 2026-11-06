@@ -19,8 +19,8 @@ import sys
 from automind.acquisition.worker import exporter
 from automind.acquisition.worker.config import worker_config
 from automind.acquisition.worker.process import Worker
-from automind.infrastructure import llm_gateway
-from automind.infrastructure.config import configure_domain
+from automind.shared.infrastructure.config.loader import configure_domain
+from automind.shared.infrastructure.llm import gateway as llm_gateway
 
 
 def _args(argv: list[str]) -> argparse.Namespace:

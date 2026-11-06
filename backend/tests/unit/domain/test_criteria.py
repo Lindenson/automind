@@ -5,9 +5,15 @@ from pathlib import Path
 import pytest
 import yaml
 
-from automind.domain.casefile import CaseDelta, CaseFile, PersonaChange, PriorityChange, apply, set_weights
-from automind.domain.criteria import CriteriaModel, ReliabilitySummary, ReviewSummary, score, weights_for
-from automind.domain.metrics import CarFacts
+from automind.chat.domain.assessment.criteria import (
+    CriteriaModel,
+    ReliabilitySummary,
+    ReviewSummary,
+    score,
+    weights_for,
+)
+from automind.chat.domain.assessment.metrics import CarFacts
+from automind.chat.domain.case.casefile import CaseDelta, CaseFile, PersonaChange, PriorityChange, apply, set_weights
 
 MODEL = CriteriaModel.from_config(yaml.safe_load((Path(__file__).parents[3] / "config" / "criteria.yaml").read_text()))
 

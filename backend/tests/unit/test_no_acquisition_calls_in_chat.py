@@ -5,7 +5,7 @@ import ast
 from pathlib import Path
 
 SRC = Path(__file__).resolve().parents[2] / "src" / "automind"
-CHAT = ("application", "orchestration")
+CHAT = ("chat",)
 
 # Files still doing acquisition work while the strangler moved it into the engine: emptied by T051 (SC-004).
 ALLOWED_DURING_STRANGLER: set[str] = set()

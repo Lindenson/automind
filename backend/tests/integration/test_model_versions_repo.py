@@ -4,9 +4,9 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import update
 
-from automind.domain.ladder import Generation, Version
-from automind.infrastructure import db
-from automind.infrastructure.db.repositories import ModelVersionsRepo
+from automind.chat.domain.identification.ladder import Generation, Version
+from automind.chat.infrastructure.persistence.repositories import ModelVersionsRepo
+from automind.shared.infrastructure import db
 
 V = [
     Version("2.0 TDI 116 CV", "diesel", 1968, 85, ("manual", "dct"), ("FWD",), 2020, None, "https://a", "116 CV"),

@@ -32,7 +32,7 @@ import yaml
 
 TEXT_GLOBS = ("backend/src/**/*.py", "backend/tests/**/*.py", "backend/alembic/**/*.py", "backend/.importlinter",
               "backend/pyproject.toml", "backend/config/**/*.yaml", "scripts/**/*", "docs/**/*.md", "README.md",
-              "Dockerfile", "docker-compose*.yml", "deploy/**/*", "specs/012-refactoring/**/*.md")  # fmt: skip
+              "Dockerfile", "docker-compose*.yml", "deploy/**/*")  # fmt: skip
 SRC = Path("backend/src")
 BASELINE = Path("scripts/structure_baseline.txt")
 PLACEHOLDER = '"""Package created by the spec 012 tree move; its documentation comes in step S3c."""\n\n__all__: list[str] = []\n'
@@ -179,7 +179,7 @@ def _git_mv(root: Path, src: Path, new: str) -> None:
 def _text_files(root: Path) -> list[Path]:
     out: set[Path] = set()
     for g in TEXT_GLOBS:
-        out.update(p for p in root.glob(g) if p.is_file() and not {"__pycache__", ".venv", "refactor"} & set(p.parts))
+        out.update(p for p in root.glob(g) if p.is_file() and not {"__pycache__", ".venv", "refactor", "tools", "moves"} & set(p.parts))
     return sorted(out)
 
 
@@ -198,7 +198,7 @@ def _under(f: Path, d: Path) -> bool:
 def _format(root: Path, files: list[Path]) -> None:
     if not files:
         return
-    args = [str(p.relative_to(root / "backend")) for p in files if p.exists()]
+    args = [str(p.relative_to(root / "backend")) for p in files if p.exists() and p.is_relative_to(root / "backend")]
     subprocess.run(["uv", "run", "ruff", "check", "--fix", "--select", "I", *args], cwd=root / "backend", check=False)
     subprocess.run(["uv", "run", "ruff", "format", *args], cwd=root / "backend", check=False)
 

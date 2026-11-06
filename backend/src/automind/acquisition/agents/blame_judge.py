@@ -20,11 +20,11 @@ from pydantic import BaseModel, Field
 
 from automind.acquisition.domain.blame import UNIT_RULES, near, numbers
 from automind.acquisition.domain.versions import parse_key
-from automind.domain.evidence import occurs
+from automind.shared.evidence.evidence import occurs
 
 log = logging.getLogger(__name__)
 ROLE = "blame_judge"
-PROMPT = Path(__file__).resolve().parents[2] / "orchestration" / "prompts" / "blame_judge.md"
+PROMPT = Path(__file__).resolve().parents[2] / "chat" / "dialog" / "prompts" / "blame_judge.md"
 EST_EUR = 0.002  # one call of a flash-lite web reader on ≤ 8,000 characters
 PAGE_CHARS = 8000
 T = TypeVar("T", bound=BaseModel)
@@ -41,7 +41,7 @@ class LLM(Protocol):
 
 class GatewayLLM:
     async def structured(self, role: str, schema: type[T], system: str, user: str) -> T:
-        from automind.infrastructure import llm_gateway  # noqa: PLC0415
+        from automind.shared.infrastructure.llm import gateway as llm_gateway  # noqa: PLC0415
 
         return await llm_gateway.structured(role, schema, system, user)
 
@@ -120,7 +120,7 @@ async def _load(signal_id: str) -> _Case | None:
 
     from automind.acquisition.reputation.signals import page_text_of  # noqa: PLC0415
     from automind.acquisition.snapshots import store  # noqa: PLC0415
-    from automind.infrastructure.db import Claim, Document, Evidence, GoldValueRow, TruthSignal, sessionmaker  # noqa: PLC0415
+    from automind.shared.infrastructure.db import Claim, Document, Evidence, GoldValueRow, TruthSignal, sessionmaker  # noqa: PLC0415
 
     async with sessionmaker()() as s:
         sig = await s.get(TruthSignal, signal_id)
@@ -152,7 +152,7 @@ async def judge(signal_id: str, llm: LLM | None = None, charge: Any = None) -> d
     """Settle one disputed signal. `charge(eur)` raises when the day's budget is spent."""
     from automind.acquisition.registry.infrastructure.repo import RegistryRepo  # noqa: PLC0415
     from automind.acquisition.worker.budget import BudgetExceeded  # noqa: PLC0415
-    from automind.infrastructure.config import load_yaml  # noqa: PLC0415
+    from automind.shared.infrastructure.config.loader import load_yaml  # noqa: PLC0415
 
     case = await _load(signal_id)
     if case is None:

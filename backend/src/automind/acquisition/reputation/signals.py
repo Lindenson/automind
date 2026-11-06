@@ -30,10 +30,11 @@ from sqlalchemy import select
 from automind.acquisition.domain import agreement, physics, replacement
 from automind.acquisition.domain.blame import BlameCase, blame_vector, component_keys, near
 from automind.acquisition.gold import repo as gold_repo
+from automind.acquisition.infrastructure.config import physics_config
 from automind.acquisition.registry.api import TruthSignalIn
 from automind.acquisition.registry.domain.families import family_of
-from automind.infrastructure.config import load_yaml, physics_config
-from automind.infrastructure.db import (
+from automind.shared.infrastructure.config.loader import load_yaml
+from automind.shared.infrastructure.db import (
     Claim,
     Document,
     Evidence,

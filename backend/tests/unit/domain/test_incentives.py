@@ -2,7 +2,7 @@
 
 from datetime import date
 
-from automind.domain import incentives as inc
+from automind.chat.domain.cost import incentives as inc
 
 TODAY = date(2026, 11, 4)
 
@@ -66,7 +66,7 @@ def test_payback_counts_depreciation():
 def test_market_incentives_planned_once_on_the_first_electrified_car():
     from datetime import UTC, datetime
 
-    from automind.domain import research_plan as rp
+    from automind.shared.research_order import plan as rp
 
     now = datetime(2026, 11, 4, tzinfo=UTC)
     cars = [rp.CarToPlan("a", "ice", "NEW"), rp.CarToPlan("b", "bev", "NEW", electrified=True),

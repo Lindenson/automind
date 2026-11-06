@@ -14,9 +14,9 @@ from sqlalchemy import delete
 
 from automind.acquisition import api as acquisition
 from automind.acquisition.pipeline import job, plan
-from automind.domain import research_plan
-from automind.infrastructure import db
-from automind.infrastructure.db import models as m
+from automind.shared.infrastructure import db
+from automind.shared.infrastructure.db import models as m
+from automind.shared.research_order import plan as research_plan
 
 
 @pytest.fixture

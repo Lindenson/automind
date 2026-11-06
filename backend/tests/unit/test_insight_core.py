@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
-from automind.insight.domain.clusters import Failure, group
-from automind.insight.domain.impact import impact, top
-from automind.insight.domain.issue_text import copy_text
-from automind.insight.domain.levers import check_fix
+from automind.observability.domain.clusters import Failure, group
+from automind.observability.domain.impact import impact, top
+from automind.observability.domain.issue_text import copy_text
+from automind.observability.domain.levers import check_fix
 
 NOW = datetime(2026, 11, 5, 12, tzinfo=UTC)
 TH = {"dialogue": 3, "check": 3, "parser": 1}

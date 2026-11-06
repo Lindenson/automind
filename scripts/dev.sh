@@ -56,7 +56,7 @@ if [[ "$in_docker" == 1 ]]; then
   "${DOCKER[@]}" run -d --name "$api" --network host --user "$(id -u):$(id -g)" \
     -e HOME=/tmp -e PYTHONDONTWRITEBYTECODE=1 -e DATABASE_URL \
     -v "$PWD/backend:/app/backend" -v /app/backend/.venv -v "$PWD/.env:/app/.env:ro" \
-    "$image" sh -c "python -m automind.infrastructure.db.migrate && exec uvicorn automind.api.app:app \
+    "$image" sh -c "python -m automind.shared.infrastructure.db.migrate && exec uvicorn automind.delivery.web.app:app \
       --host ${API_HOST:-127.0.0.1} --port ${API_PORT:-8000} --reload --reload-dir /app/backend/src \
       --reload-dir /app/backend/config" >/dev/null
   if [[ "$worker" == 1 ]]; then  # waits for the API container's migrations by itself
@@ -87,7 +87,7 @@ if [[ -d frontend/node_modules ]]; then
   fi
 fi
 cd backend
-uv run python -m automind.infrastructure.db.migrate
+uv run python -m automind.shared.infrastructure.db.migrate
 if [[ "$worker" == 0 ]]; then exec uv run automind-api; fi
 mkdir -p ../logs
 uv run python -m automind.acquisition.worker >>../logs/worker.log 2>&1 &

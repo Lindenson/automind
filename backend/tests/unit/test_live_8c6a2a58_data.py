@@ -4,9 +4,9 @@ relevance gate."""
 
 from datetime import UTC, datetime
 
-from automind.domain import relevance as rel
-from automind.domain import search_plan
-from automind.domain.research_plan import BRAND_AREAS, CarToPlan, areas_for, plan
+from automind.acquisition.domain import relevance as rel
+from automind.shared.research_order import search_plan
+from automind.shared.research_order.plan import BRAND_AREAS, CarToPlan, areas_for, plan
 
 IDENT = search_plan.Identity("Audi", "A4", "B9", "35 TFSI 150 CV", "2015-")
 TEMPLATES = {"manufacturer_warranty": "{make} garantía oficial años kilómetros España"}
@@ -54,14 +54,14 @@ class _Web:
         self.read: list[str] = []
 
     async def search(self, query, *, market="ES", area=None, fresh=False):
-        from automind.application.ports import SearchHit
+        from automind.shared.contracts.web import SearchHit
 
         if "garantía oficial" in query:
             return [SearchHit(WARRANTY_URL, "Garantía Audi", "", 1)]
         return [SearchHit(f"https://{d}/audi-{abs(hash(query))}", "x", "", i) for i, d in enumerate(FAVOURITES, 1)]
 
     async def get(self, url, *, area=None):
-        from automind.application.ports import Page
+        from automind.shared.contracts.web import Page
 
         self.read.append(url)
         if url == WARRANTY_URL:
@@ -77,8 +77,8 @@ async def test_blocked_analyst_sites_never_crowd_out_the_warranty_page():
 
     from automind.acquisition.pipeline import job as research
     from automind.acquisition.pipeline import locate
-    from automind.infrastructure.config import reference
-    from automind.orchestration.prompts import load_all
+    from automind.chat.dialog.prompts import load_all
+    from automind.shared.infrastructure.config.loader import reference
 
     web = _Web()
     ports = SimpleNamespace(search=web, page_store=web, ref=reference(load_all()))
@@ -97,8 +97,8 @@ def test_the_used_price_is_searched_for_the_car_s_model_year():
     from types import SimpleNamespace
 
     from automind.acquisition.pipeline import plan
-    from automind.infrastructure.config import reference
-    from automind.orchestration.prompts import load_all
+    from automind.chat.dialog.prompts import load_all
+    from automind.shared.infrastructure.config.loader import reference
 
     ports = SimpleNamespace(ref=reference(load_all()))
     v = SimpleNamespace(make="Audi", model="A4", generation="B9", variant_name="35 TFSI 150 CV",

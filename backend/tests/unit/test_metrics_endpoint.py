@@ -6,8 +6,8 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from automind.api import metrics as m
-from automind.insight.metrics import heartbeat, prom
+from automind.delivery.web import metrics as m
+from automind.observability.metrics import heartbeat, prom
 
 
 def _app() -> FastAPI:
@@ -26,7 +26,7 @@ def test_rules_token_and_networks():
 
 
 def test_scrape_serves_snapshot_without_database(monkeypatch: pytest.MonkeyPatch):
-    import automind.infrastructure.db.session as session
+    import automind.shared.infrastructure.db.session as session
 
     def boom(*a: object, **k: object) -> None:
         raise AssertionError("a scrape must not open a database session")

@@ -14,7 +14,7 @@ from sqlalchemy import select, text
 
 from automind.acquisition.domain import gates
 from automind.acquisition.gates import evaluate, journal, replay_gate
-from automind.infrastructure.db import AcqChange, AcqExperiment, PageSnapshot, sessionmaker
+from automind.shared.infrastructure.db import AcqChange, AcqExperiment, PageSnapshot, sessionmaker
 
 log = logging.getLogger(__name__)
 MAX_PAGES = 200

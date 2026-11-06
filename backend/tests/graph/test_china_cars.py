@@ -13,11 +13,11 @@ from dataclasses import replace
 
 from sqlalchemy import select
 
-from automind.application import lineup
-from automind.infrastructure import db
-from automind.infrastructure.db.repositories import MessageRepo
-from automind.orchestration.graph import build_graph
-from automind.orchestration.runner import ChatRunner
+from automind.chat.application.services.identification import lineup
+from automind.chat.dialog.graph import build_graph
+from automind.chat.dialog.runner import ChatRunner
+from automind.chat.infrastructure.persistence.repositories import MessageRepo
+from automind.shared.infrastructure import db
 from tests.fakes.fake_llm import FakeLLM
 from tests.fakes.fixture_search import FixtureSearch
 

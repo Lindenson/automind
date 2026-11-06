@@ -29,7 +29,7 @@ from automind.acquisition.agents.levers import ModelProposal, PromptProposal
 
 log = logging.getLogger(__name__)
 AGENT = ROLE = "extractor_tuner"
-PROMPT = Path(__file__).resolve().parents[2] / "orchestration" / "prompts" / "extractor_tuner.md"
+PROMPT = Path(__file__).resolve().parents[2] / "chat" / "dialog" / "prompts" / "extractor_tuner.md"
 EST_EUR = 0.004
 MIN_SIGNALS = 10
 MAX_MISMATCHES = 8
@@ -44,7 +44,7 @@ class LLM(Protocol):
 
 class GatewayLLM:
     async def structured(self, role: str, schema: type[T], system: str, user: str) -> T:
-        from automind.infrastructure import llm_gateway  # noqa: PLC0415
+        from automind.shared.infrastructure.llm import gateway as llm_gateway  # noqa: PLC0415
 
         return await llm_gateway.structured(role, schema, system, user)
 
@@ -131,7 +131,7 @@ ORDER BY t.created_at DESC LIMIT :n
 async def _acc(since: datetime) -> tuple[float | None, int]:
     from sqlalchemy import text  # noqa: PLC0415
 
-    from automind.infrastructure.db import sessionmaker  # noqa: PLC0415
+    from automind.shared.infrastructure.db import sessionmaker  # noqa: PLC0415
 
     async with sessionmaker()() as s:
         right, wrong = (int(x) for x in (await s.execute(text(_ACC), {"since": since})).one())
@@ -142,7 +142,7 @@ async def _acc(since: datetime) -> tuple[float | None, int]:
 async def mismatches(since: datetime, n: int = MAX_MISMATCHES) -> list[dict[str, Any]]:
     from sqlalchemy import text  # noqa: PLC0415
 
-    from automind.infrastructure.db import sessionmaker  # noqa: PLC0415
+    from automind.shared.infrastructure.db import sessionmaker  # noqa: PLC0415
 
     async with sessionmaker()() as s:
         rows = (await s.execute(text(_MISMATCHES), {"since": since, "n": n})).all()
@@ -153,7 +153,7 @@ async def mismatches(since: datetime, n: int = MAX_MISMATCHES) -> list[dict[str,
 async def _last_model() -> str | None:
     from sqlalchemy import text  # noqa: PLC0415
 
-    from automind.infrastructure.db import sessionmaker  # noqa: PLC0415
+    from automind.shared.infrastructure.db import sessionmaker  # noqa: PLC0415
 
     q = text("SELECT result->>'model' FROM acq_tasks WHERE kind = :k AND state = 'done' AND result ? 'model' "
              "ORDER BY finished_at DESC LIMIT 1")  # fmt: skip
@@ -163,7 +163,7 @@ async def _last_model() -> str | None:
 
 async def why_now(payload: dict[str, Any], now: datetime, current_model: str) -> str | None:
     from automind.acquisition.domain.gates import GateConfig  # noqa: PLC0415
-    from automind.infrastructure.config import agents_config  # noqa: PLC0415
+    from automind.acquisition.infrastructure.config import agents_config  # noqa: PLC0415
 
     if payload.get("force"):
         return str(payload.get("reason") or "requested")
@@ -183,10 +183,11 @@ async def run_tuner(payload: dict[str, Any], *, llm: LLM | None = None, charge: 
     from sqlalchemy import select  # noqa: PLC0415
 
     from automind.acquisition.gates import journal  # noqa: PLC0415
+    from automind.acquisition.infrastructure.config import agents_config
     from automind.acquisition.worker.budget import BudgetExceeded  # noqa: PLC0415
-    from automind.infrastructure import llm_gateway  # noqa: PLC0415
-    from automind.infrastructure.config import agents_config, prices  # noqa: PLC0415
-    from automind.infrastructure.db import PromptVersion, sessionmaker  # noqa: PLC0415
+    from automind.shared.infrastructure.config.loader import prices  # noqa: PLC0415
+    from automind.shared.infrastructure.db import PromptVersion, sessionmaker  # noqa: PLC0415
+    from automind.shared.infrastructure.llm import gateway as llm_gateway  # noqa: PLC0415
 
     now = now or datetime.now(UTC)
     current_model = llm_gateway.model_name("extractor")

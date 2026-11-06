@@ -1,6 +1,6 @@
 """Number guard (FR-031)."""
 
-from automind.orchestration.guard import check_numbers, numbers_in
+from automind.chat.dialog.guard import check_numbers, numbers_in
 
 
 def test_unknown_figures_are_removed_and_counted():
@@ -47,7 +47,7 @@ def test_km_is_not_thousand():
 
 
 def test_language_hysteresis():
-    from automind.orchestration.phrases import stable_language
+    from automind.chat.dialog.phrases import stable_language
 
     ru = ["Сравни BYD Seal U и Ateca", "семья, юг Испании"]
     assert stable_language("en", "Seal U DM-i", ru) == "ru"  # a model name does not switch the chat

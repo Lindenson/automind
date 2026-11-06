@@ -13,7 +13,7 @@ from datetime import date
 from typing import Any
 
 from automind.acquisition.pipeline import extract as ex
-from automind.application.ports import WebDoc
+from automind.shared.contracts.web import WebDoc
 
 VERSION = "market@1"
 MARKET = "ES"

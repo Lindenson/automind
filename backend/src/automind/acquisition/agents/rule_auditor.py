@@ -34,7 +34,7 @@ from automind.acquisition.domain import relevance_audit as ra
 
 log = logging.getLogger(__name__)
 AGENT = ROLE = "rule_auditor"
-PROMPT = Path(__file__).resolve().parents[2] / "orchestration" / "prompts" / "rule_auditor.md"
+PROMPT = Path(__file__).resolve().parents[2] / "chat" / "dialog" / "prompts" / "rule_auditor.md"
 EST_EUR = 0.001
 MIN_CLUSTER = 3
 MIN_FAMILIES = 2
@@ -49,7 +49,7 @@ class LLM(Protocol):
 
 class GatewayLLM:
     async def structured(self, role: str, schema: type[T], system: str, user: str) -> T:
-        from automind.infrastructure import llm_gateway  # noqa: PLC0415
+        from automind.shared.infrastructure.llm import gateway as llm_gateway  # noqa: PLC0415
 
         return await llm_gateway.structured(role, schema, system, user)
 
@@ -169,7 +169,7 @@ GROUP BY r.id, r.reject_rule, r.attribute, r.value_num, r.excerpt, e.domain
 async def confirmed_rejections(since: datetime) -> list[Rejected]:
     from sqlalchemy import text  # noqa: PLC0415
 
-    from automind.infrastructure.db import sessionmaker  # noqa: PLC0415
+    from automind.shared.infrastructure.db import sessionmaker  # noqa: PLC0415
 
     async with sessionmaker()() as s:
         rows = (await s.execute(text(_CONFIRMED), {"since": since, "rel": CLOSE_REL})).all()
@@ -177,7 +177,7 @@ async def confirmed_rejections(since: datetime) -> list[Rejected]:
 
 
 def _cfg() -> dict[str, Any]:
-    from automind.infrastructure.config import agents_config  # noqa: PLC0415
+    from automind.acquisition.infrastructure.config import agents_config  # noqa: PLC0415
 
     return dict((agents_config().get("levers") or {}).get("rule_auditor") or {})
 
@@ -185,7 +185,7 @@ def _cfg() -> dict[str, Any]:
 async def run_auditor(*, llm: LLM | None = None, charge: Any = None, now: datetime | None = None) -> dict[str, Any]:
     from automind.acquisition.gates import journal  # noqa: PLC0415
     from automind.acquisition.worker.budget import BudgetExceeded  # noqa: PLC0415
-    from automind.infrastructure.config import effective_rules  # noqa: PLC0415
+    from automind.shared.infrastructure.config.loader import effective_rules  # noqa: PLC0415
 
     now = now or datetime.now(UTC)
     cfg = _cfg()
@@ -246,7 +246,7 @@ async def contradicted_rejections(since: datetime, until: datetime, *, min_famil
     from sqlalchemy import text  # noqa: PLC0415
 
     from automind.acquisition.gates import relevance_replay as rr  # noqa: PLC0415
-    from automind.infrastructure.db import sessionmaker  # noqa: PLC0415
+    from automind.shared.infrastructure.db import sessionmaker  # noqa: PLC0415
 
     items = await rr.judged(since, until, rejected_only=True, limit=limit)
     if not items:

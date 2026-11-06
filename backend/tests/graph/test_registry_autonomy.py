@@ -10,11 +10,11 @@ from fastapi import FastAPI
 from sqlalchemy import delete, select
 
 from automind.acquisition.registry.application.review import review
-from automind.api import admin
-from automind.infrastructure.config import load_yaml
-from automind.infrastructure.db import models as m
-from automind.infrastructure.db.models import now
-from automind.infrastructure.db.session import sessionmaker
+from automind.delivery.web import admin
+from automind.shared.infrastructure.config.loader import load_yaml
+from automind.shared.infrastructure.db import models as m
+from automind.shared.infrastructure.db.models import now
+from automind.shared.infrastructure.db.session import sessionmaker
 
 
 async def _setup() -> None:

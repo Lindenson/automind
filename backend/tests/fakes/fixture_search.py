@@ -19,9 +19,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from automind.application.ports import Page, SearchHit
-from automind.application.usage import current_budget
-from automind.domain.evidence import is_denied
+from automind.shared.contracts.web import Page, SearchHit
+from automind.shared.evidence.evidence import is_denied
+from automind.shared.metering.usage import current_budget
 
 SCENARIOS = Path(__file__).resolve().parents[1] / "fixtures" / "scenarios"
 

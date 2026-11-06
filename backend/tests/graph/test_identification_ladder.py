@@ -3,9 +3,9 @@ stands, "choose for me" and "remove"), and "выбери сам" settles it with
 
 import uuid
 
-from automind.infrastructure.db.repositories import MessageRepo
-from automind.orchestration.graph import build_graph
-from automind.orchestration.runner import ChatRunner
+from automind.chat.dialog.graph import build_graph
+from automind.chat.dialog.runner import ChatRunner
+from automind.chat.infrastructure.persistence.repositories import MessageRepo
 from tests.fakes.fake_llm import FakeLLM
 from tests.fakes.fixture_search import FixtureSearch
 from tests.integration.test_identify_ladder import Store

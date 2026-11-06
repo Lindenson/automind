@@ -9,11 +9,11 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from automind.acquisition.infrastructure.config import fetch_policy
 from automind.acquisition.infrastructure.fetch import Fetcher, FetchPolicy, FetchRefused
 from automind.acquisition.registry.domain.admission import AdmissionFacts
-from automind.domain import evidence as ev
-from automind.infrastructure import llm_gateway
-from automind.infrastructure.config import fetch_policy
+from automind.shared.evidence import evidence as ev
+from automind.shared.infrastructure.llm import gateway as llm_gateway
 
 log = logging.getLogger(__name__)
 PROMPT = Path(__file__).parents[1] / "prompts" / "terms_reader.md"

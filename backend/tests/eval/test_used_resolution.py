@@ -9,8 +9,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from automind.domain.casefile import CaseCar
-from automind.domain.identity import generation_matches
+from automind.chat.domain.case.casefile import CaseCar
+from automind.shared.vehicle.identity import generation_matches
 
 CASES = yaml.safe_load((Path(__file__).parent / "used_resolution.yaml").read_text())["cases"]
 TARGET = 0.95
@@ -29,13 +29,13 @@ def accepted(generation: str | None, accept: list[str]) -> bool:
 
 @pytest.mark.live
 async def test_used_resolution_rate(migrated):
-    from automind.application import resolve
-    from automind.application.usage import current_budget
-    from automind.infrastructure.adapters import live_ports
-    from automind.infrastructure.db.repositories import EventRepo
-    from automind.infrastructure.events import EventBus
-    from automind.infrastructure.llm_gateway import new_budget
-    from automind.orchestration.prompts import load_all
+    from automind.chat.application.services.identification import resolve
+    from automind.chat.dialog.prompts import load_all
+    from automind.chat.infrastructure.adapters import live_ports
+    from automind.chat.infrastructure.events import EventBus
+    from automind.chat.infrastructure.persistence.repositories import EventRepo
+    from automind.shared.infrastructure.llm.gateway import new_budget
+    from automind.shared.metering.usage import current_budget
 
     ports = live_ports(EventBus(EventRepo()), load_all())
     token = current_budget.set(budget := new_budget(None, None))

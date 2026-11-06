@@ -2,16 +2,16 @@
 
 import pytest
 
-from automind.domain import weights as w
-from automind.domain.casefile import CaseFile, Priority
-from automind.domain.criteria import (
+from automind.chat.domain.assessment import weights as w
+from automind.chat.domain.assessment.criteria import (
     CriteriaModel,
     reset_weights,
     set_manual_weights,
     weight_breakdown,
     weights_for,
 )
-from automind.infrastructure.config import load_yaml
+from automind.chat.domain.case.casefile import CaseFile, Priority
+from automind.shared.infrastructure.config.loader import load_yaml
 
 MODEL = CriteriaModel.from_config(load_yaml("criteria.yaml"), load_yaml("profile_rules.yaml"))
 RULES = MODEL.rules

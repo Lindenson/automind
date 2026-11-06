@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from automind.domain import insights as ins
-from automind.domain import verdict as vd
-from automind.domain.criteria import CarScore, CriteriaScore
-from automind.infrastructure.config import load_yaml
+from automind.chat.domain.assessment.criteria import CarScore, CriteriaScore
+from automind.chat.domain.verdict import insights as ins
+from automind.chat.domain.verdict import verdict as vd
+from automind.shared.infrastructure.config.loader import load_yaml
 
 RULES = ins.rules_from_config(load_yaml("insights.yaml"))
 PROFILE = ins.Profile(weights={"efficiency": 3, "purchase_price": 2, "practicality": 1})
@@ -128,7 +128,7 @@ def test_used_data_missing_lowers_confidence() -> None:
 
 
 def test_texts_use_the_numbers_and_the_users_period() -> None:
-    from automind.orchestration import report_text as rt
+    from automind.chat.dialog import report_text as rt
 
     names = {"rav4": "RAV4", "cx5": "CX-5"}
     v = vd.build(_score({"rav4": 80, "cx5": 60}), S, limits=[OVER],

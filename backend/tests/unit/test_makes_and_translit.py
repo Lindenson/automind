@@ -1,8 +1,8 @@
 """Make registry and transliteration (spec 005 R3, FR-010)."""
 
-from automind.application.makes import MakeRegistry
-from automind.domain.identity import transliterate_ru
-from automind.infrastructure.config import load_yaml
+from automind.shared.infrastructure.config.loader import load_yaml
+from automind.shared.vehicle.identity import transliterate_ru
+from automind.shared.vehicle.makes import MakeRegistry
 
 REG = MakeRegistry.from_config(load_yaml("makes.yaml"))
 

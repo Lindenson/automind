@@ -7,13 +7,13 @@ import uuid
 import pytest
 from sqlalchemy import select
 
-from automind.infrastructure import db
-from automind.infrastructure.db.models import Feedback, TurnOutcome
-from automind.infrastructure.db.outcomes import OutcomeRepo
-from automind.infrastructure.db.repositories import MessageRepo
-from automind.infrastructure.usage_callback import UsageCallbackHandler, current_prompt, prompt_identity
-from automind.orchestration.graph import build_graph
-from automind.orchestration.runner import ChatRunner
+from automind.chat.dialog.graph import build_graph
+from automind.chat.dialog.runner import ChatRunner
+from automind.chat.infrastructure.persistence.repositories import MessageRepo
+from automind.observability.infrastructure.outcomes import OutcomeRepo
+from automind.shared.infrastructure import db
+from automind.shared.infrastructure.db.models import Feedback, TurnOutcome
+from automind.shared.infrastructure.llm.usage_callback import UsageCallbackHandler, current_prompt, prompt_identity
 from tests.fakes.fake_llm import FakeLLM
 from tests.fakes.fixture_search import FixtureSearch
 

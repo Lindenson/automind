@@ -16,9 +16,9 @@ from sqlalchemy import delete, select, update
 
 from automind.acquisition.registry.application.service import RegistryService
 from automind.acquisition.registry.infrastructure.repo import RegistryRepo
-from automind.infrastructure.config import favourite_queries, load_yaml
-from automind.infrastructure.db import models as m
-from automind.infrastructure.db.session import sessionmaker
+from automind.shared.infrastructure.config.loader import favourite_queries, load_yaml
+from automind.shared.infrastructure.db import models as m
+from automind.shared.infrastructure.db.session import sessionmaker
 from tests.fakes.fixture_search import FixtureSearch
 
 from .conftest import make_ports, open_web_reference, share

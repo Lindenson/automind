@@ -3,9 +3,9 @@
 import asyncio
 from types import SimpleNamespace
 
-from automind import mcp_server
-from automind.orchestration.agents import SCOPES, prompt_name, scoped_tools
-from automind.orchestration.prompts import load_all
+from automind.chat.dialog.agents import SCOPES, prompt_name, scoped_tools
+from automind.chat.dialog.prompts import load_all
+from automind.delivery.mcp import server as mcp_server
 
 
 def test_every_scoped_tool_exists_on_the_mcp_server():

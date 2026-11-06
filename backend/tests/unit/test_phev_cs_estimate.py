@@ -1,6 +1,6 @@
 """Spec 009 FR-014 / chat fcf5b3b8: a PHEV without a charge-sustaining figure gets an estimate, labelled."""
 
-from automind.domain.energy import estimate_cs, utility_factor
+from automind.chat.domain.cost.energy import estimate_cs, utility_factor
 
 
 def test_sorento_phev_estimate_is_realistic():

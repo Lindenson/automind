@@ -8,12 +8,12 @@ from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import delete, select
 
-from automind.infrastructure.db import models as m
-from automind.infrastructure.db.session import sessionmaker
-from automind.insight import loop
-from automind.insight.application.analyse import Diagnosis, Fix
-from automind.insight.domain.clusters import fingerprint
-from automind.insight.domain.issue_text import copy_text
+from automind.observability import loop
+from automind.observability.application.analyse import Diagnosis, Fix
+from automind.observability.domain.clusters import fingerprint
+from automind.observability.domain.issue_text import copy_text
+from automind.shared.infrastructure.db import models as m
+from automind.shared.infrastructure.db.session import sessionmaker
 
 
 class FakeAnalyst:
@@ -27,7 +27,11 @@ class FakeAnalyst:
             fix = Fix(kind="config", config_file="sense.yaml", config_key="magnitude.boot_volume.max",
                       suggested_value="2000")  # fmt: skip
         else:
-            fix = Fix(kind="code", files=["src/automind/application/interpret.py"], direction="add few-shots")
+            fix = Fix(
+                kind="code",
+                files=["src/automind/chat/application/services/interpretation/interpret.py"],
+                direction="add few-shots",
+            )
         return Diagnosis(summary="users rephrase comparisons", likely_cause="few-shots", fix=fix, verify="golden")
 
 
@@ -62,7 +66,9 @@ async def test_failures_become_diagnosed_issues_and_regressions_reopen():
     dialogue = await _issue("dialogue/not_understood/compare/ru")
     data = await _issue("data/wrong_data/power_kw")
     assert dialogue is not None and dialogue.count_7d == 3 and dialogue.diagnosis["fix"]["kind"] == "code"
-    assert dialogue.diagnosis["fix"]["files"] == ["src/automind/application/interpret.py"]  # exists → kept
+    assert dialogue.diagnosis["fix"]["files"] == [
+        "src/automind/chat/application/services/interpretation/interpret.py"
+    ]  # exists → kept
     assert data is not None and data.count_7d == 5 and data.status == "open"
     md = copy_text({c.name: getattr(dialogue, c.name) for c in m.InsightIssue.__table__.columns})
     assert "users rephrase comparisons" in md and chat in md

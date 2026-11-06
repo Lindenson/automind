@@ -3,7 +3,7 @@
 from hypothesis import given
 from hypothesis import strategies as st
 
-from automind.domain.relevance import GenerationInfo, PageFacts, Target, judge, power_ps_of
+from automind.acquisition.domain.relevance import GenerationInfo, PageFacts, Target, judge, power_ps_of
 
 PRADO = [GenerationInfo("J120", 2002, 2009), GenerationInfo("J150", 2009, 2023), GenerationInfo("J250", 2024, None)]
 GOLF = [GenerationInfo("Mk7", 2012, 2016), GenerationInfo("Mk7.5", 2017, 2019), GenerationInfo("Mk8", 2020, 2023)]
@@ -119,7 +119,7 @@ def test_model_names_with_dashes_and_digits_are_recognised():
 
 def test_page_of_another_gearbox_or_drive_is_another_variant():
     """spec 004 FR-028: a manual CX-5 page is not about the automatic one."""
-    from automind.domain.relevance import PageFacts, Target, judge
+    from automind.acquisition.domain.relevance import PageFacts, Target, judge
 
     t = Target("Mazda", "CX-5", "KF", 2017, 2025, "2.0 Skyactiv-G 165 CV", transmission="automatic", drive="FWD")
     manual = PageFacts("https://x.es/mazda-cx-5-2-0-165-cv-manual", "Mazda CX-5 2.0 165 CV manual", "Mazda CX-5 KF")

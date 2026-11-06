@@ -6,8 +6,8 @@ import uuid
 
 from sqlalchemy import delete, select
 
-from automind.infrastructure.db import Document, sessionmaker
-from automind.infrastructure.db.models import TurnOutcome
+from automind.shared.infrastructure.db import Document, sessionmaker
+from automind.shared.infrastructure.db.models import TurnOutcome
 
 
 async def test_nul_in_text_and_json_is_stripped_on_write():

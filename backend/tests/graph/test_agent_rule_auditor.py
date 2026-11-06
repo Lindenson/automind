@@ -12,8 +12,8 @@ from sqlalchemy import delete, select, update
 
 from automind.acquisition.agents import rule_auditor
 from automind.acquisition.agents.rule_auditor import Cluster, Rejected
-from automind.infrastructure import db
-from automind.infrastructure.config import effective_rules, load_yaml
+from automind.shared.infrastructure import db
+from automind.shared.infrastructure.config.loader import effective_rules, load_yaml
 from tests.fakes.fake_llm import FakeLLM
 from tests.fakes.reputation_world import World
 

@@ -17,7 +17,7 @@ from automind.acquisition.gold.domain.match import GoldValue
 from automind.acquisition.parsing import migrate_v1
 from automind.acquisition.snapshots import store
 from automind.acquisition.worker.budget import BudgetExceeded
-from automind.infrastructure import db
+from automind.shared.infrastructure import db
 from tests.fakes.fake_llm import FakeLLM
 
 FIX = Path(__file__).resolve().parents[1] / "fixtures"

@@ -1,8 +1,8 @@
 """Spec 007 SC-005 (US4, FR-016 to FR-019): the same pair and the same data, three different people. The period,
 the km, the limits and the persona change the verdict, and the verdict card says why — all from code."""
 
-from automind.api.rest import CasePatch, ProfilePatch
-from automind.domain.casefile import RunningLimit
+from automind.chat.domain.case.casefile import RunningLimit
+from automind.delivery.web.rest import CasePatch, ProfilePatch
 from tests.fakes.fake_llm import FakeLLM
 
 from .test_rescore import _patch, _reported

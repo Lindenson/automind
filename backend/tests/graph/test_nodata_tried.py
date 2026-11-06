@@ -13,9 +13,9 @@ from sqlalchemy import delete
 from automind.acquisition import api as acquisition
 from automind.acquisition.registry.api import Plan, PlannedSource
 from automind.acquisition.registry.application.service import RegistryService
-from automind.application import compose
-from automind.infrastructure.db import models as m
-from automind.infrastructure.db.session import sessionmaker
+from automind.chat.application.services.report import compose
+from automind.shared.infrastructure.db import models as m
+from automind.shared.infrastructure.db.session import sessionmaker
 
 from .test_unverified_label import ports_for, registry_rows  # noqa: F401 (fixture)
 

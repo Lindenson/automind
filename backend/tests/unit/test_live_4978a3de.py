@@ -1,9 +1,9 @@
 """Live re-run of chat 0d7fd924 (chat 4978a3de, 2026-11-04): Mazda CX-5 vs Honda CR-V, family, new 2025."""
 
-from automind.domain import ask_value
-from automind.domain.casefile import CaseFile
-from automind.domain.research_plan import SourceHit, minimum_met
-from automind.orchestration.report_text import gap_text
+from automind.chat.dialog.report_text import gap_text
+from automind.chat.domain.assessment import ask_value
+from automind.chat.domain.case.casefile import CaseFile
+from automind.shared.research_order.plan import SourceHit, minimum_met
 
 
 def _hit(domain: str, kind: str = "PUBLICATION") -> SourceHit:
@@ -43,8 +43,8 @@ def test_a_new_generation_without_reliability_history_still_gets_a_verdict():
 
     import yaml
 
-    from automind.domain.criteria import CriteriaModel, score
-    from automind.domain.metrics import CarFacts, ReliabilitySummary, new_generation_since
+    from automind.chat.domain.assessment.criteria import CriteriaModel, score
+    from automind.chat.domain.assessment.metrics import CarFacts, ReliabilitySummary, new_generation_since
 
     model = CriteriaModel.from_config(
         yaml.safe_load((Path(__file__).parents[2] / "config" / "criteria.yaml").read_text())
@@ -76,7 +76,7 @@ def test_a_new_generation_without_reliability_history_still_gets_a_verdict():
 def test_a_mild_hybrid_diesel_is_a_diesel():
     from types import SimpleNamespace
 
-    from automind.domain.identity import engine_fits
+    from automind.shared.vehicle.identity import engine_fits
 
     hint = SimpleNamespace(fuel="diesel", displacement_l=2.0, power_kw=None)
     assert engine_fits(hint, None, 140, "mhev")  # "320d M Sport 2.0 Mild-Hybrid 190 CV"
@@ -84,8 +84,8 @@ def test_a_mild_hybrid_diesel_is_a_diesel():
 
 
 def test_an_identified_car_is_not_asked_its_engine_and_used_is_never_cut():
-    from automind.application import ask
-    from automind.domain.casefile import CaseCar, Choice, IdentifyOutcome
+    from automind.chat.application.services.interpretation import ask
+    from automind.chat.domain.case.casefile import CaseCar, Choice, IdentifyOutcome
 
     bmw = CaseCar(key="car#1", request_text="bmw 320d m line", make="BMW", model="3 Series")
     bmw.identify = IdentifyOutcome(outcome="CHOICES", need="ENGINE",
@@ -105,7 +105,7 @@ def test_an_identified_car_is_not_asked_its_engine_and_used_is_never_cut():
 
 
 def test_a_320d_mild_hybrid_burns_diesel():
-    from automind.domain.identity import liquid_fuel
+    from automind.shared.vehicle.identity import liquid_fuel
 
     assert liquid_fuel("3 Series 320d M Sport 8-speed automatic") == "diesel"
     assert liquid_fuel("X3 xDrive20d") == liquid_fuel("C 220 d") == liquid_fuel("e-Skyactiv D 2.2") == "diesel"
@@ -114,7 +114,7 @@ def test_a_320d_mild_hybrid_burns_diesel():
 
 
 def test_the_boot_volume_is_with_the_seats_up():
-    from automind.domain.sense import boot_seats_up
+    from automind.shared.evidence.sense import boot_seats_up
 
     vw = "El Golf R Variant ofrece un grado de flexibilidad especialmente elevado: con un volumen máximo de maletero de 1.642 litros"  # noqa: E501
     assert not boot_seats_up("1642", vw).ok
@@ -126,7 +126,7 @@ def test_the_boot_volume_is_with_the_seats_up():
 
 
 def test_thousands_follow_the_language():
-    from automind.orchestration.report_text import fmt
+    from automind.chat.dialog.report_text import fmt
 
     assert fmt(48500, "EUR", "en") == "€48,500"
     assert fmt(48500, "EUR", "es") == fmt(48500, "EUR", "ru") == "€48.500"

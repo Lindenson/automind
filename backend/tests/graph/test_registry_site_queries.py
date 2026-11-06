@@ -13,9 +13,9 @@ from automind.acquisition.pipeline import job as research
 from automind.acquisition.pipeline.job import JobSpec
 from automind.acquisition.registry.application.service import RegistryService
 from automind.acquisition.registry.infrastructure.repo import RegistryRepo
-from automind.infrastructure.config import favourite_queries, load_yaml
-from automind.infrastructure.db import models as m
-from automind.infrastructure.db.session import sessionmaker
+from automind.shared.infrastructure.config.loader import favourite_queries, load_yaml
+from automind.shared.infrastructure.db import models as m
+from automind.shared.infrastructure.db.session import sessionmaker
 from tests.fakes.fake_llm import FakeLLM
 from tests.fakes.fixture_search import FixtureSearch
 

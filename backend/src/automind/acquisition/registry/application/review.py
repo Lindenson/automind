@@ -20,10 +20,10 @@ from automind.acquisition.registry.application.admission import admit_pending
 from automind.acquisition.registry.domain import limits
 from automind.acquisition.registry.domain.lifecycle import CapState, transition
 from automind.acquisition.registry.infrastructure.repo import RegistryRepo, _decay, _refresh
-from automind.infrastructure.config import load_yaml
-from automind.infrastructure.db.models import CapabilityRow, RegistryChange, RegistryRun, SourceRow, now
-from automind.infrastructure.db.session import sessionmaker
-from automind.insight.metrics import prom
+from automind.observability.metrics import prom
+from automind.shared.infrastructure.config.loader import load_yaml
+from automind.shared.infrastructure.db.models import CapabilityRow, RegistryChange, RegistryRun, SourceRow, now
+from automind.shared.infrastructure.db.session import sessionmaker
 
 log = logging.getLogger(__name__)
 TOP_RANKS = 10  # re-ordering is journalled for the first ranks of each kind of data

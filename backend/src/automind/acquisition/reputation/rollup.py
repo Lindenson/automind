@@ -21,8 +21,8 @@ from sqlalchemy import text, update
 from sqlalchemy.dialects.postgresql import insert
 
 from automind.acquisition.reputation import components
-from automind.infrastructure.config import load_yaml
-from automind.infrastructure.db import AcqDaily, CapabilityRow, sessionmaker
+from automind.shared.infrastructure.config.loader import load_yaml
+from automind.shared.infrastructure.db import AcqDaily, CapabilityRow, sessionmaker
 
 log = logging.getLogger(__name__)
 ANY_MARKET = "*"

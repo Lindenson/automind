@@ -20,7 +20,7 @@ from sqlalchemy import select
 
 from automind.acquisition.domain.physics import Point, fit_envelope
 from automind.acquisition.gold import repo as gold_repo
-from automind.infrastructure.db import SpecValue, Variant, sessionmaker
+from automind.shared.infrastructure.db import SpecValue, Variant, sessionmaker
 
 REFERENCE = Path(__file__).resolve().parents[4] / "eval" / "reference_vehicles.yaml"
 GOLD_REL = 0.03  # power and mass must agree with gold this closely for a catalogue point

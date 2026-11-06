@@ -6,7 +6,16 @@ include_external_packages = True
 name = Domain is pure (constitution V)
 type = forbidden
 source_modules =
-    automind.domain
+    automind.chat.domain
+    automind.shared.vehicle.identity
+    automind.shared.vehicle.specs
+    automind.shared.vehicle.units
+    automind.shared.evidence
+    automind.shared.research_order
+    automind.acquisition.domain.plausibility
+    automind.acquisition.domain.sense_ev
+    automind.acquisition.domain.relevance
+    automind.observability.domain.outcome
 forbidden_modules =
     langgraph
     langchain
@@ -19,45 +28,59 @@ forbidden_modules =
     httpx
     tavily
     mcp
-    automind.application
-    automind.orchestration
-    automind.infrastructure
-    automind.api
+    automind.chat.application
+    automind.shared.metering
+    automind.shared.vehicle.makes
+    automind.chat.dialog
+    automind.shared.infrastructure
+    automind.chat.infrastructure
+    automind.acquisition.infrastructure.search
+    automind.acquisition.infrastructure.retention
+    automind.acquisition.infrastructure.overrides
+    automind.observability.infrastructure.outcomes
+    automind.delivery.web
 
 [importlinter:contract:application-ports]
 name = Application depends only on domain and ports
 type = forbidden
 source_modules =
-    automind.application
+    automind.chat.application
+    automind.shared.metering
+    automind.shared.vehicle.makes
 forbidden_modules =
-    automind.orchestration
-    automind.api
-    automind.infrastructure
+    automind.chat.dialog
+    automind.delivery.web
+    automind.shared.infrastructure
+    automind.chat.infrastructure
+    automind.acquisition.infrastructure.search
+    automind.acquisition.infrastructure.retention
+    automind.acquisition.infrastructure.overrides
+    automind.observability.infrastructure.outcomes
     langgraph
     fastapi
     sqlalchemy
 # Legacy demo services still use the DB directly. New application code goes through ports
-# (application/ports.py). Remove these lines as each module is moved behind a port.
+# (chat/application/ports.py). Remove these lines as each module is moved behind a port.
 ignore_imports =
-    automind.application.compose -> automind.infrastructure.**
-    automind.application.compose -> sqlalchemy
-    automind.application.resolve -> automind.infrastructure.**
-    automind.application.resolve -> sqlalchemy
+    automind.chat.application.services.report.compose -> automind.shared.infrastructure.**
+    automind.chat.application.services.report.compose -> sqlalchemy
+    automind.chat.application.services.identification.resolve -> automind.shared.infrastructure.**
+    automind.chat.application.services.identification.resolve -> sqlalchemy
     # one-off data repair after the 004 verification fixes; uses the research persistence directly
-    automind.application.repair -> automind.infrastructure.**
-    automind.application.repair -> sqlalchemy
-    automind.application.challenge -> automind.infrastructure.**
-    automind.application.challenge -> sqlalchemy
+    automind.chat.application.maintenance.repair -> automind.shared.infrastructure.**
+    automind.chat.application.maintenance.repair -> sqlalchemy
+    automind.chat.application.usecases.challenge -> automind.shared.infrastructure.**
+    automind.chat.application.usecases.challenge -> sqlalchemy
     # spec 005: the brand line-up cache (brand_lineups), like resolve
-    automind.application.lineup -> automind.infrastructure.**
-    automind.application.lineup -> sqlalchemy
+    automind.chat.application.services.identification.lineup -> automind.shared.infrastructure.**
+    automind.chat.application.services.identification.lineup -> sqlalchemy
 
 # --- spec 010 -------------------------------------------------------------------------------------
 [importlinter:contract:insight-domain-pure]
 name = Insight domain is pure (spec 010, constitution V)
 type = forbidden
 source_modules =
-    automind.insight.domain
+    automind.observability.domain
 forbidden_modules =
     langgraph
     langchain
@@ -66,13 +89,20 @@ forbidden_modules =
     sqlalchemy
     httpx
     prometheus_client
-    automind.application
-    automind.orchestration
-    automind.infrastructure
-    automind.api
-    automind.insight.application
-    automind.insight.infrastructure
-    automind.insight.metrics
+    automind.chat.application
+    automind.shared.metering
+    automind.shared.vehicle.makes
+    automind.chat.dialog
+    automind.shared.infrastructure
+    automind.chat.infrastructure
+    automind.acquisition.infrastructure.search
+    automind.acquisition.infrastructure.retention
+    automind.acquisition.infrastructure.overrides
+    automind.observability.infrastructure.outcomes
+    automind.delivery.web
+    automind.observability.application
+    automind.observability.infrastructure
+    automind.observability.metrics
 
 [importlinter:contract:registry-domain-pure]
 name = Registry domain is pure (spec 010)
@@ -87,10 +117,17 @@ forbidden_modules =
     sqlalchemy
     httpx
     prometheus_client
-    automind.application
-    automind.orchestration
-    automind.infrastructure
-    automind.api
+    automind.chat.application
+    automind.shared.metering
+    automind.shared.vehicle.makes
+    automind.chat.dialog
+    automind.shared.infrastructure
+    automind.chat.infrastructure
+    automind.acquisition.infrastructure.search
+    automind.acquisition.infrastructure.retention
+    automind.acquisition.infrastructure.overrides
+    automind.observability.infrastructure.outcomes
+    automind.delivery.web
     automind.acquisition.registry.application
     automind.acquisition.registry.infrastructure
 
@@ -98,9 +135,20 @@ forbidden_modules =
 name = The chat cycle uses the registry only through acquisition.registry.api (spec 010)
 type = forbidden
 source_modules =
-    automind.application
-    automind.orchestration
-    automind.domain
+    automind.chat.application
+    automind.shared.metering
+    automind.shared.vehicle.makes
+    automind.chat.dialog
+    automind.chat.domain
+    automind.shared.vehicle.identity
+    automind.shared.vehicle.specs
+    automind.shared.vehicle.units
+    automind.shared.evidence
+    automind.shared.research_order
+    automind.acquisition.domain.plausibility
+    automind.acquisition.domain.sense_ev
+    automind.acquisition.domain.relevance
+    automind.observability.domain.outcome
 forbidden_modules =
     automind.acquisition.registry.domain
     automind.acquisition.registry.application
@@ -113,12 +161,12 @@ type = forbidden
 source_modules =
     automind.acquisition
 forbidden_modules =
-    automind.orchestration
-    automind.api
-    automind.domain.casefile
-    automind.insight.domain
-    automind.insight.application
-    automind.insight.infrastructure
+    automind.chat.dialog
+    automind.delivery.web
+    automind.chat.domain.case.casefile
+    automind.observability.domain
+    automind.observability.application
+    automind.observability.infrastructure
 # direct imports only: the shared infrastructure (config loader, adapters) reaches everything
 allow_indirect_imports = True
 
@@ -126,10 +174,10 @@ allow_indirect_imports = True
 name = Insight does not depend on the chat graph or registry internals (spec 010)
 type = forbidden
 source_modules =
-    automind.insight
+    automind.observability
 forbidden_modules =
-    automind.orchestration
-    automind.api
+    automind.chat.dialog
+    automind.delivery.web
     automind.acquisition.registry.application
     automind.acquisition.registry.infrastructure
 allow_indirect_imports = True
@@ -156,20 +204,38 @@ forbidden_modules =
     sqlalchemy
     httpx
     prometheus_client
-    automind.application
-    automind.orchestration
-    automind.infrastructure
-    automind.api
+    automind.chat.application
+    automind.shared.metering
+    automind.shared.vehicle.makes
+    automind.chat.dialog
+    automind.shared.infrastructure
+    automind.chat.infrastructure
+    automind.acquisition.infrastructure.search
+    automind.acquisition.infrastructure.retention
+    automind.acquisition.infrastructure.overrides
+    automind.observability.infrastructure.outcomes
+    automind.delivery.web
 
 [importlinter:contract:chat-uses-acquire-only]
 name = The chat orders data only through acquisition.api (spec 011 FR-005, FR-006, constitution XIII)
 type = forbidden
 source_modules =
-    automind.application
-    automind.orchestration
-    automind.domain
+    automind.chat.application
+    automind.shared.metering
+    automind.shared.vehicle.makes
+    automind.chat.dialog
+    automind.chat.domain
+    automind.shared.vehicle.identity
+    automind.shared.vehicle.specs
+    automind.shared.vehicle.units
+    automind.shared.evidence
+    automind.shared.research_order
+    automind.acquisition.domain.plausibility
+    automind.acquisition.domain.sense_ev
+    automind.acquisition.domain.relevance
+    automind.observability.domain.outcome
 forbidden_modules =
-    automind.infrastructure.search
+    automind.acquisition.infrastructure.search
     automind.acquisition.agents
     automind.acquisition.domain
     automind.acquisition.drift
@@ -195,7 +261,7 @@ allow_indirect_imports = True
 name = The web API reaches the acquisition engine only through its facades (spec 011 T113)
 type = forbidden
 source_modules =
-    automind.api
+    automind.delivery.web
 # allowed: automind.acquisition.api (the chat's order), automind.acquisition.admin_api (the admin page) and the 010
 # registry modules the API already uses: registry.api (ws), registry.application.seed (app), registry.domain.model
 # and registry.domain.seed_rules (admin)
@@ -227,5 +293,9 @@ forbidden_modules =
     automind.acquisition.registry.domain.limits
     automind.acquisition.registry.domain.score
     automind.acquisition.registry.infrastructure
+# the composition root starts the search/page cache retention loop (it was infrastructure/retention.py before
+# spec 012 moved it into the engine); the loop moves to the worker in S12, then this line goes
+ignore_imports =
+    automind.delivery.web.app -> automind.acquisition.infrastructure.retention
 # direct imports, no ignore_imports: the facades themselves reach the engine
 allow_indirect_imports = True

@@ -6,8 +6,8 @@ from types import SimpleNamespace
 from automind.acquisition.api import VersionEntry as _V
 from automind.acquisition.api import VersionsOut
 from automind.acquisition.engine import Engine
-from automind.application import versions
-from automind.infrastructure.config import load_yaml
+from automind.chat.application.services.identification import versions
+from automind.shared.infrastructure.config.loader import load_yaml
 
 INTAKE = load_yaml("search.yaml")["intake"]
 
@@ -150,7 +150,7 @@ def test_range_pages_first_one_version_pages_last() -> None:
 
 
 async def test_a_cached_list_that_does_not_cover_the_year_is_completed_for_it() -> None:
-    from automind.domain.ladder import Generation, Version
+    from automind.chat.domain.identification.ladder import Generation, Version
 
     old = [
         Version(f"2.0 TDI {cv} CV", "diesel", 1968, kw, years_from=2015, years_to=2018, source_url="u")

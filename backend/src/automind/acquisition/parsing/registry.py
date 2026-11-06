@@ -24,8 +24,9 @@ from typing import Any
 from automind.acquisition.domain import drift
 from automind.acquisition.parsing import fingerprint, interpreter
 from automind.acquisition.parsing.spec import ParserSpec
-from automind.application.ports import Page, ReadingRow, SiteReading
-from automind.domain.evidence import domain_of
+from automind.shared.contracts.site_readers import ReadingRow, SiteReading
+from automind.shared.contracts.web import Page
+from automind.shared.evidence.evidence import domain_of
 
 log = logging.getLogger(__name__)
 REFRESH_S = 60.0
@@ -91,7 +92,8 @@ class ParserRegistry:
 
     @classmethod
     def live_registry(cls) -> ParserRegistry:
-        from automind.infrastructure.config import acquisition_config, favourites  # noqa: PLC0415
+        from automind.acquisition.infrastructure.config import acquisition_config
+        from automind.shared.infrastructure.config.loader import favourites  # noqa: PLC0415
 
         cfg = drift.DriftConfig.from_mapping(acquisition_config().get("drift"))
         return cls.from_yaml(favourites(), live=True, cfg=cfg)
@@ -180,7 +182,7 @@ class ParserRegistry:
             return
         from sqlalchemy.dialects.postgresql import insert  # noqa: PLC0415
 
-        from automind.infrastructure.db import SiteReaderStat, sessionmaker  # noqa: PLC0415
+        from automind.shared.infrastructure.db import SiteReaderStat, sessionmaker  # noqa: PLC0415
 
         pending, self.stats = self.stats, {}
         async with sessionmaker()() as s:
@@ -197,7 +199,7 @@ class ParserRegistry:
             return
         from sqlalchemy import update  # noqa: PLC0415
 
-        from automind.infrastructure.db import PageSnapshot, sessionmaker  # noqa: PLC0415
+        from automind.shared.infrastructure.db import PageSnapshot, sessionmaker  # noqa: PLC0415
 
         pending, self.snapshots = self.snapshots, {}
         async with sessionmaker()() as s:
@@ -205,7 +207,7 @@ class ParserRegistry:
                 await s.execute(update(PageSnapshot).where(PageSnapshot.id == sid)
                                 .values(structure_hash=h, parser_version=key))  # fmt: skip
             await s.commit()
-        from automind.infrastructure import overrides  # noqa: PLC0415
+        from automind.acquisition.infrastructure import overrides  # noqa: PLC0415
 
         if overrides.in_shadow("parser") or overrides.in_shadow("rule"):  # spec 011 T102: feed the shadow gate
             from automind.acquisition.gates import shadow  # noqa: PLC0415

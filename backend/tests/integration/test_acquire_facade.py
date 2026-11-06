@@ -11,9 +11,9 @@ from automind.acquisition import api as acquisition
 from automind.acquisition.parsing.registry import ParserRegistry
 from automind.acquisition.registry.application.service import RegistryService
 from automind.acquisition.registry.infrastructure.repo import RegistryRepo
-from automind.infrastructure import db
-from automind.infrastructure.config import load_yaml
-from automind.infrastructure.db import models as m
+from automind.shared.infrastructure import db
+from automind.shared.infrastructure.config.loader import load_yaml
+from automind.shared.infrastructure.db import models as m
 
 KM77 = {"domain": "km77.com", "source_type": "SPEC_DATABASE", "areas": ["specs"], "markets": ["ES"], "priority": 1,
         "reader": "km77", "tos_checked": "2026-11-02"}  # fmt: skip

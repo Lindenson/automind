@@ -2,7 +2,7 @@
 
 import pytest
 
-from automind.domain.cost import AreaAverage, CostPrices, estimate
+from automind.chat.domain.cost.turn_cost import AreaAverage, CostPrices, estimate
 
 PRICES = CostPrices(eur_per_m_in=2.3, eur_per_m_out=13.8, eur_per_search=0.0148)
 AVG = {"specs": AreaAverage(llm_in=20_000, llm_out=1_500, searches=3)}

@@ -33,7 +33,7 @@ from automind.acquisition.parsing.spec import ParserSpec, norm_label
 
 log = logging.getLogger(__name__)
 AGENT = ROLE = "parser_doctor"
-PROMPT = Path(__file__).resolve().parents[2] / "orchestration" / "prompts" / "parser_doctor.md"
+PROMPT = Path(__file__).resolve().parents[2] / "chat" / "dialog" / "prompts" / "parser_doctor.md"
 EST_EUR = 0.005  # one draft: ~4,000 input + 1,000 output tokens of a flash model
 MAX_DRAFTS = 3
 SAMPLE_PAGES = 3
@@ -49,7 +49,7 @@ class LLM(Protocol):
 
 class GatewayLLM:
     async def structured(self, role: str, schema: type[T], system: str, user: str) -> T:
-        from automind.infrastructure import llm_gateway  # noqa: PLC0415
+        from automind.shared.infrastructure.llm import gateway as llm_gateway  # noqa: PLC0415
 
         return await llm_gateway.structured(role, schema, system, user)
 
@@ -319,8 +319,8 @@ async def _drift_facts(version_key: str, change_id: str | None) -> dict[str, Any
     """The drift journal row's day and reason, and the first day of the window with the new structure."""
     from sqlalchemy import select  # noqa: PLC0415
 
-    from automind.infrastructure.config import acquisition_config  # noqa: PLC0415
-    from automind.infrastructure.db import AcqChange, ParserDaily, sessionmaker  # noqa: PLC0415
+    from automind.acquisition.infrastructure.config import acquisition_config  # noqa: PLC0415
+    from automind.shared.infrastructure.db import AcqChange, ParserDaily, sessionmaker  # noqa: PLC0415
 
     async with sessionmaker()() as s:
         ch = await s.get(AcqChange, change_id) if change_id else None
@@ -411,7 +411,7 @@ async def sweep() -> dict[str, Any]:
     from sqlalchemy import text  # noqa: PLC0415
 
     from automind.acquisition.worker import queue  # noqa: PLC0415
-    from automind.infrastructure.db import sessionmaker  # noqa: PLC0415
+    from automind.shared.infrastructure.db import sessionmaker  # noqa: PLC0415
 
     q = text(
         "SELECT s.domain FROM sources s WHERE s.source_type = 'SPEC_DATABASE' AND s.access = 'ok' AND NOT s.frozen "

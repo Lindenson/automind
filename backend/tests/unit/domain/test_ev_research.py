@@ -1,7 +1,8 @@
 """Research for electric facts (spec 006 FR-009, R10): extra queries and the energy-input minimum."""
 
-from automind.domain import research_plan, search_plan
-from automind.domain.search_plan import Identity, PlannedQuery
+from automind.shared.research_order import plan as research_plan
+from automind.shared.research_order import search_plan
+from automind.shared.research_order.search_plan import Identity, PlannedQuery
 
 CAR = Identity("BYD", "Seal U", None, "DM-i 1.5 Boost")
 TPL = {"specs_ev": "{short} autonomía kWh {sites}", "specs_cs": "{short} batería descargada {sites}",
@@ -30,7 +31,7 @@ def test_energy_inputs_missing():
 
 
 def test_fr022_energy_metrics_are_summed_per_report():
-    from automind.domain.metrics import intake_summary
+    from automind.chat.domain.assessment.metrics import intake_summary
 
     events = [
         ("c1", "ENERGY_REPORT", {"energy_missing": {"a": ["consumption_cs"]}, "weighted_blocked": 5,

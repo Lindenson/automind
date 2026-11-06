@@ -33,7 +33,7 @@ def main(argv: list[str] | None = None) -> int:
 async def check(url: str) -> int:
     import psycopg
 
-    from automind.infrastructure.checkpoint import checkpointer, psycopg_conninfo  # noqa: PLC0415 - path may move
+    from automind.chat.infrastructure.checkpoint import checkpointer, psycopg_conninfo# noqa: PLC0415 - path may move
 
     failures: list[str] = []
     async with await psycopg.AsyncConnection.connect(psycopg_conninfo(url)) as conn:
@@ -73,7 +73,7 @@ async def check(url: str) -> int:
 def _graph_module():  # noqa: ANN202 - the module moves during spec 012
     import importlib
 
-    for name in ("automind.orchestration.graph", "automind.chat.dialog.graph"):
+    for name in ("automind.chat.dialog.graph", "automind.chat.dialog.graph"):
         try:
             return importlib.import_module(name)
         except ImportError:

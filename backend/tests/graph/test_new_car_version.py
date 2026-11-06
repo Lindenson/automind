@@ -15,11 +15,11 @@ from types import SimpleNamespace
 from automind.acquisition.api import VersionEntry as _V
 from automind.acquisition.api import VersionsOut
 from automind.acquisition.engine import Engine
-from automind.application import identify, resolve, versions
-from automind.domain.casefile import CaseCar, CaseFile, Constraints
-from automind.domain.identity import parse_engine
-from automind.infrastructure.config import reference
-from automind.orchestration.prompts import load_all
+from automind.chat.application.services.identification import identify, resolve, versions
+from automind.chat.dialog.prompts import load_all
+from automind.chat.domain.case.casefile import CaseCar, CaseFile, Constraints
+from automind.shared.infrastructure.config.loader import reference
+from automind.shared.vehicle.identity import parse_engine
 
 NOW = 2026
 RANGE_2026 = "https://www.km77.com/coches/firstkia/sorento/2026/gama"
@@ -110,7 +110,7 @@ async def test_new_sorento_phev_identified_from_the_current_range_not_an_old_row
 
 
 async def _rows(make: str, rows: list[tuple[str, str, int, int]]) -> None:
-    from automind.infrastructure import db
+    from automind.shared.infrastructure import db
 
     await db.init_db()
     for name, gen, since, kw in rows:

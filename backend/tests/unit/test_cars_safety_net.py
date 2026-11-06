@@ -6,11 +6,11 @@ from pathlib import Path
 import pytest
 import yaml
 
-from automind.application.interpret import Interpretation
-from automind.application.makes import MakeRegistry
-from automind.domain.casefile import CaseFile
-from automind.domain.intake import cars_in_text
-from automind.orchestration.nodes.understand import _cars_safety_net
+from automind.chat.application.services.interpretation.interpret import Interpretation
+from automind.chat.dialog.nodes.understand import _cars_safety_net
+from automind.chat.domain.case.casefile import CaseFile
+from automind.chat.domain.intake.intake import cars_in_text
+from automind.shared.vehicle.makes import MakeRegistry
 
 REG = MakeRegistry.from_config(yaml.safe_load((Path(__file__).parents[2] / "config" / "makes.yaml").read_text()))
 TEXT = "Сравни BYD Seal U DM-i и SEAT Ateca 1.5 TSI DSG. Семья, юг Испании (Малага), 12–24 тысячи км в год, новые."
@@ -53,7 +53,7 @@ def test_compare_without_cars_gets_them_from_the_words():
 
 
 def test_context_for_a_car_added_in_the_same_message_is_folded_in():
-    from automind.application.interpret import _check, _fold_new_car_context
+    from automind.chat.application.services.interpretation.interpret import _check, _fold_new_car_context
 
     i = Interpretation.model_validate({"request": "compare", "language": "ru", "delta": {
         "add_cars": [{"request_text": "BYD Seal U DM-i", "make": "BYD", "model": "Seal U"},

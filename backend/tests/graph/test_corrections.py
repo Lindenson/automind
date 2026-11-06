@@ -5,11 +5,11 @@ with the engines that do (chat 5be54966: "Ateca 1.5, you wrote 1.0" was ignored)
 
 import uuid
 
-from automind.application.interpret import Interpretation, engine_hints
-from automind.infrastructure import db
-from automind.infrastructure.db.repositories import MessageRepo
-from automind.orchestration.graph import build_graph
-from automind.orchestration.runner import ChatRunner
+from automind.chat.application.services.interpretation.interpret import Interpretation, engine_hints
+from automind.chat.dialog.graph import build_graph
+from automind.chat.dialog.runner import ChatRunner
+from automind.chat.infrastructure.persistence.repositories import MessageRepo
+from automind.shared.infrastructure import db
 from tests.fakes.fake_llm import FakeLLM, FixedEstimator
 from tests.fakes.fixture_search import FixtureSearch
 

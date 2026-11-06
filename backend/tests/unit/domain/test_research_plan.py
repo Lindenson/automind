@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from automind.domain.research_plan import (
+from automind.shared.research_order.plan import (
     FRESHNESS_DAYS,
     ROUNDS,
     CarToPlan,
@@ -111,7 +111,7 @@ def test_gaps_only_for_unmet_areas_within_rounds():
 
 
 def test_plan_key_identifies_the_same_research():
-    from automind.domain.research_plan import plan_key
+    from automind.shared.research_order.plan import plan_key
 
     a = plan([car()], persona="BUYER", criteria=[], depth="STANDARD", last_done={}, now=NOW)
     b = plan([car()], persona="BUYER", criteria=[], depth="DEEP", last_done={}, now=NOW)

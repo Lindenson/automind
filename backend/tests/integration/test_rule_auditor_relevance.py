@@ -19,13 +19,14 @@ from tests.fakes.fake_llm import FakeLLM
 
 from automind.acquisition.agents import rule_auditor
 from automind.acquisition.agents.levers import RuleProposal
+from automind.acquisition.domain import relevance as rel
 from automind.acquisition.gates import journal, replay_gate, shadow
 from automind.acquisition.gold import repo
 from automind.acquisition.gold.domain.match import GoldValue
+from automind.acquisition.infrastructure import overrides
 from automind.acquisition.parsing import migrate_v1
 from automind.acquisition.snapshots import store
-from automind.domain import relevance as rel
-from automind.infrastructure import db, overrides
+from automind.shared.infrastructure import db
 
 FIX = Path(__file__).resolve().parents[1] / "fixtures" / "html" / "km77_three"
 HTML = {c: (FIX / f"car_{c}.html").read_text(encoding="utf-8") for c in "abc"}

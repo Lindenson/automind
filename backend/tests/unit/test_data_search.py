@@ -9,10 +9,12 @@ from typing import Any
 
 from automind.acquisition.pipeline import persist
 from automind.acquisition.registry.application.service import RegistryService, rank_queryable
-from automind.domain import research_plan, search_plan, used
-from automind.domain.identity import Aliases
-from automind.domain.search_plan import Identity
-from automind.infrastructure import config
+from automind.chat.domain.identification import used
+from automind.shared.infrastructure.config import loader as config
+from automind.shared.research_order import plan as research_plan
+from automind.shared.research_order import search_plan
+from automind.shared.research_order.search_plan import Identity
+from automind.shared.vehicle.identity import Aliases
 
 PRADO_2010 = Identity("Toyota", "Land Cruiser Prado", "J150", "3.0 D-4D 190", "2010")
 SORENTO = Identity("Kia", "Sorento", "MQ4", "1.6 T-GDi PHEV 265 AWD", "2020-")

@@ -11,7 +11,7 @@ import pytest
 from automind.acquisition.parsing import interpreter
 from automind.acquisition.parsing.legacy import read_pairs
 from automind.acquisition.parsing.migrate_v1 import migrate_v1
-from automind.infrastructure.config import load_yaml
+from automind.shared.infrastructure.config.loader import load_yaml
 
 FIX = Path(__file__).resolve().parents[1] / "fixtures" / "html"
 READERS = {k: v for k, v in load_yaml("site_readers.yaml").items() if k != "version"}

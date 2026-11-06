@@ -21,16 +21,16 @@ from sqlalchemy import update
 from automind.acquisition.agents.budget import AgentBudget
 from automind.acquisition.domain import gates, relevance_audit
 from automind.acquisition.gates import evaluate, journal, relevance_replay
+from automind.acquisition.infrastructure import config as acq_config
 from automind.acquisition.snapshots import codec
-from automind.infrastructure import config
-from automind.infrastructure.db import AcqChange, AcqExperiment, PageSnapshot, ParserVersion, sessionmaker
+from automind.shared.infrastructure.db import AcqChange, AcqExperiment, PageSnapshot, ParserVersion, sessionmaker
 
 log = logging.getLogger(__name__)
 WINDOW_DAYS = 30
 
 
 def cfg() -> gates.GateConfig:
-    return gates.GateConfig.from_mapping(config.agents_config())
+    return gates.GateConfig.from_mapping(acq_config.agents_config())
 
 
 def _dt(v: Any) -> datetime | None:
@@ -60,7 +60,7 @@ async def corpus(c: AcqChange, now: datetime | None = None) -> list[Any]:
     as_of = _dt(ev.get("as_of")) or now
     waited = max(0.0, (now - c.created_at).total_seconds() / 86400) if c.created_at else 0.0
     since, until = as_of - timedelta(days=WINDOW_DAYS), min(now, as_of + timedelta(days=1 + int(waited)))
-    replay_cfg = config.acquisition_config().get("replay") or {}
+    replay_cfg = acq_config.acquisition_config().get("replay") or {}
     if c.object_kind == "parser":
         old, new = await evaluate.spec_of(c.from_version), await evaluate.spec_of(c.to_version)
         from automind.acquisition.parsing import interpreter  # noqa: PLC0415
@@ -100,7 +100,7 @@ async def unpin(ids: list[str]) -> None:
         return
     from sqlalchemy import select, text  # noqa: PLC0415
 
-    rc = config.snapshot_retention()
+    rc = acq_config.snapshot_retention()
     async with sessionmaker()() as s:
         held = {str(x) for (x,) in (await s.execute(text(
             "SELECT DISTINCT unnest(corpus) FROM acq_experiments WHERE decided_at IS NULL AND corpus && :ids"),
@@ -176,7 +176,7 @@ async def run(change_id: str, *, llm: Any = None, guard: AgentBudget | None = No
             exp.pages_old = exp.pages_new = 0
             exp.metrics_old, exp.metrics_new = None, None
             await s.commit()
-        from automind.infrastructure import overrides  # noqa: PLC0415
+        from automind.acquisition.infrastructure import overrides  # noqa: PLC0415
 
         await overrides.refresh(force=True)  # live readers of this process start feeding the shadow at once
     elif verdict.verdict == "fail":

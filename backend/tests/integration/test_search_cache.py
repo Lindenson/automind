@@ -5,11 +5,11 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from sqlalchemy import delete, select
 
-from automind.application.ports import SearchHit
-from automind.application.usage import Limits, Prices, TurnBudget, current_budget
-from automind.infrastructure import db
-from automind.infrastructure.search import SearchUnavailable
-from automind.infrastructure.search.cache import CachedSearcher, cache_key
+from automind.acquisition.infrastructure.search import SearchUnavailable
+from automind.acquisition.infrastructure.search.cache import CachedSearcher, cache_key
+from automind.shared.contracts.web import SearchHit
+from automind.shared.infrastructure import db
+from automind.shared.metering.usage import Limits, Prices, TurnBudget, current_budget
 
 CFG = {"num": 10, "markets": {"ES": {"gl": "es", "hl": "es"}}, "cache_ttl_days": {"default": 7, "price": 3}}
 PRICES = Prices(llm={}, default_llm=(1, 1), eur_per_credit=0.0074, credits={"search_advanced": 2},
@@ -33,7 +33,7 @@ HITS = [SearchHit("https://www.km77.com/a", "A", "s", 1), SearchHit("https://www
 @pytest.fixture
 async def clean(monkeypatch):
     await db.init_db()
-    monkeypatch.setattr("automind.infrastructure.search.cache.prices", lambda: PRICES)
+    monkeypatch.setattr("automind.acquisition.infrastructure.search.cache.prices", lambda: PRICES)
     async with db.sessionmaker()() as s:
         await s.execute(delete(db.SearchCache).where(db.SearchCache.query.like("cachetest%")))
         await s.execute(delete(db.SearchCall).where(db.SearchCall.turn_id == "cachetest-turn"))

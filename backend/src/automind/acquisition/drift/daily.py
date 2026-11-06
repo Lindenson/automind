@@ -22,12 +22,12 @@ from sqlalchemy import select, text
 from sqlalchemy.dialects.postgresql import insert
 
 from automind.acquisition.domain import drift
+from automind.acquisition.infrastructure import config as acq_config
 from automind.acquisition.parsing import fingerprint, interpreter
 from automind.acquisition.parsing import store as parsers
 from automind.acquisition.parsing.spec import ParserSpec
 from automind.acquisition.snapshots import store as snapshots
-from automind.infrastructure import config
-from automind.infrastructure.db import ParserDaily, sessionmaker
+from automind.shared.infrastructure.db import ParserDaily, sessionmaker
 
 log = logging.getLogger(__name__)
 WINDOW_DAYS = 37  # 7 recent days + the 30-day baseline before them (domain/drift.py)
@@ -35,7 +35,7 @@ REFERENCE_DAYS = 30
 
 
 def _cfg() -> drift.DriftConfig:
-    return drift.DriftConfig.from_mapping(config.acquisition_config().get("drift"))
+    return drift.DriftConfig.from_mapping(acq_config.acquisition_config().get("drift"))
 
 
 def _bounds(day: date) -> tuple[datetime, datetime]:

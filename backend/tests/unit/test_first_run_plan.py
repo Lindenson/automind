@@ -4,7 +4,7 @@ escalated, whatever the 12-hour retry window says; once tried, it waits for the 
 
 from datetime import UTC, datetime, timedelta
 
-from automind.domain import research_plan as rp
+from automind.shared.research_order import plan as rp
 
 NOW = datetime(2026, 11, 5, 12, tzinfo=UTC)
 CAR = rp.CarToPlan(key="car#1", variant_id="v1", condition="NEW")

@@ -7,12 +7,13 @@ from dataclasses import dataclass
 from automind.acquisition.api import LineupEntry, WebHint
 from automind.acquisition.pipeline import identity as readers
 from automind.acquisition.registry.api import PlannedSource
-from automind.application import lineup
-from automind.application.makes import MakeRegistry
-from automind.domain import identity, intake
-from automind.domain.casefile import CaseCar
-from automind.infrastructure.config import load_yaml, search_config
-from automind.orchestration.phrases import PHRASES, market_name, t
+from automind.chat.application.services.identification import lineup
+from automind.chat.dialog.phrases import PHRASES, market_name, t
+from automind.chat.domain.case.casefile import CaseCar
+from automind.chat.domain.intake import intake
+from automind.shared.infrastructure.config.loader import load_yaml, search_config
+from automind.shared.vehicle import identity
+from automind.shared.vehicle.makes import MakeRegistry
 
 REG = MakeRegistry.from_config(load_yaml("makes.yaml"))
 

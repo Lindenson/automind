@@ -15,10 +15,10 @@ from sqlalchemy import or_, select, text
 
 from automind.acquisition.registry.domain.admission import Admission, admit
 from automind.acquisition.registry.infrastructure import terms
-from automind.infrastructure.config import load_yaml
-from automind.infrastructure.db.models import CapabilityRow, RegistryChange, SourceRow, now
-from automind.infrastructure.db.session import sessionmaker
-from automind.insight.metrics import prom
+from automind.observability.metrics import prom
+from automind.shared.infrastructure.config.loader import load_yaml
+from automind.shared.infrastructure.db.models import CapabilityRow, RegistryChange, SourceRow, now
+from automind.shared.infrastructure.db.session import sessionmaker
 
 log = logging.getLogger(__name__)
 PER_RUN = 10

@@ -4,11 +4,11 @@ import json
 import time
 from pathlib import Path
 
-from automind.api.rest import CasePatch, apply_patch
-from automind.domain.casefile import CaseFile
-from automind.infrastructure.db.repositories import CaseRepo, MessageRepo
-from automind.orchestration.graph import build_graph
-from automind.orchestration.runner import ChatRunner
+from automind.chat.dialog.graph import build_graph
+from automind.chat.dialog.runner import ChatRunner
+from automind.chat.domain.case.casefile import CaseFile
+from automind.chat.infrastructure.persistence.repositories import CaseRepo, MessageRepo
+from automind.delivery.web.rest import CasePatch, apply_patch
 from tests.fakes.fake_llm import FakeLLM
 from tests.fakes.fixture_search import FixtureSearch
 from tests.golden.runner import load, seed

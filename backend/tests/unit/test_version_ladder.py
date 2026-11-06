@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from automind.domain import ladder
-from automind.domain.identity import parse_engine
-from automind.domain.ladder import Version, Wanted
+from automind.chat.domain.identification import ladder
+from automind.chat.domain.identification.ladder import Version, Wanted
+from automind.shared.vehicle.identity import parse_engine
 
 OCTAVIA = [  # Skoda Octavia NX on sale (source order: base first)
     Version("1.0 TSI 115 CV", "petrol", 999, 85, ("manual",), ("FWD",), 2020, None),

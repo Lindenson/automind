@@ -8,8 +8,8 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from automind.config import settings
-from automind.infrastructure.db.models import Base
+from automind.shared.infrastructure.config.settings import settings
+from automind.shared.infrastructure.db.models import Base
 
 config = context.config
 if config.config_file_name is not None and config.attributes.get("configure_logger", True):

@@ -2,9 +2,9 @@
 
 import pytest
 
-from automind.domain import evidence
-from automind.domain.evidence import ClaimIn
-from automind.orchestration.guard import CheckInput, check_numbers, numbers_in, report_violations
+from automind.chat.dialog.guard import CheckInput, check_numbers, numbers_in, report_violations
+from automind.shared.evidence import evidence
+from automind.shared.evidence.evidence import ClaimIn
 
 GOLF_PAGE = "Golf 1.0 TSI 110 CV, ficha técnica. " + "Texto de relleno sin cifras. " * 220 + "Peso: 1.500 kg."
 

@@ -7,7 +7,7 @@ from pathlib import Path
 from automind.acquisition.parsing import registry
 from automind.acquisition.parsing.registry import ParserRegistry
 from automind.acquisition.pipeline import stamp
-from automind.application.ports import Page
+from automind.shared.contracts.web import Page
 
 FIX = Path(__file__).resolve().parents[1] / "fixtures" / "html"
 KM77 = (FIX / "km77_bmw_520d_g30.html").read_text(encoding="utf-8")

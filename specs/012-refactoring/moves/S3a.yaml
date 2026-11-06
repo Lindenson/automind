@@ -1,0 +1,81 @@
+# Spec 012 S3a: every module to its area as a whole file (data-model.md). Order matters: submodules that leave a
+# package are listed before the package itself.
+moves:
+  # --- whole packages first (a later module move into them must not create the directory before) -----------------
+  automind.insight: automind.observability
+  automind.orchestration: automind.chat.dialog
+  automind.api: automind.delivery.web
+  automind.domain.outcome: automind.observability.domain.outcome
+  automind.infrastructure.db.outcomes: automind.observability.infrastructure.outcomes
+  automind.domain.policy: automind.chat.domain.policy  # into chat.dialog in S6 (the application imports it today)
+  # --- shared kernel ---------------------------------------------------------------------------------------------
+  automind.domain.identity: automind.shared.vehicle.identity
+  automind.domain.specs: automind.shared.vehicle.specs
+  automind.domain.units: automind.shared.vehicle.units
+  automind.application.makes: automind.shared.vehicle.makes
+  automind.domain.evidence: automind.shared.evidence.evidence
+  automind.domain.sense: automind.shared.evidence.sense
+  automind.domain.research_plan: automind.shared.research_order.plan
+  automind.domain.search_plan: automind.shared.research_order.search_plan
+  automind.application.usage: automind.shared.metering.usage
+  automind.config: automind.shared.infrastructure.config.settings
+  automind.infrastructure.config: automind.shared.infrastructure.config.loader
+  automind.infrastructure.llm_gateway: automind.shared.infrastructure.llm.gateway
+  automind.infrastructure.usage_callback: automind.shared.infrastructure.llm.usage_callback
+  automind.infrastructure.db.repositories: automind.chat.infrastructure.persistence.repositories
+  automind.infrastructure.db: automind.shared.infrastructure.db
+  # --- acquisition engine ----------------------------------------------------------------------------------------
+  automind.domain.plausibility: automind.acquisition.domain.plausibility
+  automind.domain.sense_ev: automind.acquisition.domain.sense_ev
+  automind.domain.relevance: automind.acquisition.domain.relevance
+  automind.infrastructure.search: automind.acquisition.infrastructure.search
+  automind.infrastructure.retention: automind.acquisition.infrastructure.retention
+  automind.infrastructure.overrides: automind.acquisition.infrastructure.overrides
+  # --- observability -----------------------------------------------------------------------------------------------
+  # --- chat: domain ----------------------------------------------------------------------------------------------
+  automind.domain.casefile: automind.chat.domain.case.casefile
+  automind.domain.intake: automind.chat.domain.intake.intake
+  automind.domain.identification: automind.chat.domain.identification.identification
+  automind.domain.ladder: automind.chat.domain.identification.ladder
+  automind.domain.used: automind.chat.domain.identification.used
+  automind.domain.criteria: automind.chat.domain.assessment.criteria
+  automind.domain.weights: automind.chat.domain.assessment.weights
+  automind.domain.metrics: automind.chat.domain.assessment.metrics
+  automind.domain.dragrace: automind.chat.domain.assessment.dragrace
+  automind.domain.feasibility: automind.chat.domain.assessment.feasibility
+  automind.domain.profile_gaps: automind.chat.domain.assessment.profile_gaps
+  automind.domain.ask_value: automind.chat.domain.assessment.ask_value
+  automind.domain.reliability: automind.chat.domain.assessment.reliability
+  automind.domain.reviews: automind.chat.domain.assessment.reviews
+  automind.domain.tco: automind.chat.domain.cost.tco
+  automind.domain.energy: automind.chat.domain.cost.energy
+  automind.domain.incentives: automind.chat.domain.cost.incentives
+  automind.domain.cost: automind.chat.domain.cost.turn_cost
+  automind.domain.verdict: automind.chat.domain.verdict.verdict
+  automind.domain.insights: automind.chat.domain.verdict.insights
+  automind.domain.suggestions: automind.chat.domain.verdict.suggestions
+  automind.domain.report_layout: automind.chat.domain.verdict.report_layout
+  # --- chat: application ------------------------------------------------------------------------------------------
+  automind.application.ports: automind.chat.application.ports
+  automind.application.identify: automind.chat.application.services.identification.identify
+  automind.application.resolve: automind.chat.application.services.identification.resolve
+  automind.application.lineup: automind.chat.application.services.identification.lineup
+  automind.application.versions: automind.chat.application.services.identification.versions
+  automind.application.candidates: automind.chat.application.services.identification.candidates
+  automind.application.compose: automind.chat.application.services.report.compose
+  automind.application.electric_block: automind.chat.application.services.report.electric_block
+  automind.application.car_view: automind.chat.application.services.report.car_view
+  automind.application.intake_card: automind.chat.application.services.report.intake_card
+  automind.application.interpret: automind.chat.application.services.interpretation.interpret
+  automind.application.ask: automind.chat.application.services.interpretation.ask
+  automind.application.feasibility: automind.chat.application.services.feasibility.feasibility
+  automind.application.chats: automind.chat.application.usecases.chats
+  automind.application.challenge: automind.chat.application.usecases.challenge
+  automind.application.repair: automind.chat.application.maintenance.repair
+  # --- chat: infrastructure -----------------------------------------------------------------------------------------
+  automind.infrastructure.events: automind.chat.infrastructure.events
+  automind.infrastructure.adapters: automind.chat.infrastructure.adapters
+  automind.infrastructure.checkpoint: automind.chat.infrastructure.checkpoint
+  automind.infrastructure.models_on_sale: automind.chat.infrastructure.models_on_sale
+  # --- delivery -----------------------------------------------------------------------------------------------------
+  automind.mcp_server: automind.delivery.mcp.server

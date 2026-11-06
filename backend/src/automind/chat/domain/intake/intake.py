@@ -1,0 +1,786 @@
+"""Intake loop (spec 005 R5, R6, R11, R12). Pure and deterministic.
+
+- `identity_key`: what makes a car this car; a change re-identifies it (corrections, FR-013).
+- `progress`: did a reply move the identification forward (a fact changed, or the identify outcome improved)?
+- `next_step`: the next intake step — ASK (≤ 3 items, rephrased when asked before), PROPOSE (after 2 attempts on
+  one item), REMOVE_OR_CHOOSE (after 4 on one car), CARD (everything identified), NONE (card confirmed).
+- `record_asked` / `is_repeat`: the same question (car, item, text) is never sent twice (FR-003).
+- `parse_distance`: "1–2 тыс км в месяц" → 12,000–24,000 km a year (FR-016).
+- `rank_lineup`: 1–3 models of a make that fit the person, with machine reasons (FR-008).
+"""
+
+from __future__ import annotations
+
+import hashlib
+import re
+from collections.abc import Callable, Iterable, Sequence
+from dataclasses import dataclass, field
+from typing import Literal
+
+from automind.chat.domain.case.casefile import CaseCar, CaseFile, Choice, IdentifyKind, IntakeItem
+
+StepKind = Literal["ASK", "PROPOSE", "REMOVE_OR_CHOOSE", "CARD", "NONE"]
+ALL = "*"  # attempts key for questions about every car (CONDITION)
+MAX_ITEMS = 3
+_RANK: dict[str | None, int] = {None: 0, "NEED": 1, "NOT_FOUND": 1, "CHOICES": 2, "IDENTIFIED": 3}
+
+
+@dataclass(frozen=True)
+class Limits:
+    max_attempts_per_item: int = 2
+    max_attempts_per_car: int = 4
+    full_intake: bool = True  # ask new/used for every car and the year of used ones (US4)
+
+
+@dataclass(frozen=True)
+class StepItem:
+    item: IntakeItem
+    car_key: str | None  # None: a question about every car (CONDITION)
+    rephrase: bool = False  # asked before: other words and concrete options
+    choices: tuple[Choice, ...] = ()
+
+
+@dataclass(frozen=True)
+class Step:
+    kind: StepKind
+    items: tuple[StepItem, ...] = ()
+    car_key: str | None = None  # PROPOSE / REMOVE_OR_CHOOSE
+
+
+def identity_key(car: CaseCar) -> tuple[object, ...]:
+    k = car.constraints
+    e = k.engine_hint
+    engine = (e.displacement_l, e.power_kw, e.fuel, (e.family or "").lower()) if e and not e.empty() else None
+    return ((car.make or "").lower(), (car.model or "").lower(), (k.generation_hint or "").lower(), engine,
+            k.gearbox_hint, k.drive_hint, car.year, car.age_years, car.condition, (k.trim_hint or "").lower(),
+            k.fuel_hint, k.url, (k.version_hint or "").lower())  # fmt: skip
+
+
+def progress(before: CaseCar | None, after: CaseCar | None, outcome_before: str | None,
+             outcome_after: str | None) -> bool:  # fmt: skip
+    if before is None or after is None:
+        return True  # a car was added or removed
+    if identity_key(before) != identity_key(after):
+        return True
+    return _RANK.get(outcome_after, 0) > _RANK.get(outcome_before, 0)
+
+
+def _need(car: CaseCar) -> IntakeItem | None:
+    """What is still missing for this car (None: identified)."""
+    o = car.identify
+    if not car.make:
+        return "MAKE"
+    if not car.model:
+        return o.need if o and o.need in ("MODEL", "CHOICE") else "MODEL"
+    if o is None:
+        return None  # not identified yet in this turn (a case before 005, or a 4th car): the policy rules decide
+    outcome: IdentifyKind = o.outcome
+    if outcome == "IDENTIFIED":
+        return None
+    if outcome == "CHOICES":
+        return o.need or "CHOICE"
+    return o.need or "MODEL"
+
+
+def next_step(case: CaseFile, limits: Limits = Limits()) -> Step:  # noqa: B008 - frozen dataclass
+    items: list[StepItem] = []
+    for car in case.cars:
+        item = _need(car)
+        if item is None:
+            continue
+        laddered = car.identify is not None and car.identify.level is not None
+        total = sum(case.intake.attempts.get(car.key, {}).values())
+        if laddered:  # spec 008: a ladder level asked twice is settled by the identify step, never "remove or choose"
+            n = case.intake.attempt(car.key, item)
+            items.append(StepItem(item, car.key, rephrase=n >= 1, choices=tuple(car.identify.choices)))  # type: ignore[union-attr]
+            continue
+        if (
+            total >= limits.max_attempts_per_car
+            or case.intake.attempt(car.key, "CHOICE") >= limits.max_attempts_per_item
+        ):
+            return Step("REMOVE_OR_CHOOSE", car_key=car.key)
+        n = case.intake.attempt(car.key, item)
+        if n >= limits.max_attempts_per_item:
+            return Step("PROPOSE", car_key=car.key)
+        choices = tuple(car.identify.choices) if car.identify else ()
+        items.append(StepItem(item, car.key, rephrase=n >= 1, choices=choices))
+    if limits.full_intake and items:  # asked together with an identity question, never on its own (FR-018)
+        items += _condition_and_year(case, limits)
+    if items:
+        return Step("ASK", tuple(items[:MAX_ITEMS]))
+    if not case.cars or case.intake.card_confirmed:
+        return Step("NONE")
+    return Step("CARD")
+
+
+def _condition_and_year(case: CaseFile, limits: Limits) -> list[StepItem]:
+    """New or used, asked once for every car together; then year (and mileage) of each used car."""
+    n = case.intake.attempt(ALL, "CONDITION")
+    if any(c.condition == "UNKNOWN" for c in case.cars) and n < limits.max_attempts_per_item:
+        return [StepItem("CONDITION", None, rephrase=n >= 1)]
+    out = []
+    for car in case.cars:
+        n = case.intake.attempt(car.key, "YEAR")
+        if car.condition == "USED" and car.year is None and car.age_years is None and n < limits.max_attempts_per_item:
+            out.append(StepItem("YEAR", car.key, rephrase=n >= 1))
+    return out
+
+
+def question_hash(car_key: str | None, item: str, text: str) -> str:
+    norm = " ".join(text.lower().split())
+    return hashlib.sha1(f"{car_key or ALL}|{item}|{norm}".encode()).hexdigest()[:12]
+
+
+def is_repeat(case: CaseFile, car_key: str | None, item: str, text: str) -> bool:
+    return question_hash(car_key, item, text) in case.intake.last_questions
+
+
+def record_asked(case: CaseFile, asked: Iterable[tuple[StepItem, str]]) -> CaseFile:
+    """Remember what was asked: attempts +1 per item, the text hashes (≤ 6, newest last)."""
+    c = case.model_copy(deep=True)
+    for it, text in asked:
+        c.intake.bump(it.car_key or ALL, it.item)
+        c.intake.last_questions = [*c.intake.last_questions, question_hash(it.car_key, it.item, text)][-6:]
+    return c
+
+
+# --- the person: region, new or used (R11) -----------------------------------------------------------------
+
+_NEW = re.compile(r"\b(нов\w*|new|nuev\w*|0 ?km|с нуля|из салона)\b", re.I)
+_USED = re.compile(
+    r"(подержан\w*|\bб/у\b|\bбу\b|с пробегом|\bused\b|second[- ]hand|segunda mano|ocasi[oó]n|seminuev\w*)", re.I
+)
+
+
+def condition_of(text: str | None) -> str | None:
+    """NEW / USED from a short answer ("новые", "б/у", "de segunda mano"); None when the text says neither."""
+    if not text:
+        return None
+    used, new = bool(_USED.search(text)), bool(_NEW.search(text))
+    if used == new:
+        return None
+    return "USED" if used else "NEW"
+
+
+def region_of(text: str | None, regions: dict[str, dict[str, object]]) -> tuple[str, str, str] | None:
+    """(code, climate, the words) of the most specific region named in the text (the longest name wins)."""
+    if not text:
+        return None
+    low = text.lower()
+    best: tuple[int, str, str, str] | None = None
+    for code, info in regions.items():
+        for name in info.get("names") or []:  # type: ignore[attr-defined]
+            n = str(name).lower()
+            if re.search(rf"(?<![\w]){re.escape(n)}(?![\w])", low) and (best is None or len(n) > best[0]):
+                best = (len(n), code, str(info.get("climate")), n)
+    return (best[1], best[2], best[3]) if best else None
+
+
+# --- distances ---------------------------------------------------------------------------------------------
+
+_NUM = r"\d{1,3}(?:[  .]\d{3})+|\d+(?:[.,]\d+)?"
+_DIST = re.compile(
+    rf"({_NUM})(?:\s*[-–—]\s*({_NUM}))?\s*(тыс\w*\.?|k\b|mil\b)?\s*(?:км|km|kil[oó]metr\w*)?\.?\s*"
+    r"(?:в|al|a|per|/|за)\s*(месяц|mes|month|год|año|ano|year)",
+    re.I,
+)
+_PERIOD_MONTH = ("месяц", "mes", "month")
+
+
+def _num(s: str) -> float:
+    s = s.replace(" ", " ").strip()
+    if re.fullmatch(r"\d{1,3}(?:[ .]\d{3})+", s):
+        return float(re.sub(r"[ .]", "", s))
+    return float(s.replace(",", "."))
+
+
+def parse_distance(text: str | None) -> tuple[int, int] | None:
+    """A yearly distance (min, max) in km from the user's words, or None. A mileage without a period is not it."""
+    if not text:
+        return None
+    m = _DIST.search(text)
+    if not m:
+        return None
+    lo = _num(m.group(1))
+    hi = _num(m.group(2)) if m.group(2) else lo
+    mult = 1000.0 if m.group(3) else 1.0
+    per_year = 12.0 if m.group(4).lower() in _PERIOD_MONTH else 1.0
+    a, b = round(lo * mult * per_year), round(hi * mult * per_year)
+    if not (1000 <= a <= 200000 and 1000 <= b <= 200000):
+        return None
+    return (min(a, b), max(a, b))
+
+
+# --- "find the matching model" (R12) -----------------------------------------------------------------------
+
+_FAMILY_BODIES = ("suv", "estate", "mpv", "crossover", "familiar", "monovolumen", "todocamino")
+_SMALL_BODIES = ("city", "hatch", "urbano", "mini")
+
+
+@dataclass(frozen=True)
+class LineupModel:
+    model: str
+    body: str = ""
+    powertrains: tuple[str, ...] = ()  # petrol, diesel, hybrid, mhev, phev, bev
+    price_from_eur: int | None = None
+    source_url: str | None = None
+    country: str | None = None  # a European line-up: the country whose page lists it ("PL"), when its domain says
+
+
+@dataclass(frozen=True)
+class Fit:
+    family: bool = False
+    annual_km: int | None = None
+    priorities: tuple[str, ...] = ()
+    budget_eur: int | None = None
+    reference_price_eur: int | None = None  # price of the other compared car (same segment ± 30 %)
+    reasons_lang: str = "en"
+    extra: dict[str, str] = field(default_factory=dict)
+
+
+def _score(m: LineupModel, fit: Fit) -> tuple[float, list[str]]:
+    score, why = 0.0, []
+    body = m.body.lower()
+    if fit.family:
+        if any(b in body for b in _FAMILY_BODIES):
+            score += 3
+            why.append("family_body")
+        elif any(b in body for b in _SMALL_BODIES):
+            score -= 2
+    km = fit.annual_km or 15000
+    thrifty = any(p in fit.priorities for p in ("efficiency", "ownership_cost"))
+    pts = set(m.powertrains)
+    if thrifty or km >= 15000:
+        if "phev" in pts:
+            score += 2
+            why.append("phev_low_running_cost")
+        elif "hybrid" in pts or "bev" in pts:
+            score += 1.5
+            why.append("bev_low_running_cost" if "bev" in pts else "hybrid_low_running_cost")
+    ref = fit.budget_eur or fit.reference_price_eur
+    if ref and m.price_from_eur:
+        ratio = m.price_from_eur / ref
+        if 0.7 <= ratio <= 1.3:
+            score += 1.5
+            why.append("price_close")
+        elif ratio > 1.5:
+            score -= 2
+    return score, why
+
+
+def rank_lineup(models: Sequence[LineupModel], fit: Fit, limit: int = 3) -> list[tuple[LineupModel, list[str]]]:
+    """Top models of a line-up for the person, each with machine reason keys (phrased by the caller). A model
+    priced over 1.3 × the user's own budget is never proposed."""
+    cap = fit.budget_eur * 1.3 if fit.budget_eur else None
+    pool = [m for m in models if not (cap and m.price_from_eur and m.price_from_eur > cap)]
+    family = [m for m in pool if any(b in m.body.lower() for b in _FAMILY_BODIES)]
+    if fit.family and family:  # a family is offered family-size bodies only
+        pool = family
+    scored = [(_score(m, fit), m) for m in pool]
+    scored.sort(key=lambda x: (-x[0][0], x[1].price_from_eur or 10**9, x[1].model))
+    return [(m, why) for (s, why), m in scored[:limit] if s > -2]
+
+
+# --- spec 007 F: a tapped option is the answer (incident 2026-11-03, Mazda CX-5 asked five times) -------------
+
+
+def _plain_text(s: str | None) -> str:
+    return " ".join(re.sub(r"[^\w+.\-()]", " ", (s or "").lower()).split())
+
+
+def _without(label: str, *words: str | None) -> str:
+    out = label
+    for w in sorted({x for x in words if x}, key=len, reverse=True):
+        out = re.sub(rf"(?i)(?<![\w]){re.escape(w)}(?![\w])", " ", out)
+    return " ".join(out.split())
+
+
+def _apply_choice(car: CaseCar, ch: Choice) -> str:
+    """The user picked this option: it replaces what an earlier option left behind (generation, engine, version)."""
+    from automind.shared.vehicle.identity import parse_engine  # local import: identity imports casefile lazily
+
+    k = car.constraints
+    if ch.level is not None:
+        return _apply_level(car, ch)
+    k.generation_hint = k.engine_hint = k.trim_hint = None
+    car.make = ch.make or car.make
+    car.model = ch.model or car.model
+    car.identify = None
+    if ch.variant_id:
+        car.variant_id, car.label, car.resolution = ch.variant_id, ch.label, "CONFIRMED"
+        return f"{car.key}: {ch.label} (picked)"
+    car.variant_id, car.label, car.resolution = None, None, "UNRESOLVED"
+    rest = _without(ch.label, car.make, car.model)
+    if ch.variant_id is None and rest and (e := parse_engine(rest)) is not None and not e.empty():
+        k.engine_hint = e
+    return f"{car.key}: {ch.label} (picked)"
+
+
+def _apply_level(car: CaseCar, ch: Choice) -> str:
+    """An option of one ladder level (spec 008): its facts become the user's statement of that level; the levels
+    above are kept, nothing is parsed from the label."""
+    from automind.chat.domain.case.casefile import EngineHint  # noqa: PLC0415
+
+    k = car.constraints
+    e = k.engine_hint.model_copy() if k.engine_hint else EngineHint()
+    disp = round(ch.engine_cc / 1000, 1) if ch.engine_cc else None
+    if ch.level == "FUEL":
+        e = EngineHint(fuel=ch.fuel)  # type: ignore[arg-type]
+        k.version_hint = None
+    elif ch.level == "FAMILY":
+        e = EngineHint(fuel=ch.fuel or e.fuel, displacement_l=disp, family=(ch.family or "")[:16] or None)  # type: ignore[arg-type]
+        k.version_hint = None
+    elif ch.level in ("ENGINE", "POWER"):
+        e = EngineHint(fuel=ch.fuel or e.fuel, displacement_l=disp or e.displacement_l,  # type: ignore[arg-type]
+                       family=(ch.family or "")[:16] or e.family, power_kw=ch.power_kw,
+                       power_hp=round(ch.power_kw / 0.7355) if ch.power_kw else None)  # fmt: skip
+        k.version_hint = ch.engine
+    elif ch.level == "GEARBOX":
+        k.gearbox_hint = ch.gearbox  # type: ignore[assignment]
+        k.version_hint = ch.engine or k.version_hint
+    elif ch.level == "DRIVE":
+        k.drive_hint = ch.drive  # type: ignore[assignment]
+        k.gearbox_hint = ch.gearbox or k.gearbox_hint  # type: ignore[assignment]
+        k.version_hint = ch.engine or k.version_hint
+    k.engine_hint = None if e.empty() else e
+    if car.ladder is not None:  # the user's own answer: no longer a level the hub filled
+        engine_levels = ch.level in ("FUEL", "FAMILY", "ENGINE", "POWER")
+        for lvl in ("FUEL", "ENGINE", "POWER") if engine_levels else (str(ch.level),):
+            car.ladder.origin.pop(lvl, None)
+    car.variant_id, car.label, car.resolution, car.identify = None, None, "UNRESOLVED", None
+    return f"{car.key}: {ch.label} (picked)"
+
+
+def _choose_for_user(case: CaseFile, car: CaseCar) -> str:
+    """ "Choose for me" after the identity could not be settled (chat 9b5c0b0c: "Audi A4 2.5 l, 2023" — no A4 of
+    2023 has a 2.5): the engine, version and generation named are dropped, the facts that remain (make, model,
+    year, mileage) decide, and the version found is taken without another question."""
+    k = car.constraints
+    k.generation_hint = k.engine_hint = k.trim_hint = None
+    car.request_text = " ".join(x for x in (car.make, car.model) if x) or car.request_text
+    car.variant_id, car.label, car.resolution, car.identify = None, None, "UNRESOLVED", None
+    car.chosen_for_me = True
+    case.intake.attempts.pop(car.key, None)  # a fresh start for this car, not straight back to "remove or choose"
+    return f"{car.key}: choose for me (the named engine and version are dropped)"
+
+
+def pick(case: CaseFile, text: str, *, gearbox_words: dict[str, str], yes: bool = False,
+         choose: bool = False) -> tuple[CaseFile, list[str]] | None:  # fmt: skip
+    """A reply that is exactly one of the offered options (a tapped chip, or the option typed) answers the pending
+    question by code, without the interpreter: the option's variant, model or engine is set and the hints left by
+    an earlier option are dropped. "Yes" to a proposal takes the proposed option; "choose for me" on a gearbox
+    question takes the automatic; "choose for me" (or yes) to "remove or choose?" lets the hub choose.
+    Returns None when the reply is not an offered option."""
+    p = case.pending
+    if p is None or p.kind != "QUESTIONS":
+        return None
+    said = _plain_text(text)
+    if not said:
+        return None
+    new = case.model_copy(deep=True)
+    logs: list[str] = []
+    for item in p.items:
+        key = str(item.get("car") or "")
+        if not key or not any(c.key == key for c in new.cars):
+            continue
+        car = new.car(key)
+        kind = item.get("kind")
+        raw = item.get("choices")
+        if kind == "GEARBOX" and not raw:  # the gearbox question of the older rules (no ladder options)
+            gb = gearbox_words.get(said) or ("automatic" if choose else None)
+            if gb:
+                car.constraints.gearbox_hint = gb  # type: ignore[assignment]
+                return new, [f"{key}: gearbox {gb}"]
+            continue
+        choices = [Choice.model_validate(x) for x in raw] if isinstance(raw, list) else []
+        if (log := _answer(new, car, str(kind), choices, said, yes=yes, choose=choose)) is not None:
+            logs.append(log)
+            if not car.chosen_for_me or not (choices and choices[0].level):
+                return new, logs
+            # "choose for me" with several ladder questions open settles every one of them (spec 008 US3)
+    return (new, logs) if logs else None
+
+
+def _answer(case: CaseFile, car: CaseCar, kind: str, choices: list[Choice], said: str, *, yes: bool,
+            choose: bool) -> str | None:  # fmt: skip
+    """The option the reply takes for one question, applied to the car; None when it takes none."""
+    if choices and choices[0].level is not None and (yes or choose) and not _label_hit(choices, said):
+        # spec 008: "choose for me" (yes, go ahead, any) on a ladder question settles this level and the ones below
+        car.chosen_for_me = True
+        car.identify = None
+        return f"{car.key}: choose for me ({kind.lower()} and below)"
+    if kind == "PROPOSE" and (yes or choose) and choices:
+        return _apply_choice(car, choices[0])
+    if kind in ("REMOVE_OR_CHOOSE", "PROPOSE") and (yes or choose):
+        return _choose_for_user(case, car)
+    if choose and choices:  # "choose for me" on a list of versions, engines or models: the first suggested one
+        ch = next((x for x in choices if x.suggested), choices[0])
+        car.chosen_for_me = True
+        return _apply_choice(car, ch) + " (chosen for the user)"
+    hit = _label_hit(choices, said)
+    return _apply_choice(car, hit) if hit is not None else None
+
+
+def _label_hit(choices: list[Choice], said: str) -> Choice | None:
+    return next((ch for ch in choices if _plain_text(ch.label) == said), None)
+
+
+def inherit_condition(before: CaseFile, after: CaseFile) -> list[str]:
+    """A car added later in the chat ("and the Mazda?") is bought like the cars already compared: when they all
+    share a condition (and, if new, a year), the added car takes it instead of asking "new or used?" again."""
+    old = {c.key for c in before.cars}
+    others = [c for c in after.cars if c.key in old and not c.replaced]  # the user's own car is not bought
+    conds = {c.condition for c in others}
+    if len(conds) != 1 or "UNKNOWN" in conds:
+        return []
+    cond = next(iter(conds))
+    years = {c.year for c in others}
+    log = []
+    for car in after.cars:
+        if car.key in old or car.condition != "UNKNOWN":
+            continue
+        car.condition = cond
+        if cond == "NEW" and len(years) == 1 and car.year is None:
+            car.year = next(iter(years))
+        log.append(f"{car.key}: {cond.lower()} like the other cars")
+    return log
+
+
+# --- spec 007 US7: candidates when no car is named ----------------------------------------------------------
+
+BODY_WORDS: dict[str, tuple[str, ...]] = {
+    "suv": ("кроссовер", "кроссовера", "кроссоверы", "внедорожник", "паркетник", "джип", "suv", "crossover",
+            "todocamino", "todoterreno"),
+    "estate": ("универсал", "estate", "wagon", "familiar", "touring", "sportstourer"),
+    "mpv": ("минивэн", "минивен", "компактвэн", "mpv", "monovolumen", "minivan"),
+    "sedan": ("седан", "sedan", "saloon", "berlina"),
+    "hatchback": ("хэтчбек", "хетчбек", "hatchback", "compacto"),
+}  # fmt: skip
+_BODY_MATCH = {"suv": ("suv", "crossover", "todocamino", "4x4"), "estate": ("estate", "familiar", "wagon", "touring"),
+               "mpv": ("mpv", "monovolumen", "van"), "sedan": ("sedan", "berlina", "saloon"),
+               "hatchback": ("hatchback", "compacto")}  # fmt: skip
+
+
+def body_class_of(body: str | None) -> str | None:
+    """A line-up or catalog body ("SUV", "todocamino", "familiar") as a body class the candidates use, or None."""
+    low = (body or "").lower()
+    return next((b for b, ws in _BODY_MATCH.items() if any(w in low for w in ws)), None) if low else None
+
+
+def body_of(text: str) -> str | None:
+    """The body class named in the user's words ("семейный кроссовер" → suv), or None."""
+    words = set(re.findall(r"[\w-]+", (text or "").lower()))
+    return next((b for b, ws in BODY_WORDS.items() if words & set(ws)), None)
+
+
+def pick_candidates(pool: Sequence[tuple[str, LineupModel]], fit: Fit, body: str | None,
+                    limit: int = 3) -> list[tuple[str, LineupModel, list[str]]]:  # fmt: skip
+    """2–3 models for the person: of the body asked, within the budget (a model without a price only when there
+    are not enough priced ones; the caller shows "price to check"), ranked by `rank_lineup` reasons, one per make
+    first. Returns (make, model, reason keys)."""
+    want = _BODY_MATCH.get(body or "", ())
+    shaped = [(mk, m) for mk, m in pool if not want or any(w in m.body.lower() for w in want)]
+    budget = fit.budget_eur
+    priced = [(mk, m) for mk, m in shaped if m.price_from_eur and (not budget or m.price_from_eur <= budget)]
+    unpriced = [(mk, m) for mk, m in shaped if not m.price_from_eur]
+    make_of = {id(m): mk for mk, m in [*priced, *unpriced]}
+    out: list[tuple[str, LineupModel, list[str]]] = []
+    for group in (priced, unpriced):
+        ranked = rank_lineup([m for _, m in group], fit, limit=len(group))
+        for one_per_make in (True, False):
+            for m, why in ranked:
+                mk = make_of[id(m)]
+                if len(out) >= limit or any(o[1] is m for o in out):
+                    continue
+                if one_per_make and any(o[0] == mk for o in out):
+                    continue
+                out.append((mk, m, why))
+        if len(out) >= 2:
+            break
+    return out[:limit]
+
+
+# ---- charging situation and the user's electricity price (spec 006 US3, research R5) ------------------------
+
+_CHARGE_NO = (r"на улице", r"нет гаража", r"без гаража", r"не могу заряжать дома", r"негде заряжать",
+              r"no garage", r"street parking", r"park on the street", r"can'?t charge at home", r"no home charging",
+              r"no tengo garaje", r"sin garaje", r"aparco en la calle", r"no puedo cargar en casa",
+              r"en la calle")  # fmt: skip
+_CHARGE_WORK = (r"на работе", r"charge at work", r"at work", r"en el trabajo", r"cargo en la oficina")
+_CHARGE_YES = (r"гараж", r"розетк", r"wallbox", r"вол+бокс", r"заряжа\w* дома", r"зарядк\w* дома",
+               r"charge at home", r"charging at home", r"home charger", r"garage", r"driveway",
+               r"garaje", r"cargador en casa", r"cargar en casa", r"punto de carga",
+               r"plaza de parking propia")  # fmt: skip
+_NIGHT = (r"ночь", r"ночн", r"night", r"noche", r"nocturn", r"valle", r"off-?peak")
+_FREE = (r"бесплатн", r"for free", r"free", r"gratis")
+_PRICE = re.compile(
+    r"(\d+(?:[.,]\d+)?)\s*(€|eur|евро|euros?|c(?:ts?|ent(?:s|imos?)?)?|ц(?:ент\w*)?|céntimos?)\s*"
+    r"(?:/|за|per|el|por|a)?\s*(?:1\s*)?(kwh|квт|кв·ч|квт·ч|квтч)",
+    re.IGNORECASE,
+)
+
+
+def _any(patterns: tuple[str, ...], low: str) -> str | None:
+    for p in patterns:
+        if m := re.search(p, low):
+            return m.group(0)
+    return None
+
+
+def charging_of(text: str | None) -> tuple[str, str] | None:
+    """(YES | WORK | NO, the words) when the user says where they can charge; "no garage" wins over "garage"."""
+    if not text:
+        return None
+    low = text.lower()
+    for value, pats in (("NO", _CHARGE_NO), ("WORK", _CHARGE_WORK), ("YES", _CHARGE_YES)):
+        if (w := _any(pats, low)) is not None:
+            return value, w
+    return None
+
+
+MAX_EUR_PER_KWH = 1.5  # above this a stated electricity price is a unit error (cents read as euros)
+
+
+def electricity_price_of(text: str | None) -> tuple[float, bool] | None:
+    """(€/kWh, night tariff?) from "плачу 12 центов за кВт·ч ночью" or "0,09 €/kWh en valle"; free charging
+    at work is 0. None when no price is stated or it is not plausible."""
+    if not text:
+        return None
+    low = text.lower()
+    night = _any(_NIGHT, low) is not None
+    if m := _PRICE.search(low):
+        v = float(m.group(1).replace(",", "."))
+        unit = m.group(2).lower()
+        if unit[0] in ("c", "ц"):
+            v /= 100
+        return (round(v, 4), night) if 0 <= v <= MAX_EUR_PER_KWH else None
+    if _any(_FREE, low) and _any(_CHARGE_WORK, low):
+        return 0.0, False
+    return None
+
+
+# ---- the user's own consumption figures (spec 006 follow-up: the BYD charge-sustaining figure is not published) ----
+
+_FIGURE = r"(\d{1,3}(?:[.,]\d{1,2})?)"  # a consumption or distance figure: "6,5", "18"
+_PER_100 = r"\s*(?:/|на|per|a\s+los|por|cada|every)\s*100(?!\d)"
+_LITRES = re.compile(_FIGURE + r"\s*(?:l|л|литр\w*|litros?|lit(?:er|re)s?)(?!\w)(" + _PER_100 + r")?", re.I)
+_KWH_100 = re.compile(_FIGURE + r"\s*(?:kwh|квт\W?ч|квтч|кв\W?ч)(" + _PER_100 + r")?", re.I)
+_KM = re.compile(_FIGURE + r"\s*(?:km|км)(?!\s*/\s*[hч])(?!\w)", re.I)
+_CONSUMPTION = (r"расход", r"\bест\b", r"жр[её]т", r"потребля", r"тратит", r"consum", r"gasta", r"\buses\b",
+                r"burns", r"real", r"реальн")  # fmt: skip
+_CS_WORDS = (r"гибридн\w* режим", r"разряж", r"пуст\w* батаре", r"сел\w* батаре", r"без заряд", r"на бензине",
+             r"empty battery", r"battery (?:is )?empty", r"flat battery", r"hybrid mode", r"charge.sustaining",
+             r"modo h[ií]brido", r"bater[ií]a (?:vac[ií]a|descargada|agotada)", r"sin bater[ií]a",
+             r"sin carga")  # fmt: skip
+_EV_WORDS = (r"электр", r"на батаре", r"electric", r"on battery", r"ev mode", r"el[ée]ctric", r"modo ev",
+             r"en el[ée]ctrico")  # fmt: skip
+_PER_PERIOD = (r"в день", r"в сутки", r"ежеднев", r"в год", r"в неделю", r"в месяц", r"a day", r"per day", r"daily",
+               r"a year", r"per year", r"a week", r"al d[ií]a", r"diari", r"al a[ñn]o", r"a la semana", r"/d[ií]a",
+               r"/day")  # fmt: skip
+_CLAUSE = re.compile(r"[.;!?\n]+(?:\s|$)|,\s|\s(?:а|но|and|but|while|y|pero|mientras)\s")
+BOUNDS = {"FUEL": (2.0, 30.0), "CS": (2.0, 20.0), "KWH": (8.0, 45.0), "RANGE": (10.0, 1000.0)}
+
+
+@dataclass(frozen=True)
+class EnergyFigure:
+    kind: Literal["FUEL", "CS", "KWH", "RANGE"]
+    value: float
+    words: str  # the clause it was read from
+    start: int  # where the number is in the message (for finding the car named before it)
+
+
+def _near(patterns: tuple[str, ...], low: str, a: int, b: int) -> bool:
+    return _any(patterns, low[max(0, a) : max(0, b)]) is not None
+
+
+def energy_figures_of(text: str | None) -> list[EnergyFigure]:
+    """Consumption figures the user states: "в гибридном режиме 5,5 л", "Ateca gasta 7,5 l/100 km",
+    "18 кВт·ч на 100", "на электричестве проезжаю 70 км". A litre or kWh number counts only after a consumption
+    word or with "per 100" (an engine "1.5 л" or a battery "18 кВт·ч" is not a consumption); km only next to an
+    electric word and not "a day"; values outside plausible bounds are dropped."""
+    out: list[EnergyFigure] = []
+    if not text:
+        return out
+    low = text.lower()
+    bounds = [0] + [m.end() for m in _CLAUSE.finditer(low)] + [len(low)]
+    for lo, hi in zip(bounds, bounds[1:], strict=False):
+        clause = low[lo:hi]
+        words = text[lo:hi].strip()[:120]
+        for m in _LITRES.finditer(clause):
+            a, b = m.start(), m.end()
+            cs = _near(_CS_WORDS, clause, a - 45, b + 45)
+            if not (m.group(2) or cs or _near(_CONSUMPTION, clause, a - 40, a)):
+                continue
+            out.append(EnergyFigure("CS" if cs else "FUEL", float(m.group(1).replace(",", ".")), words, lo + a))
+        for m in _KWH_100.finditer(clause):
+            a = m.start()
+            if m.group(2) or _near(_CONSUMPTION, clause, a - 40, a):
+                out.append(EnergyFigure("KWH", float(m.group(1).replace(",", ".")), words, lo + a))
+        for m in _KM.finditer(clause):
+            a, b = m.start(), m.end()
+            if clause[b : b + 6].lstrip().startswith(("/", "на 100", "per 100")) or _near(
+                _PER_PERIOD, clause, b, b + 14
+            ):
+                continue
+            if _near(_EV_WORDS, clause, a - 45, b + 30):
+                out.append(EnergyFigure("RANGE", float(m.group(1).replace(",", ".")), words, lo + a))
+    return [f for f in out if BOUNDS[f.kind][0] <= f.value <= BOUNDS[f.kind][1]]
+
+
+APPLIES = {"FUEL": ("ICE", "MHEV", "HEV"), "CS": ("PHEV", "EREV"), "KWH": ("BEV", "PHEV", "EREV"),
+           "RANGE": ("BEV", "PHEV", "EREV")}  # fmt: skip
+
+
+def stated_for_cars(stated: Sequence[object], cars: Sequence[tuple[str, str | None]]
+                    ) -> dict[str, dict[str, tuple[float, str]]]:  # fmt: skip
+    """{car key: {kind: (value, words)}} — a figure goes to the car it names when it fits that car's powertrain,
+    else to the one car it can apply to (a charge-sustaining figure with one plug-in in the comparison); a figure
+    that fits no car or several is not used. The newest figure of a kind wins."""
+    out: dict[str, dict[str, tuple[float, str]]] = {}
+    pts = {k: (pt or "ICE").upper() for k, pt in cars}
+    for f in stated:
+        kind, key = getattr(f, "kind"), getattr(f, "car_key")  # noqa: B009 - a StatedEnergy
+        fits = [k for k, pt in pts.items() if pt in APPLIES[kind]]
+        # the named car when the figure fits it; else the only car it fits ("Ateca, 5,5 л в гибридном режиме":
+        # Ateca has no hybrid mode, the plug-in next to it does)
+        target = key if key in pts and pts[key] in APPLIES[kind] else (fits[0] if len(fits) == 1 else None)
+        if target is not None:
+            out.setdefault(target, {})[kind] = (float(getattr(f, "value")), str(getattr(f, "words")))  # noqa: B009
+    return out
+
+
+_CAR_SPLIT = re.compile(r"\s+(?:и|или|vs\.?|versus|против|or|o|contra|against|y|and)\s+|[,;?!()¿¡]|\.(?:\s|$)", re.I)
+
+
+def cars_in_text(text: str | None, match_make: Callable[[str], str | None]) -> list[tuple[str, str]]:
+    """(the car's words, make) for each part of the message that names a known make, in order, one per make.
+    A safety net (live run 2026-11-04): the interpreter once answered "compare BYD Seal U DM-i and SEAT Ateca"
+    as a general question with no cars; two named cars are a comparison whatever the model says."""
+    out: list[tuple[str, str]] = []
+    for part in _CAR_SPLIT.split(text or ""):
+        words = (part or "").split()
+        make = match_make(" ".join(words)) if words else None
+        if make is None or any(m == make for _, m in out):
+            continue
+        start = 0  # drop the words before the make ("Сравни BYD Seal U" → "BYD Seal U")
+        for i in range(len(words)):
+            if match_make(" ".join(words[i:])) == make and match_make(" ".join(words[i + 1 :])) != make:
+                start = i
+                break
+        out.append((" ".join(words[start:]), make))
+    return out
+
+
+# --- cars not sold in Spain (chat 2026-11-06: "Deepal S09 vs Lixiang L9") ------------------------------------------
+
+EUROPE = "EU"  # the European markets as one (spec 009 FR-009)
+ANYWHERE = "ANY"
+# geographic Europe as one market (owner 2026-11-06): the EU, the UK, Switzerland, Norway, Iceland, the Balkans,
+# Ukraine, Moldova, Turkey — no country preferred
+EUROPEAN_COUNTRIES = frozenset({"ES", "DE", "FR", "IT", "PT", "NL", "BE", "LU", "AT", "CH", "IE", "GB", "SE", "DK",
+                                "NO", "FI", "IS", "PL", "CZ", "SK", "HU", "SI", "HR", "RO", "BG", "GR", "CY", "MT",
+                                "EE", "LV", "LT", "RS", "BA", "ME", "MK", "AL", "XK", "UA", "MD", "TR"})  # fmt: skip
+EUROPEAN = EUROPEAN_COUNTRIES | {EUROPE, "EN", "UK"}
+_TLD = {"uk": "GB", "gr": "GR", "si": "SI"}  # a top-level domain that is not the country code
+
+
+def country_of_url(url: str | None) -> str | None:
+    """The European country a page is for, by its country domain (deepal.pl → PL, autoexpress.co.uk → GB); None
+    for .com, .eu and the like."""
+    host = re.sub(r"^[a-z]+://", "", (url or "").lower()).split("/", 1)[0].split(":", 1)[0]
+    tld = host.rsplit(".", 1)[-1] if "." in host else ""
+    code = _TLD.get(tld, tld.upper())
+    return code if code in EUROPEAN_COUNTRIES else None
+
+
+def lookup_markets(home: str | None) -> list[str]:
+    """Where a car missing from the Spanish line-up is looked up, in order: Europe first, then the market its make
+    comes from, then anywhere."""
+    out = [EUROPE]
+    if home and home.upper() not in EUROPEAN and home.upper() != ANYWHERE:
+        out.append(home.upper())
+    out.append(ANYWHERE)
+    return out
+
+
+def european(market: str | None) -> bool:
+    """A car of this market is priced from its own sources (None: Spain); outside Europe no price is ever taken
+    (spec 009 FR-009: prices come from European markets only)."""
+    return market is None or market.upper() in EUROPEAN
+
+
+def market_note(market: str | None) -> str:
+    """The phrase that says where a car not sold in Spain was found: in Europe (its data and prices from there) or
+    outside it (data from there, prices from Europe only)."""
+    return "sold_in_europe" if european(market) else "sold_abroad"
+
+
+def abroad_note(market: str | None, priced: bool) -> str | None:
+    """What the report says about a car not sold in Spain (a phrase key): found on a European market, where it was
+    found; outside Europe, that its data come from there and its price only from a European source — and when there
+    is none, that no euro price is given (FR-009). None for a car sold in Spain."""
+    if market is None:
+        return None
+    if european(market):
+        return "sold_in_europe"
+    return "abroad_priced" if priced else "abroad_no_price"
+
+
+def _name_key(s: str | None) -> str:
+    return re.sub(r"[\W_]", "", (s or "").lower())
+
+
+def same_name(a: str | None, b: str | None) -> bool:
+    """The same model name written another way ("S09", "s-09", "S 09", "Deepal S09" for make Deepal)."""
+    return bool(a and b) and _name_key(a) == _name_key(b)
+
+
+def other_names(asked: str | None, names: Iterable[str]) -> list[str]:
+    """Alternatives to a model not found, never the very name asked (chat 2026-11-06: "I did not find «Deepal S09»
+    on sale in Spain. Nearest: Deepal S09")."""
+    return [n for n in names if not same_name(n, asked)]
+
+
+_CODE = re.compile(r"^([^\W\d_]*)-?(\d+)([^\W\d_]*)$")  # a model code: S09, L9, X5, 320d
+
+
+def _code(token: str) -> tuple[str, str, str] | None:
+    m = _CODE.match(token.strip(".,;:!?»«\"'()"))
+    return (m.group(1).lower(), m.group(2), m.group(3).lower()) if m else None
+
+
+def user_model(car: CaseCar) -> str | None:
+    """The model as the user named it ("L9" of "Lixiang L9"), unless the car was resolved to a confirmed model."""
+    if car.resolution == "CONFIRMED" or not car.model:
+        return car.model
+    low = (car.request_text or "").lower()
+    if car.model.lower() in low:
+        i = low.index(car.model.lower())
+        return car.request_text[i : i + len(car.model)]
+    return car.model
+
+
+def keep_user_names(sentence: str, cars: Sequence[CaseCar]) -> str:
+    """The asker's sentence with each car under the model name the user gave (live chat 2026-11-06: "Deepal S09"
+    came back as "Deepal S07", a sibling the model knew better). A model code after the car's make that differs
+    from the user's code in its number only (S07 for S09, L7 for L9) is put back; other words are left alone."""
+    out = sentence
+    for car in cars:
+        model = user_model(car)
+        first = model.split()[0] if model else ""
+        mine = _code(first) if first else None
+        if mine is None or not car.make:
+            continue
+        makes = {car.make, *(w for w in (car.request_text or "").split() if w.lower() not in (model or "").lower())}
+        alts = "|".join(re.escape(m) for m in sorted(makes, key=len, reverse=True) if _code(m) is None)
+        if not alts:
+            continue
+
+        def put_back(m: re.Match[str], mine: tuple[str, str, str] = mine, first: str = first) -> str:
+            said = _code(m.group(2))
+            if said is None or said == mine or said[0] != mine[0] or len(said[1]) != len(mine[1]):
+                return m.group(0)
+            return f"{m.group(1)}{first}"
+
+        out = re.sub(rf"(?i)((?<!\w)(?:{alts})\s+)([^\s,.;:!?»«]+)", put_back, out)
+    return out

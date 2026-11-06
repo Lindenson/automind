@@ -12,8 +12,8 @@ from typing import Any
 from sqlalchemy import select
 
 from automind.acquisition.registry.domain.score import decay, wilson_lb
-from automind.infrastructure.db.models import ComponentReputation, now
-from automind.infrastructure.db.session import sessionmaker
+from automind.shared.infrastructure.db.models import ComponentReputation, now
+from automind.shared.infrastructure.db.session import sessionmaker
 
 
 def _fade(row: ComponentReputation, hl: float) -> None:

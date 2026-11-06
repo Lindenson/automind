@@ -8,7 +8,7 @@ import subprocess
 
 import pytest
 
-from automind.config import settings
+from automind.shared.infrastructure.config.settings import settings
 
 pytestmark = pytest.mark.skipif("automind_test" not in settings().database_url, reason="needs the local test DB")
 

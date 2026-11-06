@@ -21,14 +21,14 @@ from typing import Any, cast
 
 from sqlalchemy import text
 
+from automind.acquisition.infrastructure import overrides
 from automind.acquisition.worker import exporter, heartbeat, queue, scheduler
 from automind.acquisition.worker.budget import BudgetExceeded
 from automind.acquisition.worker.config import worker_config
 from automind.acquisition.worker.handlers import AWAITING_HANDLER, HANDLERS, Handler, WorkerCtx
-from automind.application.usage import current_job
-from automind.infrastructure import overrides
-from automind.infrastructure.db.models import now
-from automind.infrastructure.db.session import sessionmaker
+from automind.shared.infrastructure.db.models import now
+from automind.shared.infrastructure.db.session import sessionmaker
+from automind.shared.metering.usage import current_job
 
 log = logging.getLogger(__name__)
 

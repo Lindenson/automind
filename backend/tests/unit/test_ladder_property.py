@@ -8,8 +8,8 @@ from __future__ import annotations
 import random
 from collections import Counter
 
-from automind.domain import ladder
-from automind.domain.ladder import Version, Wanted
+from automind.chat.domain.identification import ladder
+from automind.chat.domain.identification.ladder import Version, Wanted
 
 FUELS = ("petrol", "diesel", "mhev", "hybrid", "phev", "bev")
 BOXES = ("manual", "automatic", "dct", "cvt")

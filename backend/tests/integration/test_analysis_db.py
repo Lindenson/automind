@@ -5,13 +5,13 @@ import json
 import pytest
 
 from automind.acquisition.pipeline import merge
-from automind.application import compose as analysis
-from automind.application import resolve as catalog
-from automind.domain.criteria import CriteriaModel, score
-from automind.infrastructure import db
-from automind.infrastructure.config import load_yaml, reference
-from automind.orchestration.guard import check_numbers
-from automind.orchestration.guard import numbers_in as _numbers_in
+from automind.chat.application.services.identification import resolve as catalog
+from automind.chat.application.services.report import compose as analysis
+from automind.chat.dialog.guard import check_numbers
+from automind.chat.dialog.guard import numbers_in as _numbers_in
+from automind.chat.domain.assessment.criteria import CriteriaModel, score
+from automind.shared.infrastructure import db
+from automind.shared.infrastructure.config.loader import load_yaml, reference
 
 MODEL = CriteriaModel.from_config(load_yaml("criteria.yaml"))
 

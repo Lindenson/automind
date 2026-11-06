@@ -26,17 +26,18 @@ from sqlalchemy.dialects.postgresql import insert
 from automind.acquisition.domain import replay as scoring
 from automind.acquisition.domain.versions import parse_key, prompt_key
 from automind.acquisition.gold import repo as gold_repo
+from automind.acquisition.infrastructure import config as acq_config
 from automind.acquisition.parsing.spec import ParserSpec
 from automind.acquisition.replay.offline import NetworkForbidden, no_network
 from automind.acquisition.snapshots import store
 from automind.acquisition.snapshots.store import SnapshotRef
-from automind.application.ports import WebDoc
-from automind.domain import evidence as ev
-from automind.domain import specs
-from automind.infrastructure import config
-from automind.infrastructure.db import ExtractionCache, LLMCall, Variant, sessionmaker
+from automind.shared.contracts.web import WebDoc
+from automind.shared.evidence import evidence as ev
+from automind.shared.infrastructure.config import loader as config
+from automind.shared.infrastructure.db import ExtractionCache, LLMCall, Variant, sessionmaker
+from automind.shared.vehicle import specs
 
-PROMPTS_DIR = Path(__file__).resolve().parents[2] / "orchestration" / "prompts"
+PROMPTS_DIR = Path(__file__).resolve().parents[2] / "chat" / "dialog" / "prompts"
 
 
 class ReplayError(Exception):
@@ -233,7 +234,7 @@ PageFn = Callable[[list[SnapshotRef], dict[str, bytes], dict[str, Variant]], Awa
 
 
 async def _corpus(req: ReplayRequest, domains: list[str] | None, limit: int | None, per_batch: PageFn) -> list[Any]:
-    batch = int((config.acquisition_config().get("replay") or {}).get("batch", 500))
+    batch = int((acq_config.acquisition_config().get("replay") or {}).get("batch", 500))
     pages: list[scoring.PageResult] = []
     variants: dict[str, Variant] = {}
     async for refs in store.iter_replayable(domains, req.since, req.until, batch):
@@ -295,7 +296,7 @@ def _prompt(key: str) -> tuple[str, str, str]:
 async def _extract_cached(doc: WebDoc, sha: str, name: str, text: str, area: str, model: str, target: str,
                           llm: Any = None) -> Any:  # fmt: skip
     from automind.acquisition.pipeline import extract as extraction  # noqa: PLC0415
-    from automind.infrastructure.adapters import LiveLLM  # noqa: PLC0415
+    from automind.chat.infrastructure.adapters import LiveLLM  # noqa: PLC0415
 
     schema = extraction.schema_for(area)
     phash = hashlib.sha256(text.encode("utf-8")).hexdigest()[:12]
@@ -318,14 +319,14 @@ async def _extractor_pages(req: ReplayRequest) -> tuple[str, list[scoring.PageRe
         raise Refused("extractor replay calls models: run it in the worker or pass --allow-llm")
     from automind.acquisition.infrastructure.pages import main_content  # noqa: PLC0415
     from automind.acquisition.pipeline import job as rs  # noqa: PLC0415
-    from automind.infrastructure import llm_gateway  # noqa: PLC0415
+    from automind.shared.infrastructure.llm import gateway as llm_gateway  # noqa: PLC0415
 
     key = str(req.extractor)
     name, text, area = _prompt(key)
     model = llm_gateway.model_name("extractor")
     if req.model and req.model != model:
         raise Refused(f"model override {req.model} needs role model overrides (US5); the extractor runs {model}")
-    cap = int((config.acquisition_config().get("replay") or {}).get("extractor_max_pages", 60))
+    cap = int((acq_config.acquisition_config().get("replay") or {}).get("extractor_max_pages", 60))
     rules = config.plausibility_rules()
 
     async def per_batch(refs: list[SnapshotRef], bodies: dict[str, bytes], variants: dict[str, Variant]) -> list[Any]:
@@ -362,6 +363,6 @@ async def run(req: ReplayRequest) -> ReplayReport:
     period = None
     if req.since or req.until:
         period = ((req.since or started).date().isoformat(), (req.until or started).date().isoformat())
-    rep = scoring.report(key, pages, gold, config.gold_tolerances(), period)
+    rep = scoring.report(key, pages, gold, acq_config.gold_tolerances(), period)
     return ReplayReport(**rep, duration_s=round(time.monotonic() - t0, 3), network_calls=attempts,
                         llm_calls=await _llm_calls_since(started))  # fmt: skip

@@ -1,5 +1,5 @@
 # Source typing, deny-list and fetch policy (constitution I, VIII; FR-017, FR-022).
-# Loaded by automind.infrastructure.config and passed into automind.domain.evidence.
+# Loaded by automind.shared.infrastructure.config.loader and passed into automind.shared.evidence.evidence.
 version: 1
 # Brands whose own sites are MANUFACTURER sources: the host's registrable name must be exactly one of these
 # (toyota.es, bmw.com.sg, owners-manual.mazda.com) or a brand TLD (concesionarios.seat). A brand inside a longer

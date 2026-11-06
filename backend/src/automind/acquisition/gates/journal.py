@@ -27,8 +27,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from automind.acquisition.agents import levers
 from automind.acquisition.domain import gates, relevance_audit
 from automind.acquisition.domain.versions import parse_key, spec_hash
-from automind.infrastructure import config
-from automind.infrastructure.db import (
+from automind.acquisition.infrastructure import config as acq_config
+from automind.shared.infrastructure.config import loader as config
+from automind.shared.infrastructure.db import (
     OPEN_CHANGE_STATUSES,
     AcqChange,
     AcqExperiment,
@@ -86,7 +87,7 @@ async def lever_state() -> levers.LeverState:
         prompts = {n: k for n, k in (await s.execute(
             select(PromptVersion.name, PromptVersion.key).where(PromptVersion.status == "active"))).all()}  # fmt: skip
     return levers.LeverState(
-        agents_cfg=config.agents_config(), open_objects=open_objects, blocks=blocks, frozen_parsers=frozen_parsers,
+        agents_cfg=acq_config.agents_config(), open_objects=open_objects, blocks=blocks, frozen_parsers=frozen_parsers,
         frozen_sources={str(d) for d, _, fr in src_rows if fr}, reverted=reverted, newest_evidence=newest,
         rules=config.effective_rules(), sources={str(d): {"access": a, "frozen": fr} for d, a, fr in src_rows},
         denylist=tuple(denylist()), prompts=prompts,
@@ -161,7 +162,7 @@ async def _rule_candidate(s: AsyncSession, change_id: str, agent: str, p: levers
 
 
 async def _model_candidate(s: AsyncSession, change_id: str, agent: str, p: levers.ModelProposal) -> Candidate:
-    from automind.infrastructure import llm_gateway  # noqa: PLC0415
+    from automind.shared.infrastructure.llm import gateway as llm_gateway  # noqa: PLC0415
 
     current = llm_gateway.model_name(p.role)
     s.add(RoleModelOverride(id=uid(), role=p.role, model=p.model, change_id=change_id, active=False))

@@ -10,7 +10,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from automind.application.ports import LLM, NoReaders, PageStore, Reference, Searcher, SiteReaders
+from automind.shared.contracts.config import Reference
+from automind.shared.contracts.llm import LLM
+from automind.shared.contracts.site_readers import NoReaders, SiteReaders
+from automind.shared.contracts.web import PageStore, Searcher
 
 
 @dataclass

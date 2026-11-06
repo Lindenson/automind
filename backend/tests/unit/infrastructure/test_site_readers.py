@@ -6,9 +6,9 @@ import pytest
 
 from automind.acquisition.parsing.legacy import read_pairs, value_and_unit
 from automind.acquisition.parsing.registry import ParserRegistry
-from automind.application.ports import Page
-from automind.domain import specs
-from automind.infrastructure.config import load_yaml
+from automind.shared.contracts.web import Page
+from automind.shared.infrastructure.config.loader import load_yaml
+from automind.shared.vehicle import specs
 
 FIX = Path(__file__).resolve().parents[2] / "fixtures" / "html"
 CONF = load_yaml("site_readers.yaml")

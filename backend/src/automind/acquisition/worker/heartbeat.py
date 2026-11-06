@@ -17,9 +17,9 @@ from sqlalchemy import text
 from sqlalchemy.dialects.postgresql import insert
 
 from automind.acquisition.worker import exporter, queue, scheduler
-from automind.infrastructure.db.models import AcqWorker, now
-from automind.infrastructure.db.session import sessionmaker
-from automind.insight.metrics import heartbeat as loops
+from automind.observability.metrics import heartbeat as loops
+from automind.shared.infrastructure.db.models import AcqWorker, now
+from automind.shared.infrastructure.db.session import sessionmaker
 
 
 def version() -> str:

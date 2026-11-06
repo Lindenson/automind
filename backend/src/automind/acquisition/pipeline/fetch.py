@@ -9,14 +9,14 @@ import asyncio
 from collections import defaultdict
 from typing import Any
 
-from automind.application.ports import Page
+from automind.shared.contracts.web import Page
 
 VERSION = "fetch@1"
 
 
 async def pages(store: Any, order: list[str], area: str, limit: int) -> tuple[list[Page], dict[str, int]]:
     """The ranked URLs through the page store, best first, until `limit` pages (R3, R4)."""
-    from automind.application.usage import BudgetExceeded as _BE  # noqa: PLC0415
+    from automind.shared.metering.usage import BudgetExceeded as _BE  # noqa: PLC0415
 
     pages: list[Page] = []
     rejected: dict[str, int] = defaultdict(int)

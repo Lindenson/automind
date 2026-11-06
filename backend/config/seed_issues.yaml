@@ -8,7 +8,7 @@ issues:
     title: "PHEV without charge-sustaining consumption: ownership costs compared without fuel"
     chat: 20b5b7f9
     quote: "Kia Sorento 2024 1.6 T-GDI PHEV: no fuel-with-empty-battery figure; the TCO had no fuel but costs were still compared."
-    fix: {kind: code, files: [src/automind/domain/energy.py, src/automind/domain/tco.py, src/automind/application/compose.py],
+    fix: {kind: code, files: [src/automind/chat/domain/cost/energy.py, src/automind/chat/domain/cost/tco.py, src/automind/chat/application/services/report/compose.py],
           direction: "Estimate charge-sustaining consumption from the weighted WLTP figure, electric range and the EU utility factor (labelled estimate); never compare ownership cost when a car lacks energy, maintenance or depreciation (009 FR-014, FR-015)."}
     verify: "Replay chat 20b5b7f9 with stored data: the Sorento shows a fuel cost marked estimate; without it no TCO comparison."
   - slug: junk-used-price
@@ -17,7 +17,7 @@ issues:
     title: "Junk used price accepted (US-dollar market floor converted to euros)"
     chat: 20b5b7f9
     quote: "Prado J150 2010 used price €18,400 from a 'market entry floor' page in USD; the real Spanish price is about €30,000."
-    fix: {kind: code, files: [src/automind/application/research.py, src/automind/domain/plausibility.py, src/automind/orchestration/prompts/extract_used_price.md],
+    fix: {kind: code, files: [src/automind/application/research.py, src/automind/acquisition/domain/plausibility.py, src/automind/chat/dialog/prompts/extract_used_price.md],
           direction: "Reject used-price figures that are a market floor, a whole-generation range, or another currency without a dated rate; record the reason (009 FR-016)."}
     verify: "Unit test on the junk page text; replay chat 20b5b7f9."
   - slug: manuales-gearbox
@@ -26,7 +26,7 @@ issues:
     title: "Gearbox rule matches 'manual' inside 'manuales'"
     chat: 20b5b7f9
     quote: "Pages with 'manuales' were rejected as manual-gearbox pages for an automatic car."
-    fix: {kind: code, files: [src/automind/domain/relevance.py, src/automind/application/research.py],
+    fix: {kind: code, files: [src/automind/acquisition/domain/relevance.py, src/automind/application/research.py],
           direction: "Match gearbox and drive words as whole words only (009 FR-018)."}
     verify: "Unit test: 'manuales del propietario' does not count as a manual gearbox."
   - slug: bare-year-generation
@@ -35,7 +35,7 @@ issues:
     title: "Generation stored as a bare year rejects facelift pages of the same generation"
     chat: 20b5b7f9
     quote: "Sorento generation stored as '2024' instead of MQ4: facelift pages were judged another variant."
-    fix: {kind: code, files: [src/automind/domain/relevance.py, config/generations.yaml, src/automind/application/identify.py],
+    fix: {kind: code, files: [src/automind/acquisition/domain/relevance.py, config/generations.yaml, src/automind/chat/application/services/identification/identify.py],
           direction: "Map a bare-year generation to the generation code and years containing it; same-generation pages incl. facelift are relevant (009 FR-019)."}
     verify: "Relevance unit test with a 2022 facelift page for a 2024 MQ4."
   - slug: brand-wide-service-pages
@@ -44,7 +44,7 @@ issues:
     title: "Brand-wide service and warranty pages rejected as 'not about this car'"
     chat: 8c6a2a58
     quote: "The brand's warranty and maintenance pages name the make, not the model, and were rejected; the report said 'no data'."
-    fix: {kind: code, files: [src/automind/domain/relevance.py],
+    fix: {kind: code, files: [src/automind/acquisition/domain/relevance.py],
           direction: "For maintenance and warranty, a brand-wide page naming the make is relevant (009 FR-020)."}
     verify: "Relevance unit test with a brand warranty page."
   - slug: used-queries-without-year
@@ -53,7 +53,7 @@ issues:
     title: "Used-car searches carry no year or market model name"
     chat: 20b5b7f9
     quote: "Searches for the 15-year-old Prado had no year and were flooded by the new generation."
-    fix: {kind: code, files: [src/automind/domain/search_plan.py, config/queries.yaml],
+    fix: {kind: code, files: [src/automind/shared/research_order/search_plan.py, config/queries.yaml],
           direction: "Queries for a used car carry its year or generation and the market's model name, e.g. 'Land Cruiser' in Spain (009 FR-017, FR-021)."}
     verify: "search_plan unit test for a used Prado J150 2010."
   - slug: first-message-could-not-map
@@ -62,7 +62,7 @@ issues:
     title: "First message 'find me a Kia to replace my Prado 150' got 'could not map' / 'which model?'"
     chat: 20b5b7f9
     quote: "найди мне подходящую kia для замены моего ленд круер прадо 150 возрастом 15 лет"
-    fix: {kind: code, files: [src/automind/application/candidates.py, src/automind/orchestration/nodes/understand.py, src/automind/orchestration/prompts/interpreter.md],
+    fix: {kind: code, files: [src/automind/chat/application/services/identification/candidates.py, src/automind/chat/dialog/nodes/understand.py, src/automind/chat/dialog/prompts/interpreter.md],
           direction: "A make to choose from plus a car to replace leads to 2-3 candidate proposals and recognises the car to replace (009 FR-022)."}
     verify: "Graph test replaying the first message."
   - slug: engines-not-sold-that-year
@@ -71,7 +71,7 @@ issues:
     title: "Engines not sold in the car's year offered for a used car"
     chat: 20b5b7f9
     quote: "Prado aged 15 years: the ladder offered engines of later years."
-    fix: {kind: code, files: [src/automind/domain/ladder.py, src/automind/application/versions.py],
+    fix: {kind: code, files: [src/automind/chat/domain/identification/ladder.py, src/automind/chat/application/services/identification/versions.py],
           direction: "The first identification of a used car with a known age offers only engines sold in that year (009 FR-023)."}
     verify: "Ladder property test with a year filter."
   - slug: seats-boot-differ-between-reports
@@ -80,7 +80,7 @@ issues:
     title: "Seats and boot volume differ between two reports of one chat"
     chat: 20b5b7f9
     quote: "The same car showed different seat count and boot volume in two reports."
-    fix: {kind: code, files: [src/automind/application/research.py, src/automind/domain/evidence.py],
+    fix: {kind: code, files: [src/automind/application/research.py, src/automind/shared/evidence/evidence.py],
           direction: "The same rule picks the value every time unless the car's identity changed (009 FR-024)."}
     verify: "Two reselects on the same claims give the same value."
   - slug: a4-used-price-range

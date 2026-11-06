@@ -2,8 +2,8 @@
 
 import pytest
 
-from automind.domain import energy as en
-from automind.domain import tco
+from automind.chat.domain.cost import energy as en
+from automind.chat.domain.cost import tco
 
 RWF = {"ICE": 1.15, "MHEV": 1.15, "HEV": 1.15, "BEV": 1.2, "NEDC": 1.40}
 R = en.Rates(en.Price(1.60, "l", "petrol"), en.Price(1.50, "l", "diesel"), RWF, en.EnergyConfig())
@@ -109,7 +109,7 @@ def test_tco_energy_item_carries_parts_and_missing():
 
 
 def test_a_cost_without_energy_is_named_and_not_compared():
-    from automind.orchestration.nodes.compute import _checked_costs, energy_notices
+    from automind.chat.dialog.nodes.compute import _checked_costs, energy_notices
 
     rates = tco.TcoRates.from_config(
         {

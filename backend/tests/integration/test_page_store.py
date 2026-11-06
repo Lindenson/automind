@@ -8,7 +8,7 @@ from sqlalchemy import delete
 
 from automind.acquisition.infrastructure.fetch import Fetcher, FetchPolicy
 from automind.acquisition.infrastructure.pages import DbPageStore, url_hash
-from automind.infrastructure import db
+from automind.shared.infrastructure import db
 
 FIX = Path(__file__).resolve().parents[1] / "fixtures" / "pages"
 URLS = ["https://pages.example/spec", "https://pages.example/list.pdf", "https://pages.example/empty",

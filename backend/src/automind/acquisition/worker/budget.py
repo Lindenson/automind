@@ -11,8 +11,8 @@ from datetime import UTC, datetime
 
 from sqlalchemy import text
 
-from automind.infrastructure.config import load_yaml
-from automind.infrastructure.db.session import sessionmaker
+from automind.shared.infrastructure.config.loader import load_yaml
+from automind.shared.infrastructure.db.session import sessionmaker
 
 
 class BudgetExceeded(RuntimeError):  # noqa: N818 - the contract's name

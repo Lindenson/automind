@@ -25,10 +25,11 @@ from automind.acquisition.pipeline.plan import (
     queries_for,
     registry_queries,
 )
-from automind.application.ports import Page, Ports
-from automind.domain import evidence as ev
-from automind.domain import search_plan
-from automind.infrastructure import db
+from automind.acquisition.ports import AcqPorts
+from automind.shared.contracts.web import Page
+from automind.shared.evidence import evidence as ev
+from automind.shared.infrastructure import db
+from automind.shared.research_order import search_plan
 
 if TYPE_CHECKING:
     from automind.acquisition.pipeline.job import JobSpec
@@ -41,7 +42,7 @@ Emit = Callable[[str, str], Awaitable[None]]
 NO_FAVOURITE = 9
 
 
-def favourite_priority(ports: Ports, v: db.Variant | None, url: str) -> int | None:
+def favourite_priority(ports: AcqPorts, v: db.Variant | None, url: str) -> int | None:
     """Priority of the favourite (or official manufacturer site) the URL belongs to, else None. With registry
     autonomy on, the registry's order replaces the configured favourites (spec 010 US6)."""
     dom = ev.domain_of(url)
@@ -72,7 +73,7 @@ def _skipped(url: str) -> bool:
     return any(d == x or d.endswith("." + x) for x in plan.skip)
 
 
-def terms_excluded(ports: Ports, url: str) -> bool:
+def terms_excluded(ports: AcqPorts, url: str) -> bool:
     """A site whose terms forbid commercial use (config/search.yaml `abroad.terms_exclude`: pcauto, autohome) is
     never read, whichever search found it (chat 2026-11-06: the Chinese queries find them first)."""
     terms = ((ports.ref.search or {}).get("abroad") or {}).get("terms_exclude") or []
@@ -84,10 +85,10 @@ WARRANTY_PAGES = 3  # pages read for the brand's warranty terms in round 0 of th
 
 
 def _rank_hits(
-    ports: Ports, v: db.Variant | None, planned: list[search_plan.PlannedQuery], results: list[Any], seen: set[str]
+    ports: AcqPorts, v: db.Variant | None, planned: list[search_plan.PlannedQuery], results: list[Any], seen: set[str]
 ) -> tuple[dict[str, tuple[int, int, int]], dict[str, str], list[search_plan.PlannedQuery], int]:
     """Favourites first, then by authority and rank; also which market found a URL and which queries were empty."""
-    from automind.application.usage import BudgetExceeded as _BE  # noqa: PLC0415
+    from automind.shared.metering.usage import BudgetExceeded as _BE  # noqa: PLC0415
 
     ranked: dict[str, tuple[int, int, int]] = {}
     url_market: dict[str, str] = {}
@@ -127,7 +128,7 @@ class Located:
 
 
 async def search(
-    ports: Ports,
+    ports: AcqPorts,
     planned: list[search_plan.PlannedQuery],
     seen: set[str],
     area: str,
@@ -144,7 +145,7 @@ async def search(
 
 
 async def _collect(
-    ports: Ports,
+    ports: AcqPorts,
     planned: list[search_plan.PlannedQuery],
     seen: set[str],
     area: str,
@@ -169,7 +170,7 @@ async def _collect(
 
 
 async def pages_for(
-    ports: Ports, v: db.Variant, job: JobSpec, missing: list[str], seen: set[str], emit: Emit
+    ports: AcqPorts, v: db.Variant, job: JobSpec, missing: list[str], seen: set[str], emit: Emit
 ) -> tuple[list[search_plan.PlannedQuery], list[Page], dict[str, Any]]:
     planned = queries_for(ports, v, job.area, job.round, missing, car_year=job.car_year)
     if job.fresh and job.round == 0:  # search again: favourites and the open web together, past the cache

@@ -5,9 +5,9 @@ import uuid
 
 import pytest
 
-from automind.infrastructure.db.repositories import MessageRepo
-from automind.orchestration.graph import build_graph
-from automind.orchestration.runner import ChatRunner
+from automind.chat.dialog.graph import build_graph
+from automind.chat.dialog.runner import ChatRunner
+from automind.chat.infrastructure.persistence.repositories import MessageRepo
 from tests.fakes.fake_llm import FakeLLM
 from tests.fakes.fixture_search import FixtureSearch
 
@@ -84,8 +84,8 @@ async def test_choose_for_me_confirms_the_proposal(saver):
 
 
 async def test_unknown_model_is_reported_with_the_closest_known_ones():
-    from automind.application import resolve
-    from automind.domain.casefile import CaseCar
+    from automind.chat.application.services.identification import resolve
+    from automind.chat.domain.case.casefile import CaseCar
 
     from .conftest import open_web_reference
 

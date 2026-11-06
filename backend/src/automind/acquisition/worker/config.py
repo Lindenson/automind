@@ -8,7 +8,7 @@ from __future__ import annotations
 import copy
 from typing import Any
 
-from automind.infrastructure.config import load_yaml
+from automind.shared.infrastructure.config.loader import load_yaml
 
 SECTIONS = ("worker", "schedule", "prefetch", "tasks")
 

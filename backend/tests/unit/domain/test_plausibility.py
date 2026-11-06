@@ -2,8 +2,8 @@
 
 import yaml
 
-from automind.domain.plausibility import Context, check
-from automind.infrastructure.config import config_dir
+from automind.acquisition.domain.plausibility import Context, check
+from automind.shared.infrastructure.config.loader import config_dir
 
 RULES = yaml.safe_load((config_dir() / "plausibility.yaml").read_text(encoding="utf-8"))
 DIESEL = Context(powertrain="ICE", fuel="diesel")

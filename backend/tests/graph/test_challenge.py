@@ -4,9 +4,9 @@ import pytest
 from sqlalchemy import select
 
 from automind.acquisition.pipeline import merge
-from automind.application import challenge
-from automind.infrastructure.db import models as m
-from automind.infrastructure.db.session import sessionmaker
+from automind.chat.application.usecases import challenge
+from automind.shared.infrastructure.db import models as m
+from automind.shared.infrastructure.db.session import sessionmaker
 
 from .conftest import open_web_reference
 from .test_research_flow import MAKE

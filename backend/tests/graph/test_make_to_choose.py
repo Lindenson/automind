@@ -12,13 +12,13 @@ from pathlib import Path
 import pytest
 from sqlalchemy import delete, select
 
-from automind.application.candidates import ask_the_model
-from automind.domain.casefile import CaseCar, CaseFile
-from automind.domain.policy import wants_candidates
-from automind.infrastructure import db
-from automind.infrastructure.db.repositories import MessageRepo
-from automind.orchestration.graph import build_graph
-from automind.orchestration.runner import ChatRunner
+from automind.chat.application.services.identification.candidates import ask_the_model
+from automind.chat.dialog.graph import build_graph
+from automind.chat.dialog.runner import ChatRunner
+from automind.chat.domain.case.casefile import CaseCar, CaseFile
+from automind.chat.domain.policy import wants_candidates
+from automind.chat.infrastructure.persistence.repositories import MessageRepo
+from automind.shared.infrastructure import db
 from tests.fakes.fake_llm import FakeLLM
 from tests.fakes.fixture_search import FixtureSearch
 from tests.golden.runner import load, seed

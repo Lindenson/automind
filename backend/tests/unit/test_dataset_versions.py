@@ -4,7 +4,7 @@ their option labels (domain.ladder.registered_label)."""
 from __future__ import annotations
 
 from automind.acquisition.gold.domain.versions import IdRow, group, rows_of_keys
-from automind.domain import ladder
+from automind.chat.domain.identification import ladder
 
 # the EEA group keys stored with the Kia Sorento MQ4 PHEV gold values (live database, 2026-11-05)
 SORENTO_KEYS = [

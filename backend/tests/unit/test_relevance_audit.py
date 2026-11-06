@@ -8,9 +8,9 @@ from types import SimpleNamespace
 
 import pytest
 
+from automind.acquisition.domain import relevance as rel
 from automind.acquisition.domain import relevance_audit as ra
 from automind.acquisition.gates import evaluate
-from automind.domain import relevance as rel
 
 CFG = ra.RelevanceGateConfig()
 REASON = "other gearbox: manual (wanted automatic)"

@@ -23,8 +23,8 @@ from automind.acquisition.registry.application.review import review
 from automind.acquisition.registry.application.service import RegistryService
 from automind.acquisition.registry.infrastructure.repo import RegistryRepo
 from automind.acquisition.reputation import components, signals
-from automind.infrastructure import db
-from automind.infrastructure.config import load_yaml
+from automind.shared.infrastructure import db
+from automind.shared.infrastructure.config.loader import load_yaml
 
 FIX = Path(__file__).resolve().parents[1] / "fixtures" / "scenarios" / "honest"
 FAST, HONEST, MIRROR_A, MIRROR_B = "fastwrong.example", "honest.example", "mirror-a.example", "mirror-b.example"

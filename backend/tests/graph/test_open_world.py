@@ -5,11 +5,11 @@ returning a generation; a classifieds link is never read. Stands in for goldens 
 import uuid
 from dataclasses import replace
 
-from automind.application import lineup
-from automind.infrastructure import db
-from automind.infrastructure.db.repositories import MessageRepo
-from automind.orchestration.graph import build_graph
-from automind.orchestration.runner import ChatRunner
+from automind.chat.application.services.identification import lineup
+from automind.chat.dialog.graph import build_graph
+from automind.chat.dialog.runner import ChatRunner
+from automind.chat.infrastructure.persistence.repositories import MessageRepo
+from automind.shared.infrastructure import db
 from tests.fakes.fake_llm import FakeLLM
 from tests.fakes.fixture_search import FixtureSearch
 
@@ -128,7 +128,7 @@ async def test_a_stored_wrong_model_is_dropped_on_the_next_turn(saver):
     rn = await _runner(saver, llm)
     chat = str(uuid.uuid4())
     await rn.run_turn(chat, "byd")
-    from automind.application import resolve as rs
+    from automind.chat.application.services.identification import resolve as rs
 
     v = await rn.ports.cases.latest(chat)
     dolphin = await rs.upsert_variant(rs.VariantIdentity.model_validate(DOLPHIN), rn.ports.ref)

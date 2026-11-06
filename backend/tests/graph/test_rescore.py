@@ -3,9 +3,9 @@ data: no search, no interpreter, one short text about what changed, changed scor
 
 import time
 
-from automind.api.rest import CasePatch, apply_patch
-from automind.domain.casefile import CaseFile
-from automind.infrastructure.db.repositories import CaseRepo
+from automind.chat.domain.case.casefile import CaseFile
+from automind.chat.infrastructure.persistence.repositories import CaseRepo
+from automind.delivery.web.rest import CasePatch, apply_patch
 from tests.fakes.fake_llm import FakeLLM
 from tests.golden.runner import load, seed
 

@@ -1,8 +1,10 @@
 import pytest
 
-from automind.domain import dragrace, evidence, specs, units
-from automind.domain import metrics as scoring
-from automind.domain.evidence import ClaimIn
+from automind.chat.domain.assessment import dragrace
+from automind.chat.domain.assessment import metrics as scoring
+from automind.shared.evidence import evidence
+from automind.shared.evidence.evidence import ClaimIn
+from automind.shared.vehicle import specs, units
 
 
 # ---- units / normalization ----
@@ -212,7 +214,7 @@ def test_variant_match_uncertain_detects_sibling_codes_without_config():
 
 
 def test_transmission_is_normalised_and_cvt_is_not_one_speed():
-    from automind.domain.specs import normalize_transmission as n
+    from automind.shared.vehicle.specs import normalize_transmission as n
 
     assert n("1 speed CVT") == "CVT"
     assert n("1 velocidades CVT") == "CVT"
@@ -226,8 +228,8 @@ def test_transmission_is_normalised_and_cvt_is_not_one_speed():
 
 
 def test_euro_ncap_year_and_protocol_periods():
-    from automind.domain.criteria import ncap_comparable
-    from automind.domain.metrics import CarFacts
+    from automind.chat.domain.assessment.criteria import ncap_comparable
+    from automind.chat.domain.assessment.metrics import CarFacts
 
     assert specs.normalize(specs.ATTRS["euro_ncap_year"], "2024", None) == 2024
     a = CarFacts(car_id="A", label="A", powertrain="ICE", euro_ncap=5, euro_ncap_year=2015)
@@ -238,7 +240,7 @@ def test_euro_ncap_year_and_protocol_periods():
 
 
 def test_favourite_query_in_the_market_language():
-    from automind.domain import search_plan
+    from automind.shared.research_order import search_plan
 
     car = search_plan.Identity(make="Toyota", model="RAV4", generation="XA50", variant="2.5 Hybrid")
     favs = [

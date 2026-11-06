@@ -14,7 +14,7 @@ from typing import Any
 
 from prometheus_client import REGISTRY, Counter, Gauge, Histogram, start_http_server
 
-from automind.insight.metrics import prom  # noqa: F401 - registers the 010 families (snapshot gauges, counters)
+from automind.observability.metrics import prom  # noqa: F401 - registers the 010 families (snapshot gauges, counters)
 
 log = logging.getLogger(__name__)
 P = prom.P

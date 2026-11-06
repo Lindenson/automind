@@ -1,10 +1,10 @@
 """Spec 008 FR-004, FR-008, FR-013: a ladder question shows where the car stands, says what does not exist,
 offers its options in the user's language, "choose for me" and "remove"."""
 
-from automind.application import ask
-from automind.domain.casefile import CaseCar, CaseFile, Choice, Constraints, IdentifyOutcome, LadderMemo
-from automind.domain.identity import parse_engine
-from automind.infrastructure.config import questions_i18n
+from automind.chat.application.services.interpretation import ask
+from automind.chat.domain.case.casefile import CaseCar, CaseFile, Choice, Constraints, IdentifyOutcome, LadderMemo
+from automind.shared.infrastructure.config.loader import questions_i18n
+from automind.shared.vehicle.identity import parse_engine
 
 Q = questions_i18n()
 LABELS = {

@@ -7,8 +7,11 @@ from collections.abc import Iterator
 
 import pytest
 
-from automind.domain import plausibility, relevance
-from automind.infrastructure import config, llm_gateway, overrides
+from automind.acquisition.domain import plausibility, relevance
+from automind.acquisition.infrastructure import config as acq_config
+from automind.acquisition.infrastructure import overrides
+from automind.shared.infrastructure.config import loader as config
+from automind.shared.infrastructure.llm import gateway as llm_gateway
 
 PROMPT_FILE = "<!-- prompt: extract_specs v2 (web reader, no tools). -->\nExtract facts from <untrusted_document>."
 AGENT_TEXT = "<!-- prompt: extract_specs v3 (agent:extractor_tuner, base extract_specs@v2) -->\nBetter extraction."
@@ -69,7 +72,7 @@ def test_prompt_versions_only_for_the_extractor_prompts_and_while_their_base_is_
 
 
 def test_role_model_only_for_extractor_roles_allowed_models_and_without_env(monkeypatch) -> None:
-    allowed = config.agents_config()["allowed_models"][0]
+    allowed = acq_config.agents_config()["allowed_models"][0]
     overrides.install(models={"extractor": allowed, "validator": "evil:model", "interpreter": allowed})
     assert overrides.role_model("extractor") == allowed
     assert llm_gateway.model_name("extractor") == allowed

@@ -9,10 +9,10 @@ from datetime import UTC, datetime
 
 from sqlalchemy import delete, select, text
 
+from automind.acquisition.infrastructure import config as acq_config
 from automind.acquisition.snapshots import codec
 from automind.acquisition.snapshots.codec import RetentionCfg, SnapshotRow
-from automind.infrastructure import config
-from automind.infrastructure.db import PageSnapshot, SnapshotBlob, sessionmaker
+from automind.shared.infrastructure.db import PageSnapshot, SnapshotBlob, sessionmaker
 
 log = logging.getLogger(__name__)
 CHUNK = 1000
@@ -34,7 +34,7 @@ async def _rows() -> list[SnapshotRow]:
 
 
 async def run_snapshot_retention(cfg: RetentionCfg | None = None, now: datetime | None = None) -> dict[str, int]:
-    cfg = cfg or config.snapshot_retention()
+    cfg = cfg or acq_config.snapshot_retention()
     plan = codec.eviction_plan(await _rows(), cfg.max_bytes, now or datetime.now(UTC), cfg.accepted_days)
     n_blobs = 0
     async with sessionmaker()() as s:
