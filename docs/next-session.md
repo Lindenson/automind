@@ -13,33 +13,25 @@ fallbacks = strategies behind a Protocol), then `tasks.md` from S7 on.
 What the system is: `README.md` ("Acquisition engine"), `docs/adr/ADR-032-acquisition-engine.md`,
 `docs/history/next-session-2026-11-06-engine.md` §1, specs 001–009: `docs/baseline.md`.
 
-## 0. Resume S8b (next action)
+## 0. Resume S9 (next action)
 
-Done and merged: S0–S7 and S8a (PRs up to #99). S7: identification is a service
-(`chat/application/services/identification/`: `service.py`, `stages/`, `strategies/`; catalogue in
-`acquisition/catalogue.py`). S8a: the report reads cars through `acquisition.api.car_data` (read model
-`acquisition/car_data.py`, rows in `acquisition/api/car.py`); a turn's computations go through the port
-`ComputationStore`; `compose.py` is gone — `report/facts/` (car, display, quality, scoring_inputs, race, retention),
-`report/blocks/` (one module per block + car_view, electric, intake_card), `tco_inputs`, `writer_facts`,
-`computations`. No `ignore_imports` left for identification or the report (only challenge and repair).
+Done and merged: S0–S8 (PRs up to #100). S7: identification is a service (`identification/service.py`, `stages/`,
+`strategies/`; catalogue in `acquisition/catalogue.py`). S8: the report reads cars through `acquisition.api.car_data`
+(`acquisition/car_data.py`); `report/service.py` `ReportService(ports, wording, log).run()` lists the stages
+(`report/stages/`), `report/facts/` and `report/blocks/` hold what compose.py was; the language is a port
+(`report.contracts.ReportWording`, implemented by `dialog/report_wording.py`); the report/answer nodes are thin
+(`dialog/report_writer.py`, `dialog/report_followup.py`); a turn's computations go through `ComputationStore`.
+Pattern for the next services: service class with `run()` listing stages, stages as modules, wording through the
+ReportWording-style port, no second port over `acquisition.api`.
 
-**Next: S8b — T071 part 2 + T073** (tasks.md "S8"): `chat/dialog/nodes/compute.py` (≈720 lines: `compute()`
-orchestration + pure helpers) and `nodes/report.py` (348).
-1. `git switch -c 012-s8b-report-service`.
-2. Pure helpers of compute.py (case_facts, period_totals, per_100km, verdict_extras, limits_from,
-   persona_counterfactual, costlier_names, km_assumed, usage_context, ownership_facts, profile_focus, used_lines,
-   energy_missing) → `report/case_facts.py` and neighbours (no dialog imports; they use none today except `t`/
-   `notice` in a few — split those out).
-3. Design point to settle first: `compute()` builds notices with `phrases.t(...)` and `report_text` (dialog). For
-   a `ReportService.run()` in application, notices become data (`Notice(key, params, level, about)`) rendered by
-   the dialog; `record_intake` (metrics) becomes a callback or stays in the node. Keep the emit/notice order.
-4. Nodes report/compute ≤ 30 lines (T073); gate, behaviour diff, checkpoints; PR; merge; update this §0.
-Then S9 interpretation/research/feasibility/usage (+T059 confirm.py characterisation, 47 % now), S10 use cases,
-S11 acquisition pipeline + parsing package, S12 admin/persistence split + contracts, S13 order/API + mypy scope,
-S14 docs, S15 acceptance.
+**Next: S9 — interpretation, research, feasibility, usage services (T074+ in tasks.md "S9"; deploy checkpoint)**:
+1. `git switch -c 012-s9-services`; read tasks.md S9 and T059 (confirm.py characterisation first: 47 % branches).
+2. Nodes still fat: `understand.py` ≈500, `confirm.py` ≈465, `research.py` ≈294 — their logic becomes services.
+3. Gate, behaviour diff (never run pytest while it runs), checkpoints; PR; merge; update this §0.
+Then S10 use cases, S11 acquisition pipeline + parsing package, S12 admin/persistence split + contracts, S13
+order/API + mypy scope, S14 docs, S15 acceptance.
 
-Known deferred inside 012: nodes still fat (`chat/dialog/nodes/compute.py` 719, `understand.py` 500) — logic leaves
-in S7–S9; T019a flaky `test_catalog_merge` (host load) open.
+Known deferred inside 012: nodes still fat (`understand.py` 500, `confirm.py` 465) — logic leaves in S9; T019a flaky `test_catalog_merge` (host load) open.
 
 ### Workflow per step (what worked S3a–S7)
 
@@ -52,18 +44,18 @@ cd backend && uv run python ../scripts/check_checkpoints.py      # read-only pro
 ```
 - Moves: `scripts/refactor/move.py <map.yaml>` (maps in `specs/012-refactoring/moves/`; whole packages first);
   after moves `scripts/check_structure.py --write-baseline` only if the count did not grow.
-- Structure ratchet baseline `scripts/structure_baseline.txt` (829 now); new violations fail the gate.
+- Structure ratchet baseline `scripts/structure_baseline.txt` (801 now); new violations fail the gate.
 - Never run two test runs on one DB at once. Commit → push → `gh pr create` → `gh pr merge --merge` → delete
   local+remote branch; update this file's §0 at the end of each step.
 
 ## 1. State when parked
 
-- main = S8a merged (PR #99). **Production still runs the pre-012 code** (`2b5eb92`, PRs #83–#85, `scripts/deploy.sh
+- main = S8 merged (PR #100). **Production still runs the pre-012 code** (`2b5eb92`, PRs #83–#85, `scripts/deploy.sh
   up --monitoring`, app :8090). Deploy policy: none before the baseline closes on 2026-11-12; then S3a–S6 go
   together as the first checkpoint (compose worker command is now `python -m automind.cli worker`), live replay of
   chat ccd5f7d8 after it, then deploys only at S9, S12, S15.
-- Last gate (S8a): `check.sh` green — 1480 backend passed (2 skipped) + 161 frontend; 11 import contracts kept;
-  structure 829/829; mypy report 330 errors; behaviour diff vs previous main: differs 0 (racy 7: limit pause,
+- Last gate (S8b): `check.sh` green — 1480 backend passed (2 skipped) + 161 frontend; 11 import contracts kept;
+  structure 801/801; mypy report 331 errors; behaviour diff vs previous main: differs 0 (racy 7: limit pause,
   make_to_choose, persistent_thread — unstable between base runs too); check_checkpoints: 470 blobs, 0 paths,
   11 threads. Lesson: never start pytest while diff_behaviour runs (same test DB) — it broke a golden once.
 - Repo hygiene: no worktrees, no feature branches local or remote.
