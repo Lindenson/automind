@@ -13,7 +13,7 @@ from types import SimpleNamespace
 
 from automind.chat.application.services.identification.catalogue import _strip_prefix
 from automind.chat.application.services.interpretation import ask
-from automind.chat.application.services.report.compose import data_panel_block
+from automind.chat.application.services.report.blocks.data_panel import data_panel_block
 from automind.chat.dialog import phrases
 from automind.chat.dialog.prompts import load_all
 from automind.chat.domain import intake

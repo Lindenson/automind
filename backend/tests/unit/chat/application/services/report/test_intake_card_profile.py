@@ -1,6 +1,6 @@
 """The intake card shows who the user is and how long they keep a car, with the basis (spec 007 US1, FR-015)."""
 
-from automind.chat.application.services.report.intake_card import _profile_items, apply_edit
+from automind.chat.application.services.report.blocks.intake_card import _profile_items, apply_edit
 from automind.chat.domain.case import CaseFile, apply_defaults
 
 DEFAULTS = {"personas": {"PERFORMANCE": {"ownership_years": 4, "annual_km": 12000},

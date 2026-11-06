@@ -159,7 +159,7 @@ def test_used_car_loses_value_from_its_age_on():
 
 
 def test_block_shows_the_period():
-    from automind.chat.application.services.report.compose import tco_block
+    from automind.chat.application.services.report.blocks.tco import tco_block
 
     b = tco_block([compute(car(), RATES, years=7)])
     assert b["years"] == 7 and "7 years" in b["title"]

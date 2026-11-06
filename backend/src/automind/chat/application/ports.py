@@ -92,6 +92,14 @@ class VersionsStore(Protocol):
     async def put(self, g: Generation) -> None: ...
 
 
+class ComputationStore(Protocol):
+    """The computations of a turn (tables `tco_estimates`, `simulations`; constitution IX): one row per estimate
+    (its columns as keys) and the race simulation, if any."""
+
+    async def record(self, turn_id: str, estimates: list[dict[str, Any]],
+                     simulation: dict[str, Any] | None) -> None: ...  # fmt: skip
+
+
 class OutcomeStore(Protocol):
     """Turn outcomes and feedback (spec 010 US1, US2; tables `turn_outcomes`, `feedback`)."""
 
@@ -140,6 +148,7 @@ class Ports:
     ref: Reference
     messages: MessageRepo
     estimator: Estimator
+    computations: ComputationStore
     acquisition: AcquisitionPort | None = None  # spec 011 S8: the engine (search, pages, readers live there)
     feasibility: Any = None  # application.feasibility.FeasibilityStore (spec 003 US3)
     # async (ports, make, market='ES') -> application.lineup.Lineup | None (spec 005); None: no lookup

@@ -15,7 +15,7 @@ from langgraph.types import interrupt
 from automind.chat.application.services.identification import candidates, catalogue, resolver
 from automind.chat.application.services.identification.contracts import GenerationMismatch, UnknownModel
 from automind.chat.application.services.interpretation import ask as asking
-from automind.chat.application.services.report import car_view, intake_card
+from automind.chat.application.services.report.blocks import car_view, intake_card
 from automind.chat.dialog import phrases
 from automind.chat.dialog.context import ctx, current_year, load_case, notice, record_intake, save_case
 from automind.chat.dialog.phrases import PHRASES, t

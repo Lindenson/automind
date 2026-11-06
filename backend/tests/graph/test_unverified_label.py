@@ -13,7 +13,9 @@ from automind.acquisition.pipeline import job as research
 from automind.acquisition.pipeline.job import JobSpec
 from automind.acquisition.registry.application.service import RegistryService
 from automind.acquisition.registry.infrastructure.repo import RegistryRepo
-from automind.chat.application.services.report import compose
+from automind.chat.application.services.report.blocks.sources import sources_block
+from automind.chat.application.services.report.blocks.spec_table import spec_table
+from automind.chat.application.services.report.facts.car import load_car
 from automind.shared.infrastructure.config.loader import favourite_queries, load_yaml
 from automind.shared.infrastructure.db import models as m
 from automind.shared.infrastructure.db.session import sessionmaker
@@ -102,11 +104,11 @@ async def test_candidate_values_are_labelled_and_count_half(registry_rows):
     assert run.minimum_met is False
 
     # the report: every source of the value carries the label
-    car = await compose.load_car(vid)
-    table = compose.spec_table([car], {vid: False})
+    car = await load_car(vid)
+    table = spec_table([car], {vid: False})
     (row,) = [r for r in table["rows"] if r["key"] == "max_power"]
     (cell,) = row["values"]
     assert cell["available"] and cell["sources"]
     assert all(src["unverified"] is True for src in cell["sources"])
-    items = compose.sources_block([car])["items"]
+    items = sources_block([car])["items"]
     assert {i["url"] for i in items if i.get("unverified")} == {i["url"] for i in items}

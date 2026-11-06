@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from automind.chat.application.ports import TurnBusy, VersionConflict
-from automind.chat.application.services.report import car_view
+from automind.chat.application.services.report.blocks import car_view
 from automind.chat.dialog.runner import Busy
 from automind.chat.domain.assessment.criteria import (
     CriteriaModel,

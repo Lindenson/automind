@@ -3,7 +3,8 @@
 from datetime import UTC, datetime
 from types import SimpleNamespace
 
-from automind.chat.application.services.report.compose import retention_points, tech_explainers
+from automind.chat.application.services.report.blocks.engineering import tech_explainers
+from automind.chat.application.services.report.facts.retention import retention_points
 from automind.shared.infrastructure.config.loader import load_yaml
 
 CURVE = load_yaml("feasibility.yaml")["depreciation"]

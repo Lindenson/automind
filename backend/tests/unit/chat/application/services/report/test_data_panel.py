@@ -3,7 +3,7 @@
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
-from automind.chat.application.services.report.compose import data_panel_block
+from automind.chat.application.services.report.blocks.data_panel import data_panel_block
 
 NOW = datetime(2026, 11, 3, 12, tzinfo=UTC)
 

@@ -2,7 +2,7 @@
 
 from types import SimpleNamespace as NS
 
-from automind.chat.application.services.report.compose import _cltc_pair
+from automind.chat.application.services.report.facts.car import cltc_pair
 
 
 def _row(attr: str, value: float, url: str) -> tuple[NS, NS]:
@@ -17,10 +17,10 @@ def test_pair_only_from_one_page_the_selected_range_first():
         _row("battery_kwh", 60, "c"),
         _row("range_cltc", 300, "c"),
     ]
-    assert _cltc_pair(rows, NS(value_num=220, available=True)) == (40.18, 220, "b")
-    assert _cltc_pair(rows, NS(value_num=300, available=True)) == (60, 300, "c")
+    assert cltc_pair(rows, NS(value_num=220, available=True)) == (40.18, 220, "b")
+    assert cltc_pair(rows, NS(value_num=300, available=True)) == (60, 300, "c")
 
 
 def test_no_pair_across_pages():
     rows = [_row("battery_kwh", 42.8, "x"), _row("range_cltc", 420, "y")]
-    assert _cltc_pair(rows, None) is None
+    assert cltc_pair(rows, None) is None

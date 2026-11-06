@@ -4,7 +4,8 @@ Owns: `contracts` — requests, results and the `Backend` protocol the engine im
   This `__init__` — the functions: acquire, missing_critical, last_done, ev_counts, powertrains, registry_done,
   unmet_areas, tried_by_area, gearbox_families_mixed, reselect, recheck_value, revalidate_claims, recheck_minimums,
   lineup, versions, generation_hints, dataset_versions, record_challenge_gold; the catalogue (spec 012 T028):
-  catalogue_models, find_variants, get_variant, upsert_variant, stale_areas, cached_lineup, store_lineup.
+  catalogue_models, find_variants, get_variant, upsert_variant, stale_areas, cached_lineup, store_lineup; the car read
+  model: car_data, evidence_refs (`car` — its rows: CarData and the stored rows it holds).
 Flow: caller → function here → `_backend()` loads `acquisition.backend` by name at the first call → engine.
   The chat orders "these kinds of data for this car, by this deadline" and gets values with confidence and sources,
   and for gaps the sources tried. Live calls run in the caller's process within its deadline and budget;
@@ -21,6 +22,7 @@ from __future__ import annotations
 import importlib
 from typing import Any
 
+from automind.acquisition.api.car import CarData
 from automind.acquisition.api.contracts import (
     GEARBOX,
     AcquiredValue,
@@ -100,6 +102,9 @@ __all__: list[str] = [
     "stale_areas",
     "cached_lineup",
     "store_lineup",
+    "car_data",
+    "evidence_refs",
+    "CarData",
 ]
 
 
@@ -243,6 +248,17 @@ async def cached_lineup(make: str, market: str, ttl_days: int) -> StoredLineup |
 
 async def store_lineup(lineup: StoredLineup) -> None:
     await _backend().store_lineup(lineup)
+
+
+async def car_data(variant_id: str) -> CarData | None:
+    """Everything the engine has stored about one catalogued version (values, claims with evidence, runs, issues,
+    reviews, reliability, the make's facts, retention, used prices, maintenance, rejected pages); None if unknown."""
+    return await _backend().car_data(variant_id)
+
+
+async def evidence_refs(ids: list[str]) -> dict[str, dict[str, str]]:
+    """Evidence id -> its source as the report cites it (name, url, type, retrieved_at)."""
+    return await _backend().evidence_refs(ids)
 
 
 def _ports(ports: Any) -> Any:

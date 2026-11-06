@@ -17,6 +17,7 @@ from automind.chat.application.services.identification.lineup import get_lineup
 from automind.chat.domain.cost.turn_cost import AreaAverage, CostPrices, estimate
 from automind.chat.infrastructure.events import EventBus
 from automind.chat.infrastructure.models_on_sale import models_on_sale
+from automind.chat.infrastructure.persistence.computations import ComputationRepo
 from automind.chat.infrastructure.persistence.repositories import (
     CaseRepo,
     FeasibilityRepo,
@@ -69,6 +70,7 @@ def live_ports(events: EventBus, prompts: dict[str, str]) -> Ports:
         ref=ref,
         messages=MessageRepo(),
         estimator=LiveEstimator(),
+        computations=ComputationRepo(),
         feasibility=FeasibilityRepo(),
         market_facts=MarketFactRepo(),
         lineup=get_lineup,

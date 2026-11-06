@@ -22,7 +22,8 @@ from tests.graph.conftest import engine, make_ports, open_web_reference
 
 from automind.acquisition import api as acquisition
 from automind.acquisition.registry.api import PlannedSource
-from automind.chat.application.services.report import compose
+from automind.chat.application.services.report.facts.car import load_car
+from automind.chat.application.services.report.tco_inputs import tco_car
 from automind.chat.dialog.nodes.compute import energy_notices
 from automind.chat.domain.cost import tco
 from automind.shared.infrastructure import db
@@ -134,8 +135,8 @@ async def _values(vid: str) -> dict[str, float]:
 
 
 async def _energy(vid: str):  # noqa: ANN202
-    car = await compose.load_car(vid)
-    return tco.compute(await compose.tco_car(car, "NEW", None, None), RATES, 15000, 5)
+    car = await load_car(vid)
+    return tco.compute(await tco_car(car, "NEW", None, None), RATES, 15000, 5)
 
 
 async def test_a_china_market_car_is_researched_in_china_and_its_energy_cost_computed(cars):

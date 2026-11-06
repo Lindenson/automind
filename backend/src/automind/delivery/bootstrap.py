@@ -43,6 +43,10 @@ def configure_domain() -> None:
 
     win = search_config()["interpret"]
     configure_history(int(win["history_turns"]), int(win["history_chars"]))
+    from automind.chat.application.services.report.facts.quality import configure_severity  # noqa: PLC0415
+    from automind.chat.domain.assessment.reliability import SeverityRules  # noqa: PLC0415
+
+    configure_severity(SeverityRules.from_config(load_yaml("severity.yaml")))
     from automind.acquisition.infrastructure.overrides import role_model  # noqa: PLC0415
     from automind.shared.infrastructure.llm.gateway import set_role_model_source  # noqa: PLC0415
 

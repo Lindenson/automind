@@ -1,0 +1,5 @@
+# spec 012 S8 (T071): the report's blocks into one package (compose.py itself was split by concept, see the PR)
+moves:
+  automind.chat.application.services.report.car_view: automind.chat.application.services.report.blocks.car_view
+  automind.chat.application.services.report.electric_block: automind.chat.application.services.report.blocks.electric
+  automind.chat.application.services.report.intake_card: automind.chat.application.services.report.blocks.intake_card

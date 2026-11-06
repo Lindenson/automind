@@ -13,7 +13,15 @@ from typing import Any, Literal
 from mcp.server.fastmcp import FastMCP
 from sqlalchemy import select
 
-from automind.chat.application.services.report import compose
+from automind.chat.application.services.report.blocks.criteria import criteria_block
+from automind.chat.application.services.report.blocks.engineering import engineering_block
+from automind.chat.application.services.report.blocks.tco import tco_block
+from automind.chat.application.services.report.facts.car import load_car
+from automind.chat.application.services.report.facts.display import display
+from automind.chat.application.services.report.facts.quality import reliability_summary, review_summary
+from automind.chat.application.services.report.facts.race import race_inputs, run_race
+from automind.chat.application.services.report.facts.scoring_inputs import car_facts
+from automind.chat.application.services.report.tco_inputs import tco_car
 from automind.chat.domain.assessment import dragrace
 from automind.chat.domain.assessment.criteria import CriteriaModel, score, weights_for
 from automind.chat.domain.assessment.metrics import metrics
@@ -24,6 +32,7 @@ from automind.delivery.bootstrap import configure_domain
 from automind.shared.infrastructure import db
 from automind.shared.infrastructure.config.loader import load_yaml
 from automind.shared.infrastructure.config.loader import rates as rates_config
+from automind.shared.vehicle import specs
 
 configure_domain()
 mcp = FastMCP("automind")
@@ -32,7 +41,7 @@ SCORE_NOTE = "0–100 indices (scores), not measurements"
 
 
 async def _cars(car_ids: list[str]) -> list[dict[str, Any]]:
-    return [await compose.load_car(cid) for cid in car_ids]
+    return [await load_car(cid) for cid in car_ids]
 
 
 async def _case(chat_id: str) -> CaseFile:
@@ -76,9 +85,9 @@ async def list_catalog(query: str = "") -> list[dict[str, Any]]:
 async def get_vehicle_specs(car_id: str, tier: int | None = None) -> dict[str, Any]:
     """Validated specifications with provenance, confidence and number of sources (optionally one tier).
     Missing values are listed under 'unavailable' and must not be guessed."""
-    car = await compose.load_car(car_id)
+    car = await load_car(car_id)
     out, missing = {}, []
-    for k, attr in compose.specs.ATTRS.items():
+    for k, attr in specs.ATTRS.items():
         if tier is not None and attr.tier != tier:
             continue
         sv = car["values"].get(k)
@@ -86,7 +95,7 @@ async def get_vehicle_specs(car_id: str, tier: int | None = None) -> dict[str, A
             missing.append(k)
             continue
         out[k] = {
-            "value": compose.display(k, sv),
+            "value": display(k, sv),
             "provenance": sv.provenance,
             "confidence": sv.confidence,
             "sources": len(sv.claim_ids),
@@ -100,7 +109,7 @@ async def compute_metrics(car_ids: list[str]) -> list[dict[str, Any]]:
     """Derived METRICS with units (not scores): power_to_weight kW/t, weight_to_power kg/kW,
     torque_to_weight N·m/t, specific_output kW/L. Basis: DERIVED from sourced values."""
     return [
-        {"car_id": c["variant"].id, "label": c["variant"].label, "basis": "DERIVED", **metrics(compose.facts(c))}
+        {"car_id": c["variant"].id, "label": c["variant"].label, "basis": "DERIVED", **metrics(car_facts(c))}
         for c in await _cars(car_ids)
     ]
 
@@ -114,11 +123,11 @@ async def score_criteria(
     case = await _case(chat_id)
     ids = car_ids or [x.variant_id for x in case.cars if x.variant_id]
     cars = await _cars([i for i in ids if i])
-    race = compose.run_race(cars, case.race_settings.model_dump() if case.race_settings else None)
+    race = run_race(cars, case.race_settings.model_dump() if case.race_settings else None)
     sims = {r.car_id: r for r in race.results}
     ctx = {x.variant_id: x for x in case.cars}
     facts = [
-        compose.facts(
+        car_facts(
             c,
             sims.get(c["variant"].id),
             condition=getattr(ctx.get(c["variant"].id), "condition", "NEW"),
@@ -127,7 +136,7 @@ async def score_criteria(
         for c in cars
     ]
     w = weights or weights_for(case, MODEL)
-    block = compose.criteria_block(score(facts, w, MODEL), MODEL, case.unmapped_wishes)
+    block = criteria_block(score(facts, w, MODEL), MODEL, case.unmapped_wishes)
     return {"note": SCORE_NOTE, **block}
 
 
@@ -141,7 +150,7 @@ async def simulate_drag_race(
 ) -> dict[str, Any]:
     """Deterministic drag race simulation. Results are SIMULATED_ESTIMATE with model version and assumptions."""
     race = dragrace.simulate(
-        [compose.race_inputs(c) for c in await _cars(car_ids)],
+        [race_inputs(c) for c in await _cars(car_ids)],
         dragrace.RaceSettings(surface, extra_load_kg, temperature_c, altitude_m),
     )
     return {
@@ -177,19 +186,19 @@ async def compute_tco(
     out = []
     for c in await _cars([i for i in ids if i]):
         x = ctx.get(c["variant"].id)
-        car = await compose.tco_car(
+        car = await tco_car(
             c, getattr(x, "condition", "NEW"), getattr(x, "age_years", None), getattr(x, "mileage_km", None)
         )
         est = tco.compute(car, rates, annual_km or case.annual_km)
-        out.append(compose.tco_block([est])["cars"][0])
+        out.append(tco_block([est])["cars"][0])
     return out
 
 
 @mcp.tool()
 async def get_reliability(car_id: str) -> dict[str, Any]:
     """Documented technical issues (component, recurrence by source count) and reliability statistics."""
-    car = await compose.load_car(car_id)
-    s = compose.reliability_summary(car)
+    car = await load_car(car_id)
+    s = reliability_summary(car)
     return {
         "car_id": car_id,
         "label": car["variant"].label,
@@ -210,8 +219,8 @@ async def get_reliability(car_id: str) -> dict[str, Any]:
 @mcp.tool()
 async def get_reviews(car_id: str) -> dict[str, Any]:
     """Validated review points (pros/cons by tag) with recurring vs isolated and the review minimum."""
-    car = await compose.load_car(car_id)
-    s = compose.review_summary(car)
+    car = await load_car(car_id)
+    s = review_summary(car)
     return {
         "car_id": car_id,
         "label": car["variant"].label,
@@ -227,8 +236,8 @@ async def get_reviews(car_id: str) -> dict[str, Any]:
 @mcp.tool()
 async def get_engineering(car_id: str) -> dict[str, Any]:
     """Tier 2 engineering items with confidence and sources."""
-    car = await compose.load_car(car_id)
-    block = compose.engineering_block([car])
+    car = await load_car(car_id)
+    block = engineering_block([car])
     return {"car_id": car_id, "label": car["variant"].label, "items": block["cars"][0]["items"] if block else []}
 
 

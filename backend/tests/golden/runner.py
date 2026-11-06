@@ -22,6 +22,7 @@ from sqlalchemy import delete, select
 from automind.chat.application.ports import Ports
 from automind.chat.dialog.runner import ChatRunner, TurnResult
 from automind.chat.infrastructure.events import EventBus
+from automind.chat.infrastructure.persistence.computations import ComputationRepo
 from automind.chat.infrastructure.persistence.repositories import (
     CaseRepo,
     EventRepo,
@@ -456,6 +457,7 @@ async def _run_dialogue(d: Dialogue, saver: Any, *, live: bool, record: bool) ->
         clock=_clock(),
         ref=ref,
         messages=MessageRepo(),
+        computations=ComputationRepo(),
         estimator=_estimator(live),
         feasibility=FeasibilityRepo(),
         market_facts=facts,

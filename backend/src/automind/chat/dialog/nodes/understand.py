@@ -11,7 +11,7 @@ from automind.acquisition import api as acquisition
 from automind.chat.application.services.feasibility import feasibility as fz_app
 from automind.chat.application.services.identification import assessment, revalidation
 from automind.chat.application.services.interpretation.interpret import Interpretation, InterpretError, interpret
-from automind.chat.application.services.report import car_view
+from automind.chat.application.services.report.blocks import car_view
 from automind.chat.dialog import phrases
 from automind.chat.dialog.context import ctx, current_year, history, load_case, notice, record_intake, save_case
 from automind.chat.dialog.nodes import feasibility as fz_nodes

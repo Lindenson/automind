@@ -6,9 +6,12 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from datetime import datetime
 from enum import StrEnum
-from typing import Any, Literal, Protocol
+from typing import TYPE_CHECKING, Any, Literal, Protocol
 
 from pydantic import BaseModel, Field
+
+if TYPE_CHECKING:
+    from automind.acquisition.api.car import CarData  # car imports this module: the rows carry a CatalogueVariant
 
 __all__: list[str] = [
     "AcquireRequest",
@@ -78,6 +81,8 @@ class Backend(Protocol):
     async def stale_areas(self, variant_id: str, areas: tuple[str, ...]) -> list[str]: ...
     async def cached_lineup(self, make: str, market: str, ttl_days: int) -> StoredLineup | None: ...
     async def store_lineup(self, lineup: StoredLineup) -> None: ...
+    async def car_data(self, variant_id: str) -> CarData | None: ...
+    async def evidence_refs(self, ids: list[str]) -> dict[str, dict[str, str]]: ...
 
 
 class Need(StrEnum):
@@ -307,6 +312,7 @@ class CatalogueVariant(BaseModel):
     engine_cc: int | None = None
     power_kw: int | None = None
     fuel: str | None = None
+    created_at: datetime | None = None
 
     @property
     def label(self) -> str:

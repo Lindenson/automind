@@ -13,7 +13,31 @@ from typing import Any
 
 from automind.acquisition import api as acquisition
 from automind.chat.application.services.feasibility import feasibility as fz_app
-from automind.chat.application.services.report import car_view, compose, electric_block
+from automind.chat.application.services.report.blocks import car_view, electric
+from automind.chat.application.services.report.blocks.case_summary import case_summary_block
+from automind.chat.application.services.report.blocks.criteria import criteria_block
+from automind.chat.application.services.report.blocks.data_panel import data_panel_block
+from automind.chat.application.services.report.blocks.engineering import engineering_block
+from automind.chat.application.services.report.blocks.manufacturer import manufacturer_block
+from automind.chat.application.services.report.blocks.metric_bars import metric_bars
+from automind.chat.application.services.report.blocks.race import race_block
+from automind.chat.application.services.report.blocks.reliability import reliability_block
+from automind.chat.application.services.report.blocks.reviews import reviews_block
+from automind.chat.application.services.report.blocks.sources import sources_block
+from automind.chat.application.services.report.blocks.spec_table import spec_table
+from automind.chat.application.services.report.blocks.tco import evidence_refs, tco_block
+from automind.chat.application.services.report.blocks.value_retention import value_retention_block
+from automind.chat.application.services.report.facts.car import (
+    load_car,
+    new_price,
+    short_name,
+    used_price,
+    warranty_years,
+)
+from automind.chat.application.services.report.facts.race import run_race
+from automind.chat.application.services.report.facts.scoring_inputs import car_facts, insight_values
+from automind.chat.application.services.report.tco_inputs import tco_car
+from automind.chat.application.services.report.writer_facts import summary_for_llm
 from automind.chat.dialog import report_text
 from automind.chat.dialog.context import notice, record_intake
 from automind.chat.dialog.guard import CheckInput as GuardInput
@@ -245,7 +269,7 @@ async def _insights(
     rel = {s.car_id: s.parts.get("reliability") for s in crit.cars} if crit else {}
     energy = {t.car_id: _energy_price(t, rates) for t in tcars}
     values = [
-        compose.insight_values(
+        insight_values(
             car, annual_cost=costs.get(car["variant"].id),
             reliability_score=(rel.get(car["variant"].id).score if rel.get(car["variant"].id) else None),
             energy_eur_per_unit=energy.get(car["variant"].id),
@@ -261,7 +285,7 @@ async def _insights(
     weights = weights_for(case, model) if model else {}
     profile = ins.Profile(weights=weights, annual_km=case.annual_km, years=_years(case, rates))
     iset = ins.build(values, profile, ins.rules_from_config(c.ports.ref.insights))
-    names = {car["variant"].id: compose.short_name(car["variant"]) for _, car in keyed}
+    names = {car["variant"].id: short_name(car["variant"]) for _, car in keyed}
     unmet = await acquisition.unmet_areas([car["variant"].id for _, car in keyed])
     young = {car["variant"].id for _, car in keyed if _new_gen(car, _year(c))}
     gaps = [f"{names[vid]}: {a}" for vid in names for a in KEY_AREAS
@@ -324,7 +348,7 @@ def _new_gen(car: dict[str, Any], year: int | None) -> int | None:
 
 def _new_generation_notices(keyed: list[Any], year: int | None, lang: str | None) -> list[dict[str, Any]]:
     """A generation on sale for under two years has no reliability history: said once, not counted as a gap."""
-    return [notice(t("new_generation", lang, car=compose.short_name(car["variant"]), year=since), "info")
+    return [notice(t("new_generation", lang, car=short_name(car["variant"]), year=since), "info")
             for _, car in keyed if (since := _new_gen(car, year)) is not None]  # fmt: skip
 
 
@@ -333,9 +357,9 @@ def _abroad_notices(keyed: list[Any], lang: str | None) -> list[dict[str, Any]]:
     European source; without one, no euro price is given (spec 009 FR-009)."""
     out = []
     for x, car in keyed:
-        key = markets.abroad_note(x.market, compose.new_price(car) is not None)
+        key = markets.abroad_note(x.market, new_price(car) is not None)
         if key is not None:
-            out.append(notice(t(key, lang, car=compose.short_name(car["variant"]), market=market_name(x.market, lang)),
+            out.append(notice(t(key, lang, car=short_name(car["variant"]), market=market_name(x.market, lang)),
                               "info", car_key=x.key))  # fmt: skip
     return out
 
@@ -379,7 +403,7 @@ def _age(x: Any, v: Any, c: TurnContext, notices: list[dict[str, Any]], lang: st
     elif x.year_assumed:
         how = f"{x.mileage_km:,} km at ~15,000 km a year" if x.mileage_km else "no year given"
     if how is not None:
-        text = t("used_age_assumed", lang, car=compose.short_name(v), age=age, how=how)
+        text = t("used_age_assumed", lang, car=short_name(v), age=age, how=how)
         if all(n.get("text") != text for n in notices):
             notices.append(notice(text, "info"))
     return max(1, age)
@@ -402,10 +426,10 @@ def _used_facts(keyed: list[Any], ages: dict[str, int | None], c: TurnContext, n
         if x.condition != "USED":
             continue
         year = x.year or now - (ages.get(x.key) or 1)
-        price = compose.used_price(car, year)
-        w = used.warranty_status(year, compose.warranty_years(car), now, assumed=x.year_assumed or x.year is None)
+        price = used_price(car, year)
+        w = used.warranty_status(year, warranty_years(car), now, assumed=x.year_assumed or x.year is None)
         out[x.key] = UsedFacts(year, price, w)
-        name = compose.short_name(car["variant"])
+        name = short_name(car["variant"])
         if price is None:
             notices.append(notice(t("used_price_missing", lang, car=name, year=year), "info", car_key=x.key))
         if w.state != "UNKNOWN":
@@ -439,9 +463,9 @@ def used_lines(case: CaseFile, facts: dict[str, UsedFacts]) -> list[str]:
 
 
 async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]], lang: str = "en") -> Computed:
-    keyed = [(x, await compose.load_car(x.variant_id)) for x in case.cars if x.variant_id]
+    keyed = [(x, await load_car(x.variant_id)) for x in case.cars if x.variant_id]
     cars = [car for _, car in keyed]
-    race = compose.run_race(cars, case.race_settings.model_dump() if case.race_settings else None)
+    race = run_race(cars, case.race_settings.model_dump() if case.race_settings else None)
     sims = {r.car_id: r for r in race.results}
     today = c.ports.clock.now().date().isoformat() if getattr(c.ports, "clock", None) is not None else None
     rates = tco.TcoRates.from_config({**(c.ports.ref.rates or {}), "today": today}, case.rates_override.model_dump())
@@ -456,7 +480,7 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
         u = usedf.get(x.key)
         return u.price.eur if u is not None and u.price is not None else None
 
-    tcars = [await compose.tco_car(car, _cond(x.condition), ages[x.key], x.mileage_km, curve, use,
+    tcars = [await tco_car(car, _cond(x.condition), ages[x.key], x.mileage_km, curve, use,
                                    recent(getattr(car["variant"], "make", None)), stated.get(x.key), up(x))
              for x, car in keyed]  # fmt: skip
     estimates = tco.like_for_like([tco.compute(t, rates, case.annual_km, case.ownership_years) for t in tcars])
@@ -466,7 +490,7 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
               and (cv := tco.cost_curve(tc, rates, case.annual_km))}  # fmt: skip
     years = _years(case, rates)
     eff = per_100km(estimates)
-    notices += energy_notices(estimates, {car["variant"].id: compose.short_name(car["variant"]) for car in cars}, lang)
+    notices += energy_notices(estimates, {car["variant"].id: short_name(car["variant"]) for car in cars}, lang)
     await _energy_metrics(c, keyed, estimates)
     no_energy = {x.key for x, car in keyed
                  if any(e.car_id == car["variant"].id and energy_missing(e) for e in estimates)}  # fmt: skip
@@ -479,7 +503,7 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
     notices += _new_generation_notices(keyed, year, lang)
     notices += _abroad_notices(keyed, lang)
     facts = [
-        compose.facts(
+        car_facts(
             car,
             sims.get(car["variant"].id),
             condition=_cond(x.condition),
@@ -506,7 +530,7 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
         cost = _checked_costs(est, {car["variant"].id: ages[x.key] for x, car in keyed}, [])
         tot = period_totals(est, cost)
         eff_p = per_100km(est)
-        fs = [compose.facts(car, sims.get(car["variant"].id), condition=_cond(x.condition), age_years=ages[x.key],
+        fs = [car_facts(car, sims.get(car["variant"].id), condition=_cond(x.condition), age_years=ages[x.key],
                             annual_cost_eur=cost.get(car["variant"].id), year=year,
                             energy_eur_per_100km=eff_p.get(car["variant"].id), mileage_km=x.mileage_km,
                             used_price_eur=up(x), period_cost_eur=tot.get(car["variant"].id),
@@ -532,11 +556,11 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
     )
     vblock.update(extras)
     blocks = await _blocks(c, case, keyed, race, crit, estimates, iset, fz)
-    eb = electric_block.build(cars, tcars, estimates, rates, extras["labels"], lang, extras.get("incentives"))
+    eb = electric.build(cars, tcars, estimates, rates, extras["labels"], lang, extras.get("incentives"))
     if eb is not None:
         blocks.append(eb)
     said = bool(verdict.trade_off and (verdict.trade_off.break_even_years or verdict.trade_off.no_payback))
-    names_e = {t.car_id: compose.short_name(car["variant"]) for t, car in zip(tcars, cars, strict=True)}
+    names_e = {t.car_id: short_name(car["variant"]) for t, car in zip(tcars, cars, strict=True)}
     if lines := report_text.electric_lines(eb, extras.get("break_even"), names_e, lang, years_said=said):
         vblock["profile_notes"] = [*vblock.get("profile_notes", []), *lines]
     assumed = assumption_lines(case, rates, lang) if cars else []  # what the costs assume, said with the value
@@ -547,7 +571,7 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
     panel = next((b for b in blocks if b.get("type") == "data_panel"), None)
     gaps_by_car = {x["car_key"]: [a["area"] for a in x["areas"] if a["findable"] and a["status"] != "COMPLETE"]
                    for x in (panel or {}).get("cars", [])}  # fmt: skip
-    names = {car["variant"].id: compose.short_name(car["variant"]) for car in cars}
+    names = {car["variant"].id: short_name(car["variant"]) for car in cars}
     sugg = (
         report_text.suggestions_block(
             suggestions.build(verdict, iset, all_new=all(x.condition != "USED" for x, _ in keyed),
@@ -563,7 +587,7 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]],
     body = order_blocks(case.persona, out_notices + blocks, cars=len(cars))
     body = annotate_sections(case.persona, body, c.ports.ref.layouts or {})
     ordered = [*head, *body] if cars else []
-    summary = compose.summary_for_llm(cars, race, crit)
+    summary = summary_for_llm(cars, race, crit)
     summary["ownership_cost"] = ownership_facts(estimates, totals, years, names, iset)
     summary["insights"] = report_text.insights_for_llm(iset, verdict, names, lang, case.ownership_years)
     if lines:
@@ -654,7 +678,7 @@ async def _blocks(
     except Exception:  # noqa: BLE001 - a label, never a reason to fail the report
         views = {}
     blocks: list[dict[str, Any]] = [
-        compose.case_summary_block(
+        case_summary_block(
             case.persona,
             case_facts(case),
             [
@@ -669,31 +693,31 @@ async def _blocks(
                 for x in case.cars
             ],  # fmt: skip
         ),
-        compose.spec_table(cars, {}, iset),
-        compose.metric_bars(cars),
-        compose.race_block(race, _predicted(case)),
-        compose.sources_block(cars),
+        spec_table(cars, {}, iset),
+        metric_bars(cars),
+        race_block(race, _predicted(case)),
+        sources_block(cars),
     ]
     if crit is not None:
-        blocks.append(compose.criteria_block(crit, model, case.unmapped_wishes, weight_breakdown(case, model)))
+        blocks.append(criteria_block(crit, model, case.unmapped_wishes, weight_breakdown(case, model)))
     ages = {x.variant_id: x.age_years for x in case.cars if x.variant_id}
     if fz is not None:  # spec 003: the verdict stays visible
         fz_block = fz_app.block(case, fz)
         if fz_block is not None:
             blocks.append(fz_block)
     for extra in (
-        compose.engineering_block(cars, c.ports.ref.explainers),
-        compose.manufacturer_block(cars),
-        compose.reliability_block(cars, ages),
-        compose.reviews_block(cars),
-        compose.value_retention_block(cars, (c.ports.ref.feasibility or {}).get("depreciation") or {}, recent_make(c)),
+        engineering_block(cars, c.ports.ref.explainers),
+        manufacturer_block(cars),
+        reliability_block(cars, ages),
+        reviews_block(cars),
+        value_retention_block(cars, (c.ports.ref.feasibility or {}).get("depreciation") or {}, recent_make(c)),
         _data_panel(c, case, keyed),  # spec 004 FR-014: one panel instead of a warning per section
     ):
         if extra is not None:
             blocks.append(extra)
     if estimates:
         ids = [x for e in estimates for i in e.items for x in i.evidence_ids]
-        tb = compose.tco_block(estimates, await compose.evidence_refs(ids))
+        tb = tco_block(estimates, await evidence_refs(ids))
         tb["annual_km_assumed"] = km_assumed(case)  # chat 5821ac77: said on the block, not only in the text
         blocks.append(tb)
     return blocks
@@ -705,8 +729,8 @@ def _data_panel(c: TurnContext, case: CaseFile, keyed: list[tuple[Any, dict[str,
     areas = {x.key: research_plan.areas_for(case.persona, criteria, x.condition, budget_used) for x, _ in keyed}
     clock = getattr(c.ports, "clock", None)
     now = clock.now() if clock is not None else None
-    rows = [(x.key, compose.short_name(car["variant"]), car) for x, car in keyed]
-    return compose.data_panel_block(rows, areas, now, case.last_values or None, case.find_tried)
+    rows = [(x.key, short_name(car["variant"]), car) for x, car in keyed]
+    return data_panel_block(rows, areas, now, case.last_values or None, case.find_tried)
 
 
 def _predicted(case: CaseFile) -> str | None:
