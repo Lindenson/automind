@@ -1,79 +1,76 @@
-# Next session: start here (state on 2026-11-06)
+# Next session: start here (parked on 2026-11-06)
 
-Read this first, then `docs/adr/ADR-032-acquisition-engine.md` and `README.md` ("Acquisition engine").
-Older handoffs: `docs/history/next-session-until-2026-11-06.md`. Specs 001–009: `docs/baseline.md`.
+**First task: refactoring.** No new features until it is done (owner, 2026-11-06). All functional work below is
+parked, still valid, and resumes after the refactoring.
 
-## 1. What AutoMind is now (compressed specs 010 + 011)
+Context to read first: `README.md` ("Acquisition engine"), `docs/adr/ADR-032-acquisition-engine.md`.
+What the system is and how it got here: `docs/history/next-session-2026-11-06-engine.md` (§1 = the current
+architecture in one page), older: `docs/history/next-session-until-2026-11-06.md`, specs 001–009: `docs/baseline.md`.
 
-- **Chat** (LangGraph turn graph, `orchestration/`, `application/`): understands the request, identifies cars, asks,
-  reports. It orders data ONLY through `acquisition.api.acquire()` (import contract `chat-uses-acquire-only`).
-- **Acquisition engine** (`acquisition/`, constitution 1.3.0 XII/XIII): pipeline stages plan → locate → fetch →
-  relevance/parse → validate → persist/merge (`acquisition/pipeline/*`, each `<stage>@1`); raw page snapshots (zstd,
-  30/180 days, 5 GB); producer versions on every value; gold values from EEA CO2 / OBFCM / RDW + confirmed challenges;
-  `python -m automind.acquisition.replay --reader km77@v1 --since 30d` (offline accuracy vs gold).
-- **Source registry** (DB, seeded from `config/sources.yaml` + `config/registry_seed_survey.yaml` ≈ 290 sites): honest
-  reputation (gold/agreement/physics/replacement signals, vector blame, Wilson lower bound, promotion needs ≥ 5
-  accuracy signals and acc_lb ≥ 0.70, Thompson sampling), admission (deny-list/classifieds, robots, quoted terms).
-  **`registry.autonomy: false`** until the owner decides (see §3).
-- **Worker** (compose service `worker`, `acq_tasks` Postgres queue): metrics snapshot, insight run, registry review,
-  reputation signals, parser daily metrics + drift, prefetch of popular cars (€0.30/day, hourly 06–22 UTC), agents.
-- **Agents behind gates** (only declarative data, never code/deny-list/robots/budgets; budgets `config/agents.yaml`,
-  €0.60/day): parser doctor, rule auditor (thresholds + relevance stop phrases, e.g. the "manuales" class), extractor
-  tuner, evaluator (KPIs, rollback), scout (new sources for gaps). Gates: offline replay on snapshots + gold → shadow
-  → accept → watch → automatic rollback; journal `acq_changes` with a one-sentence explanation.
-- **Insight** (`insight/`): turn outcomes, one feedback table, issue queue with code/config fix proposals →
-  "copy for Claude Code" (code fixes stay human).
-- **Admin** `/admin` (ADMIN_TOKEN in `.env.docker`): Top problems, Sources, Parsers, Changes, Accuracy (drill-down to
-  the page quote), engine status strip. **Prometheus** :9090 (jobs `automind`, `automind-worker`, 17+ rules).
-- **Deploy**: `scripts/deploy.sh up --monitoring` (app :8090 because :8080 is UniFi; keys in `.env.docker`);
-  move/export/import: `docs/deploy.md`.
+## 1. State when parked
 
-## 2. Work in progress — resume here
+- main = `2b5eb92`+ (PRs #83–#85), deployed (`scripts/deploy.sh up --monitoring`, app :8090), worker healthy.
+- `scripts/check.sh` green: 1445 backend + 161 frontend tests.
+- Last live check: chat ccd5f7d8 (Deepal S09 vs Li L9) — S09 energy computed (EREV estimate from one page's
+  battery ÷ CLTC range), L9 honestly "no data" (generation mix, see §4).
+- Backup before the last data repair: `backups/automind-20261106-100212.sql.gz`.
 
-**Home-market research is merged and deployed (PR #81).** Live replay 2026-11-06 of "я вот выбираю между Deepal S09
-и Lixiang L9 и хочу сделать однозначный выбор" with "find missing data" (chat a5fbdff4, €0.29: 164 LLM, 178 searches):
-Chinese queries ran and found data (Deepal S09: CLTC range 220 km, charge-sustaining 5.6 l, 0–100 4.9 s from
-chexun.com; Li L9: power, 0–100, charge-sustaining 6–7.8 l from 42how/ifeng/ithome/carnewschina…). The market note
-"в Европе не продаётся — нашёл на рынке Китая" is shown.
+## 2. Refactoring — goal and rules
 
-**Done 2026-11-06 (PRs #83, #84, deployed, data repaired after a backup):**
-- EREV electric consumption ESTIMATE = battery kWh ÷ CLTC range × 1.4 (+ climate/motorway, + charging losses), only
-  from a battery and a range read on ONE page (one version), none outside 11–30 kWh/100 km (`energy._ev_kwh`,
-  `compose._cltc_pair`). PHEV battery plausibility 5–80 kWh (EREVs are stored as PHEV). Repair re-checks
-  REJECTED_IMPLAUSIBLE too. Live plain turn (chat ccd5f7d8, €0): Deepal S09 28.1 kWh/100 km (40.18 kWh ÷ 220 km,
-  chexun), €6.42/100 km at home, 90 % electric.
-- `registry_done` ignores runs of an older planner (`stage_versions.plan`): an unmet area is retried at once when
-  the planner changed (test `test_registry_done_planner.py`).
+Goal: the same behaviour with less code and fewer places to look. Not a rewrite.
 
-**Still wrong (do next):**
-1. **Li L9 mixes two generations** (it was not a system/engine power label problem): the variant is "1st Gen
-   (2022–, no end) Pro 1.5T EREV AWD", but pages of the 2026 L9 (420 kW, 72.7 kWh, CLTC 420 km) are accepted
-   beside the 1st gen (330 kW, 42.8/44/52.3 kWh, 215 km). Selected range_cltc = 420 (2026 car), battery 42.8
-   (1st gen) → no energy estimate (correctly). Fix needs the owner's call: which L9 a buyer means in Nov 2026
-   (likely the current 2026 car) → add `generations.yaml "Li Auto|L9"` (1st gen 2022–2025, 2nd gen 2026–) so the
-   resolver picks the current one and relevance rejects the other generation; then repair + replay with "find".
-2. Deepal S09: selected battery 53.49 (larger-battery version) while range 220 belongs to 40.18 — the energy pair
-   is right, the spec table shows the other version's battery; max_power missing ("missing power, weight").
-3. Remaining items in `docs/wip-home-market-research.md` (graph test, CLTC filing unit tests, market on the
-   version row for prefetch, electrive robots/terms).
-Verify live after each fix (replay the chat above) and show the owner the report first.
+Rules:
+- Behaviour unchanged: goldens and `check.sh` green after every step; one step = one PR, merged to main.
+- No DB schema change without a migration and the owner's yes (destructive → backup first).
+- Import contracts (`lint-imports`, 10 contracts, e.g. `chat-uses-acquire-only`) stay kept; tighten, never loosen.
+- Start with an inventory and a written plan (spec `012-refactoring` via speckit, or a short plan in this file),
+  show it to the owner, then execute in small steps.
 
-## 3. Owner decisions pending
+Inventory hints measured on 2026-11-06 (verify, then extend):
+- Size: `backend/src` ≈ 45k lines, tests ≈ 22k. Largest modules: `application/compose.py` 1228,
+  `infrastructure/db/models.py` 1202, `acquisition/admin_api.py` 1049, `domain/casefile.py` 804,
+  `domain/intake.py` 786, `application/identify.py` 721, `orchestration/nodes/compute.py` 714,
+  `infrastructure/db/repositories.py` 698, `application/resolve.py` 642. `compose.py` mixes report assembly,
+  DB reads (`load_car`) and TCO input building.
+- Leftovers of the spec 011 move into `acquisition/`: 17 modules say "moved from … unchanged" — check for
+  duplicated or dead paths in `application/` (`repair.py`, `research` remnants) and thin re-export layers.
+- 843 `# fmt: skip`, 107 `type: ignore` (mostly `acquisition/api.py` `_engine(...)` returns) — the facade typing
+  can be fixed once instead of per call.
+- Powertrain: EREV exists in the domain/energy but identity stores EREVs as `PHEV` (`resolve.py` Literal) —
+  decide one representation (it caused the 40 kWh plausibility rejection).
+- Config: 31 YAML files in `backend/config` (registry_seed_survey.yaml 4.9k lines); check for unused keys and
+  defaults duplicated in code (e.g. `prefetch.py` repeats `acquisition.yaml` defaults).
+- Repository hygiene: 31 worktrees in `.claude/worktrees/`, 75 remote branches (most merged), 89 local branches;
+  root `sec.md` (initial foundation spec of 002 — move to `docs/history/`); `backups/` 25 MB local only.
+- Docs: `docs/baseline.md` and `docs/deploy.md` not yet updated for the engine (T126 remainder); review files
+  `docs/review-*.md`, `ux-audit-*.md`, `sources-revision-*.md` — archive what is closed.
+- Test DB for parallel runs: `TEST_DATABASE_URL=…/automind_test_<name>` needs `automind_mig_<name>` too
+  (migration tests replace `/automind_test` by `/automind_mig`).
 
-1. **Autonomy (011 T078)**: baseline `pre-autonomy` runs since 2026-11-05 18:11 UTC. On/after 2026-11-12:
+## 3. Owner decisions pending (unchanged)
+
+1. **Autonomy (011 T078)**: baseline `pre-autonomy` runs since 2026-11-05 18:11 UTC. On/after **2026-11-12**:
    `docker compose exec app python -m automind.acquisition.reputation.baseline close --name pre-autonomy`, review
    `/admin` Accuracy + Changes, then the owner decides `registry.autonomy: true` (backend/config/registry.yaml).
 2. **Physics check**: review the `fit_physics` envelope before enabling power–mass–acceleration (`config/physics.yaml`).
-3. **Used prices in Europe**: no open source allows robots; candidate solution = user-pasted listing (009 FR-033).
+3. **Used prices in Europe**: no open source allows robots; candidate = user-pasted listing (009 FR-033).
+4. **Li L9 generation**: which L9 a buyer means in Nov 2026 (proposal: the current 2026 car; add
+   `generations.yaml "Li Auto|L9"` 1st gen 2022–2025 / 2nd gen 2026–).
 
-## 4. Next candidates (after §2)
+## 4. Parked functional backlog (after the refactoring, in this order)
 
-1. Live test set of 10–15 typical comparisons (new/used, ICE/HEV/PHEV/BEV, EU and China brands) to fill the baseline
-   and measure quality (≈ €1–3; estimate first).
-2. OBFCM real-world consumption as a yearly worker task (2 GB file).
-3. User-pasted listings for used prices.
-4. Docs: update `docs/baseline.md` and `docs/deploy.md` for the engine (T126 remainder).
-5. Clean old worktrees under `.claude/worktrees/` and merged remote branches.
+1. Live test set of 10–15 typical comparisons (new/used, ICE/HEV/PHEV/BEV, EU and China brands) to fill the
+   baseline before the autonomy decision and measure quality (≈ €1–3; estimate first, owner's yes).
+2. OBFCM real-world consumption: the loader exists (`acquisition/gold/loaders/eea_obfcm.py`,
+   `config/gold_datasets.yaml eea_obfcm`, 2024 collection ≈ 2.1 GB CSV) but was never loaded (gold_values has only
+   eea_co2 and rdw rows) and the energy model does not read it. Make it a yearly worker task, then use the fleet
+   l/100 km (and PHEV grid kWh) as the car's `consumption_real` when a group matches (make, model, fuel, kW,
+   year, ≥ 10 vehicles), labelled "real-world, EU fleet OBFCM".
+3. User-pasted listings for used prices (if decision §3.3 is yes).
+4. China-market leftovers: Li L9 generation mix (§3.4, then repair + replay with "find"); Deepal S09 spec table shows
+   the 53.49 kWh version's battery and lacks max_power; graph test for the market note and `market="CN"` jobs;
+   unit tests for CLTC filing / Chinese units / `Aliases.names_of`; `Variant.market` at `upsert_variant`;
+   electrive.com robots/terms (details: `docs/history/wip-home-market-research.md`).
 
 ## 5. Rules that stay in force
 
@@ -83,5 +80,7 @@ Verify live after each fix (replay the chat above) and show the owner the report
 - Code, deny-list, robots/terms and budgets are changed only by a person; engine agents change declarative data only
   through gates. Incident fixes go through the engine/issue queue, not by growing chat code.
 - Destructive DB changes need the owner's yes and a backup (`scripts/deploy.sh backup`).
-- Tests: `scripts/check.sh` must be green; never run two at once on one DB — use
-  `TEST_DATABASE_URL=postgresql+asyncpg://automind:$POSTGRES_PASSWORD@127.0.0.1:5433/automind_test_<name>`.
+- Tests: `scripts/check.sh` must be green; never run two at once on one DB.
+- Live replay driver: WebSocket `ws://127.0.0.1:8090/ws/chat/{id}`, cookie from `GET /api/v1/chats`, send
+  `{"type":"hello","last_seq":0}`, then `user_message`; confirm with `{"type":"confirm","choice":"yes",…}`;
+  "find it" = `{"type":"find","focus_cars":[],"areas":[]}`. Keep the script in the session scratchpad.
