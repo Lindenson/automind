@@ -1,8 +1,8 @@
 """Graph robustness (spec 007 FR-027..FR-029): a hop limit, retried provider errors, a report after a timeout."""
 
+from automind.chat.dialog.policy import MAX_HOPS, decide
 from automind.chat.dialog.retry import transient_provider_error
 from automind.chat.domain.case import CaseCar, CaseFile
-from automind.chat.domain.policy import MAX_HOPS, decide
 from automind.chat.infrastructure.persistence.repositories import MessageRepo
 from tests.fakes.fake_llm import FakeLLM
 from tests.golden.runner import load, seed

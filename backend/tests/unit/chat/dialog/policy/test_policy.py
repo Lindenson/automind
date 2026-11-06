@@ -2,8 +2,10 @@
 
 import pytest
 
+from automind.chat.dialog.policy import decide
 from automind.chat.domain.case import CarRef, CaseDelta, CaseFile, PersonaChange, apply
-from automind.chat.domain.policy import CarState, decide, fingerprint
+from automind.chat.domain.decision import CarState
+from automind.chat.domain.fingerprint import fingerprint
 
 YEAR = 2026
 
@@ -232,7 +234,7 @@ def _decide_rescore(c, last):
 
 
 def test_profile_change_changes_only_the_params_part():
-    from automind.chat.domain.policy import fingerprint_data, fingerprint_params
+    from automind.chat.domain.fingerprint import fingerprint_data, fingerprint_params
 
     c = case(NEW_GOLF, NEW_I30)
     ready(c)

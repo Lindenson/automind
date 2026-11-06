@@ -24,7 +24,7 @@ TESTS = REPO / "backend/tests"
 WATCHED = ("chat/application/services/report/compose.py", "chat/application/services/identification/identify.py",
            "chat/application/services/identification/resolve.py",
            "chat/application/services/interpretation/interpret.py", "chat/dialog/nodes/compute.py",
-           "chat/dialog/nodes/understand.py", "chat/dialog/nodes/confirm.py", "chat/domain/policy.py",
+           "chat/dialog/nodes/understand.py", "chat/dialog/nodes/confirm.py", "chat/dialog/policy/chain.py",
            "chat/domain/intake/intake.py", "acquisition/pipeline/job.py")  # fmt: skip
 
 

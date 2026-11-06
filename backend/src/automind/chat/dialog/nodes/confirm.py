@@ -16,7 +16,7 @@ from automind.chat.application.services.identification import candidates, resolv
 from automind.chat.application.services.interpretation import ask as asking
 from automind.chat.application.services.report import car_view, intake_card
 from automind.chat.dialog import phrases
-from automind.chat.dialog.nodes.common import ctx, current_year, load_case, notice, record_intake, save_case
+from automind.chat.dialog.context import ctx, current_year, load_case, notice, record_intake, save_case
 from automind.chat.dialog.phrases import PHRASES, t
 from automind.chat.dialog.runner import TurnContext
 from automind.chat.dialog.state import TurnState

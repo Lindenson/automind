@@ -17,16 +17,17 @@ from typing import Any
 from langgraph.runtime import Runtime
 
 from automind.chat.application.services.report import compose
-from automind.chat.dialog import agents, outcomes
+from automind.chat.dialog import agents
+from automind.chat.dialog import tracing as outcomes
+from automind.chat.dialog.context import ctx, history, load_case, save_case
 from automind.chat.dialog.guard import check_numbers, drop_sentences, numbers_in, report_violations, violations_prompt
-from automind.chat.dialog.nodes.common import ctx, history, load_case, save_case
 from automind.chat.dialog.nodes.compute import compute
 from automind.chat.dialog.phrases import t
 from automind.chat.dialog.runner import TurnContext
 from automind.chat.dialog.state import TurnState
 from automind.chat.domain.assessment import ask_value, profile_gaps
 from automind.chat.domain.case import CaseFile, Shown
-from automind.chat.domain.policy import fingerprint
+from automind.chat.domain.fingerprint import fingerprint
 from automind.shared.metering.usage import BudgetExceeded
 
 log = logging.getLogger(__name__)  # one logging stack: stdlib everywhere (spec 007 J, T079)

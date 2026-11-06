@@ -14,7 +14,7 @@ from typing import Any
 from langgraph.runtime import Runtime
 
 from automind.chat.application.services.feasibility import feasibility as fz_app
-from automind.chat.dialog.nodes.common import ctx, load_case, save_case
+from automind.chat.dialog.context import ctx, load_case, save_case
 from automind.chat.dialog.phrases import t
 from automind.chat.dialog.runner import TurnContext
 from automind.chat.dialog.state import TurnState

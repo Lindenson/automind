@@ -21,8 +21,8 @@ from automind.acquisition import api as acquisition
 from automind.chat.application.ports import Ports
 from automind.chat.domain import intake
 from automind.chat.domain.case import CaseCar
+from automind.chat.domain.decision import CarState
 from automind.chat.domain.identification import identification
-from automind.chat.domain.policy import CarState
 from automind.shared.contracts.config import Reference
 from automind.shared.evidence import sense
 from automind.shared.infrastructure import db
