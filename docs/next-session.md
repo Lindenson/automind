@@ -1,4 +1,4 @@
-# Next session: start here (parked on 2026-11-06, after S6)
+# Next session: start here (parked on 2026-11-06, after S9b)
 
 **First task: refactoring — spec 012, executed by `specs/012-refactoring/tasks.md` (one phase = one PR).**
 No new features until it is done (owner, 2026-11-06). All functional work in §4 is parked, still valid, and
@@ -32,6 +32,8 @@ interpret_node, apply_delta_node, assess_node).
 3. Then S9d — T078: `confirm.py` nodes (ask_node, prepare/apply variants, prepare/apply intake) ≤ 30 lines,
    `ChallengeValue` use case + port (← usecases/challenge.py; last `ignore_imports` with repair), purity contracts for
    chat.dialog and chat.application; T077 feasibility is already thin. Deploy checkpoint after 2026-11-12.
+Coverage before S9c (characterisation is enough, no new pinning needed): `understand.py` 90 %, `confirm.py` 89 %,
+`interpretation/ask.py` 85 %, `interpretation/interpret.py` 95 %, `research.py` 94 %.
 Gate per step: check.sh, then (never in parallel) diff_behaviour, check_checkpoints; PR; merge; update this §0.
 Then S10 use cases, S11 acquisition pipeline + parsing package, S12 admin/persistence split + contracts, S13
 order/API + mypy scope, S14 docs, S15 acceptance.
