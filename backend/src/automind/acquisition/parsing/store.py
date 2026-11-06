@@ -14,7 +14,7 @@ from sqlalchemy import select, text, update
 from automind.acquisition.domain.drift import Drift
 from automind.acquisition.domain.versions import parse_key, spec_hash
 from automind.acquisition.parsing.spec import ParserSpec
-from automind.infrastructure.db import AcqChange, Parser, ParserVersion, sessionmaker, uid
+from automind.shared.infrastructure.db import AcqChange, Parser, ParserVersion, sessionmaker, uid
 
 log = logging.getLogger(__name__)
 RUNNING = ("active", "degraded")  # a degraded version keeps running until a replacement is accepted (R12)

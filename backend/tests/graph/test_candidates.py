@@ -5,13 +5,13 @@ import uuid
 
 from sqlalchemy import delete, select
 
-from automind.domain import intake
-from automind.domain.casefile import Budget, CaseCar, CaseFile
-from automind.domain.policy import decide
-from automind.infrastructure import db
-from automind.infrastructure.db.repositories import MessageRepo
-from automind.orchestration.graph import build_graph
-from automind.orchestration.runner import ChatRunner
+from automind.chat.dialog.graph import build_graph
+from automind.chat.dialog.runner import ChatRunner
+from automind.chat.domain.case.casefile import Budget, CaseCar, CaseFile
+from automind.chat.domain.intake import intake
+from automind.chat.domain.policy import decide
+from automind.chat.infrastructure.persistence.repositories import MessageRepo
+from automind.shared.infrastructure import db
 from tests.fakes.fake_llm import FakeLLM
 from tests.fakes.fixture_search import FixtureSearch
 

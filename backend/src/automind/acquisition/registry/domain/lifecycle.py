@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from .model import ACCESS_BLOCKING
+from automind.acquisition.registry.domain.model import ACCESS_BLOCKING
 
 
 @dataclass(frozen=True)

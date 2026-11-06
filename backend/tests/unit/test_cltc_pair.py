@@ -2,7 +2,7 @@
 
 from types import SimpleNamespace as NS
 
-from automind.application.compose import _cltc_pair
+from automind.chat.application.services.report.compose import _cltc_pair
 
 
 def _row(attr: str, value: float, url: str) -> tuple[NS, NS]:

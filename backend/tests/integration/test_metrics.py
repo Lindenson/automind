@@ -1,7 +1,7 @@
 """Research metrics for the operator (spec 003 T034, FR-017)."""
 
-from automind.infrastructure import db
-from automind.infrastructure.db.repositories import MetricsRepo
+from automind.chat.infrastructure.persistence.repositories import MetricsRepo
+from automind.shared.infrastructure import db
 
 
 async def test_metrics_aggregate_jobs_and_search_calls():
@@ -32,7 +32,7 @@ async def test_metrics_aggregate_jobs_and_search_calls():
 async def test_report_rating_is_stored_and_counted():
     import uuid
 
-    from automind.infrastructure.db.repositories import RatingRepo
+    from automind.chat.infrastructure.persistence.repositories import RatingRepo
 
     await db.init_db()
     chat = str(uuid.uuid4())

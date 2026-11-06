@@ -26,7 +26,7 @@ from automind.acquisition.gold.loaders import (
     wanted_makes,
     weighted_median,
 )
-from automind.infrastructure.config import load_yaml
+from automind.shared.infrastructure.config.loader import load_yaml
 
 FIX = Path(__file__).resolve().parents[1] / "fixtures" / "gold"
 
@@ -262,8 +262,8 @@ async def test_load_writes_gold() -> None:
     """T035: the three loaders, matched and written for a seeded Kia Sorento MQ4 PHEV and Toyota Land Cruiser J150."""
     import uuid
 
-    from automind.infrastructure import db
-    from automind.infrastructure.db.models import GoldValueRow
+    from automind.shared.infrastructure import db
+    from automind.shared.infrastructure.db.models import GoldValueRow
 
     async with db.sessionmaker()() as s:
         kia = db.Variant(
@@ -312,8 +312,8 @@ async def _load_and_check(kia: Any, prado: Any, variants: list[Any]) -> None:
     from sqlalchemy import select
 
     from automind.acquisition.gold.load import load_dataset
-    from automind.infrastructure import db
-    from automind.infrastructure.db.models import GoldValueRow
+    from automind.shared.infrastructure import db
+    from automind.shared.infrastructure.db.models import GoldValueRow
 
     written = {
         "eea_co2": await load_dataset("eea_co2", variants, transport=_discodata([])),

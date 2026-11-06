@@ -33,13 +33,13 @@ def migrate_v1(reader: str, block: Mapping[str, Any]) -> ParserSpec:
 
 
 def yaml_specs() -> dict[str, ParserSpec]:
-    from automind.infrastructure.config import load_yaml  # noqa: PLC0415
+    from automind.shared.infrastructure.config.loader import load_yaml  # noqa: PLC0415
 
     return {k: migrate_v1(k, v) for k, v in load_yaml("site_readers.yaml").items() if k != "version"}
 
 
 def denylist() -> list[str]:
-    from automind.infrastructure.config import load_yaml  # noqa: PLC0415
+    from automind.shared.infrastructure.config.loader import load_yaml  # noqa: PLC0415
 
     return [str(x).lower() for x in load_yaml("sources.yaml").get("denylist") or []]
 
@@ -51,7 +51,7 @@ def denied(spec: ParserSpec, deny: list[str]) -> bool:
 async def seed() -> dict[str, Any]:
     from sqlalchemy.dialects.postgresql import insert  # noqa: PLC0415
 
-    from automind.infrastructure.db import Parser, ParserVersion, sessionmaker  # noqa: PLC0415
+    from automind.shared.infrastructure.db import Parser, ParserVersion, sessionmaker  # noqa: PLC0415
 
     deny = denylist()
     out: dict[str, Any] = {"inserted": [], "retired": []}
@@ -78,7 +78,7 @@ async def seed() -> dict[str, Any]:
 
 
 def main() -> int:
-    from automind.infrastructure.config import configure_domain  # noqa: PLC0415
+    from automind.shared.infrastructure.config.loader import configure_domain  # noqa: PLC0415
 
     configure_domain()
     print(json.dumps(asyncio.run(seed()), ensure_ascii=False))

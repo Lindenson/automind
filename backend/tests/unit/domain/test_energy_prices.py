@@ -5,8 +5,10 @@ from pathlib import Path
 import pytest
 import yaml
 
-from automind.domain import ask_value, intake, tco
-from automind.domain.casefile import CaseFile
+from automind.chat.domain.assessment import ask_value
+from automind.chat.domain.case.casefile import CaseFile
+from automind.chat.domain.cost import tco
+from automind.chat.domain.intake import intake
 
 CONFIG = Path(__file__).parents[3] / "config"
 RATES = {
@@ -20,7 +22,7 @@ def rates(today: str | None = "2026-11-04", **override) -> tco.TcoRates:
 
 
 def bev(home: str) -> tco.TcoCar:
-    from automind.domain.energy import UsageContext
+    from automind.chat.domain.cost.energy import UsageContext
 
     return tco.TcoCar("e", "EV", "BEV", consumption_ev=16.0, vehicle_class="compact",
                       use=UsageContext(18000, home_charging=home))  # fmt: skip

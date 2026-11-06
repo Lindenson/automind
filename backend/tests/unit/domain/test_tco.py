@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from automind.domain.tco import BigTicket, MaintenanceSched, TcoCar, TcoRates, compute
+from automind.chat.domain.cost.tco import BigTicket, MaintenanceSched, TcoCar, TcoRates, compute
 
 RATES = TcoRates.from_config(yaml.safe_load((Path(__file__).parents[3] / "config" / "rates.yaml").read_text()))
 
@@ -108,7 +108,7 @@ def test_annual_km_override_and_rate_overrides():
 
 def test_implausible_published_schedule_falls_back_to_the_estimate():
     """User report: '16' read for 16,000 km made a CX-5 cost EUR 73,000/year to maintain."""
-    from automind.domain import tco
+    from automind.chat.domain.cost import tco
 
     rates = RATES
     jobs = [tco.MaintenanceSched("oil", 1100, None), tco.MaintenanceSched("x", 1200, None)]
@@ -159,7 +159,7 @@ def test_used_car_loses_value_from_its_age_on():
 
 
 def test_block_shows_the_period():
-    from automind.application.compose import tco_block
+    from automind.chat.application.services.report.compose import tco_block
 
     b = tco_block([compute(car(), RATES, years=7)])
     assert b["years"] == 7 and "7 years" in b["title"]

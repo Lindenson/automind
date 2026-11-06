@@ -8,13 +8,13 @@ from typing import Any
 import pytest
 from sqlalchemy import select
 
-from automind.api.ws import _BAD_SOURCE_LOG, ChatSocket
-from automind.application import challenge
-from automind.infrastructure.config import reference
-from automind.infrastructure.db import models as m
-from automind.infrastructure.db.outcomes import OutcomeRepo
-from automind.infrastructure.db.session import sessionmaker
-from automind.orchestration.prompts import load_all
+from automind.chat.application.usecases import challenge
+from automind.chat.dialog.prompts import load_all
+from automind.delivery.web.ws import _BAD_SOURCE_LOG, ChatSocket
+from automind.observability.infrastructure.outcomes import OutcomeRepo
+from automind.shared.infrastructure.config.loader import reference
+from automind.shared.infrastructure.db import models as m
+from automind.shared.infrastructure.db.session import sessionmaker
 
 from .conftest import open_web_reference
 from .test_challenge import _claims

@@ -14,8 +14,8 @@ import pytest
 from sqlalchemy import text
 
 from automind.acquisition.worker import queue
-from automind.infrastructure import db
-from automind.infrastructure.db.session import sessionmaker
+from automind.shared.infrastructure import db
+from automind.shared.infrastructure.db.session import sessionmaker
 
 
 @pytest.fixture(autouse=True)

@@ -19,11 +19,11 @@ from automind.acquisition.infrastructure.fetch import FetchRefused
 from automind.acquisition.registry.application.service import RegistryService
 from automind.acquisition.registry.infrastructure import terms
 from automind.acquisition.registry.infrastructure.repo import RegistryRepo
-from automind.domain import search_plan
-from automind.infrastructure import db
-from automind.infrastructure.config import load_yaml
-from automind.infrastructure.db import models as m
 from automind.shared.contracts.web import SearchHit
+from automind.shared.infrastructure import db
+from automind.shared.infrastructure.config.loader import load_yaml
+from automind.shared.infrastructure.db import models as m
+from automind.shared.research_order import search_plan
 from tests.fakes.fake_llm import FakeLLM
 
 LONG = " Datos técnicos completos: potencia, par, peso, consumo, dimensiones y maletero." * 20

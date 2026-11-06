@@ -23,16 +23,16 @@ model_fallback_share: 0.2 # fallback share of a role over 7 days that makes a mo
 parser_drop: 0.2          # 7-day ok share below the 30-day share by this much
 # Where a fix of each component probably lives (shown as "likely files"; filtered to existing paths).
 files:
-  dialogue: [src/automind/application/interpret.py, src/automind/orchestration/prompts/interpreter.md,
-             src/automind/domain/policy.py, src/automind/orchestration/nodes/understand.py]
-  wrong_car: [src/automind/application/identify.py, src/automind/domain/ladder.py, src/automind/application/versions.py]
+  dialogue: [src/automind/chat/application/services/interpretation/interpret.py, src/automind/chat/dialog/prompts/interpreter.md,
+             src/automind/chat/domain/policy.py, src/automind/chat/dialog/nodes/understand.py]
+  wrong_car: [src/automind/chat/application/services/identification/identify.py, src/automind/chat/domain/identification/ladder.py, src/automind/chat/application/services/identification/versions.py]
   parser: [src/automind/infrastructure/site_readers/__init__.py, config/site_readers.yaml]
-  relevance: [src/automind/domain/relevance.py, src/automind/application/research.py]
-  check: [src/automind/domain/sense.py, src/automind/domain/plausibility.py, src/automind/application/research.py]
-  nodata: [src/automind/application/research.py, src/automind/domain/search_plan.py, config/queries.yaml]
-  model: [config/models.yaml, src/automind/infrastructure/llm_gateway.py]
-  report: [src/automind/orchestration/report_text.py, src/automind/orchestration/guard.py,
-           src/automind/application/compose.py]
+  relevance: [src/automind/acquisition/domain/relevance.py, src/automind/application/research.py]
+  check: [src/automind/shared/evidence/sense.py, src/automind/acquisition/domain/plausibility.py, src/automind/application/research.py]
+  nodata: [src/automind/application/research.py, src/automind/shared/research_order/search_plan.py, config/queries.yaml]
+  model: [config/models.yaml, src/automind/shared/infrastructure/llm/gateway.py]
+  report: [src/automind/chat/dialog/report_text.py, src/automind/chat/dialog/guard.py,
+           src/automind/chat/application/services/report/compose.py]
   ui: [frontend/src]
 # Configuration levers: the only places where the analyst may propose a configuration fix (spec 010 FR-009).
 # Keys are dotted paths; `*` matches any key at that level. Anything else is proposed as a code fix.

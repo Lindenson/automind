@@ -3,7 +3,7 @@
 import pytest
 from rapidfuzz import fuzz
 
-from automind.domain.identity import (
+from automind.shared.vehicle.identity import (
     Aliases,
     canonical_key,
     generation_matches,
@@ -107,7 +107,7 @@ def test_fuzzy_duplicate_threshold_92_same_make_model_generation_powertrain():
 
 
 def test_model_line_split():
-    from automind.application.resolve import model_line
+    from automind.chat.application.services.identification.resolve import model_line
 
     known = {"Golf", "i30 N", "i30", "3 Series"}
     assert model_line("Golf GTI", known) == ("Golf", "GTI")

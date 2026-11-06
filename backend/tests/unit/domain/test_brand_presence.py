@@ -5,8 +5,9 @@ from pathlib import Path
 import pytest
 import yaml
 
-from automind.application.makes import MakeRegistry
-from automind.domain import sense_ev, tco
+from automind.acquisition.domain import sense_ev
+from automind.chat.domain.cost import tco
+from automind.shared.vehicle.makes import MakeRegistry
 
 CONFIG = Path(__file__).parents[3] / "config"
 

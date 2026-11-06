@@ -8,9 +8,9 @@ import httpx
 from fastapi import FastAPI
 from sqlalchemy import delete
 
-from automind.api import admin
-from automind.infrastructure.db import models as m
-from automind.infrastructure.db.session import sessionmaker
+from automind.delivery.web import admin
+from automind.shared.infrastructure.db import models as m
+from automind.shared.infrastructure.db.session import sessionmaker
 
 
 def _client(monkeypatch, token: str | None = "tok") -> httpx.AsyncClient:

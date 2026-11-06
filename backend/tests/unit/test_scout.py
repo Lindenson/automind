@@ -4,7 +4,7 @@ check of the reworded queries, new domains from hits, the path-prefix locator an
 from __future__ import annotations
 
 from automind.acquisition.agents import scout
-from automind.domain.search_plan import Identity
+from automind.shared.research_order.search_plan import Identity
 
 SEARCH = {"default_markets": ["ES", "EN"], "area_markets": {"used_price": ["ES", "DE", "US"], "measured": ["DE"]}}
 CAR = Identity("SEAT", "León", "Mk4", "1.5 TSI 150", "2020-")

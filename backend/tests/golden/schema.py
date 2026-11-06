@@ -97,5 +97,7 @@ class Dialogue(BaseModel):
     # spec 006: the market facts (incentives) this dialogue starts with; the table is reset for every dialogue
     market_facts: list[dict[str, Any]] = Field(default_factory=list)
     forget: list[str] = Field(default_factory=list)  # makes whose catalog rows from other tests are hidden first
-    settings: dict[str, Any] = Field(default_factory=dict)  # overrides of automind.config settings for this dialogue
+    settings: dict[str, Any] = Field(
+        default_factory=dict
+    )  # overrides of automind.shared.infrastructure.config.settings settings for this dialogue
     turns: list[Turn]

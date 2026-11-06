@@ -17,9 +17,9 @@ from sqlalchemy import delete, select
 from tests.fakes.reputation_world import World
 
 from automind.acquisition.snapshots import store
-from automind.api import admin
-from automind.infrastructure import db
-from automind.infrastructure.db import models as m
+from automind.delivery.web import admin
+from automind.shared.infrastructure import db
+from automind.shared.infrastructure.db import models as m
 
 H = {"Authorization": "Bearer tok"}
 QUOTE = "Potencia máxima 140 kW (190 CV) a 4.000 rpm"

@@ -2,7 +2,7 @@
 
 import pytest
 
-from automind.domain.report_layout import ORDER, order_blocks
+from automind.chat.domain.verdict.report_layout import ORDER, order_blocks
 
 ALL = [
     "sources",
@@ -124,8 +124,8 @@ def test_unknown_block_types_are_kept_at_the_end():
 
 
 def test_sections_follow_the_profile_layout():
-    from automind.domain.report_layout import annotate_sections, depths
-    from automind.infrastructure.config import load_yaml
+    from automind.chat.domain.verdict.report_layout import annotate_sections, depths
+    from automind.shared.infrastructure.config.loader import load_yaml
 
     layouts = load_yaml("report_layouts.yaml")
     buyer = {b["type"]: b for b in annotate_sections("BUYER", blocks("verdict", "tco", "engineering"), layouts)}

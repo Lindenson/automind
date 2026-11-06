@@ -12,9 +12,9 @@ from sqlalchemy import delete, select
 
 from automind.acquisition.gold import repo as gold_repo
 from automind.acquisition.gold.domain.match import GoldValue
-from automind.domain import evidence as ev
-from automind.infrastructure import db
-from automind.infrastructure.db import models as m
+from automind.shared.evidence import evidence as ev
+from automind.shared.infrastructure import db
+from automind.shared.infrastructure.db import models as m
 
 REGISTRY_TABLES = (m.RegistryAttempt, m.RegistryChange, m.TruthSignal, m.CapabilityRow, m.SourceRow,
                    m.ComponentReputation)  # fmt: skip

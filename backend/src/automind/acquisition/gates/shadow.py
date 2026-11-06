@@ -23,8 +23,8 @@ from automind.acquisition.agents.budget import AgentBudget
 from automind.acquisition.domain import gates, relevance_audit
 from automind.acquisition.domain.versions import parse_key
 from automind.acquisition.gates import evaluate, journal, relevance_replay, replay_gate
-from automind.infrastructure import overrides
-from automind.infrastructure.db import AcqChange, AcqExperiment, sessionmaker
+from automind.acquisition.infrastructure import overrides
+from automind.shared.infrastructure.db import AcqChange, AcqExperiment, sessionmaker
 
 log = logging.getLogger(__name__)
 
@@ -91,7 +91,7 @@ async def _add(change_id: str, snapshot_id: str) -> None:
     from sqlalchemy import update  # noqa: PLC0415
 
     from automind.acquisition.snapshots import codec  # noqa: PLC0415
-    from automind.infrastructure.db import PageSnapshot  # noqa: PLC0415
+    from automind.shared.infrastructure.db import PageSnapshot  # noqa: PLC0415
 
     async with sessionmaker()() as s:
         await s.execute(_APPEND, {"c": change_id, "sid": snapshot_id})

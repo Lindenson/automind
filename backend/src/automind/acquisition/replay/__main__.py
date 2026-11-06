@@ -99,7 +99,7 @@ async def main_async(argv: list[str] | None = None) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    from automind.infrastructure.config import configure_domain  # noqa: PLC0415
+    from automind.shared.infrastructure.config.loader import configure_domain  # noqa: PLC0415
 
     configure_domain()
     return asyncio.run(main_async(argv))

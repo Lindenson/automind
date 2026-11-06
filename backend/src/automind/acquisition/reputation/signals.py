@@ -33,8 +33,8 @@ from automind.acquisition.gold import repo as gold_repo
 from automind.acquisition.infrastructure.config import physics_config
 from automind.acquisition.registry.api import TruthSignalIn
 from automind.acquisition.registry.domain.families import family_of
-from automind.infrastructure.config import load_yaml
-from automind.infrastructure.db import (
+from automind.shared.infrastructure.config.loader import load_yaml
+from automind.shared.infrastructure.db import (
     Claim,
     Document,
     Evidence,

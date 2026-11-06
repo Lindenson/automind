@@ -4,8 +4,8 @@ import pytest
 from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage
 
-from automind.application.usage import BudgetExceeded, Limits, Prices, TurnBudget, current_budget
-from automind.infrastructure.usage_callback import UsageCallbackHandler
+from automind.shared.infrastructure.llm.usage_callback import UsageCallbackHandler
+from automind.shared.metering.usage import BudgetExceeded, Limits, Prices, TurnBudget, current_budget
 
 PRICES = Prices(
     llm={"m:big": (2.0, 10.0)},

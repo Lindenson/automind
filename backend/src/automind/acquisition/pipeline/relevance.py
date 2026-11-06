@@ -7,15 +7,15 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 
+from automind.acquisition.domain import relevance as rel
 from automind.acquisition.pipeline import extract as ex
 from automind.acquisition.pipeline import stamp
 from automind.acquisition.pipeline.plan import known_makes
 from automind.acquisition.pipeline.validate import _variant_gearbox, fuel_of
 from automind.acquisition.ports import AcqPorts
-from automind.application.usage import BudgetExceeded
-from automind.domain import relevance as rel
-from automind.infrastructure import db
 from automind.shared.contracts.web import Page
+from automind.shared.infrastructure import db
+from automind.shared.metering.usage import BudgetExceeded
 
 VERSION = "relevance@2"  # 2: a model named by its local (Chinese) names (chat 2026-11-06)
 

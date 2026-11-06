@@ -18,9 +18,9 @@ from sqlalchemy.dialects.postgresql import insert
 
 from automind.acquisition.infrastructure import config as acq_config
 from automind.acquisition.snapshots import codec
-from automind.domain.evidence import domain_of
-from automind.infrastructure.db import PageSnapshot, SnapshotBlob, sessionmaker, uid
-from automind.insight.metrics import prom
+from automind.observability.metrics import prom
+from automind.shared.evidence.evidence import domain_of
+from automind.shared.infrastructure.db import PageSnapshot, SnapshotBlob, sessionmaker, uid
 
 log = logging.getLogger(__name__)
 

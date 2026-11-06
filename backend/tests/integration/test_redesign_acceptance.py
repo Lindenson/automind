@@ -19,14 +19,15 @@ from tests.fakes.fake_llm import FakeLLM
 from automind.acquisition.agents import parser_doctor
 from automind.acquisition.gold import repo
 from automind.acquisition.gold.domain.match import GoldValue
+from automind.acquisition.infrastructure import overrides
 from automind.acquisition.parsing import migrate_v1
 from automind.acquisition.parsing.registry import ParserRegistry
 from automind.acquisition.snapshots import store
 from automind.acquisition.worker.config import worker_config
 from automind.acquisition.worker.process import Worker
-from automind.infrastructure import db, overrides
-from automind.infrastructure.config import config_dir
 from automind.shared.contracts.web import Page
+from automind.shared.infrastructure import db
+from automind.shared.infrastructure.config.loader import config_dir
 
 FIX = Path(__file__).resolve().parents[1] / "fixtures"
 OLD = [(FIX / "html" / "km77_three" / f"car_{c}.html").read_bytes() for c in "abc"]

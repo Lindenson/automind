@@ -6,8 +6,8 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
 
-from .model import ACCESS_BLOCKING
-from .seed_rules import denied
+from automind.acquisition.registry.domain.model import ACCESS_BLOCKING
+from automind.acquisition.registry.domain.seed_rules import denied
 
 
 @dataclass(frozen=True)

@@ -17,8 +17,8 @@ from sqlalchemy.dialects.postgresql import insert
 
 from automind.acquisition.gold.domain.match import GoldValue
 from automind.acquisition.infrastructure import config as acq_config
-from automind.domain import specs
-from automind.infrastructure.db import GoldDataset, GoldValueRow, sessionmaker, uid
+from automind.shared.infrastructure.db import GoldDataset, GoldValueRow, sessionmaker, uid
+from automind.shared.vehicle import specs
 
 CHALLENGES = "challenges"  # gold_datasets.id of user challenges
 REFERENCE_SET = "reference_set"

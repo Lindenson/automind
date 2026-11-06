@@ -23,9 +23,9 @@ from automind.acquisition.worker.budget import BudgetExceeded, BudgetGuard
 from automind.acquisition.worker.config import worker_config
 from automind.acquisition.worker.handlers import HANDLERS
 from automind.acquisition.worker.process import Worker
-from automind.infrastructure import db
-from automind.infrastructure.db.session import sessionmaker
-from automind.insight.metrics import heartbeat
+from automind.observability.metrics import heartbeat
+from automind.shared.infrastructure import db
+from automind.shared.infrastructure.db.session import sessionmaker
 
 
 @pytest.fixture(autouse=True)
@@ -86,7 +86,7 @@ async def test_due_background_tasks_run_and_are_journalled_without_the_api():
 async def test_once_runs_in_a_separate_process_without_the_api():
     env = dict(os.environ)  # DATABASE_URL = the test database (tests/conftest.py)
     probe = "import sys; from automind.acquisition.worker.__main__ import main; rc = main(['--once', " \
-            "'registry_review']); assert not any(m.startswith('automind.api') for m in sys.modules), " \
+            "'registry_review']); assert not any(m.startswith('automind.delivery.web') for m in sys.modules), " \
             "'the worker imported the API'; sys.exit(rc)"  # fmt: skip
     res = subprocess.run([sys.executable, "-c", probe], env=env, capture_output=True, text=True, timeout=120,
                          check=False)  # fmt: skip

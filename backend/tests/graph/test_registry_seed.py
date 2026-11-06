@@ -9,8 +9,8 @@ from automind.acquisition.registry.api import Attempt
 from automind.acquisition.registry.application.seed import seed, seed_if_empty
 from automind.acquisition.registry.application.service import RegistryService
 from automind.acquisition.registry.infrastructure.repo import RegistryRepo
-from automind.infrastructure.db import models as m
-from automind.infrastructure.db.session import sessionmaker
+from automind.shared.infrastructure.db import models as m
+from automind.shared.infrastructure.db.session import sessionmaker
 
 
 async def _clear() -> None:

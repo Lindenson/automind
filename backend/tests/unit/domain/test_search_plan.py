@@ -1,7 +1,7 @@
 """Search plan (spec 003 FR-002, FR-003; research R2): favourites first, grouped, by market; open web later."""
 
-from automind.domain import evidence
-from automind.domain.search_plan import Identity, PlannedQuery, queries
+from automind.shared.evidence import evidence
+from automind.shared.research_order.search_plan import Identity, PlannedQuery, queries
 
 FAV = [
     {
@@ -86,7 +86,7 @@ def test_deny_listed_favourite_never_appears():
         qs = _plan("specs")
         assert "motor.es" not in {s for q in qs for s in q.sites}
     finally:
-        from automind.infrastructure.config import configure_domain
+        from automind.shared.infrastructure.config.loader import configure_domain
 
         configure_domain()
 
@@ -102,7 +102,7 @@ def test_no_duplicate_queries():
 
 
 def test_ai_query_checks():
-    from automind.domain.search_plan import accept_ai_query
+    from automind.shared.research_order.search_plan import accept_ai_query
 
     tried = ["BMW 5 Series G30 520d specifications"]
     assert accept_ai_query("BMW G30 520d Messwerte 0-100 auto motor und sport", tried)
@@ -114,7 +114,7 @@ def test_ai_query_checks():
 
 # --- spec 007 US5: short favourite identity, market words, retry --------------------------------------------
 
-from automind.domain.search_plan import retry_queries, short_identity  # noqa: E402
+from automind.shared.research_order.search_plan import retry_queries, short_identity  # noqa: E402
 
 GOLF_R = Identity("Volkswagen", "Golf", "Mk8.5", "Golf Variant R 2.0 TSI 333 CV DSG 4MOTION")
 BMW_T = Identity("BMW", "3 Series", "G21", "320d Touring M Sport Steptronic")

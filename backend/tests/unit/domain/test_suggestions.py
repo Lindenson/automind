@@ -1,9 +1,9 @@
 """Next-step suggestions (spec 004 FR-020)."""
 
-from automind.domain import insights as ins
-from automind.domain import suggestions as sg
-from automind.domain import verdict as vd
-from automind.infrastructure.config import load_yaml
+from automind.chat.domain.verdict import insights as ins
+from automind.chat.domain.verdict import suggestions as sg
+from automind.chat.domain.verdict import verdict as vd
+from automind.shared.infrastructure.config.loader import load_yaml
 
 RULES = ins.rules_from_config(load_yaml("insights.yaml"))
 A = ins.CarValues("a", "A", {"consumption": 5.6, "official_price_es": 45_900}, energy_eur_per_unit=1.6)

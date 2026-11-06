@@ -11,7 +11,7 @@ from typing import Any
 
 from automind.acquisition.registry.domain.seed_rules import from_favourite, from_survey
 from automind.acquisition.registry.infrastructure.repo import RegistryRepo
-from automind.infrastructure.config import load_yaml
+from automind.shared.infrastructure.config.loader import load_yaml
 
 
 async def seed() -> dict[str, int]:
@@ -34,7 +34,7 @@ async def seed() -> dict[str, int]:
 def _survey_list() -> list[dict[str, Any]]:
     import yaml  # noqa: PLC0415
 
-    from automind.infrastructure.config import config_dir  # noqa: PLC0415
+    from automind.shared.infrastructure.config.loader import config_dir  # noqa: PLC0415
 
     data = yaml.safe_load((config_dir() / "registry_seed_survey.yaml").read_text(encoding="utf-8"))
     return list(data or [])

@@ -1,10 +1,10 @@
 """A new car is matched to the current generation from config, not to a stale catalog row (RAV4 XA50 vs XA60)."""
 
-from automind.application.resolve import _fits
-from automind.domain.casefile import CaseCar
-from automind.infrastructure import db
-from automind.infrastructure.config import reference
-from automind.orchestration.prompts import load_all
+from automind.chat.application.services.identification.resolve import _fits
+from automind.chat.dialog.prompts import load_all
+from automind.chat.domain.case.casefile import CaseCar
+from automind.shared.infrastructure import db
+from automind.shared.infrastructure.config.loader import reference
 
 
 def test_new_rav4_is_not_the_previous_generation():
@@ -19,7 +19,7 @@ def test_new_rav4_is_not_the_previous_generation():
 
 
 def test_current_generation_for_new_cars():
-    from automind.application.resolve import current_generation
+    from automind.chat.application.services.identification.resolve import current_generation
 
     ref = reference(load_all())
     new = CaseCar(key="car#1", request_text="new RAV4", make="Toyota", model="RAV4", condition="NEW")
@@ -37,7 +37,7 @@ def test_catalog_row_without_generation_is_not_reused_when_config_knows_generati
 
 
 async def test_revalidate_resets_a_new_car_on_a_finished_generation(monkeypatch):
-    from automind.application import resolve
+    from automind.chat.application.services.identification import resolve
 
     ref = reference(load_all())
     xa50 = db.Variant(id="v-xa50", make="Toyota", model="RAV4", generation="XA50", variant_name="2.5 Hybrid",
@@ -57,7 +57,7 @@ async def test_revalidate_resets_a_new_car_on_a_finished_generation(monkeypatch)
 
 
 def test_same_model_spec_005() -> None:
-    from automind.application.resolve import same_model
+    from automind.chat.application.services.identification.resolve import same_model
 
     assert (
         same_model("Seal U", "Seal U DM-i") and same_model("Seal U DM-i", "Seal U") and same_model("SEAL U", "Seal U")

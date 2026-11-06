@@ -12,8 +12,8 @@ from sqlalchemy import func, select
 
 from automind.acquisition.pipeline import plan
 from automind.acquisition.pipeline.validate import CRITICAL
-from automind.domain import research_plan
-from automind.infrastructure import db
+from automind.shared.infrastructure import db
+from automind.shared.research_order import plan as research_plan
 
 
 async def _have(variant_id: str) -> set[str]:

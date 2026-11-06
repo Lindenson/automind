@@ -8,11 +8,11 @@ from langchain_core.language_models.fake_chat_models import GenericFakeChatModel
 from langchain_core.messages import AIMessage
 from langchain_core.tools import tool
 
-from automind.application.usage import Prices
-from automind.infrastructure.db.repositories import MessageRepo, UsageRepo
-from automind.infrastructure.usage_callback import UsageCallbackHandler
-from automind.orchestration.graph import build_graph
-from automind.orchestration.runner import ChatRunner
+from automind.chat.dialog.graph import build_graph
+from automind.chat.dialog.runner import ChatRunner
+from automind.chat.infrastructure.persistence.repositories import MessageRepo, UsageRepo
+from automind.shared.infrastructure.llm.usage_callback import UsageCallbackHandler
+from automind.shared.metering.usage import Prices
 from tests.fakes.fake_llm import FakeLLM
 from tests.fakes.fixture_search import FixtureSearch
 from tests.golden.runner import load, seed
@@ -42,7 +42,7 @@ class RecordingLLM(FakeLLM):
 
 
 async def _record(role: str, failed: bool = False) -> None:
-    from automind.application.usage import current_budget
+    from automind.shared.metering.usage import current_budget
 
     b = current_budget.get()
     await UsageRepo().record_llm(
@@ -68,7 +68,7 @@ async def test_turn_usage_matches_recorded_rows_including_agent(saver, chat_id):
     class CountingSearch(FixtureSearch):
         async def search(self, query, *, market="ES", area=None, fresh=False):  # noqa: ANN001
             out = await super().search(query, market=market, area=area, fresh=fresh)
-            from automind.application.usage import current_budget
+            from automind.shared.metering.usage import current_budget
 
             b = current_budget.get()
             await UsageRepo().record_search(
@@ -93,7 +93,7 @@ async def test_agent_steps_are_counted_by_the_model_callback():
     """create_agent runs several model steps; each one goes through the usage callback (FR-042)."""
     from langchain.agents import create_agent
 
-    from automind.application.usage import Limits, TurnBudget, current_budget
+    from automind.shared.metering.usage import Limits, TurnBudget, current_budget
 
     @tool
     def get_case(chat_id: str) -> str:

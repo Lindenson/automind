@@ -14,7 +14,7 @@ from typing import Any
 from sqlalchemy import text
 
 from automind.acquisition.domain.replay import wilson_lb
-from automind.infrastructure.db import sessionmaker
+from automind.shared.infrastructure.db import sessionmaker
 
 _KPI = {
     "sources": "SELECT coalesce(sum(right_w), 0), coalesce(sum(wrong_w), 0) FROM capabilities",

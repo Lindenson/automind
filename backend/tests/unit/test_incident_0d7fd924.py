@@ -11,15 +11,29 @@
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
-from automind.application import ask
-from automind.application.compose import data_panel_block
-from automind.application.resolve import _fits, _strip_prefix, bought_now, current_generation
-from automind.domain import identity, intake
-from automind.domain.casefile import CaseCar, CaseFile, Choice, Constraints, EngineHint, IdentifyOutcome, Pending
-from automind.infrastructure import db
-from automind.infrastructure.config import reference
-from automind.orchestration import phrases
-from automind.orchestration.prompts import load_all
+from automind.chat.application.services.identification.resolve import (
+    _fits,
+    _strip_prefix,
+    bought_now,
+    current_generation,
+)
+from automind.chat.application.services.interpretation import ask
+from automind.chat.application.services.report.compose import data_panel_block
+from automind.chat.dialog import phrases
+from automind.chat.dialog.prompts import load_all
+from automind.chat.domain.case.casefile import (
+    CaseCar,
+    CaseFile,
+    Choice,
+    Constraints,
+    EngineHint,
+    IdentifyOutcome,
+    Pending,
+)
+from automind.chat.domain.intake import intake
+from automind.shared.infrastructure import db
+from automind.shared.infrastructure.config.loader import reference
+from automind.shared.vehicle import identity
 
 KF_VERSION = "Mazda CX-5 KF 2.0 e-Skyactiv G 165 PS"
 

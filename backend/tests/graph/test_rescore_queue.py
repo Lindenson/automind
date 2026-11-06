@@ -5,12 +5,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from automind.api import rest
-from automind.api.rest import CasePatch
-from automind.application.ports import VersionConflict
-from automind.domain.casefile import CaseFile
-from automind.infrastructure.db.repositories import CaseRepo, MessageRepo, TurnRepo
-from automind.orchestration.nodes.common import history
+from automind.chat.application.ports import VersionConflict
+from automind.chat.dialog.nodes.common import history
+from automind.chat.domain.case.casefile import CaseFile
+from automind.chat.infrastructure.persistence.repositories import CaseRepo, MessageRepo, TurnRepo
+from automind.delivery.web import rest
+from automind.delivery.web.rest import CasePatch
 from tests.fakes.fake_llm import FakeLLM
 
 from .test_rescore import _reported

@@ -4,9 +4,9 @@ from datetime import timedelta
 
 from sqlalchemy import select
 
-from automind.infrastructure import db
-from automind.infrastructure.db.models import now
-from automind.infrastructure.retention import run_retention
+from automind.acquisition.infrastructure.retention import run_retention
+from automind.shared.infrastructure import db
+from automind.shared.infrastructure.db.models import now
 
 
 async def test_retention_removes_only_expired_unreferenced():

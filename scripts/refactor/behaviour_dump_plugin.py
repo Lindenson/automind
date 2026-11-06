@@ -20,7 +20,7 @@ from typing import Any
 import pytest
 
 # Where EventBus lives before and after the spec 012 tree move.
-_EVENT_MODULES = ("automind.infrastructure.events", "automind.shared.infrastructure.events")
+_EVENT_MODULES = ("automind.infrastructure.events", "automind.chat.infrastructure.events")
 _UUID = re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b")
 _HEX_ID = re.compile(r"\b(?=[0-9a-f]*\d)(?=[0-9a-f]*[a-f])[0-9a-f]{16}(?:[0-9a-f]{16})?\b")  # 16/32-hex ids, hashes
 _TS = re.compile(r"\b\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?\b")

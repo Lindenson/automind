@@ -24,10 +24,18 @@ from sqlalchemy import select
 from automind.acquisition.domain import gates
 from automind.acquisition.domain import replay as scoring
 from automind.acquisition.infrastructure import config as acq_config
+from automind.acquisition.infrastructure import overrides
 from automind.acquisition.parsing.spec import ParserSpec
 from automind.acquisition.snapshots.store import SnapshotRef
-from automind.infrastructure import config, overrides
-from automind.infrastructure.db import AcqChange, PageSnapshot, ParserVersion, PromptVersion, Variant, sessionmaker
+from automind.shared.infrastructure.config import loader as config
+from automind.shared.infrastructure.db import (
+    AcqChange,
+    PageSnapshot,
+    ParserVersion,
+    PromptVersion,
+    Variant,
+    sessionmaker,
+)
 
 EST_EXTRACT_EUR = 0.002  # one extractor call on one page (flash-lite web reader)
 Charge = Callable[[float], Awaitable[None]]
@@ -141,7 +149,7 @@ def rule_sets(c: AcqChange) -> tuple[dict[str, Any], dict[str, Any]]:
 @contextmanager
 def _sense(rules: dict[str, Any]) -> Iterator[None]:
     """The sense checks with these rules for the (synchronous) block."""
-    from automind.domain import sense  # noqa: PLC0415
+    from automind.shared.evidence import sense  # noqa: PLC0415
 
     saved = dict(sense.RULES)
     sense.configure(rules)
@@ -185,8 +193,8 @@ async def _extractor_pair(c: AcqChange, rs: list[SnapshotRef], *, llm: Any = Non
     from automind.acquisition.pipeline import extract as extraction  # noqa: PLC0415
     from automind.acquisition.pipeline import job as pipeline_job  # noqa: PLC0415
     from automind.acquisition.replay import run  # noqa: PLC0415
-    from automind.infrastructure import llm_gateway  # noqa: PLC0415
     from automind.shared.contracts.web import WebDoc  # noqa: PLC0415
+    from automind.shared.infrastructure.llm import gateway as llm_gateway  # noqa: PLC0415
 
     if c.object_kind == "prompt":
         name, old_text, new_text = await _prompt_texts(c)

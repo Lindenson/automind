@@ -13,7 +13,7 @@ from typing import Any, TypeVar
 
 from pydantic import BaseModel
 
-from automind.application.usage import current_budget
+from automind.shared.metering.usage import current_budget
 
 T = TypeVar("T", bound=BaseModel)
 

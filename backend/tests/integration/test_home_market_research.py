@@ -22,11 +22,11 @@ from tests.graph.conftest import engine, make_ports, open_web_reference
 
 from automind.acquisition import api as acquisition
 from automind.acquisition.registry.api import PlannedSource
-from automind.application import compose
-from automind.domain import tco
-from automind.infrastructure import db
-from automind.infrastructure.db import models as m
-from automind.orchestration.nodes.compute import energy_notices
+from automind.chat.application.services.report import compose
+from automind.chat.dialog.nodes.compute import energy_notices
+from automind.chat.domain.cost import tco
+from automind.shared.infrastructure import db
+from automind.shared.infrastructure.db import models as m
 
 CONFIG = Path(__file__).parents[2] / "config"
 RATES = tco.TcoRates.from_config(yaml.safe_load((CONFIG / "rates.yaml").read_text()))

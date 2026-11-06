@@ -3,8 +3,8 @@ blocked a new search for a week."""
 
 from datetime import timedelta
 
-from automind.infrastructure.config import load_yaml
-from automind.infrastructure.search.cache import cache_ttl
+from automind.acquisition.infrastructure.search.cache import cache_ttl
+from automind.shared.infrastructure.config.loader import load_yaml
 
 
 def test_empty_result_gets_the_short_ttl():

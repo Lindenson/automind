@@ -23,7 +23,7 @@ from automind.acquisition.domain import gates, relevance_audit
 from automind.acquisition.gates import evaluate, journal, relevance_replay
 from automind.acquisition.infrastructure import config as acq_config
 from automind.acquisition.snapshots import codec
-from automind.infrastructure.db import AcqChange, AcqExperiment, PageSnapshot, ParserVersion, sessionmaker
+from automind.shared.infrastructure.db import AcqChange, AcqExperiment, PageSnapshot, ParserVersion, sessionmaker
 
 log = logging.getLogger(__name__)
 WINDOW_DAYS = 30
@@ -176,7 +176,7 @@ async def run(change_id: str, *, llm: Any = None, guard: AgentBudget | None = No
             exp.pages_old = exp.pages_new = 0
             exp.metrics_old, exp.metrics_new = None, None
             await s.commit()
-        from automind.infrastructure import overrides  # noqa: PLC0415
+        from automind.acquisition.infrastructure import overrides  # noqa: PLC0415
 
         await overrides.refresh(force=True)  # live readers of this process start feeding the shadow at once
     elif verdict.verdict == "fail":

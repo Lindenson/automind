@@ -11,7 +11,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from automind.domain import dragrace, specs
+from automind.chat.domain.assessment import dragrace
+from automind.shared.vehicle import specs
 
 REF = yaml.safe_load((Path(__file__).resolve().parents[2] / "eval" / "reference_vehicles.yaml").read_text())
 SOURCED = [v for v in REF.get("vehicles") or [] if (v.get("sources") or {}).get("specs")]

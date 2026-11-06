@@ -2,8 +2,8 @@
 
 from sqlalchemy import select
 
-from automind.application import repair
-from automind.infrastructure import db
+from automind.chat.application.maintenance import repair
+from automind.shared.infrastructure import db
 
 ENGINE = {"model": "320d", "generation": "G20", "powertrain": "MHEV", "engine_cc": 1995, "power_kw": 140,
           "transmission": "automatic", "body_class": "SEDAN"}  # fmt: skip

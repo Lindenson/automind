@@ -18,7 +18,7 @@ from typing import Any
 
 from automind.acquisition.worker import queue
 from automind.acquisition.worker.budget import BudgetGuard
-from automind.infrastructure.config import load_yaml
+from automind.shared.infrastructure.config.loader import load_yaml
 
 log = logging.getLogger(__name__)
 
@@ -45,7 +45,7 @@ Handler = Callable[[queue.Task, WorkerCtx], Awaitable[dict[str, Any]]]
 
 
 async def metrics_snapshot(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any]:
-    from automind.insight.metrics import snapshot  # noqa: PLC0415
+    from automind.observability.metrics import snapshot  # noqa: PLC0415
 
     snap = await snapshot.run_once()  # published to this process's /metrics
     return {"series": sum(len(v) for v in snap.values.values())}
@@ -60,7 +60,7 @@ async def registry_review(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any]:
 
 
 async def insight_run(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any]:
-    from automind.insight.loop import run_if_due  # noqa: PLC0415
+    from automind.observability.loop import run_if_due  # noqa: PLC0415
 
     return await run_if_due()
 

@@ -20,9 +20,9 @@ from sqlalchemy.dialects.postgresql import insert
 
 from automind.acquisition.infrastructure.fetch import Fetcher, FetchPolicy, FetchRefused, RawPage, html_to_text
 from automind.acquisition.snapshots import store as snapshots
-from automind.domain.research_plan import FRESHNESS_DAYS
-from automind.infrastructure.db import Document, sessionmaker, uid
 from automind.shared.contracts.web import Page
+from automind.shared.infrastructure.db import Document, sessionmaker, uid
+from automind.shared.research_order.plan import FRESHNESS_DAYS
 
 log = logging.getLogger(__name__)
 

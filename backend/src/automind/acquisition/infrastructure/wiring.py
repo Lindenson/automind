@@ -13,21 +13,21 @@ from automind.acquisition.gold.versions import live_rows
 from automind.acquisition.infrastructure.config import fetch_policy
 from automind.acquisition.infrastructure.fetch import Fetcher, FetchPolicy
 from automind.acquisition.infrastructure.pages import DbPageStore
+from automind.acquisition.infrastructure.search.cache import CachedSearcher
+from automind.acquisition.infrastructure.search.serpapi import SerpApiProvider
+from automind.acquisition.infrastructure.search.serper import SerperProvider
+from automind.acquisition.infrastructure.search.tavily import TavilyProvider
 from automind.acquisition.parsing.registry import live_readers
 from automind.acquisition.ports import AcqPorts
 from automind.acquisition.registry.application.service import RegistryService
 from automind.acquisition.registry.infrastructure.repo import RegistryRepo
-from automind.infrastructure.config import reference, search_config
-from automind.infrastructure.db.repositories import MarketFactRepo
-from automind.infrastructure.search.cache import CachedSearcher
-from automind.infrastructure.search.serpapi import SerpApiProvider
-from automind.infrastructure.search.serper import SerperProvider
-from automind.infrastructure.search.tavily import TavilyProvider
-from automind.insight.metrics import prom
+from automind.chat.infrastructure.persistence.repositories import MarketFactRepo
+from automind.observability.metrics import prom
 from automind.shared.contracts.config import Reference
+from automind.shared.infrastructure.config.loader import reference, search_config
 
 # the prompts are versioned files next to the chat's (orchestration/prompts/*.md); read as files, never imported
-PROMPTS = Path(__file__).resolve().parents[2] / "orchestration" / "prompts"
+PROMPTS = Path(__file__).resolve().parents[2] / "chat" / "dialog" / "prompts"
 
 
 def live_search() -> CachedSearcher:
@@ -60,7 +60,7 @@ def engine_ports(llm: Any, ref: Reference, registry: Any = None) -> AcqPorts:
 @cache
 def live_acq_ports() -> AcqPorts:
     """This process's engine ports (the worker, `acquisition.api` calls without ports)."""
-    from automind.infrastructure.adapters import LiveLLM  # noqa: PLC0415 - the gateway-backed model port
+    from automind.chat.infrastructure.adapters import LiveLLM  # noqa: PLC0415 - the gateway-backed model port
 
     prompts = {p.stem: p.read_text(encoding="utf-8").strip() for p in sorted(PROMPTS.glob("*.md"))}
     return engine_ports(LiveLLM(), reference(prompts))

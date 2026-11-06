@@ -25,8 +25,8 @@ from automind.acquisition.domain import relevance_audit as ra
 from automind.acquisition.domain import replay as scoring
 from automind.acquisition.infrastructure import config as acq_config
 from automind.acquisition.snapshots.store import SnapshotRef
-from automind.infrastructure import config
-from automind.infrastructure.db import AcqChange, Variant, sessionmaker
+from automind.shared.infrastructure.config import loader as config
+from automind.shared.infrastructure.db import AcqChange, Variant, sessionmaker
 
 PREFIX = "relevance.keywords."
 Charge = Callable[[float], Awaitable[None]]
@@ -177,7 +177,7 @@ async def references(variant_ids: set[str]) -> References:
 @contextmanager
 def keywords(lists: Mapping[str, Sequence[str]]) -> Iterator[None]:
     """The relevance rules with these keyword lists for the block (synchronous: no other task runs meanwhile)."""
-    from automind.domain import relevance  # noqa: PLC0415
+    from automind.acquisition.domain import relevance  # noqa: PLC0415
 
     saved = {k: list(v) for k, v in relevance.KEYWORDS.items()}
     relevance.configure_keywords(dict(lists))
@@ -189,7 +189,7 @@ def keywords(lists: Mapping[str, Sequence[str]]) -> Iterator[None]:
 
 def keyword_sets(c: AcqChange) -> tuple[dict[str, list[str]], dict[str, list[str]]]:
     """(keyword lists before, after) of a relevance keyword change."""
-    from automind.domain import relevance  # noqa: PLC0415
+    from automind.acquisition.domain import relevance  # noqa: PLC0415
 
     name = c.object_key.removeprefix(PREFIX)
     current = {k: list(v) for k, v in relevance.KEYWORDS.items()}
@@ -212,8 +212,8 @@ def rejudge(items: Sequence[Judged], texts: Mapping[str, tuple[str, str]], vs: M
             ) -> tuple[list[tuple[Judged, str, str]], int]:  # fmt: skip
     """[(page, old verdict, new verdict)] of the pages whose stored verdict the old keywords reproduce, and how many
     did not reproduce."""
+    from automind.acquisition.domain import relevance as rel  # noqa: PLC0415
     from automind.acquisition.pipeline.relevance import relevance_target  # noqa: PLC0415
-    from automind.domain import relevance as rel  # noqa: PLC0415
 
     gens = config.generations()
     out: list[tuple[Judged, str, str]] = []
@@ -270,12 +270,13 @@ async def _extracted(ref: SnapshotRef, raw: bytes, vs: Mapping[str, Variant], ru
                      charge: Charge | None) -> list[scoring.Value]:  # fmt: skip
     """The specs extractor on a page without a reader (cached; one call within the agent's budget)."""
     from automind.acquisition.gates import evaluate  # noqa: PLC0415
+    from automind.acquisition.infrastructure import overrides  # noqa: PLC0415
     from automind.acquisition.infrastructure.fetch import decode_body  # noqa: PLC0415
     from automind.acquisition.infrastructure.pages import main_content  # noqa: PLC0415
     from automind.acquisition.pipeline import job as pipeline_job  # noqa: PLC0415
     from automind.acquisition.replay import run  # noqa: PLC0415
-    from automind.infrastructure import llm_gateway, overrides  # noqa: PLC0415
     from automind.shared.contracts.web import WebDoc  # noqa: PLC0415
+    from automind.shared.infrastructure.llm import gateway as llm_gateway
 
     name = "extract_specs"
     path = run.PROMPTS_DIR / f"{name}.md"

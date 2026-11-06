@@ -13,6 +13,7 @@ from typing import Any
 from pydantic import BaseModel
 from sqlalchemy import select
 
+from automind.acquisition.domain import sense_ev
 from automind.acquisition.pipeline import extract as ex
 from automind.acquisition.pipeline import stamp
 from automind.acquisition.pipeline.locate import favourite_priority
@@ -25,10 +26,12 @@ from automind.acquisition.pipeline.validate import (
     sense_before,
 )
 from automind.acquisition.ports import AcqPorts
-from automind.domain import evidence as ev
-from automind.domain import sense, sense_ev, specs, used
-from automind.infrastructure import db
+from automind.chat.domain.identification import used
 from automind.shared.contracts.web import Page, WebDoc
+from automind.shared.evidence import evidence as ev
+from automind.shared.evidence import sense
+from automind.shared.infrastructure import db
+from automind.shared.vehicle import specs
 
 VERSION = "persist@1"
 
@@ -405,7 +408,7 @@ def _num(raw: str | None) -> float | None:
     if not raw:
         return None
     try:
-        from automind.domain import units
+        from automind.shared.vehicle import units
 
         return units.parse_number(raw)
     except Exception:

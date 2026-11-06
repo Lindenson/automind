@@ -12,16 +12,16 @@ from pathlib import Path
 import pytest
 import yaml
 
-from automind.domain import insights as ins
-from automind.domain import tco
-from automind.domain import verdict as vd
-from automind.domain.casefile import CaseFile
-from automind.domain.criteria import CarScore, CriteriaModel, CriteriaScore, score
-from automind.domain.metrics import CarFacts
-from automind.infrastructure.config import load_yaml
-from automind.orchestration import report_text
-from automind.orchestration.guard import CheckInput, report_violations, saving_for_costlier, violations_prompt
-from automind.orchestration.nodes.compute import assumption_lines, costlier_names, ownership_facts
+from automind.chat.dialog import report_text
+from automind.chat.dialog.guard import CheckInput, report_violations, saving_for_costlier, violations_prompt
+from automind.chat.dialog.nodes.compute import assumption_lines, costlier_names, ownership_facts
+from automind.chat.domain.assessment.criteria import CarScore, CriteriaModel, CriteriaScore, score
+from automind.chat.domain.assessment.metrics import CarFacts
+from automind.chat.domain.case.casefile import CaseFile
+from automind.chat.domain.cost import tco
+from automind.chat.domain.verdict import insights as ins
+from automind.chat.domain.verdict import verdict as vd
+from automind.shared.infrastructure.config.loader import load_yaml
 
 CONFIG = Path(__file__).parents[2] / "config"
 RULES = ins.rules_from_config(load_yaml("insights.yaml"))

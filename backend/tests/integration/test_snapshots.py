@@ -21,9 +21,9 @@ from automind.acquisition.registry.application.service import RegistryService
 from automind.acquisition.registry.infrastructure.repo import RegistryRepo
 from automind.acquisition.snapshots import codec, store
 from automind.acquisition.snapshots.retention import run_snapshot_retention
-from automind.infrastructure import db
-from automind.infrastructure.config import load_yaml
-from automind.infrastructure.db import models as m
+from automind.shared.infrastructure import db
+from automind.shared.infrastructure.config.loader import load_yaml
+from automind.shared.infrastructure.db import models as m
 
 PAGES = Path(__file__).resolve().parents[1] / "fixtures" / "pages"
 KM77 = {"domain": "km77.com", "source_type": "SPEC_DATABASE", "areas": ["specs"], "markets": ["ES"], "priority": 1,

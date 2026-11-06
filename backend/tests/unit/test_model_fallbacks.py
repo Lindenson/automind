@@ -2,7 +2,7 @@
 
 import pytest
 
-from automind.infrastructure import llm_gateway as g
+from automind.shared.infrastructure.llm import gateway as g
 
 DAILY = RuntimeError(
     "429 RESOURCE_EXHAUSTED ... GenerateRequestsPerDayPerProjectPerModel-FreeTier ... Please retry in 16h35m52.8s."
@@ -75,7 +75,7 @@ async def test_overloaded_model_falls_back_then_waits_and_gives_a_plain_error(mo
 
     with pytest.raises(g.ProviderUnavailable):
         await g._with_fallbacks("x", always_busy)
-    from automind.orchestration.runner import user_error_text
+    from automind.chat.dialog.runner import user_error_text
 
     assert "overloaded" in user_error_text(g.ProviderUnavailable("503"))
     assert "503" not in user_error_text(busy)

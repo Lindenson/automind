@@ -4,8 +4,8 @@ from pathlib import Path
 
 import yaml
 
-from automind.domain.reliability import IssueIn, SeverityRules, merge_issues, summarize
-from automind.domain.reviews import ReviewIn, summarize_reviews
+from automind.chat.domain.assessment.reliability import IssueIn, SeverityRules, merge_issues, summarize
+from automind.chat.domain.assessment.reviews import ReviewIn, summarize_reviews
 
 RULES = SeverityRules.from_config(yaml.safe_load((Path(__file__).parents[3] / "config" / "severity.yaml").read_text()))
 
@@ -56,7 +56,7 @@ def test_summary_counts_and_none_found():
 
 def test_used_car_emphasis_orders_issues_by_age_window():
     merged = merge_issues([issue("Paint", "a.com", age=(2, 4)), issue("Rust", "b.com", age=(9, 14))], RULES)
-    from automind.domain.reliability import order_for_age
+    from automind.chat.domain.assessment.reliability import order_for_age
 
     assert [m.component for m in order_for_age(merged, age_years=10)][0] == "Rust"
 

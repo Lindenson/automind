@@ -3,8 +3,10 @@ price (never the new one), depreciation from the value now, reliability with age
 
 from __future__ import annotations
 
-from automind.domain import criteria, tco, used
-from automind.domain.metrics import CarFacts, ReliabilitySummary
+from automind.chat.domain.assessment import criteria
+from automind.chat.domain.assessment.metrics import CarFacts, ReliabilitySummary
+from automind.chat.domain.cost import tco
+from automind.chat.domain.identification import used
 
 CURVE = {0.0: 1.0, 1.0: 0.8, 3.0: 0.62, 5.0: 0.5, 8.0: 0.36, 10.0: 0.3, 15.0: 0.18}
 

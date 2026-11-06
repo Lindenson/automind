@@ -9,10 +9,10 @@ from sqlalchemy import delete, select
 from automind.acquisition.registry.api import Attempt, TruthSignalIn
 from automind.acquisition.registry.application.service import RegistryService
 from automind.acquisition.registry.infrastructure.repo import RegistryRepo
-from automind.application import challenge
-from automind.infrastructure.config import load_yaml
-from automind.infrastructure.db import models as m
-from automind.infrastructure.db.session import sessionmaker
+from automind.chat.application.usecases import challenge
+from automind.shared.infrastructure.config.loader import load_yaml
+from automind.shared.infrastructure.db import models as m
+from automind.shared.infrastructure.db.session import sessionmaker
 
 from .conftest import open_web_reference
 from .test_challenge import _claims

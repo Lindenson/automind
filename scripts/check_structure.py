@@ -129,8 +129,11 @@ def _pkgdoc(rel: str, tree: ast.Module) -> list[Violation]:
     if not rel.endswith("__init__.py"):
         return []
     out = []
-    if not ast.get_docstring(tree):
+    doc = ast.get_docstring(tree) or ""
+    if not doc:
         out.append(Violation("pkgdoc", rel, "docstring"))
+    elif "documentation comes in step S3c" in doc:  # the tree move's placeholder (scripts/refactor/move.py)
+        out.append(Violation("pkgdoc", rel, "placeholder"))
     if not any(isinstance(n, ast.Assign | ast.AnnAssign) and "__all__" in _target_names(n) for n in tree.body):
         out.append(Violation("pkgdoc", rel, "__all__"))
     return out

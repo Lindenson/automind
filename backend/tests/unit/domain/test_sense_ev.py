@@ -2,9 +2,9 @@
 
 import pytest
 
-from automind.domain import sense_ev as se
-from automind.domain import specs
-from automind.domain.units import UnitError
+from automind.acquisition.domain import sense_ev as se
+from automind.shared.vehicle import specs
+from automind.shared.vehicle.units import UnitError
 
 PHEV = [
     # (attribute, raw, unit, excerpt) -> attribute or None (rejected)

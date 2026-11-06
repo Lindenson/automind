@@ -16,7 +16,7 @@ from automind.acquisition.parsing import migrate_v1
 from automind.acquisition.replay import __main__ as cli
 from automind.acquisition.replay.run import NoPages, ReplayRequest, run
 from automind.acquisition.snapshots import store
-from automind.infrastructure import db
+from automind.shared.infrastructure import db
 
 FIX = Path(__file__).resolve().parents[1] / "fixtures" / "html" / "km77_three"
 CARS = {  # page -> (variant name, kW, N·m, kg, cm3)

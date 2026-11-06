@@ -16,8 +16,8 @@ from typing import Any
 from sqlalchemy import bindparam, delete, func, or_, select, text
 from sqlalchemy.dialects.postgresql import insert
 
-from automind.infrastructure.db.models import AcqTask, now, uid
-from automind.infrastructure.db.session import sessionmaker
+from automind.shared.infrastructure.db.models import AcqTask, now, uid
+from automind.shared.infrastructure.db.session import sessionmaker
 
 STATES = ("queued", "running", "done", "failed", "dead")
 

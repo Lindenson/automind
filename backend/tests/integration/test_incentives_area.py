@@ -7,10 +7,11 @@ from sqlalchemy import delete
 
 from automind.acquisition.pipeline import market as ir
 from automind.acquisition.pipeline.extract import IncentiveEntry, IncentiveFacts
-from automind.domain import incentives, research_plan
-from automind.infrastructure import db
-from automind.infrastructure.db.repositories import MarketFactRepo
+from automind.chat.domain.cost import incentives
+from automind.chat.infrastructure.persistence.repositories import MarketFactRepo
 from automind.shared.contracts.web import WebDoc
+from automind.shared.infrastructure import db
+from automind.shared.research_order import plan as research_plan
 
 TEXT = ("El Plan MOVES III ofrece hasta 7.000 euros por la compra de un turismo eléctrico, con solicitudes hasta "
         "el 31 de diciembre de 2026. La deducción del 15 % en el IRPF se aplica hasta el 31 de diciembre de 2025. "

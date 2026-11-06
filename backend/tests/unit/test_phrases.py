@@ -1,4 +1,4 @@
-from automind.orchestration.phrases import PHRASES, t
+from automind.chat.dialog.phrases import PHRASES, t
 
 
 def test_every_phrase_has_en_ru_es():
@@ -13,7 +13,7 @@ def test_language_fallback_and_formatting():
 
 
 def test_guess_language_from_the_users_words():
-    from automind.orchestration.phrases import guess_language
+    from automind.chat.dialog.phrases import guess_language
 
     assert guess_language(["сравни RAV4 и CX-5"]) == "ru"
     assert guess_language(["¿qué coche es mejor?"]) == "es"

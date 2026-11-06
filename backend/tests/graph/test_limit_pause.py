@@ -2,9 +2,9 @@
 
 import pytest
 
-from automind.infrastructure.db.repositories import MessageRepo
-from automind.orchestration.graph import build_graph
-from automind.orchestration.runner import ChatRunner
+from automind.chat.dialog.graph import build_graph
+from automind.chat.dialog.runner import ChatRunner
+from automind.chat.infrastructure.persistence.repositories import MessageRepo
 from tests.fakes.fixture_search import FixtureSearch
 
 from .conftest import budget_factory, make_ports
@@ -50,7 +50,7 @@ async def test_typed_continue_continues_and_reconnect_resends_the_question(saver
     w = await rn.run_turn(chat_id, "FixtureMake Racer for a race enthusiast")
     assert w.confirm["kind"] == "limit"
     # a reload: the open question is sent again although the client already saw its seq
-    from automind.infrastructure.events import EventBus
+    from automind.chat.infrastructure.events import EventBus
 
     ev = await EventBus().current(chat_id, w.turn_id, "confirm_request")
     assert ev and ev["kind"] == "limit" and "seq" not in ev and ev["resent"]
@@ -63,7 +63,7 @@ async def test_typed_continue_continues_and_reconnect_resends_the_question(saver
 
 
 def test_yes_or_no():
-    from automind.orchestration.phrases import yes_or_no
+    from automind.chat.dialog.phrases import yes_or_no
 
     for t in ("Continue", "go ahead", "да", "Продолжай!", "давай дальше", "sí, sigue"):
         assert yes_or_no(t) == "yes", t

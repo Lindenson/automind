@@ -4,14 +4,14 @@ says there is no 2.5 and offers only the 2023 engines; "choose for me" settles; 
 
 from types import SimpleNamespace
 
-from automind.application import identify
-from automind.domain import intake
-from automind.domain.casefile import CaseCar, CaseFile, Constraints, Pending
-from automind.domain.identity import parse_engine
-from automind.domain.ladder import Generation, Version
-from automind.infrastructure.config import reference
-from automind.orchestration import phrases
-from automind.orchestration.prompts import load_all
+from automind.chat.application.services.identification import identify
+from automind.chat.dialog import phrases
+from automind.chat.dialog.prompts import load_all
+from automind.chat.domain.case.casefile import CaseCar, CaseFile, Constraints, Pending
+from automind.chat.domain.identification.ladder import Generation, Version
+from automind.chat.domain.intake import intake
+from automind.shared.infrastructure.config.loader import reference
+from automind.shared.vehicle.identity import parse_engine
 
 OCTAVIA = [
     Version("1.5 TSI 115 CV", "petrol", 1498, 85, ("manual",), ("FWD",), 2020, None, "https://km77.es/o", "115 CV"),
@@ -182,8 +182,8 @@ async def test_correcting_the_fuel_reopens_the_levels_below() -> None:
 
 
 async def _catalog_rows(make: str) -> None:
-    from automind.application import resolve
-    from automind.infrastructure import db
+    from automind.chat.application.services.identification import resolve
+    from automind.shared.infrastructure import db
 
     await db.init_db()
     for name, kw in (("2.0 TDI 115 CV Selection", 85), ("2.0 TDI 150 CV DSG Style", 110)):

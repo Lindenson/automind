@@ -3,8 +3,8 @@
 import pytest
 from pydantic import ValidationError
 
-from automind.api.rest import CasePatch, apply_patch
-from automind.domain.casefile import CaseDelta, CaseFile, PriorityChange, apply
+from automind.chat.domain.case.casefile import CaseDelta, CaseFile, PriorityChange, apply
+from automind.delivery.web.rest import CasePatch, apply_patch
 
 
 def test_patch_persona_is_a_user_edit_and_logged():
@@ -19,8 +19,8 @@ def test_patch_weights_normalized_and_priority_removed():
         case, CasePatch(weights={"status": 40, "reliability": 60}, remove_priority="status"), current_year=2026
     )
     # spec 007 FR-010: kept as adjustments on top of the automatic weights; the result is what the user set
-    from automind.api.rest import _criteria_model
-    from automind.domain.criteria import weights_for
+    from automind.chat.domain.assessment.criteria import weights_for
+    from automind.delivery.web.rest import _criteria_model
 
     assert weights_for(new, _criteria_model()) == pytest.approx({"status": 40.0, "reliability": 60.0}, abs=0.01)
     assert new.weight_adjustments and not new.weights_overridden
@@ -44,8 +44,8 @@ def test_patch_rates_can_be_cleared_back_to_default():
 
 
 def test_patch_constraints_partial_and_clear():
-    from automind.api.rest import CasePatch, apply_patch
-    from automind.domain.casefile import Budget, CaseFile
+    from automind.chat.domain.case.casefile import Budget, CaseFile
+    from automind.delivery.web.rest import CasePatch, apply_patch
 
     c = CaseFile(budget=Budget(max_eur=25000, intent="USED"))
     new, ch = apply_patch(c, CasePatch.model_validate({"budget": {"intent": "NEW"}}), current_year=2026)

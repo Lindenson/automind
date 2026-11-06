@@ -48,7 +48,7 @@ dev = [
 ]
 
 [project.scripts]
-automind-api = "automind.api.app:main"
+automind-api = "automind.delivery.web.app:main"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

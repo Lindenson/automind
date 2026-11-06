@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from .seed_rules import denied
+from automind.acquisition.registry.domain.seed_rules import denied
 
 CLASSIFIEDS_WORDS = ("anuncios", "classifieds", "kleinanzeigen", "annonces", "annunci", "segunda mano particulares")
 MIN_CONTENT_CHARS = 800

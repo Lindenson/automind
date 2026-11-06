@@ -8,11 +8,11 @@ from pathlib import Path
 import pytest
 import yaml
 
-from automind.application.makes import MakeRegistry
-from automind.domain import energy as en
-from automind.domain.casefile import CaseCar, CaseFile, StatedEnergy
-from automind.domain.intake import energy_figures_of, stated_for_cars
-from automind.orchestration.nodes.understand import _energy_from_text
+from automind.chat.dialog.nodes.understand import _energy_from_text
+from automind.chat.domain.case.casefile import CaseCar, CaseFile, StatedEnergy
+from automind.chat.domain.cost import energy as en
+from automind.chat.domain.intake.intake import energy_figures_of, stated_for_cars
+from automind.shared.vehicle.makes import MakeRegistry
 
 REG = MakeRegistry.from_config(yaml.safe_load((Path(__file__).parents[2] / "config" / "makes.yaml").read_text()))
 
@@ -101,7 +101,7 @@ def test_users_figures_replace_estimates():
 
 
 def test_the_figure_reaches_the_ownership_cost():
-    from automind.domain import tco
+    from automind.chat.domain.cost import tco
 
     rates = tco.TcoRates.from_config({
         **yaml.safe_load((Path(__file__).parents[2] / "config" / "rates.yaml").read_text()),

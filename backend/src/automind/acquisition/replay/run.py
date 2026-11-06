@@ -31,13 +31,13 @@ from automind.acquisition.parsing.spec import ParserSpec
 from automind.acquisition.replay.offline import NetworkForbidden, no_network
 from automind.acquisition.snapshots import store
 from automind.acquisition.snapshots.store import SnapshotRef
-from automind.domain import evidence as ev
-from automind.domain import specs
-from automind.infrastructure import config
-from automind.infrastructure.db import ExtractionCache, LLMCall, Variant, sessionmaker
 from automind.shared.contracts.web import WebDoc
+from automind.shared.evidence import evidence as ev
+from automind.shared.infrastructure.config import loader as config
+from automind.shared.infrastructure.db import ExtractionCache, LLMCall, Variant, sessionmaker
+from automind.shared.vehicle import specs
 
-PROMPTS_DIR = Path(__file__).resolve().parents[2] / "orchestration" / "prompts"
+PROMPTS_DIR = Path(__file__).resolve().parents[2] / "chat" / "dialog" / "prompts"
 
 
 class ReplayError(Exception):
@@ -296,7 +296,7 @@ def _prompt(key: str) -> tuple[str, str, str]:
 async def _extract_cached(doc: WebDoc, sha: str, name: str, text: str, area: str, model: str, target: str,
                           llm: Any = None) -> Any:  # fmt: skip
     from automind.acquisition.pipeline import extract as extraction  # noqa: PLC0415
-    from automind.infrastructure.adapters import LiveLLM  # noqa: PLC0415
+    from automind.chat.infrastructure.adapters import LiveLLM  # noqa: PLC0415
 
     schema = extraction.schema_for(area)
     phash = hashlib.sha256(text.encode("utf-8")).hexdigest()[:12]
@@ -319,7 +319,7 @@ async def _extractor_pages(req: ReplayRequest) -> tuple[str, list[scoring.PageRe
         raise Refused("extractor replay calls models: run it in the worker or pass --allow-llm")
     from automind.acquisition.infrastructure.pages import main_content  # noqa: PLC0415
     from automind.acquisition.pipeline import job as rs  # noqa: PLC0415
-    from automind.infrastructure import llm_gateway  # noqa: PLC0415
+    from automind.shared.infrastructure.llm import gateway as llm_gateway  # noqa: PLC0415
 
     key = str(req.extractor)
     name, text, area = _prompt(key)

@@ -26,10 +26,10 @@ from automind.acquisition.pipeline.plan import (
     registry_queries,
 )
 from automind.acquisition.ports import AcqPorts
-from automind.domain import evidence as ev
-from automind.domain import search_plan
-from automind.infrastructure import db
 from automind.shared.contracts.web import Page
+from automind.shared.evidence import evidence as ev
+from automind.shared.infrastructure import db
+from automind.shared.research_order import search_plan
 
 if TYPE_CHECKING:
     from automind.acquisition.pipeline.job import JobSpec
@@ -88,7 +88,7 @@ def _rank_hits(
     ports: AcqPorts, v: db.Variant | None, planned: list[search_plan.PlannedQuery], results: list[Any], seen: set[str]
 ) -> tuple[dict[str, tuple[int, int, int]], dict[str, str], list[search_plan.PlannedQuery], int]:
     """Favourites first, then by authority and rank; also which market found a URL and which queries were empty."""
-    from automind.application.usage import BudgetExceeded as _BE  # noqa: PLC0415
+    from automind.shared.metering.usage import BudgetExceeded as _BE  # noqa: PLC0415
 
     ranked: dict[str, tuple[int, int, int]] = {}
     url_market: dict[str, str] = {}

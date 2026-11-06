@@ -19,9 +19,10 @@ import yaml
 from pydantic import BaseModel
 from sqlalchemy import delete, select
 
-from automind.application.ports import Ports
-from automind.infrastructure.db import models as m
-from automind.infrastructure.db.repositories import (
+from automind.chat.application.ports import Ports
+from automind.chat.dialog.runner import ChatRunner, TurnResult
+from automind.chat.infrastructure.events import EventBus
+from automind.chat.infrastructure.persistence.repositories import (
     CaseRepo,
     EventRepo,
     FeasibilityRepo,
@@ -30,9 +31,8 @@ from automind.infrastructure.db.repositories import (
     MessageRepo,
     TurnRepo,
 )
-from automind.infrastructure.db.session import sessionmaker
-from automind.infrastructure.events import EventBus
-from automind.orchestration.runner import ChatRunner, TurnResult
+from automind.shared.infrastructure.db import models as m
+from automind.shared.infrastructure.db.session import sessionmaker
 from tests.fakes.fake_llm import FakeLLM, FixedEstimator
 from tests.fakes.fixture_search import FixtureSearch
 
@@ -224,8 +224,8 @@ async def hide_makes(d: Dialogue) -> list[tuple[str, str, str]]:
     `restore_makes` puts them back, so later tests (candidates, corrections) still find them."""
     if not d.forget:
         return []
-    from automind.domain.identity import Aliases, canonical_key
-    from automind.infrastructure.config import aliases
+    from automind.shared.infrastructure.config.loader import aliases
+    from automind.shared.vehicle.identity import Aliases, canonical_key
 
     al = Aliases.from_config(aliases())
     own = {canonical_key(v.make, v.model, v.generation, v.variant_name, v.powertrain, al) for v in d.seed}
@@ -253,8 +253,8 @@ async def restore_makes(saved: list[tuple[str, str, str]]) -> None:
 async def seed(d: Dialogue) -> None:
     from datetime import date, datetime
 
-    from automind.domain.identity import Aliases, canonical_key
-    from automind.infrastructure.config import aliases
+    from automind.shared.infrastructure.config.loader import aliases
+    from automind.shared.vehicle.identity import Aliases, canonical_key
 
     al = Aliases.from_config(aliases())
 
@@ -415,7 +415,7 @@ async def run_dialogue(path: Path, saver: Any, *, live: bool = False, record: bo
 
 
 async def _run_dialogue(d: Dialogue, saver: Any, *, live: bool, record: bool) -> list[str]:
-    from automind.orchestration.graph import build_graph  # US1 (T035)
+    from automind.chat.dialog.graph import build_graph  # US1 (T035)
 
     await seed(d)
     chat_id = str(uuid.uuid4())
@@ -424,8 +424,8 @@ async def _run_dialogue(d: Dialogue, saver: Any, *, live: bool, record: bool) ->
         await s.commit()
     if live:
         from automind.acquisition.infrastructure.wiring import live_pages, live_search
-        from automind.infrastructure.adapters import LiveLLM
-        from automind.infrastructure.llm_gateway import new_budget
+        from automind.chat.infrastructure.adapters import LiveLLM
+        from automind.shared.infrastructure.llm.gateway import new_budget
 
         llm: Any = RecordingLLM(LiveLLM()) if record else LiveLLM()
         search: Any = live_search()
@@ -439,8 +439,8 @@ async def _run_dialogue(d: Dialogue, saver: Any, *, live: bool, record: bool) ->
     events = EventBus(EventRepo())
     from automind.acquisition.engine import Engine
     from automind.acquisition.ports import AcqPorts
-    from automind.infrastructure.config import reference
-    from automind.orchestration.prompts import load_all
+    from automind.chat.dialog.prompts import load_all
+    from automind.shared.infrastructure.config.loader import reference
     from tests.graph.conftest import open_web_reference
 
     ref = reference(load_all()) if live else open_web_reference()
@@ -462,7 +462,7 @@ async def _run_dialogue(d: Dialogue, saver: Any, *, live: bool, record: bool) ->
     )
     runner = ChatRunner(build_graph(saver), ports, budgets, messages=MessageRepo())
     failures: list[str] = []
-    from automind.config import settings as _settings
+    from automind.shared.infrastructure.config.settings import settings as _settings
 
     saved = {k: getattr(_settings(), k) for k in d.settings}
     for k, v in d.settings.items():
@@ -535,7 +535,7 @@ def _clock() -> Any:
 
 def _estimator(live: bool) -> Any:
     if live:
-        from automind.infrastructure.adapters import LiveEstimator
+        from automind.chat.infrastructure.adapters import LiveEstimator
 
         return LiveEstimator()
     return FixedEstimator()

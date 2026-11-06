@@ -27,7 +27,7 @@ from automind.acquisition.parsing import fingerprint, interpreter
 from automind.acquisition.parsing import store as parsers
 from automind.acquisition.parsing.spec import ParserSpec
 from automind.acquisition.snapshots import store as snapshots
-from automind.infrastructure.db import ParserDaily, sessionmaker
+from automind.shared.infrastructure.db import ParserDaily, sessionmaker
 
 log = logging.getLogger(__name__)
 WINDOW_DAYS = 37  # 7 recent days + the 30-day baseline before them (domain/drift.py)

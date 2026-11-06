@@ -7,11 +7,11 @@ from sqlalchemy import update
 from starlette.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
-from automind.api import access
-from automind.api.app import app
-from automind.application.usage import Limits, Prices, TurnBudget
-from automind.infrastructure import db
-from automind.infrastructure.db.repositories import CaseRepo, ChatRepo, MessageRepo, TurnRepo
+from automind.chat.infrastructure.persistence.repositories import CaseRepo, ChatRepo, MessageRepo, TurnRepo
+from automind.delivery.web import access
+from automind.delivery.web.app import app
+from automind.shared.infrastructure import db
+from automind.shared.metering.usage import Limits, Prices, TurnBudget
 
 
 class _Bus:

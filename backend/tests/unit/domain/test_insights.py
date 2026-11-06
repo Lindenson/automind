@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import time
 
-from automind.domain import insights as ins
-from automind.infrastructure.config import load_yaml
+from automind.chat.domain.verdict import insights as ins
+from automind.shared.infrastructure.config.loader import load_yaml
 
 RULES = ins.rules_from_config(load_yaml("insights.yaml"))
 PROFILE = ins.Profile(weights={"efficiency": 3, "purchase_price": 2, "practicality": 1}, annual_km=15000)

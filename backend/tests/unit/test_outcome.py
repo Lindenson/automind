@@ -4,9 +4,9 @@ from __future__ import annotations
 
 import yaml
 
-from automind.config import settings
-from automind.domain.outcome import FailureClass as F
-from automind.domain.outcome import TurnFacts, classes, score
+from automind.observability.domain.outcome import FailureClass as F
+from automind.observability.domain.outcome import TurnFacts, classes, score
+from automind.shared.infrastructure.config.settings import settings
 
 W = yaml.safe_load((settings().config_dir / "outcome.yaml").read_text(encoding="utf-8"))
 

@@ -4,9 +4,9 @@ relevance gate."""
 
 from datetime import UTC, datetime
 
-from automind.domain import relevance as rel
-from automind.domain import search_plan
-from automind.domain.research_plan import BRAND_AREAS, CarToPlan, areas_for, plan
+from automind.acquisition.domain import relevance as rel
+from automind.shared.research_order import search_plan
+from automind.shared.research_order.plan import BRAND_AREAS, CarToPlan, areas_for, plan
 
 IDENT = search_plan.Identity("Audi", "A4", "B9", "35 TFSI 150 CV", "2015-")
 TEMPLATES = {"manufacturer_warranty": "{make} garantía oficial años kilómetros España"}
@@ -77,8 +77,8 @@ async def test_blocked_analyst_sites_never_crowd_out_the_warranty_page():
 
     from automind.acquisition.pipeline import job as research
     from automind.acquisition.pipeline import locate
-    from automind.infrastructure.config import reference
-    from automind.orchestration.prompts import load_all
+    from automind.chat.dialog.prompts import load_all
+    from automind.shared.infrastructure.config.loader import reference
 
     web = _Web()
     ports = SimpleNamespace(search=web, page_store=web, ref=reference(load_all()))
@@ -97,8 +97,8 @@ def test_the_used_price_is_searched_for_the_car_s_model_year():
     from types import SimpleNamespace
 
     from automind.acquisition.pipeline import plan
-    from automind.infrastructure.config import reference
-    from automind.orchestration.prompts import load_all
+    from automind.chat.dialog.prompts import load_all
+    from automind.shared.infrastructure.config.loader import reference
 
     ports = SimpleNamespace(ref=reference(load_all()))
     v = SimpleNamespace(make="Audi", model="A4", generation="B9", variant_name="35 TFSI 150 CV",

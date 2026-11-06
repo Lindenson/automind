@@ -15,9 +15,9 @@ from automind.acquisition.registry.infrastructure.repo import RegistryRepo
 from automind.acquisition.reputation import baseline, rollup
 from automind.acquisition.worker import budget, exporter
 from automind.acquisition.worker.handlers import HANDLERS
-from automind.infrastructure import db
-from automind.infrastructure.config import load_yaml
-from automind.infrastructure.db import models as m
+from automind.shared.infrastructure import db
+from automind.shared.infrastructure.config.loader import load_yaml
+from automind.shared.infrastructure.db import models as m
 
 AREA = "rolltest"
 DOM = "roll.example"

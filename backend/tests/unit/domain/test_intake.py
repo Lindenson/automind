@@ -1,7 +1,7 @@
 """Intake loop (spec 005 R5, R6, R11): identity key, progress, next step without repeats, distances."""
 
-from automind.domain import intake
-from automind.domain.casefile import CaseCar, CaseFile, Constraints, EngineHint, IdentifyOutcome
+from automind.chat.domain.case.casefile import CaseCar, CaseFile, Constraints, EngineHint, IdentifyOutcome
+from automind.chat.domain.intake import intake
 
 LIMITS = intake.Limits(max_attempts_per_item=2, max_attempts_per_car=4, full_intake=True)
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from automind.domain.identity import Aliases
+from automind.shared.vehicle.identity import Aliases
 
 
 @dataclass(frozen=True)

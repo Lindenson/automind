@@ -8,9 +8,9 @@ from langchain_core.messages import AIMessage
 from langchain_core.outputs import ChatGeneration, LLMResult
 from pydantic import BaseModel
 
-from automind.application.usage import Prices
-from automind.infrastructure import llm_gateway
-from automind.infrastructure.usage_callback import UsageCallbackHandler, current_prompt
+from automind.shared.infrastructure.llm import gateway as llm_gateway
+from automind.shared.infrastructure.llm.usage_callback import UsageCallbackHandler, current_prompt
+from automind.shared.metering.usage import Prices
 
 PRICES = Prices(llm={}, default_llm=(0.0, 0.0), eur_per_credit=0.0, credits={})
 PROMPT = "<!-- prompt: extract_specs v3 (web reader, no tools) -->\nExtract."

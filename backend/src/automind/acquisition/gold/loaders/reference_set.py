@@ -13,8 +13,8 @@ import yaml
 
 from automind.acquisition.gold.domain.match import GoldValue, norm_text
 from automind.acquisition.gold.repo import REFERENCE_SET, DatasetInfo, tolerance_of, unit_of
-from automind.domain import specs
-from automind.infrastructure import config
+from automind.shared.infrastructure.config import loader as config
+from automind.shared.vehicle import specs
 
 INFO = DatasetInfo(REFERENCE_SET, "Reference vehicles (hand-checked, sourced)", "reference_set", "internal",
                    url="eval/reference_vehicles.yaml", refresh_days=1)  # fmt: skip

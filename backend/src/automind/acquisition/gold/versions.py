@@ -21,8 +21,8 @@ from sqlalchemy.dialects.postgresql import insert
 from automind.acquisition.gold.domain.match import DatasetRow, MatchCfg, norm_text
 from automind.acquisition.gold.domain.versions import IdRow, RegisteredVersion, group, rows_of_keys
 from automind.acquisition.infrastructure import config as acq_config
-from automind.infrastructure import config
-from automind.infrastructure.db import GoldValueRow, SearchCache, Variant, sessionmaker
+from automind.shared.infrastructure.config import loader as config
+from automind.shared.infrastructure.db import GoldValueRow, SearchCache, Variant, sessionmaker
 
 log = logging.getLogger(__name__)
 DATASET = "eea_co2"

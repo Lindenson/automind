@@ -10,9 +10,9 @@ from automind.acquisition.agents import blame_judge
 from automind.acquisition.registry.application.service import RegistryService
 from automind.acquisition.registry.infrastructure.repo import RegistryRepo
 from automind.acquisition.reputation import components, signals
-from automind.infrastructure import db
-from automind.infrastructure.config import load_yaml
-from automind.infrastructure.db import models as m
+from automind.shared.infrastructure import db
+from automind.shared.infrastructure.config.loader import load_yaml
+from automind.shared.infrastructure.db import models as m
 from tests.fakes.fake_llm import FakeLLM
 from tests.fakes.reputation_world import World
 

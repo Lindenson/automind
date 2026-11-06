@@ -7,9 +7,11 @@ from collections.abc import Iterator
 
 import pytest
 
+from automind.acquisition.domain import plausibility, relevance
 from automind.acquisition.infrastructure import config as acq_config
-from automind.domain import plausibility, relevance
-from automind.infrastructure import config, llm_gateway, overrides
+from automind.acquisition.infrastructure import overrides
+from automind.shared.infrastructure.config import loader as config
+from automind.shared.infrastructure.llm import gateway as llm_gateway
 
 PROMPT_FILE = "<!-- prompt: extract_specs v2 (web reader, no tools). -->\nExtract facts from <untrusted_document>."
 AGENT_TEXT = "<!-- prompt: extract_specs v3 (agent:extractor_tuner, base extract_specs@v2) -->\nBetter extraction."

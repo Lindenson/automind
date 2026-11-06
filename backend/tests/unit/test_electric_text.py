@@ -2,7 +2,7 @@
 
 import pytest
 
-from automind.orchestration.report_text import electric_lines
+from automind.chat.dialog.report_text import electric_lines
 
 BLOCK = {
     "cars": [

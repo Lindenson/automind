@@ -28,8 +28,8 @@ from automind.acquisition.agents import levers
 from automind.acquisition.domain import gates, relevance_audit
 from automind.acquisition.domain.versions import parse_key, spec_hash
 from automind.acquisition.infrastructure import config as acq_config
-from automind.infrastructure import config
-from automind.infrastructure.db import (
+from automind.shared.infrastructure.config import loader as config
+from automind.shared.infrastructure.db import (
     OPEN_CHANGE_STATUSES,
     AcqChange,
     AcqExperiment,
@@ -162,7 +162,7 @@ async def _rule_candidate(s: AsyncSession, change_id: str, agent: str, p: levers
 
 
 async def _model_candidate(s: AsyncSession, change_id: str, agent: str, p: levers.ModelProposal) -> Candidate:
-    from automind.infrastructure import llm_gateway  # noqa: PLC0415
+    from automind.shared.infrastructure.llm import gateway as llm_gateway  # noqa: PLC0415
 
     current = llm_gateway.model_name(p.role)
     s.add(RoleModelOverride(id=uid(), role=p.role, model=p.model, change_id=change_id, active=False))

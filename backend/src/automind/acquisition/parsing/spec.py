@@ -15,7 +15,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, field_validator, model_validator
 
-from automind.domain import specs, units
+from automind.shared.vehicle import specs, units
 
 MAX_BYTES = 20 * 1024
 MAX_PATTERN = 200

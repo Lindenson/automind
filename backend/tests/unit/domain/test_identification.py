@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from rapidfuzz import fuzz
 
-from automind.domain import identification as idf
-from automind.domain.casefile import CaseCar, Constraints
+from automind.chat.domain.case.casefile import CaseCar, Constraints
+from automind.chat.domain.identification import identification as idf
 
 
 def car(**kw) -> CaseCar:

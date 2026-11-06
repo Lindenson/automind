@@ -17,10 +17,8 @@ def test_legacy_layer_exceptions_do_not_grow():
 def test_the_learned_sources_rule_is_gone():
     """Spec 011 T124 (closes 010 T075): the registry replaced spec 007's learned sources; nothing reads or writes
     the `learned_sources` table any more (the table stays until a later spec drops it)."""
-    import importlib.util
-
     src = Path(__file__).parents[2] / "src" / "automind"
-    assert importlib.util.find_spec("automind.domain.learned") is None
+    assert not list(src.rglob("learned.py"))
     users = [
         str(p.relative_to(src))
         for p in src.rglob("*.py")

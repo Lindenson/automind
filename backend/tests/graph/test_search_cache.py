@@ -6,15 +6,15 @@ import uuid
 import pytest
 from sqlalchemy import delete, select
 
-from automind.application.usage import Prices
-from automind.infrastructure.db import models as m
-from automind.infrastructure.db.repositories import MessageRepo
-from automind.infrastructure.db.session import sessionmaker
-from automind.infrastructure.search import SearchUnavailable
-from automind.infrastructure.search.cache import CachedSearcher
-from automind.orchestration.graph import build_graph
-from automind.orchestration.runner import ChatRunner
+from automind.acquisition.infrastructure.search import SearchUnavailable
+from automind.acquisition.infrastructure.search.cache import CachedSearcher
+from automind.chat.dialog.graph import build_graph
+from automind.chat.dialog.runner import ChatRunner
+from automind.chat.infrastructure.persistence.repositories import MessageRepo
 from automind.shared.contracts.web import SearchHit
+from automind.shared.infrastructure.db import models as m
+from automind.shared.infrastructure.db.session import sessionmaker
+from automind.shared.metering.usage import Prices
 from tests.fakes.fixture_search import FixtureSearch
 
 from .conftest import budget_factory, engine, make_ports
@@ -73,7 +73,7 @@ def _runner(saver, llm, searcher, fx):
 
 @pytest.mark.usefixtures("fresh_variant")
 async def test_repeat_research_in_a_new_chat_uses_only_the_cache(saver, monkeypatch):
-    monkeypatch.setattr("automind.infrastructure.search.cache.prices", lambda: PRICES)
+    monkeypatch.setattr("automind.acquisition.infrastructure.search.cache.prices", lambda: PRICES)
     await _forget_research()
     fx = FixtureSearch("racer")
     provider = FixtureProvider(fx)
@@ -98,7 +98,7 @@ async def test_repeat_research_in_a_new_chat_uses_only_the_cache(saver, monkeypa
 @pytest.mark.usefixtures("fresh_variant")
 async def test_fallback_provider_and_all_down(saver, monkeypatch):
     monkeypatch.setattr(
-        "automind.infrastructure.search.cache.prices",
+        "automind.acquisition.infrastructure.search.cache.prices",
         lambda: Prices(
             llm={},
             default_llm=(1, 1),

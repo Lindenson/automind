@@ -25,8 +25,8 @@ from sqlalchemy import select
 from automind.acquisition.gold import repo
 from automind.acquisition.gold.domain.match import GoldValue, MatchCfg, VariantKey, match, norm_text, tokens
 from automind.acquisition.infrastructure import config as acq_config
-from automind.infrastructure import config
-from automind.infrastructure.db import ResearchJob, Variant, sessionmaker
+from automind.shared.infrastructure.config import loader as config
+from automind.shared.infrastructure.db import ResearchJob, Variant, sessionmaker
 
 log = logging.getLogger(__name__)
 DATASETS = ("reference_set", "eea_co2", "eea_obfcm", "rdw")
@@ -144,7 +144,7 @@ def parse(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> int:
-    from automind.infrastructure.config import configure_domain  # noqa: PLC0415
+    from automind.shared.infrastructure.config.loader import configure_domain  # noqa: PLC0415
 
     configure_domain()
     return asyncio.run(main_async(parse(argv)))

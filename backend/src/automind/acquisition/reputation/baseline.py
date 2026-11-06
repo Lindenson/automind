@@ -21,7 +21,7 @@ from typing import Any
 from sqlalchemy import select, text
 
 from automind.acquisition.reputation.rollup import kpis
-from automind.infrastructure.db import KpiBaseline, sessionmaker
+from automind.shared.infrastructure.db import KpiBaseline, sessionmaker
 
 MIN_DAYS = 7
 

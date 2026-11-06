@@ -5,10 +5,10 @@ import json
 import httpx
 import pytest
 
-from automind.infrastructure.search import SearchUnavailable
-from automind.infrastructure.search.cache import cache_key, normalise_query
-from automind.infrastructure.search.serpapi import SerpApiProvider
-from automind.infrastructure.search.serper import SerperProvider
+from automind.acquisition.infrastructure.search import SearchUnavailable
+from automind.acquisition.infrastructure.search.cache import cache_key, normalise_query
+from automind.acquisition.infrastructure.search.serpapi import SerpApiProvider
+from automind.acquisition.infrastructure.search.serper import SerperProvider
 
 SERPER = {"organic": [{"title": "BMW Serie 5 520d", "link": "https://www.km77.com/x/datos", "snippet": "190 CV",
                        "position": 1}, {"title": "no link"}]}  # fmt: skip

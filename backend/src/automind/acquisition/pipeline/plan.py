@@ -13,9 +13,12 @@ from pydantic import BaseModel
 
 from automind.acquisition.ports import AcqPorts
 from automind.acquisition.registry.api import Plan
-from automind.application.usage import BudgetExceeded
-from automind.domain import intake, research_plan, search_plan, specs
-from automind.infrastructure import db
+from automind.chat.domain.intake import intake
+from automind.shared.infrastructure import db
+from automind.shared.metering.usage import BudgetExceeded
+from automind.shared.research_order import plan as research_plan
+from automind.shared.research_order import search_plan
+from automind.shared.vehicle import specs
 
 if TYPE_CHECKING:
     from automind.acquisition.pipeline.job import JobSpec

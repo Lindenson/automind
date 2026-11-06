@@ -6,7 +6,7 @@ from __future__ import annotations
 from typing import Any
 
 from automind.acquisition.snapshots.codec import RetentionCfg
-from automind.infrastructure.config import load_yaml
+from automind.shared.infrastructure.config.loader import load_yaml
 
 
 def fetch_policy() -> dict[str, Any]:

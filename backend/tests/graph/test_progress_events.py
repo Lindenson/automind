@@ -3,8 +3,8 @@
 import pytest
 from sqlalchemy import select
 
-from automind.infrastructure.db import models as m
-from automind.infrastructure.db.session import sessionmaker
+from automind.shared.infrastructure.db import models as m
+from automind.shared.infrastructure.db.session import sessionmaker
 from tests.fakes.fixture_search import FixtureSearch
 
 from .test_research_flow import INTERPRET, llm_for_research, runner

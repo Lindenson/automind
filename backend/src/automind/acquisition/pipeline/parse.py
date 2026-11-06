@@ -8,8 +8,8 @@ from __future__ import annotations
 from typing import Any
 
 from automind.acquisition.ports import AcqPorts
-from automind.infrastructure import db
 from automind.shared.contracts.web import Page
+from automind.shared.infrastructure import db
 
 VERSION = "parse@1"
 

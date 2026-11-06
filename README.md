@@ -225,7 +225,7 @@ Regenerate it after changing `graph.py`:
 
 ```bash
 cd backend
-uv run python -c "from automind.orchestration.graph import build_graph; \
+uv run python -c "from automind.chat.dialog.graph import build_graph; \
 print(build_graph(tools=[]).get_graph().draw_mermaid())" > ../docs/graph.mmd
 ```
 

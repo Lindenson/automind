@@ -4,7 +4,7 @@ the same value every time, whatever the ids and the order the claims come in."""
 
 import itertools
 
-from automind.domain import evidence as ev
+from automind.shared.evidence import evidence as ev
 
 
 def _claims(attr: str, rows: list[tuple[float, str, str]], ids: list[str]) -> list[ev.ClaimIn]:

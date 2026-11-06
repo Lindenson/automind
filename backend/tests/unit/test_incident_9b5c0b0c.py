@@ -6,10 +6,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from automind.application.identify import year_conflict
-from automind.domain import intake
-from automind.domain.casefile import CaseCar, CaseFile, Choice, Constraints, EngineHint, Pending
-from automind.orchestration import phrases
+from automind.chat.application.services.identification.identify import year_conflict
+from automind.chat.dialog import phrases
+from automind.chat.domain.case.casefile import CaseCar, CaseFile, Choice, Constraints, EngineHint, Pending
+from automind.chat.domain.intake import intake
 
 REF = SimpleNamespace(generations={"Audi|A4": [("B8", 2008, 2015), ("B9", 2015, 2024)]})
 

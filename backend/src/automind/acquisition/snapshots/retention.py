@@ -12,7 +12,7 @@ from sqlalchemy import delete, select, text
 from automind.acquisition.infrastructure import config as acq_config
 from automind.acquisition.snapshots import codec
 from automind.acquisition.snapshots.codec import RetentionCfg, SnapshotRow
-from automind.infrastructure.db import PageSnapshot, SnapshotBlob, sessionmaker
+from automind.shared.infrastructure.db import PageSnapshot, SnapshotBlob, sessionmaker
 
 log = logging.getLogger(__name__)
 CHUNK = 1000

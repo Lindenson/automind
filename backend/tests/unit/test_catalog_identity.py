@@ -4,7 +4,8 @@ an estate's boot is not the hatchback's."""
 import pytest
 
 from automind.acquisition.pipeline.validate import _litres
-from automind.domain import identity, sense
+from automind.shared.evidence import sense
+from automind.shared.vehicle import identity
 
 G20 = {"make": "BMW", "model": "3 Series", "generation": "G20", "powertrain": "MHEV", "engine_cc": 1995,
        "power_kw": 140, "transmission": "automatic", "drive": "RWD", "body_class": "SEDAN",

@@ -1,5 +1,5 @@
 # AutoMind alert rules (spec 010 US9, contracts/metrics.md). Loaded by deploy/prometheus/prometheus.yml.
-# Every automind_* name must exist in automind.insight.metrics.prom.metric_names() (tests/unit/test_prom_rules.py).
+# Every automind_* name must exist in automind.observability.metrics.prom.metric_names() (tests/unit/test_prom_rules.py).
 # Comparisons between the 7d and 30d windows ignore the `window` label so the series pair up.
 groups:
   - name: automind-quality

@@ -10,7 +10,7 @@ from typing import Any
 import pytest
 from fastapi import FastAPI
 
-from automind.api import app as app_mod
+from automind.delivery.web import app as app_mod
 
 
 class _Runner:

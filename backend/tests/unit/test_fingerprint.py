@@ -6,7 +6,7 @@ from pathlib import Path
 
 from automind.acquisition.parsing import fingerprint as fp
 from automind.acquisition.parsing.migrate_v1 import migrate_v1
-from automind.infrastructure.config import load_yaml
+from automind.shared.infrastructure.config.loader import load_yaml
 
 FIX = Path(__file__).resolve().parents[1] / "fixtures" / "html"
 KM77 = migrate_v1("km77", load_yaml("site_readers.yaml")["km77"])

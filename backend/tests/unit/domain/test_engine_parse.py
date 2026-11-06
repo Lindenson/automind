@@ -1,6 +1,6 @@
 """Engine as part of the identity (spec 005 R4, FR-012): deterministic parsing of the user's words."""
 
-from automind.domain.identity import engine_fits, parse_engine
+from automind.shared.vehicle.identity import engine_fits, parse_engine
 
 
 def test_displacement_forms() -> None:

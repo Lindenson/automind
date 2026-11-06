@@ -46,7 +46,11 @@ fi
 cd backend
 uv run ruff check src tests
 uv run ruff format --check src tests
-uv run mypy src/automind/domain
+# the former domain package (spec 012 moved its modules into the areas; same strict scope)
+uv run mypy src/automind/chat/domain src/automind/shared/vehicle/identity.py src/automind/shared/vehicle/specs.py \
+  src/automind/shared/vehicle/units.py src/automind/shared/evidence src/automind/shared/research_order \
+  src/automind/acquisition/domain/plausibility.py src/automind/acquisition/domain/sense_ev.py \
+  src/automind/acquisition/domain/relevance.py src/automind/observability/domain/outcome.py
 # spec 012: mypy over all of src in report mode (the strict scope grows step by step, research R16)
 echo "mypy report (all of src): $(uv run mypy src/automind 2>/dev/null | tail -1)"
 uv run lint-imports

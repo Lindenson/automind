@@ -6,11 +6,11 @@ from pathlib import Path
 
 from sqlalchemy import select
 
-from automind.infrastructure.db import models as m
-from automind.infrastructure.db.repositories import MessageRepo
-from automind.infrastructure.db.session import sessionmaker
-from automind.orchestration.graph import build_graph
-from automind.orchestration.runner import ChatRunner
+from automind.chat.dialog.graph import build_graph
+from automind.chat.dialog.runner import ChatRunner
+from automind.chat.infrastructure.persistence.repositories import MessageRepo
+from automind.shared.infrastructure.db import models as m
+from automind.shared.infrastructure.db.session import sessionmaker
 from tests.fakes.fake_llm import FakeLLM
 from tests.fakes.fixture_search import FixtureSearch
 from tests.golden.runner import load, seed
