@@ -10,14 +10,13 @@
 from __future__ import annotations
 
 import re
-from datetime import timedelta
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 from rapidfuzz import fuzz
-from sqlalchemy import func, select
 
 from automind.acquisition import api as acquisition
+from automind.acquisition.api import CatalogueVariant, VariantDraft
 from automind.chat.application.ports import Ports
 from automind.chat.domain import intake
 from automind.chat.domain.case import CaseCar
@@ -25,8 +24,6 @@ from automind.chat.domain.decision import CarState
 from automind.chat.domain.identification import identification
 from automind.shared.contracts.config import Reference
 from automind.shared.evidence import sense
-from automind.shared.infrastructure import db
-from automind.shared.infrastructure.config.settings import settings
 from automind.shared.vehicle import identity, markets
 
 CATEGORIES = ("specs", "price", "maintenance")
@@ -72,7 +69,7 @@ class Assessment(BaseModel):
     generations: list[str] = Field(default_factory=list)  # plausible generation codes
 
 
-def variant_dict(v: db.Variant) -> dict[str, Any]:
+def variant_dict(v: Any) -> dict[str, Any]:
     return {
         "id": v.id,
         "label": v.label,
@@ -95,7 +92,9 @@ def variant_dict(v: db.Variant) -> dict[str, Any]:
     }
 
 
-def _known_generations(ref: Reference, make: str, model: str, catalog: list[db.Variant]) -> list[tuple[str, Any, Any]]:
+def _known_generations(
+    ref: Reference, make: str, model: str, catalog: list[CatalogueVariant]
+) -> list[tuple[str, Any, Any]]:
     gens = list(ref.generations.get(f"{make}|{model}", []))
     known = {g for g, _, _ in gens}
     for v in catalog:  # generations learned from the catalog (resolver output)
@@ -105,7 +104,7 @@ def _known_generations(ref: Reference, make: str, model: str, catalog: list[db.V
     return gens
 
 
-def _years(v: db.Variant, ref: Reference | None) -> tuple[int | None, int | None]:
+def _years(v: CatalogueVariant, ref: Reference | None) -> tuple[int | None, int | None]:
     """Generation years: config/generations.yaml wins over the catalog row (a row stored while the generation
     was current keeps years_to empty after its successor arrived, e.g. RAV4 XA50 after XA60)."""
     lo, hi = v.generation_years_from or v.model_year_from, v.generation_years_to
@@ -118,7 +117,7 @@ def _years(v: db.Variant, ref: Reference | None) -> tuple[int | None, int | None
 
 
 def _fits(
-    v: db.Variant, car: CaseCar, gen_hint: str | None, current_year: int, ref: Reference | None = None,
+    v: CatalogueVariant, car: CaseCar, gen_hint: str | None, current_year: int, ref: Reference | None = None,
     level: str | None = None,
 ) -> bool:  # fmt: skip
     if gen_hint and (v.generation or "").lower() != gen_hint.lower():
@@ -139,7 +138,9 @@ def _fits(
     return _years_fit(v, car, gen_hint, current_year, ref)
 
 
-def _years_fit(v: db.Variant, car: CaseCar, gen_hint: str | None, current_year: int, ref: Reference | None) -> bool:
+def _years_fit(
+    v: CatalogueVariant, car: CaseCar, gen_hint: str | None, current_year: int, ref: Reference | None
+) -> bool:
     lo, hi = _years(v, ref)
     if car.year is not None:
         if bought_now(car, current_year) and hi is not None and hi < current_year:
@@ -155,16 +156,14 @@ def bought_now(car: CaseCar, current_year: int) -> bool:
     return car.condition == "NEW" and (car.year is None or car.year >= current_year - 1)
 
 
-def fits(v: db.Variant, car: CaseCar, current_year: int, ref: Reference | None = None) -> bool:
+def fits(v: CatalogueVariant, car: CaseCar, current_year: int, ref: Reference | None = None) -> bool:
     """The catalogued variant fits this car (generation on sale for a new car, gearbox, drive, engine)."""
     return _fits(v, car, None, current_year, ref)
 
 
 async def known_models(make: str, ref: Reference) -> set[str]:
     """Model lines known for a make: catalog plus config/generations.yaml."""
-    async with db.sessionmaker()() as s:
-        rows = await s.execute(select(db.Variant.model).where(func.lower(db.Variant.make) == make.lower()).distinct())
-        models = {str(m) for m in rows.scalars()}
+    models = await acquisition.catalogue_models(make)
     models |= {k.split("|", 1)[1] for k in ref.generations if k.split("|", 1)[0].lower() == make.lower()}
     return models
 
@@ -180,14 +179,8 @@ def model_line(model: str, known: set[str]) -> tuple[str, str]:
     return model, ""
 
 
-async def catalog_for(make: str, model: str) -> list[db.Variant]:
-    async with db.sessionmaker()() as s:
-        rows = await s.execute(
-            select(db.Variant).where(
-                func.lower(db.Variant.make) == make.lower(), func.lower(db.Variant.model) == model.lower()
-            )
-        )
-        return list(rows.scalars())
+async def catalog_for(make: str, model: str) -> list[CatalogueVariant]:
+    return await acquisition.find_variants(make, model)
 
 
 _POWERTRAIN_WORDS = {"dmi", "dmp", "phev", "hev", "mhev", "ev", "hybrid", "electric", "electrico", "ehev", "etech"}
@@ -208,7 +201,7 @@ def same_model(asked: str | None, got: str | None) -> bool:
     return fuzz.ratio(a, g) >= 90
 
 
-def engine_of_fits(v: db.Variant, hint: Any) -> bool:
+def engine_of_fits(v: CatalogueVariant, hint: Any) -> bool:
     """The variant's engine (stored, else parsed from its name) fits the engine the user named."""
     cc, kw, fuel = v.engine_cc, v.power_kw, v.fuel
     if cc is None and kw is None:
@@ -219,7 +212,7 @@ def engine_of_fits(v: db.Variant, hint: Any) -> bool:
     return identity.engine_fits(hint, cc, kw, fuel)
 
 
-def _rank(car: CaseCar, cands: list[db.Variant], level: str | None = None) -> tuple[list[db.Variant], bool]:
+def _rank(car: CaseCar, cands: list[CatalogueVariant], level: str | None = None) -> tuple[list[CatalogueVariant], bool]:
     """Order candidates by fuzzy match of the request text (a variant at the comparison's level first);
     ambiguous unless one clearly wins."""
     if len(cands) <= 1:
@@ -276,7 +269,7 @@ def auto_resolve(car: CaseCar, a: Assessment) -> bool:
 
 async def resolve_with_llm(
     ports: Ports, car: CaseCar, current_year: int, level: str = "BASE", *, lineup: Any = None, insist: str = ""
-) -> tuple[db.Variant, VariantIdentity]:
+) -> tuple[CatalogueVariant, VariantIdentity]:
     """Catalog miss: ask the resolver with the case context, validate years, upsert with de-dup. A car not sold in
     Spain (`car.market`, chat 2026-11-06) is read from the market where it is sold, and outside Europe its version
     never carries a price (spec 009 FR-009)."""
@@ -440,28 +433,6 @@ class GenerationMismatch(ValueError):
     """The resolver proposed a generation outside the requested years (never accepted silently)."""
 
 
-async def _catalogued(s: Any, key: str, make: str, model: str, gen: str | None, ident: VariantIdentity) -> Any:
-    """The catalog row of this car: by key, by a near-identical name, or the same version under another name
-    ("320d M Sport" vs "320d M Sport 8-speed automatic": same engine, gearbox, wheels, body and version)."""
-    found = (await s.execute(select(db.Variant).where(db.Variant.canonical_key == key))).scalar_one_or_none()
-    if found is not None:
-        return found
-    q = select(db.Variant).where(
-        func.lower(db.Variant.make) == make.lower(), func.lower(db.Variant.model) == model.lower()
-    )
-    new = {"make": make, "model": model, "generation": gen, "powertrain": ident.powertrain,
-           "variant_name": ident.variant_name, "engine_cc": ident.engine_cc, "power_kw": ident.power_kw,
-           "transmission": ident.transmission, "drive": ident.drive, "body_class": ident.body_class,
-           "trim": ident.trim, "fuel": ident.fuel}  # fmt: skip
-    for v in (await s.execute(q)).scalars():
-        old = variant_dict(v)
-        if identity.is_duplicate(old, new, fuzz.token_sort_ratio) or identity.same_version(
-            old, new, trim_unknown_ok=False
-        ):
-            return v
-    return None
-
-
 def _norm_words(s: str | None) -> str:
     return " ".join((s or "").lower().split())
 
@@ -478,7 +449,7 @@ def _named_version(ident: VariantIdentity, model: str, line: str | None) -> Vari
     return ident
 
 
-async def upsert_variant(ident: VariantIdentity, ref: Reference) -> db.Variant:
+async def upsert_variant(ident: VariantIdentity, ref: Reference) -> CatalogueVariant:
     make, model = identity.normalize_make_model(ident.make, ident.model, ref.aliases)
     if getattr(ref, "makes", None) is not None:  # "Škoda" → "Skoda" (config/makes.yaml): one spelling per make
         make = ref.makes.canonical(make) or make
@@ -492,42 +463,14 @@ async def upsert_variant(ident: VariantIdentity, ref: Reference) -> db.Variant:
     if len(sold) == 1 and ident.transmission != sold[0]:  # the generation is sold with one gearbox only
         ident = ident.model_copy(update={"transmission": sold[0]})
     key = identity.canonical_key(make, model, gen, ident.variant_name, ident.powertrain, ref.aliases)
-    async with db.sessionmaker()() as s:
-        found = await _catalogued(s, key, make, model, gen, ident)
-        if found is not None:
-            if found.generation_years_from is None and ident.generation_years_from:
-                found.generation_years_from = ident.generation_years_from
-                found.generation_years_to = ident.generation_years_to
-            for col in ("transmission", "drive", "trim", "trim_level", "price_eur"):
-                if getattr(found, col) is None and getattr(ident, col) is not None:
-                    setattr(found, col, getattr(ident, col))
-            await s.commit()
-            return found
-        v = db.Variant(
-            canonical_key=key,
-            make=make,
-            model=model,
-            generation=gen,
-            variant_name=ident.variant_name,
-            powertrain=ident.powertrain,
-            body_class=ident.body_class,
-            model_year_from=ident.generation_years_from,
-            generation_years_from=ident.generation_years_from,
-            generation_years_to=ident.generation_years_to,
-            vehicle_class=ident.vehicle_class,
-            segment=ident.segment,
-            transmission=ident.transmission,
-            drive=ident.drive,
-            trim=(ident.trim or None) and ident.trim[:64],
-            trim_level=ident.trim_level,
-            price_eur=ident.price_eur,
-            engine_cc=ident.engine_cc if ident.engine_cc and 600 <= ident.engine_cc <= 8000 else None,
-            power_kw=ident.power_kw if ident.power_kw and 30 <= ident.power_kw <= 750 else None,
-            fuel=ident.fuel,
-        )
-        s.add(v)
-        await s.commit()
-        return v
+    draft = VariantDraft(
+        canonical_key=key, make=make, model=model, generation=gen, variant_name=ident.variant_name,
+        powertrain=ident.powertrain, body_class=ident.body_class, generation_years_from=ident.generation_years_from,
+        generation_years_to=ident.generation_years_to, vehicle_class=ident.vehicle_class, segment=ident.segment,
+        transmission=ident.transmission, drive=ident.drive, trim=ident.trim, trim_level=ident.trim_level,
+        price_eur=ident.price_eur, engine_cc=ident.engine_cc, power_kw=ident.power_kw, fuel=ident.fuel,
+    )  # fmt: skip
+    return await acquisition.upsert_variant(draft)
 
 
 def _strip_prefix(name: str, make: str, model: str, generation: str | None) -> str:
@@ -627,20 +570,9 @@ async def split_by_gearbox(car: CaseCar, ref: Reference) -> str | None:
     return f"{car.key}: {new.label} (the gearbox you named)"
 
 
-async def get_variant(variant_id: str) -> db.Variant | None:
-    async with db.sessionmaker()() as s:
-        return await s.get(db.Variant, variant_id)
+async def get_variant(variant_id: str) -> CatalogueVariant | None:
+    return await acquisition.get_variant(variant_id)
 
 
 async def stale_categories(variant_id: str) -> list[str]:
-    async with db.sessionmaker()() as s:
-        runs = {
-            r.area: r
-            for r in (await s.execute(select(db.ResearchRun).where(db.ResearchRun.variant_id == variant_id))).scalars()
-        }
-    out = []
-    for cat in CATEGORIES:
-        r = runs.get(cat)
-        if r is None or db.now() - r.completed_at > timedelta(days=settings().freshness_days(cat)):
-            out.append(cat)
-    return out
+    return await acquisition.stale_areas(variant_id, CATEGORIES)

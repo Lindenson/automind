@@ -3,7 +3,8 @@
 Owns: `contracts` — requests, results and the `Backend` protocol the engine implements (data only).
   This `__init__` — the functions: acquire, missing_critical, last_done, ev_counts, powertrains, registry_done,
   unmet_areas, tried_by_area, gearbox_families_mixed, reselect, recheck_value, revalidate_claims, recheck_minimums,
-  lineup, versions, generation_hints, dataset_versions, record_challenge_gold.
+  lineup, versions, generation_hints, dataset_versions, record_challenge_gold; the catalogue (spec 012 T028):
+  catalogue_models, find_variants, get_variant, upsert_variant, stale_areas, cached_lineup, store_lineup.
 Flow: caller → function here → `_backend()` loads `acquisition.backend` by name at the first call → engine.
   The chat orders "these kinds of data for this car, by this deadline" and gets values with confidence and sources,
   and for gaps the sources tried. Live calls run in the caller's process within its deadline and budget;
@@ -26,6 +27,7 @@ from automind.acquisition.api.contracts import (
     AcquireRequest,
     AcquireResult,
     Backend,
+    CatalogueVariant,
     DatasetVersion,
     Emit,
     Judged,
@@ -37,8 +39,10 @@ from automind.acquisition.api.contracts import (
     RecheckResult,
     RevalidateResult,
     SourceRef,
+    StoredLineup,
     Tried,
     TriedOutcome,
+    VariantDraft,
     VersionEntry,
     VersionsOut,
     VersionsRead,
@@ -51,6 +55,7 @@ __all__: list[str] = [
     "AcquireRequest",
     "AcquireResult",
     "Backend",
+    "CatalogueVariant",
     "DatasetVersion",
     "Emit",
     "Judged",
@@ -62,8 +67,10 @@ __all__: list[str] = [
     "RecheckResult",
     "RevalidateResult",
     "SourceRef",
+    "StoredLineup",
     "Tried",
     "TriedOutcome",
+    "VariantDraft",
     "VersionEntry",
     "VersionsOut",
     "VersionsRead",
@@ -86,6 +93,13 @@ __all__: list[str] = [
     "generation_hints",
     "dataset_versions",
     "record_challenge_gold",
+    "catalogue_models",
+    "find_variants",
+    "get_variant",
+    "upsert_variant",
+    "stale_areas",
+    "cached_lineup",
+    "store_lineup",
 ]
 
 
@@ -196,6 +210,39 @@ async def record_challenge_gold(
     origin `challenge`, rule `challenge_confirmed`/`challenge_corrected`, confidence MEDIUM (spec 011 FR-003).
     Returns whether a gold value was written."""
     return await _backend().record_challenge_gold(variant_id, attribute, outcome, value, unit, challenge_id)
+
+
+async def catalogue_models(make: str) -> set[str]:
+    """The model lines the catalogue has versions of for this make."""
+    return await _backend().catalogue_models(make)
+
+
+async def find_variants(make: str, model: str) -> list[CatalogueVariant]:
+    """Every catalogued version of this make and model."""
+    return await _backend().find_variants(make, model)
+
+
+async def get_variant(variant_id: str) -> CatalogueVariant | None:
+    return await _backend().get_variant(variant_id)
+
+
+async def upsert_variant(draft: VariantDraft) -> CatalogueVariant:
+    """The catalogue row of this version (one row per real version: an existing one is reused, its blanks filled)."""
+    return await _backend().upsert_variant(draft)
+
+
+async def stale_areas(variant_id: str, areas: tuple[str, ...]) -> list[str]:
+    """The areas of a version never researched or older than their freshness (config: freshness days per area)."""
+    return await _backend().stale_areas(variant_id, areas)
+
+
+async def cached_lineup(make: str, market: str, ttl_days: int) -> StoredLineup | None:
+    """A make's cached line-up on a market, unless older than `ttl_days`."""
+    return await _backend().cached_lineup(make, market, ttl_days)
+
+
+async def store_lineup(lineup: StoredLineup) -> None:
+    await _backend().store_lineup(lineup)
 
 
 def _ports(ports: Any) -> Any:

@@ -64,16 +64,11 @@ forbidden_modules =
 ignore_imports =
     automind.chat.application.services.report.compose -> automind.shared.infrastructure.**
     automind.chat.application.services.report.compose -> sqlalchemy
-    automind.chat.application.services.identification.resolve -> automind.shared.infrastructure.**
-    automind.chat.application.services.identification.resolve -> sqlalchemy
     # one-off data repair after the 004 verification fixes; uses the research persistence directly
     automind.chat.application.maintenance.repair -> automind.shared.infrastructure.**
     automind.chat.application.maintenance.repair -> sqlalchemy
     automind.chat.application.usecases.challenge -> automind.shared.infrastructure.**
     automind.chat.application.usecases.challenge -> sqlalchemy
-    # spec 005: the brand line-up cache (brand_lineups), like resolve
-    automind.chat.application.services.identification.lineup -> automind.shared.infrastructure.**
-    automind.chat.application.services.identification.lineup -> sqlalchemy
 
 # --- spec 010 -------------------------------------------------------------------------------------
 [importlinter:contract:insight-domain-pure]

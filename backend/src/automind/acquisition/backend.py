@@ -9,17 +9,20 @@ from __future__ import annotations
 
 from typing import Any
 
-from automind.acquisition import facade, read, recheck
+from automind.acquisition import catalogue, facade, read, recheck
 from automind.acquisition.api.contracts import (
     AcquireRequest,
     AcquireResult,
     Backend,
+    CatalogueVariant,
     DatasetVersion,
     Emit,
     LineupRead,
     RecheckResult,
     RevalidateResult,
+    StoredLineup,
     Tried,
+    VariantDraft,
     VersionsRead,
     WebHint,
 )
@@ -102,6 +105,27 @@ class EngineBackend:
     async def record_challenge_gold(self, variant_id: str, attribute: str, outcome: str, value: str | float | None,
                                     unit: str | None, challenge_id: str | None) -> bool:  # fmt: skip
         return await gold_repo.record_challenge(variant_id, attribute, outcome, value, challenge_id, unit)
+
+    async def catalogue_models(self, make: str) -> set[str]:
+        return await catalogue.catalogue_models(make)
+
+    async def find_variants(self, make: str, model: str) -> list[CatalogueVariant]:
+        return await catalogue.find_variants(make, model)
+
+    async def get_variant(self, variant_id: str) -> CatalogueVariant | None:
+        return await catalogue.get_variant(variant_id)
+
+    async def upsert_variant(self, draft: VariantDraft) -> CatalogueVariant:
+        return await catalogue.upsert_variant(draft)
+
+    async def stale_areas(self, variant_id: str, areas: tuple[str, ...]) -> list[str]:
+        return await catalogue.stale_areas(variant_id, areas)
+
+    async def cached_lineup(self, make: str, market: str, ttl_days: int) -> StoredLineup | None:
+        return await catalogue.cached_lineup(make, market, ttl_days)
+
+    async def store_lineup(self, lineup: StoredLineup) -> None:
+        await catalogue.store_lineup(lineup)
 
 
 BACKEND: Backend = EngineBackend()

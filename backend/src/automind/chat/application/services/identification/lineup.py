@@ -17,16 +17,14 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import select
-
-from automind.acquisition.api import LineupEntry
+from automind.acquisition import api as acquisition
+from automind.acquisition.api import LineupEntry, StoredLineup
 from automind.chat.application.ports import Ports
 from automind.chat.domain.intake import LineupModel
 from automind.shared import evidence
-from automind.shared.infrastructure import db
 from automind.shared.vehicle.markets import country_of_url, european
 
 
@@ -100,14 +98,9 @@ def validate(make: str, entries: list[LineupEntry], docs: dict[str, tuple[str, s
     return Lineup(make=make, models=out, sources=srcs, fetched_at=datetime.now(UTC))
 
 
-def _row_of(make: str, market: str = "ES") -> Any:
-    return select(db.BrandLineup).where(db.BrandLineup.make == make, db.BrandLineup.market == market)
-
-
 async def cached(make: str, ttl_days: int, market: str = "ES") -> Lineup | None:
-    async with db.sessionmaker()() as s:
-        row = (await s.execute(_row_of(make, market))).scalar_one_or_none()
-    if row is None or row.fetched_at < datetime.now(UTC) - timedelta(days=ttl_days):
+    row = await acquisition.cached_lineup(make, market, ttl_days)
+    if row is None:
         return None
     models = [LineupModel(model=m["model"], body=m.get("body", ""), powertrains=tuple(m.get("powertrains") or ()),
                           price_from_eur=m.get("price_from_eur"), source_url=m.get("source_url"),
@@ -119,13 +112,8 @@ async def store(lu: Lineup, market: str = "ES") -> None:
     models = [{"model": m.model, "body": m.body, "powertrains": list(m.powertrains),
                "price_from_eur": m.price_from_eur, "source_url": m.source_url, "country": m.country}
               for m in lu.models]  # fmt: skip
-    async with db.sessionmaker()() as s:
-        row = (await s.execute(_row_of(lu.make, market))).scalar_one_or_none()
-        if row is None:
-            row = db.BrandLineup(make=lu.make, market=market)
-            s.add(row)
-        row.models, row.sources, row.fetched_at = models, lu.sources, lu.fetched_at or datetime.now(UTC)
-        await s.commit()
+    await acquisition.store_lineup(StoredLineup(make=lu.make, market=market, models=models, sources=lu.sources,
+                                                fetched_at=lu.fetched_at))  # fmt: skip
 
 
 async def get_lineup(ports: Ports, make: str, market: str = "ES") -> Lineup | None:

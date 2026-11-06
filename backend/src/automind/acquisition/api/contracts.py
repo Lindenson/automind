@@ -15,6 +15,7 @@ __all__: list[str] = [
     "AcquireResult",
     "AcquiredValue",
     "Backend",
+    "CatalogueVariant",
     "DatasetVersion",
     "Emit",
     "GEARBOX",
@@ -27,8 +28,10 @@ __all__: list[str] = [
     "RecheckResult",
     "RevalidateResult",
     "SourceRef",
+    "StoredLineup",
     "Tried",
     "TriedOutcome",
+    "VariantDraft",
     "VersionEntry",
     "VersionsOut",
     "VersionsRead",
@@ -68,6 +71,13 @@ class Backend(Protocol):
                                year_from: int | None) -> list[DatasetVersion]: ...  # fmt: skip
     async def record_challenge_gold(self, variant_id: str, attribute: str, outcome: str, value: str | float | None,
                                     unit: str | None, challenge_id: str | None) -> bool: ...  # fmt: skip
+    async def catalogue_models(self, make: str) -> set[str]: ...
+    async def find_variants(self, make: str, model: str) -> list[CatalogueVariant]: ...
+    async def get_variant(self, variant_id: str) -> CatalogueVariant | None: ...
+    async def upsert_variant(self, draft: VariantDraft) -> CatalogueVariant: ...
+    async def stale_areas(self, variant_id: str, areas: tuple[str, ...]) -> list[str]: ...
+    async def cached_lineup(self, make: str, market: str, ttl_days: int) -> StoredLineup | None: ...
+    async def store_lineup(self, lineup: StoredLineup) -> None: ...
 
 
 class Need(StrEnum):
@@ -242,3 +252,73 @@ class DatasetVersion(BaseModel):
     datasets: list[str] = Field(default_factory=list)
     names: list[str] = Field(default_factory=list)  # commercial names as published
     source_url: str = ""
+
+
+# --- the catalogue: one row per real version of a car, and the makes' line-ups (spec 012 T028) -------------------
+
+
+class VariantDraft(BaseModel):
+    """A version to put in the catalogue, its names already canonical (`canonical_key` built by the caller). The
+    catalogue keeps one row per real version: an existing row of the same version is reused and its blanks filled."""
+
+    canonical_key: str
+    make: str
+    model: str
+    generation: str | None = None
+    variant_name: str
+    powertrain: str
+    body_class: str | None = None
+    generation_years_from: int | None = None
+    generation_years_to: int | None = None
+    vehicle_class: str | None = None
+    segment: str | None = None
+    transmission: str | None = None
+    drive: str | None = None
+    trim: str | None = None
+    trim_level: str | None = None
+    price_eur: int | None = None
+    engine_cc: int | None = None
+    power_kw: int | None = None
+    fuel: str | None = None
+
+
+class CatalogueVariant(BaseModel):
+    """A catalogued version of a car (table `vehicle_variants`), as the chat reads it."""
+
+    id: str
+    make: str
+    model: str
+    generation: str | None = None
+    variant_name: str
+    powertrain: str
+    body_class: str | None = None
+    model_year_from: int | None = None
+    market: str = "ES"
+    generation_years_from: int | None = None
+    generation_years_to: int | None = None
+    vehicle_class: str | None = None
+    segment: str | None = None
+    brand_positioning: str | None = None
+    transmission: str | None = None
+    drive: str | None = None
+    trim: str | None = None
+    trim_level: str | None = None
+    price_eur: float | None = None
+    engine_cc: int | None = None
+    power_kw: int | None = None
+    fuel: str | None = None
+
+    @property
+    def label(self) -> str:
+        gen = f" {self.generation}" if self.generation else ""
+        return f"{self.make} {self.model}{gen} {self.variant_name}".replace("  ", " ").strip()
+
+
+class StoredLineup(BaseModel):
+    """A make's models on sale in a market as cached (table `brand_lineups`): models and sources as stored dicts."""
+
+    make: str
+    market: str = "ES"
+    models: list[dict[str, Any]] = Field(default_factory=list)
+    sources: list[dict[str, Any]] = Field(default_factory=list)
+    fetched_at: datetime | None = None
