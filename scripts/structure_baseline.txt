@@ -9,8 +9,6 @@ node|chat/dialog/nodes/confirm.py|apply_variants
 node|chat/dialog/nodes/confirm.py|ask_node
 node|chat/dialog/nodes/confirm.py|prepare_intake
 node|chat/dialog/nodes/confirm.py|prepare_variants
-node|chat/dialog/nodes/report.py|answer_node
-node|chat/dialog/nodes/report.py|make_report_node
 node|chat/dialog/nodes/research.py|after_research
 node|chat/dialog/nodes/research.py|research_job
 node|chat/dialog/nodes/understand.py|apply_delta_node
@@ -433,9 +431,6 @@ order|chat/dialog/nodes/confirm.py|route_after_candidates
 order|chat/dialog/nodes/confirm.py|route_after_prepare
 order|chat/dialog/nodes/confirm.py|select_candidates
 order|chat/dialog/nodes/confirm.py|wait_confirm
-order|chat/dialog/nodes/report.py|answer_node
-order|chat/dialog/nodes/report.py|general_node
-order|chat/dialog/nodes/report.py|make_report_node
 order|chat/dialog/nodes/research.py|after_research
 order|chat/dialog/nodes/research.py|apply_limit
 order|chat/dialog/nodes/research.py|collect_round
