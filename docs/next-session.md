@@ -47,7 +47,12 @@ Inventory hints measured on 2026-11-06 (verify, then extend):
 - Test DB for parallel runs: `TEST_DATABASE_URL=…/automind_test_<name>` needs `automind_mig_<name>` too
   (migration tests replace `/automind_test` by `/automind_mig`).
 
-### 2a. Refactoring plan (inventory 2026-11-06, waiting for the owner's yes)
+### 2a. Refactoring plan — superseded by spec 012
+
+**Current plan: `specs/012-refactoring/` (spec, clarifications, plan with steps S0–S15).** The table below is the
+first inventory, kept for its measurements.
+
+#### First inventory (2026-11-06)
 
 Measured: src 44.9k / tests 22.4k lines; all 31 YAML files are loaded; all 90 local and 75 remote branches are
 merged; the "moved from" modules have no old copies left (sources `application/research.py`,
