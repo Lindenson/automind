@@ -13,7 +13,8 @@ from sqlalchemy import delete
 from automind.acquisition import api as acquisition
 from automind.acquisition.registry.api import Plan, PlannedSource
 from automind.acquisition.registry.application.service import RegistryService
-from automind.chat.application.services.report import compose
+from automind.chat.application.services.report.blocks.data_panel import data_panel_block
+from automind.chat.application.services.report.facts.car import load_car
 from automind.shared.infrastructure.db import models as m
 from automind.shared.infrastructure.db.session import sessionmaker
 
@@ -61,8 +62,8 @@ async def test_no_data_lists_the_tried_sources():
     assert {t.domain: t.outcome for t in k.tried} == {"nothing.example": "empty", "unreached.example": "not_reached"}
 
     # the report: the area's row in the data panel names what was read and how it went
-    car = await compose.load_car(vid)
-    panel = compose.data_panel_block([("car#1", "Roadster", car)], {"car#1": {"used_price"}}, datetime.now(UTC))
+    car = await load_car(vid)
+    panel = data_panel_block([("car#1", "Roadster", car)], {"car#1": {"used_price"}}, datetime.now(UTC))
     assert panel is not None
     (row,) = panel["cars"][0]["areas"]
     assert row["status"] in ("MISSING", "UNAVAILABLE", "PARTIAL")

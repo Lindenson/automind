@@ -6,7 +6,7 @@ import uuid
 
 from sqlalchemy import select
 
-from automind.chat.application.services.report import car_view
+from automind.chat.application.services.report.blocks import car_view
 from automind.chat.dialog.graph import build_graph
 from automind.chat.dialog.runner import ChatRunner
 from automind.chat.domain.case import CaseCar, CaseFile

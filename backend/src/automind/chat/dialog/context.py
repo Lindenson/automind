@@ -6,7 +6,7 @@ from typing import Any
 
 from langgraph.runtime import Runtime
 
-from automind.chat.application.services.report import car_view
+from automind.chat.application.services.report.blocks import car_view
 from automind.chat.dialog.runner import TurnContext
 from automind.chat.domain.case import CaseFile
 

@@ -2,7 +2,7 @@
 
 from types import SimpleNamespace as NS
 
-from automind.chat.application.services.report import electric_block
+from automind.chat.application.services.report.blocks import electric
 from automind.chat.domain.cost import tco
 from automind.chat.domain.cost.energy import UsageContext
 from tests.unit.chat.domain.cost.test_energy import RWF
@@ -30,7 +30,7 @@ def test_electric_section_for_the_incident_pair():
     ateca = tco.TcoCar("a", "SEAT Ateca 1.5 TSI", "ICE", "petrol", consumption=6.3, vehicle_class="compact", use=USE)
     est = [tco.compute(t, RATES, 18000) for t in (byd, ateca)]
     labels = {"b": {"label": "ZERO", "rule": "plug-in ≥ 40 km: ZERO"}, "a": {"label": "C", "rule": "petrol: C"}}
-    b = electric_block.build([car(charge_ac_kw=6.6), car()], [byd, ateca], est, RATES, labels, "ru")
+    b = electric.build([car(charge_ac_kw=6.6), car()], [byd, ateca], est, RATES, labels, "ru")
     assert b is not None and b["title"] == "Электро" and [c["car_id"] for c in b["cars"]] == ["b"]
     v = b["cars"][0]["values"]
     assert v["battery"]["usable_kwh"] == 18.3 and v["charging_dc"]["peak_kw"] is None  # gap → null
@@ -42,4 +42,4 @@ def test_electric_section_for_the_incident_pair():
 
 def test_no_section_without_an_electric_car():
     ateca = tco.TcoCar("a", "SEAT Ateca", "ICE", "petrol", consumption=6.3, vehicle_class="compact", use=USE)
-    assert electric_block.build([car()], [ateca], [tco.compute(ateca, RATES, 18000)], RATES, {}, "en") is None
+    assert electric.build([car()], [ateca], [tco.compute(ateca, RATES, 18000)], RATES, {}, "en") is None

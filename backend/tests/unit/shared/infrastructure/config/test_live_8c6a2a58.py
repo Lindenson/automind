@@ -5,7 +5,8 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from automind.chat.application.services.interpretation import ask
-from automind.chat.application.services.report import compose, intake_card
+from automind.chat.application.services.report.blocks import intake_card
+from automind.chat.application.services.report.facts.scoring_inputs import insight_values
 from automind.chat.domain.case import CaseCar, CaseFile, LadderMemo
 from automind.chat.domain.cost import tco
 from automind.shared.infrastructure.config.loader import questions_i18n, rates
@@ -21,12 +22,12 @@ def _car() -> dict:
 
 
 def test_a_used_car_is_never_compared_on_its_new_price() -> None:
-    assert compose.insight_values(_car(), annual_cost=None, reliability_score=None,
+    assert insight_values(_car(), annual_cost=None, reliability_score=None,
                                   energy_eur_per_unit=None).values["official_price_es"] == 38060  # fmt: skip
-    gone = compose.insight_values(_car(), annual_cost=None, reliability_score=None, energy_eur_per_unit=None,
+    gone = insight_values(_car(), annual_cost=None, reliability_score=None, energy_eur_per_unit=None,
                                   used=True)  # fmt: skip
     assert "official_price_es" not in gone.values
-    priced = compose.insight_values(_car(), annual_cost=None, reliability_score=None, energy_eur_per_unit=None,
+    priced = insight_values(_car(), annual_cost=None, reliability_score=None, energy_eur_per_unit=None,
                                     used=True, used_price_eur=27500)  # fmt: skip
     assert priced.values["official_price_es"] == 27500
 

@@ -7,7 +7,14 @@ import pytest
 from automind.acquisition.pipeline import merge
 from automind.chat.application.services.identification import catalogue as catalog
 from automind.chat.application.services.identification.contracts import VariantIdentity
-from automind.chat.application.services.report import compose as analysis
+from automind.chat.application.services.report.blocks.criteria import criteria_block
+from automind.chat.application.services.report.blocks.metric_bars import metric_bars
+from automind.chat.application.services.report.blocks.race import race_block
+from automind.chat.application.services.report.blocks.sources import sources_block
+from automind.chat.application.services.report.blocks.spec_table import spec_table
+from automind.chat.application.services.report.facts.car import load_car
+from automind.chat.application.services.report.facts.race import run_race
+from automind.chat.application.services.report.facts.scoring_inputs import car_facts
 from automind.chat.dialog.guard import check_numbers
 from automind.chat.dialog.guard import numbers_in as _numbers_in
 from automind.chat.domain.assessment.criteria import CriteriaModel, score
@@ -83,16 +90,16 @@ async def _seed():
 @pytest.mark.asyncio
 async def test_blocks_from_seeded_claims():
     v = await _seed()
-    car = await analysis.load_car(v.id)
-    race = analysis.run_race([car])
+    car = await load_car(v.id)
+    race = run_race([car])
     blocks = [
-        analysis.spec_table([car], {v.id: True}),
-        analysis.metric_bars([car]),
-        analysis.race_block(race),
-        analysis.criteria_block(
-            score([analysis.facts(car, race.results[0])], {"performance": 60, "efficiency": 40}, MODEL), MODEL, []
+        spec_table([car], {v.id: True}),
+        metric_bars([car]),
+        race_block(race),
+        criteria_block(
+            score([car_facts(car, race.results[0])], {"performance": 60, "efficiency": 40}, MODEL), MODEL, []
         ),
-        analysis.sources_block([car]),
+        sources_block([car]),
     ]
     json.dumps(blocks)  # serializable
     table = blocks[0]

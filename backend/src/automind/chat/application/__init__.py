@@ -5,8 +5,8 @@ Owns: `ports` — the interfaces it needs (`Ports` bundle: case, turn, job, mess
   (challenge a value, delete chats); `maintenance` — data repair.
 Depends on: chat.domain, shared.contracts, acquisition.api. Must not depend on: chat.dialog, delivery.web,
   chat.infrastructure, shared.infrastructure, langgraph, fastapi, sqlalchemy.
-Note: compose, resolve, lineup, challenge and repair still use the DB directly (`ignore_imports` in .importlinter);
-  they go behind ports in S7–S9.
+Note: challenge and repair still use the DB directly (`ignore_imports` in .importlinter); they go behind ports
+  in S9–S10.
 Public API: the modules in __all__ (callers import from them).
 """
 

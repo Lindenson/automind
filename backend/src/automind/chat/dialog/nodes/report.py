@@ -16,7 +16,8 @@ from typing import Any
 
 from langgraph.runtime import Runtime
 
-from automind.chat.application.services.report import compose
+from automind.chat.application.services.report.computations import persist_computations
+from automind.chat.application.services.report.facts.car import short_name
 from automind.chat.dialog import agents
 from automind.chat.dialog import tracing as outcomes
 from automind.chat.dialog.context import ctx, history, load_case, save_case
@@ -124,7 +125,7 @@ def _confirm_inferred(
         return None
     key, (other_car, other_tie) = flip
     what = _what(case, key, lang)
-    names = {car["variant"].id: compose.short_name(car["variant"]) for car in comp.cars}
+    names = {car["variant"].id: short_name(car["variant"]) for car in comp.cars}
     other = t("other_tie", lang) if other_tie or not other_car else t("other_wins", lang, car=names.get(other_car, ""))
     note = t("assume_note", lang, what=what, ev=case.profile.evidence.get(key, "…"), other=other)
     verdict = next((b for b in blocks if b.get("type") == "verdict"), None)
@@ -224,7 +225,7 @@ def make_report_node():  # noqa: ANN201
         await c.status("computing", "Computing criteria scores, metrics and the drag race")
         lang = state.get("language", "en")
         comp = await compute(c, case, list(state.get("notices", [])), lang)
-        await compose.persist_computations(
+        await persist_computations(
             c.ports.computations,
             c.turn_id,
             comp.tco,
@@ -293,7 +294,7 @@ async def answer_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[s
     nothing_new = bool(state["decision"].get("nothing_new"))
     comp = await compute(c, case, list(state.get("notices", [])), state.get("language", "en"))
     if state.get("case_changed") and case.race_settings is not None:  # a new race: keep it reproducible
-        await compose.persist_computations(
+        await persist_computations(
             c.ports.computations,
             c.turn_id,
             [],
