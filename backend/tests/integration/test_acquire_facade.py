@@ -87,7 +87,7 @@ async def test_acquire_equals_the_research_job_and_lists_what_it_tried(bmw):
     assert fx.queries == ["BMW 5 Series G30 520d 190 CV site:bmw.es OR site:km77.com"]
     assert "searching" in stages and "validating" in stages
     # spec 011 FR-002: the versions of the stages that ran, on the result, every attempt and the research run
-    assert k.stage_versions["plan"] == "plan@1" and k.stage_versions["merge"] == "merge@1"
+    assert k.stage_versions["plan"] == "plan@2" and k.stage_versions["merge"] == "merge@1"
     async with db.sessionmaker()() as s:
         runs = (await s.execute(select(m.ResearchRun.stage_versions).where(m.ResearchRun.variant_id == bmw))).scalars()
         attempts = (

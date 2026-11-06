@@ -26,6 +26,16 @@ class Aliases:
     generations: Mapping[str, Mapping[str, str]] = field(default_factory=dict)  # "make|model" -> alias -> gen
     # "Make|Model[|Generation]" -> market -> the model's name on that market (spec 009 FR-021)
     market_names: Mapping[str, Mapping[str, str]] = field(default_factory=dict)
+    # "Make|Model" -> market -> the whole name in that market's script ("深蓝S09"): home-market searches and the
+    # relevance of its pages (chat 2026-11-06)
+    local_names: Mapping[str, Mapping[str, str]] = field(default_factory=dict)
+
+    def names_of(self, make: str, model: str) -> list[str]:
+        """Every other written name of a model: its aliases ("理想l9", "lixiang l9") and local names, lower case."""
+        out = [alias for key, (mk, md) in self.models.items() if (mk, md) == (make, model)
+               for alias in [key.partition("|")[2]]]  # fmt: skip
+        out += [_norm(n) for n in (self.local_names.get(f"{make}|{model}") or {}).values()]
+        return list(dict.fromkeys(n for n in out if n))
 
     @classmethod
     def from_config(cls, d: Mapping[str, Any]) -> Aliases:
@@ -41,7 +51,9 @@ class Aliases:
         }
         names = {str(k): {str(m).upper(): str(n) for m, n in (v or {}).items()}
                  for k, v in (d.get("market_names") or {}).items()}  # fmt: skip
-        return cls(makes=makes, models=models, generations=gens, market_names=names)
+        local = {str(k): {str(m).upper(): str(n) for m, n in (v or {}).items()}
+                 for k, v in (d.get("local_names") or {}).items()}  # fmt: skip
+        return cls(makes=makes, models=models, generations=gens, market_names=names, local_names=local)
 
 
 _EMPTY = Aliases()

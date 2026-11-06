@@ -20,17 +20,19 @@ from automind.domain.sense import SenseResult
 
 PLUG_IN = ("PHEV", "EREV")
 FUEL_ATTRS = ("consumption", "consumption_real", "consumption_cs", "consumption_weighted")
-EV_ATTRS = ("consumption_ev", "consumption_ev_real", "consumption_ev_plug")
+EV_ATTRS = ("consumption_ev", "consumption_ev_real", "consumption_ev_plug", "consumption_ev_cltc")
 WEIGHTED_MAX = 3.0  # l/100 km: below this a plug-in's headline WLTP figure is the weighted one
 MIN_KWH_PER_100KM = 10.0  # the most efficient cars on sale: a range above usable kWh × 10 km is impossible
 MAX_C_RATE = 5.0  # DC peak kW ≤ 5 × usable kWh
 MIN_USABLE_SHARE = 0.80  # usable is at least 80 % of gross
 
-_WEIGHTED = ("ponderad", "weighted", "gewichtet", "взвешен", "combinado ponderado", "wltp ponderado")
+_WEIGHTED = ("ponderad", "weighted", "gewichtet", "взвешен", "combinado ponderado", "wltp ponderado", "加权")
+# Chinese pages (chat 2026-11-06): 亏电油耗 / 馈电油耗 is the consumption with an empty battery
 _CS = ("descargad", "sin batería", "sin bateria", "modo híbrido", "modo hibrido", "charge sustaining",
        "charge-sustaining", "empty battery", "battery depleted", "depleted", "flat battery", "leerer akku",
        "leerem akku", "akku leer", "разряжен", "пустой батаре", "batería agotada", "bateria agotada",
-       "mínimo de carga", "minimo de carga", "hybrid mode", "cs mode")  # fmt: skip
+       "mínimo de carga", "minimo de carga", "hybrid mode", "cs mode",
+       "亏电", "馈电", "电量保持")  # fmt: skip
 _GROSS = (
     "bruta",
     "bruto",
@@ -97,6 +99,40 @@ def plug_in_consumption(attribute: str, raw_value: str, unit: str | None, excerp
                        "a plug-in figure without 'empty battery' or 'weighted' words is not used")  # fmt: skip
 
 
+# --- test cycle of an electric range or kWh/100 km (chat 2026-11-06, Deepal S09 vs Li L9) ------------------------
+# A Chinese page states the CLTC cycle (≈ WLTP × 1.15–1.2, well above real use) unless it says WLTP / WLTC; an NEDC
+# range is older and still more optimistic: neither is ever filed or shown as WLTP.
+CYCLE_ATTRS = {"range_wltp": ("range_wltp", "range_cltc"), "range_cltc": ("range_wltp", "range_cltc"),
+               "consumption_ev": ("consumption_ev", "consumption_ev_cltc"),
+               "consumption_ev_cltc": ("consumption_ev", "consumption_ev_cltc")}  # fmt: skip
+_CJK = re.compile(r"[\u4e00-\u9fff]")
+_CN_HOST = re.compile(r"^(?:[a-z0-9-]+\.)*[a-z0-9-]+\.cn$")
+
+
+def chinese_source(excerpt: str, url: str = "") -> bool:
+    """The excerpt is Chinese or the page is on a Chinese domain."""
+    host = url.lower().split("//", 1)[-1].split("/", 1)[0]
+    return bool(_CJK.search(excerpt or "")) or bool(host and _CN_HOST.match(host))
+
+
+def ev_cycle(attribute: str, raw_value: str, excerpt: str, url: str = "") -> SenseResult:
+    """WLTP or CLTC for an electric range or kWh/100 km: the words decide ("CLTC", "WLTP", "WLTC"), else a Chinese
+    page is CLTC and any other page WLTP. An NEDC range is not comparable and not used."""
+    if attribute not in CYCLE_ATTRS:
+        return SenseResult(True, raw_value, attribute=attribute)
+    wltp, cltc = CYCLE_ATTRS[attribute]
+    text = _norm(f"{excerpt} {raw_value}")
+    if "cltc" in text:
+        return SenseResult(True, raw_value, None, "cycle CLTC (China)", attribute=cltc)
+    if "wltp" in text or "wltc" in text:
+        return SenseResult(True, raw_value, None, "cycle WLTP", attribute=wltp)
+    if "nedc" in text:
+        return SenseResult(False, None, "sense.ev.nedc_cycle", "an NEDC electric figure is not comparable")
+    if chinese_source(excerpt, url) or attribute == cltc:
+        return SenseResult(True, raw_value, None, "cycle CLTC (Chinese source)", attribute=cltc)
+    return SenseResult(True, raw_value, None, "cycle WLTP", attribute=wltp)
+
+
 def battery_kind(raw_value: str, excerpt: str) -> str:
     """battery_gross_kwh when the words say gross; else battery_kwh (usable, or the only figure published)."""
     text = _norm(f"{excerpt} {raw_value}")
@@ -139,7 +175,7 @@ def pair_check(attribute: str, value: float, known: Mapping[str, float]) -> Sens
     """Cross-value rules (FR-007): range vs usable battery, DC power vs C-rate, usable vs gross."""
     usable = known.get("battery_kwh")
     gross = known.get("battery_gross_kwh")
-    if attribute in ("range_wltp", "range_real") and usable and value > usable / MIN_KWH_PER_100KM * 100:
+    if attribute in ("range_wltp", "range_real", "range_cltc") and usable and value > usable / MIN_KWH_PER_100KM * 100:
         why = f"{value:g} km needs under {MIN_KWH_PER_100KM:g} kWh/100 km from {usable:g} kWh"
         return SenseResult(False, None, "sense.ev.range_above_battery", why)
     if attribute == "charge_dc_peak_kw" and usable and value > MAX_C_RATE * usable:

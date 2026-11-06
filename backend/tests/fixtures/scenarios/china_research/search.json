@@ -1,0 +1,18 @@
+{
+  "queries": [
+    {"match": ["深蓝s09", "site:"], "results": [
+      {"url": "https://www.d1ev.com/carnews/peizhi/deepal-s09-erev-210", "title": "深蓝S09 2025款 增程 210km 后驱版 参数配置 | 第一电动网", "doc": "d1ev_s09_config.txt"}
+    ]},
+    {"match": ["深蓝s09", "参数配置"], "results": [
+      {"url": "https://www.d1ev.com/carnews/peizhi/deepal-s09-erev-210", "title": "深蓝S09 2025款 增程 210km 后驱版 参数配置 | 第一电动网", "doc": "d1ev_s09_config.txt"},
+      {"url": "https://www.autohome.com.cn/config/series/7240.html", "title": "深蓝S09 参数配置 汽车之家", "text": "深蓝S09 参数配置"}
+    ]},
+    {"match": ["deepal s09", "cltc", "site:carnewschina.com"], "results": [
+      {"url": "https://carnewschina.com/2025/07/20/deepal-s09-erev-launched/", "title": "Deepal S09 EREV launched in China", "doc": "carnewschina_s09.txt"}
+    ]},
+    {"match": ["理想l9", "参数配置"], "results": [
+      {"url": "https://www.chexun.com/2025-09-01/115500001.html", "title": "理想L9 2025款 Pro 参数配置 报价 | 车讯网", "doc": "chexun_l9_config.txt"}
+    ]}
+  ],
+  "default": []
+}

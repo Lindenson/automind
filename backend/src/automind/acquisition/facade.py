@@ -24,7 +24,7 @@ async def _quiet(stage: str, text: str) -> None:
 def job_spec(req: AcquireRequest, kind: str) -> job.JobSpec:
     """`FRESH` is "find it" (past the cache, wider queries, the other markets); `ESCALATE` an area left short."""
     return job.JobSpec(req.job_id, req.variant_id, kind, req.round, car_year=req.car_year,
-                       fresh=req.need is Need.FRESH, escalate=req.need is Need.ESCALATE)  # fmt: skip
+                       fresh=req.need is Need.FRESH, escalate=req.need is Need.ESCALATE, market=req.market)  # fmt: skip
 
 
 async def acquire(req: AcquireRequest, emit: Emit | None, *, ports: Any) -> AcquireResult:

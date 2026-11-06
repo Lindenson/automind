@@ -20,6 +20,7 @@ from typing import Any
 PLUG_IN = ("PHEV", "EREV")
 ELECTRIC = ("BEV", *PLUG_IN)
 MAX_SHARE = 0.95
+CLTC_FACTOR = 1.4  # default real-use allowance of a CLTC figure (config/rates.yaml real_world_factor.CLTC)
 CS_MISSING = "fuel consumption with an empty battery"
 EV_MISSING = "electric consumption (kWh/100 km)"
 FUEL_MISSING = "fuel consumption"
@@ -159,6 +160,10 @@ class EnergyCar:
     battery_kwh: float | None = None  # usable
     range_wltp: float | None = None
     range_real: float | None = None
+    # a car sold only in China (chat 2026-11-06): its CLTC figures, used only without WLTP or real-world ones, with
+    # their own real-use allowance (rates.yaml real_world_factor.CLTC)
+    consumption_ev_cltc: float | None = None
+    range_cltc: float | None = None
     # the user's own figures (FUEL, CS, KWH, RANGE -> (value, their words)): used instead of sourced or estimated
     stated: Mapping[str, tuple[float, str]] = field(default_factory=dict)
 
@@ -354,6 +359,12 @@ def _ev_kwh(
         wltp = car.consumption
     if wltp is None and car.battery_kwh and car.range_wltp:
         wltp, derived = car.battery_kwh / car.range_wltp * 100, True
+    if wltp is None and car.consumption_ev_cltc:
+        f, fl = factors(r.cfg, use)
+        cltc = r.real_world_factor.get("CLTC", CLTC_FACTOR)
+        how = (f"CLTC (China) {car.consumption_ev_cltc:g} kWh/100 km × {cltc:g} real-use allowance for the Chinese "
+               "cycle (assumption)")  # fmt: skip
+        return car.consumption_ev_cltc * cltc * f, [how], fl
     if wltp is None:
         return None, [], []
     f, fl = factors(r.cfg, use)
@@ -393,6 +404,12 @@ def electric_range(car: EnergyCar, r: Rates, use: UsageContext) -> tuple[float |
         return v, f"real electric range {_yours(v, 'km', words)}"
     if car.range_real:
         return car.range_real, f"real-world electric range {car.range_real:g} km (sourced)"
+    if not car.range_wltp and car.range_cltc:
+        f, _ = factors(r.cfg, use)
+        cltc = r.real_world_factor.get("CLTC", CLTC_FACTOR)
+        real = car.range_cltc / (cltc * f)
+        return real, (f"real electric range ≈ {real:.0f} km (CLTC, China {car.range_cltc:g} km ÷ {cltc * f:.2f}, "
+                      "assumption)")  # fmt: skip
     if not car.range_wltp:
         return None, ""
     f, _ = factors(r.cfg, use)
