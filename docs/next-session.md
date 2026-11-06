@@ -13,25 +13,30 @@ fallbacks = strategies behind a Protocol), then `tasks.md` from S7 on.
 What the system is: `README.md` ("Acquisition engine"), `docs/adr/ADR-032-acquisition-engine.md`,
 `docs/history/next-session-2026-11-06-engine.md` §1, specs 001–009: `docs/baseline.md`.
 
-## 0. Resume S9 (next action)
+## 0. Resume S9c (next action)
 
-Done and merged: S0–S8 (PRs up to #100). S7: identification is a service (`identification/service.py`, `stages/`,
-`strategies/`; catalogue in `acquisition/catalogue.py`). S8: the report reads cars through `acquisition.api.car_data`
-(`acquisition/car_data.py`); `report/service.py` `ReportService(ports, wording, log).run()` lists the stages
-(`report/stages/`), `report/facts/` and `report/blocks/` hold what compose.py was; the language is a port
-(`report.contracts.ReportWording`, implemented by `dialog/report_wording.py`); the report/answer nodes are thin
-(`dialog/report_writer.py`, `dialog/report_followup.py`); a turn's computations go through `ComputationStore`.
-Pattern for the next services: service class with `run()` listing stages, stages as modules, wording through the
-ReportWording-style port, no second port over `acquisition.api`.
+Done and merged: S0–S8, S9a (T074 characterisation, PR #101), S9b (T076 research service, PR #102).
+Services so far: `identification/` (S7), `report/` (S8: ReportService, facts/, blocks/, stages/), `research/` (S9b:
+ResearchService create/run_job/conclude, rounds). Ports for the dialog's side: `report.contracts.ReportWording`,
+`research.contracts.ResearchWording`/`ResearchEvents` — all implemented by `dialog/report_wording.py` (WORDING) and
+the TurnContext; no second port over `acquisition.api`.
 
-**Next: S9 — interpretation, research, feasibility, usage services (T074+ in tasks.md "S9"; deploy checkpoint)**:
-1. `git switch -c 012-s9-services`; read tasks.md S9 and T059 (confirm.py characterisation first: 47 % branches).
-2. Nodes still fat: `understand.py` ≈500, `confirm.py` ≈465, `research.py` ≈294 — their logic becomes services.
-3. Gate, behaviour diff (never run pytest while it runs), checkpoints; PR; merge; update this §0.
+**Next: S9c — T075 interpretation** (tasks.md "S9"): `chat/dialog/nodes/understand.py` (≈500 lines; fat nodes
+interpret_node, apply_delta_node, assess_node).
+1. `git switch -c 012-s9c-interpretation`.
+2. Safety nets of the text (`_pick`, `_makes_named`, `_make_to_choose_from`, `_charging_from_text`, `_car_named`,
+   `_energy_from_text`, `_person_from_text`, `_cars_safety_net`, `_brand_from_text`) → stages of
+   `services/interpretation/` (regexes `_REPLACE`, `_OWN`, `_SENTENCE` → `chat/domain/vocabulary` or named constants);
+   `_not_understood`, `_pending_answered` → `interpretation/understood.py`; `assess_node` + `_plan` → a service
+   (assessment of the cars and the research plan); nodes ≤ 30 lines.
+3. Then S9d — T078: `confirm.py` nodes (ask_node, prepare/apply variants, prepare/apply intake) ≤ 30 lines,
+   `ChallengeValue` use case + port (← usecases/challenge.py; last `ignore_imports` with repair), purity contracts for
+   chat.dialog and chat.application; T077 feasibility is already thin. Deploy checkpoint after 2026-11-12.
+Gate per step: check.sh, then (never in parallel) diff_behaviour, check_checkpoints; PR; merge; update this §0.
 Then S10 use cases, S11 acquisition pipeline + parsing package, S12 admin/persistence split + contracts, S13
 order/API + mypy scope, S14 docs, S15 acceptance.
 
-Known deferred inside 012: nodes still fat (`understand.py` 500, `confirm.py` 465) — logic leaves in S9; T019a flaky `test_catalog_merge` (host load) open.
+Known deferred inside 012: nodes still fat (`understand.py` 500, `confirm.py` 465) — S9c/S9d; T019a flaky `test_catalog_merge` (host load) open.
 
 ### Workflow per step (what worked S3a–S7)
 
@@ -44,18 +49,18 @@ cd backend && uv run python ../scripts/check_checkpoints.py      # read-only pro
 ```
 - Moves: `scripts/refactor/move.py <map.yaml>` (maps in `specs/012-refactoring/moves/`; whole packages first);
   after moves `scripts/check_structure.py --write-baseline` only if the count did not grow.
-- Structure ratchet baseline `scripts/structure_baseline.txt` (801 now); new violations fail the gate.
+- Structure ratchet baseline `scripts/structure_baseline.txt` (799 now); new violations fail the gate.
 - Never run two test runs on one DB at once. Commit → push → `gh pr create` → `gh pr merge --merge` → delete
   local+remote branch; update this file's §0 at the end of each step.
 
 ## 1. State when parked
 
-- main = S8 merged (PR #100). **Production still runs the pre-012 code** (`2b5eb92`, PRs #83–#85, `scripts/deploy.sh
+- main = S9b merged (PR #102). **Production still runs the pre-012 code** (`2b5eb92`, PRs #83–#85, `scripts/deploy.sh
   up --monitoring`, app :8090). Deploy policy: none before the baseline closes on 2026-11-12; then S3a–S6 go
   together as the first checkpoint (compose worker command is now `python -m automind.cli worker`), live replay of
   chat ccd5f7d8 after it, then deploys only at S9, S12, S15.
-- Last gate (S8b): `check.sh` green — 1480 backend passed (2 skipped) + 161 frontend; 11 import contracts kept;
-  structure 801/801; mypy report 331 errors; behaviour diff vs previous main: differs 0 (racy 7: limit pause,
+- Last gate (S9b): `check.sh` green — 1491 backend passed (2 skipped) + 161 frontend; 11 import contracts kept;
+  structure 799/799; mypy report 330 errors; behaviour diff vs previous main: differs 0 (racy 7: limit pause,
   make_to_choose, persistent_thread — unstable between base runs too); check_checkpoints: 470 blobs, 0 paths,
   11 threads. Lesson: never start pytest while diff_behaviour runs (same test DB) — it broke a golden once.
 - Repo hygiene: no worktrees, no feature branches local or remote.

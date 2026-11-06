@@ -157,7 +157,7 @@ entry points (≤ 60 lines), every stage named.
 
 - [x] T074 [US2] (S9a: only confirm.py was below, 59 % → 89 % with `tests/unit/chat/dialog/test_confirm_variants_cost.py`; interpret 95 %, ask 85 %, understand 90 %, research 94 %, feasibility 95 %) Characterisation tests to ≥ 80 % for `interpret.py`, `ask.py`, `nodes/understand.py`, `nodes/confirm.py`, `nodes/research.py`, `nodes/feasibility.py`
 - [ ] T075 [P] [US2] `chat/application/services/interpretation/` (← interpret.py, ask.py, understand node's `_*_from_text` safety nets as stages using `chat/domain/understanding`)
-- [ ] T076 [P] [US2] `chat/application/services/research/` (plan jobs, order via `acquisition.api.acquire(…, budget)`, collect rounds, limit handling ← nodes/research.py logic)
+- [x] T076 [P] [US2] (S9b: `research/service.py` ResearchService create/run_job/conclude, `rounds.py`, `contracts.py` events + wording ports; the graph keeps the fan-out and rounds) `chat/application/services/research/` (plan jobs, order via `acquisition.api.acquire(…, budget)`, collect rounds, limit handling ← nodes/research.py logic)
 - [ ] T077 [P] [US2] (usage: done in S3a as `shared/metering/usage.py`, T029; the feasibility nodes are already ≤ 30 lines) `chat/application/services/feasibility/` (← application/feasibility.py + nodes/feasibility.py logic) and `services/usage/` (← usage.py)
 - [ ] T078 [US2] All `chat/dialog/nodes/*.py` ≤ 30 lines (read state → call service → write state); `ChallengeValue` use case + port (← challenge.py), remove its `ignore_imports` (none left); purity contracts for `chat.dialog` and `chat.application` (contracts/import-contracts.md); gate; after 2026-11-12 deploy + live replay
 
