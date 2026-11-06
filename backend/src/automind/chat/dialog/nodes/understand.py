@@ -18,15 +18,7 @@ from automind.chat.dialog.nodes.common import ctx, current_year, history, load_c
 from automind.chat.dialog.phrases import t
 from automind.chat.dialog.runner import TurnContext
 from automind.chat.dialog.state import PER_TURN_RESET, TurnState
-from automind.chat.domain.case.casefile import (
-    CarRef,
-    CaseDelta,
-    CaseFile,
-    Constraints,
-    StatedEnergy,
-    apply,
-    apply_defaults,
-)
+from automind.chat.domain.case import CarRef, CaseDelta, CaseFile, Constraints, StatedEnergy, apply, apply_defaults
 from automind.chat.domain.identification import identification
 from automind.chat.domain.intake import intake
 from automind.chat.domain.policy import CarState, decide

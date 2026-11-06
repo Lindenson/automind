@@ -8,7 +8,7 @@ import yaml
 
 from automind.chat.application.services.interpretation.interpret import Interpretation
 from automind.chat.dialog.nodes.understand import _cars_safety_net
-from automind.chat.domain.case.casefile import CaseFile
+from automind.chat.domain.case import CaseFile
 from automind.chat.domain.intake.intake import cars_in_text
 from automind.shared.vehicle.makes import MakeRegistry
 

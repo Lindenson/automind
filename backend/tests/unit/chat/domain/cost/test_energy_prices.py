@@ -6,7 +6,7 @@ import pytest
 import yaml
 
 from automind.chat.domain.assessment import ask_value
-from automind.chat.domain.case.casefile import CaseFile
+from automind.chat.domain.case import CaseFile
 from automind.chat.domain.cost import tco
 from automind.chat.domain.intake import intake
 

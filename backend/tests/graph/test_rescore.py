@@ -3,7 +3,7 @@ data: no search, no interpreter, one short text about what changed, changed scor
 
 import time
 
-from automind.chat.domain.case.casefile import CaseFile
+from automind.chat.domain.case import CaseFile
 from automind.chat.infrastructure.persistence.repositories import CaseRepo
 from automind.delivery.web.rest import CasePatch, apply_patch
 from tests.fakes.fake_llm import FakeLLM

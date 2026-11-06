@@ -2,7 +2,7 @@
 offers its options in the user's language, "choose for me" and "remove"."""
 
 from automind.chat.application.services.interpretation import ask
-from automind.chat.domain.case.casefile import CaseCar, CaseFile, Choice, Constraints, IdentifyOutcome, LadderMemo
+from automind.chat.domain.case import CaseCar, CaseFile, Choice, Constraints, IdentifyOutcome, LadderMemo
 from automind.shared.infrastructure.config.loader import questions_i18n
 from automind.shared.vehicle.identity import parse_engine
 

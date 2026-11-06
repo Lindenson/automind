@@ -12,7 +12,7 @@ from automind.chat.dialog.nodes.common import ctx, current_year, load_case, noti
 from automind.chat.dialog.phrases import market_name, t
 from automind.chat.dialog.runner import TurnContext
 from automind.chat.dialog.state import TurnState
-from automind.chat.domain.case.casefile import MAX_CARS
+from automind.chat.domain.case import MAX_CARS
 
 _RANK = {None: 0, "NEED": 1, "NOT_FOUND": 1, "CHOICES": 2, "IDENTIFIED": 3}
 

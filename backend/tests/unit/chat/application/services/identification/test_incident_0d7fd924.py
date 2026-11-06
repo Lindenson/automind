@@ -21,7 +21,7 @@ from automind.chat.application.services.interpretation import ask
 from automind.chat.application.services.report.compose import data_panel_block
 from automind.chat.dialog import phrases
 from automind.chat.dialog.prompts import load_all
-from automind.chat.domain.case.casefile import CaseCar, CaseFile, Choice, Constraints, IdentifyOutcome, Pending
+from automind.chat.domain.case import CaseCar, CaseFile, Choice, Constraints, IdentifyOutcome, Pending
 from automind.chat.domain.intake import intake
 from automind.delivery.bootstrap import reference
 from automind.shared.infrastructure import db

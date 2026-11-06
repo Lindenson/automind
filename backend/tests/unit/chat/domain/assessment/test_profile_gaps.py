@@ -1,7 +1,7 @@
 """Questions only when they change the answer (spec 004 FR-018, SC-006)."""
 
 from automind.chat.domain.assessment import profile_gaps as pg
-from automind.chat.domain.case.casefile import CaseFile, Needs
+from automind.chat.domain.case import CaseFile, Needs
 
 
 def test_km_asked_for_hybrid_vs_petrol_when_unknown() -> None:

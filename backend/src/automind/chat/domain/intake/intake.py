@@ -17,7 +17,7 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Literal
 
-from automind.chat.domain.case.casefile import CaseCar, CaseFile, Choice, IdentifyKind, IntakeItem
+from automind.chat.domain.case import CaseCar, CaseFile, Choice, IdentifyKind, IntakeItem
 
 StepKind = Literal["ASK", "PROPOSE", "REMOVE_OR_CHOOSE", "CARD", "NONE"]
 ALL = "*"  # attempts key for questions about every car (CONDITION)

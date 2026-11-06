@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from rapidfuzz import fuzz
 
-from automind.chat.domain.case.casefile import CaseCar, Constraints
+from automind.chat.domain.case import CaseCar, Constraints
 from automind.chat.domain.identification import identification as idf
 
 

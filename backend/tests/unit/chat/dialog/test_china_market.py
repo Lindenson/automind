@@ -9,7 +9,7 @@ from automind.acquisition.pipeline import identity as readers
 from automind.acquisition.registry.api import PlannedSource
 from automind.chat.application.services.identification import lineup
 from automind.chat.dialog.phrases import PHRASES, market_name, t
-from automind.chat.domain.case.casefile import CaseCar
+from automind.chat.domain.case import CaseCar
 from automind.chat.domain.intake import intake
 from automind.shared.infrastructure.config.loader import load_yaml, search_config
 from automind.shared.vehicle import identity

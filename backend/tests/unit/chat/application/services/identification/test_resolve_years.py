@@ -2,7 +2,7 @@
 
 from automind.chat.application.services.identification.resolve import _fits
 from automind.chat.dialog.prompts import load_all
-from automind.chat.domain.case.casefile import CaseCar
+from automind.chat.domain.case import CaseCar
 from automind.delivery.bootstrap import reference
 from automind.shared.infrastructure import db
 

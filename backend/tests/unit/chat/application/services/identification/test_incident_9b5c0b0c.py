@@ -8,7 +8,7 @@ import pytest
 
 from automind.chat.application.services.identification.identify import year_conflict
 from automind.chat.dialog import phrases
-from automind.chat.domain.case.casefile import CaseCar, CaseFile, Choice, Constraints, Pending
+from automind.chat.domain.case import CaseCar, CaseFile, Choice, Constraints, Pending
 from automind.chat.domain.intake import intake
 from automind.shared.vehicle.engine import EngineHint
 

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from automind.chat.application.ports import Ports
 from automind.chat.application.services.identification.identify import fit_of
-from automind.chat.domain.case.casefile import CaseCar, CaseFile
+from automind.chat.domain.case import CaseCar, CaseFile
 from automind.chat.domain.intake import intake
 
 

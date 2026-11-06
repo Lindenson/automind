@@ -13,7 +13,7 @@ from automind.chat.domain.assessment.criteria import (
     weights_for,
 )
 from automind.chat.domain.assessment.metrics import CarFacts
-from automind.chat.domain.case.casefile import CaseDelta, CaseFile, PersonaChange, PriorityChange, apply, set_weights
+from automind.chat.domain.case import CaseDelta, CaseFile, PersonaChange, PriorityChange, apply, set_weights
 
 MODEL = CriteriaModel.from_config(yaml.safe_load((Path(__file__).parents[5] / "config" / "criteria.yaml").read_text()))
 

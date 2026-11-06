@@ -17,7 +17,7 @@ from automind.chat.application.services.report import compose
 from automind.chat.domain.assessment import dragrace
 from automind.chat.domain.assessment.criteria import CriteriaModel, score, weights_for
 from automind.chat.domain.assessment.metrics import metrics
-from automind.chat.domain.case.casefile import CaseFile
+from automind.chat.domain.case import CaseFile
 from automind.chat.domain.cost import tco
 from automind.chat.infrastructure.persistence.repositories import CaseRepo
 from automind.delivery.bootstrap import configure_domain

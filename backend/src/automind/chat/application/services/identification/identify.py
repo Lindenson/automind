@@ -26,7 +26,7 @@ from urllib.parse import urlparse
 from automind.acquisition.api import DatasetVersion
 from automind.chat.application.ports import Ports
 from automind.chat.application.services.identification import resolve, versions
-from automind.chat.domain.case.casefile import CaseCar, CaseFile, Choice, IdentifyOutcome, LadderMemo
+from automind.chat.domain.case import CaseCar, CaseFile, Choice, IdentifyOutcome, LadderMemo
 from automind.chat.domain.identification import ladder, used
 from automind.chat.domain.intake import intake
 from automind.shared import evidence

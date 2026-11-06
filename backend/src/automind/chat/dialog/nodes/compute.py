@@ -21,7 +21,7 @@ from automind.chat.dialog.phrases import energy_input, market_name, t
 from automind.chat.dialog.runner import TurnContext
 from automind.chat.domain.assessment.criteria import CriteriaScore, score, weight_breakdown, weights_for
 from automind.chat.domain.assessment.metrics import new_generation_since
-from automind.chat.domain.case.casefile import CaseFile
+from automind.chat.domain.case import CaseFile
 from automind.chat.domain.cost import incentives, tco
 from automind.chat.domain.cost.energy import UsageContext
 from automind.chat.domain.identification import used

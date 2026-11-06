@@ -1,6 +1,6 @@
 """Intake loop (spec 005 R5, R6, R11): identity key, progress, next step without repeats, distances."""
 
-from automind.chat.domain.case.casefile import CaseCar, CaseFile, Constraints, IdentifyOutcome
+from automind.chat.domain.case import CaseCar, CaseFile, Constraints, IdentifyOutcome
 from automind.chat.domain.intake import intake
 from automind.shared.vehicle.engine import EngineHint
 

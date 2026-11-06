@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 
-from automind.chat.domain.case.casefile import CaseFile, QuestionKind
+from automind.chat.domain.case import CaseFile, QuestionKind
 
 Outcome = tuple[str | None, bool]  # (winner car id, tie)
 

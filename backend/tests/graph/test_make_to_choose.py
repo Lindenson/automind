@@ -15,7 +15,7 @@ from sqlalchemy import delete, select
 from automind.chat.application.services.identification.candidates import ask_the_model
 from automind.chat.dialog.graph import build_graph
 from automind.chat.dialog.runner import ChatRunner
-from automind.chat.domain.case.casefile import CaseCar, CaseFile
+from automind.chat.domain.case import CaseCar, CaseFile
 from automind.chat.domain.policy import wants_candidates
 from automind.chat.infrastructure.persistence.repositories import MessageRepo
 from automind.shared.infrastructure import db

@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from automind.chat.domain.case.casefile import CaseCar, CaseFile, Pending, QuestionKind
+from automind.chat.domain.case import CaseCar, CaseFile, Pending, QuestionKind
 from automind.chat.domain.identification import ladder
 from automind.chat.domain.intake import intake
 from automind.shared.contracts.llm import LLM

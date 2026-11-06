@@ -9,7 +9,7 @@ from sqlalchemy import select
 from automind.chat.application.services.report import car_view
 from automind.chat.dialog.graph import build_graph
 from automind.chat.dialog.runner import ChatRunner
-from automind.chat.domain.case.casefile import CaseCar, CaseFile
+from automind.chat.domain.case import CaseCar, CaseFile
 from automind.chat.infrastructure.persistence.repositories import MessageRepo
 from automind.observability.infrastructure.outcomes import OutcomeRepo
 from automind.shared.infrastructure import db

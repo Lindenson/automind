@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 from automind.chat.application.services.interpretation import ask
 from automind.chat.application.services.report import compose, intake_card
-from automind.chat.domain.case.casefile import CaseCar, CaseFile, LadderMemo
+from automind.chat.domain.case import CaseCar, CaseFile, LadderMemo
 from automind.chat.domain.cost import tco
 from automind.shared.infrastructure.config.loader import questions_i18n, rates
 

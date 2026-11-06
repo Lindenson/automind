@@ -1,7 +1,7 @@
 """Questions by value (spec 007 FR-006): asked only when the answer changes the winner or the tie."""
 
 from automind.chat.domain.assessment import ask_value
-from automind.chat.domain.case.casefile import CaseFile
+from automind.chat.domain.case import CaseFile
 
 PROBES = {"annual_km": [8000, 15000, 30000], "ownership_years": [3, 6, 10], "persona": ["PERFORMANCE", "BUYER"]}
 
@@ -49,7 +49,7 @@ def _guessing_outcome(case):
 
 def test_inferred_field_that_flips_the_winner_is_found():
     from automind.chat.domain.assessment.ask_value import inferred_flip
-    from automind.chat.domain.case.casefile import CaseFile
+    from automind.chat.domain.case import CaseFile
 
     c = CaseFile(profile={"family": "FAMILY", "evidence": {"family": "вожу детей"}})
     c.basis["family"] = "INFERRED"
@@ -60,7 +60,7 @@ def test_inferred_field_that_flips_the_winner_is_found():
 
 def test_inferred_field_that_changes_nothing_is_not_asked():
     from automind.chat.domain.assessment.ask_value import inferred_flip
-    from automind.chat.domain.case.casefile import CaseFile
+    from automind.chat.domain.case import CaseFile
 
     c = CaseFile(profile={"family": "FAMILY", "evidence": {"family": "x"}})
     c.basis["family"] = "INFERRED"
@@ -71,7 +71,7 @@ def test_report_shows_the_assumption_and_asks_once():
     from types import SimpleNamespace
 
     from automind.chat.dialog.nodes.report import _confirm_inferred
-    from automind.chat.domain.case.casefile import CaseFile
+    from automind.chat.domain.case import CaseFile
 
     def car(i, name):
         return {"variant": SimpleNamespace(id=i, label=name, make="", model=name, variant_name=name,

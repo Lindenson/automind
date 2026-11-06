@@ -15,7 +15,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
-from automind.chat.domain.case.casefile import CRITERION_KEYS, CaseFile
+from automind.chat.domain.case import CRITERION_KEYS, CaseFile
 
 _BAND = re.compile(r"^(<=|>=|<|>)\s*(\d+)$")
 RULE_FIELDS = ("family", "driving_style", "usage", "climate", "annual_km", "ownership_years", "condition")

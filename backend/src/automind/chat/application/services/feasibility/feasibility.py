@@ -12,7 +12,7 @@ from typing import Any, Protocol
 
 from automind.chat.application.services.report import compose
 from automind.chat.domain.assessment import feasibility as fz
-from automind.chat.domain.case.casefile import CaseFile
+from automind.chat.domain.case import CaseFile
 from automind.chat.domain.cost import tco
 from automind.chat.domain.intake import intake
 

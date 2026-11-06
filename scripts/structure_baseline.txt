@@ -573,8 +573,6 @@ order|chat/domain/assessment/weights.py|automatic
 order|chat/domain/assessment/weights.py|breakdown
 order|chat/domain/assessment/weights.py|manual_adjustments
 order|chat/domain/assessment/weights.py|matched_rules
-order|chat/domain/case/casefile.py|apply_defaults
-order|chat/domain/case/casefile.py|set_weights
 order|chat/domain/cost/energy.py|EnergyCar
 order|chat/domain/cost/energy.py|EnergyEstimate
 order|chat/domain/cost/energy.py|EnergyPart
@@ -928,7 +926,6 @@ size|chat/dialog/phrases.py|>400
 size|chat/dialog/report_text.py|>400
 size|chat/dialog/runner.py|>400
 size|chat/domain/assessment/criteria.py|>400
-size|chat/domain/case/casefile.py|>400
 size|chat/domain/cost/energy.py|>400
 size|chat/domain/cost/tco.py|>400
 size|chat/domain/identification/ladder.py|>400

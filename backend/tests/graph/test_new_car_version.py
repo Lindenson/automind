@@ -17,7 +17,7 @@ from automind.acquisition.api import VersionsOut
 from automind.acquisition.engine import Engine
 from automind.chat.application.services.identification import identify, resolve, versions
 from automind.chat.dialog.prompts import load_all
-from automind.chat.domain.case.casefile import CaseCar, CaseFile, Constraints
+from automind.chat.domain.case import CaseCar, CaseFile, Constraints
 from automind.delivery.bootstrap import reference
 from automind.shared.vehicle.identity import parse_engine
 

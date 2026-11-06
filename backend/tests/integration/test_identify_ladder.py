@@ -7,7 +7,7 @@ from types import SimpleNamespace
 from automind.chat.application.services.identification import identify
 from automind.chat.dialog import phrases
 from automind.chat.dialog.prompts import load_all
-from automind.chat.domain.case.casefile import CaseCar, CaseFile, Constraints, Pending
+from automind.chat.domain.case import CaseCar, CaseFile, Constraints, Pending
 from automind.chat.domain.identification.ladder import Generation, Version
 from automind.chat.domain.intake import intake
 from automind.delivery.bootstrap import reference

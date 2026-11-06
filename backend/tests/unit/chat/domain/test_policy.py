@@ -2,7 +2,7 @@
 
 import pytest
 
-from automind.chat.domain.case.casefile import CarRef, CaseDelta, CaseFile, PersonaChange, apply
+from automind.chat.domain.case import CarRef, CaseDelta, CaseFile, PersonaChange, apply
 from automind.chat.domain.policy import CarState, decide, fingerprint
 
 YEAR = 2026

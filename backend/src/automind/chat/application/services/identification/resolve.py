@@ -19,7 +19,7 @@ from sqlalchemy import func, select
 
 from automind.acquisition import api as acquisition
 from automind.chat.application.ports import Ports
-from automind.chat.domain.case.casefile import CaseCar
+from automind.chat.domain.case import CaseCar
 from automind.chat.domain.identification import identification
 from automind.chat.domain.intake import intake
 from automind.chat.domain.policy import CarState

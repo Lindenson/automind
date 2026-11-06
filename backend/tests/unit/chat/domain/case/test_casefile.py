@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from automind.chat.domain.case.casefile import (
+from automind.chat.domain.case import (
     CarContext,
     CarRef,
     CaseDelta,
@@ -301,7 +301,7 @@ def test_replacing_with_another_model_does_not_inherit_age():
 
 
 def test_legacy_case_gets_a_basis_on_read():
-    from automind.chat.domain.case.casefile import CaseFile
+    from automind.chat.domain.case import CaseFile
 
     c = CaseFile.model_validate(
         {
@@ -317,7 +317,7 @@ def test_legacy_case_gets_a_basis_on_read():
 
 
 def test_inferred_never_overwrites_stated_and_stated_overwrites_inferred():
-    from automind.chat.domain.case.casefile import CaseDelta, CaseFile, apply
+    from automind.chat.domain.case import CaseDelta, CaseFile, apply
 
     inferred = CaseDelta.model_validate(
         {"set_profile": {"family": "FAMILY", "evidence": {"family": "дети"}}, "profile_basis": {"family": "INFERRED"}}
@@ -335,7 +335,7 @@ def test_inferred_never_overwrites_stated_and_stated_overwrites_inferred():
 
 
 def test_inferred_persona_does_not_override_a_stated_one():
-    from automind.chat.domain.case.casefile import CaseDelta, CaseFile, apply
+    from automind.chat.domain.case import CaseDelta, CaseFile, apply
 
     c, _ = apply(CaseFile(), CaseDelta.model_validate({"set_persona": {"persona": "BUYER", "source": "USER_EDIT"}}),
                  current_year=2026)  # fmt: skip
@@ -348,7 +348,7 @@ def test_ownership_years_bounds_and_defaults_per_persona():
     import pytest
     from pydantic import ValidationError
 
-    from automind.chat.domain.case.casefile import CaseDelta, CaseFile, apply, apply_defaults
+    from automind.chat.domain.case import CaseDelta, CaseFile, apply, apply_defaults
 
     with pytest.raises(ValidationError):
         CaseDelta.model_validate({"set_ownership_years": 30})

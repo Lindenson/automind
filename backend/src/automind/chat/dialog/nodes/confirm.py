@@ -20,7 +20,7 @@ from automind.chat.dialog.nodes.common import ctx, current_year, load_case, noti
 from automind.chat.dialog.phrases import PHRASES, t
 from automind.chat.dialog.runner import TurnContext
 from automind.chat.dialog.state import TurnState
-from automind.chat.domain.case.casefile import Choice, Pending
+from automind.chat.domain.case import Choice, Pending
 from automind.chat.domain.intake import intake
 from automind.shared.infrastructure.config.settings import settings
 
