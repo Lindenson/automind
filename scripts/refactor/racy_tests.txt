@@ -1,0 +1,6 @@
+# Tests whose events depend on timing (which parallel jobs a limit pause catches): always reported as racy by
+# diff_behaviour.py, never gated. Measured 2026-11-06: each of them differed between two runs of the same commit.
+# Fix after spec 012 (backlog): make the limit pause deterministic in the test (a fake clock / ordered job completion).
+tests_graph_test_limit_pause.py_test_limit_asks_and_continue_finishes_the_research.json
+tests_graph_test_limit_pause.py_test_limit_stop_answers_with_what_exists.json
+tests_graph_test_limit_pause.py_test_typed_continue_continues_and_reconnect_resends_the_question.json

@@ -30,6 +30,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 PLUGIN_DIR = Path(__file__).resolve().parent
 SUITES = ["tests/graph", "tests/golden", "tests/integration"]
+KNOWN_RACY = {ln.strip() for ln in (PLUGIN_DIR / "racy_tests.txt").read_text(encoding="utf-8").splitlines()
+              if ln.strip() and not ln.startswith("#")}  # fmt: skip
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -60,7 +62,9 @@ def compare(base1: Path, base2: Path, head: Path) -> dict[str, list[str]]:
     out: dict[str, list[str]] = {"same": [], "unstable": [], "racy": [], "differs": [], "missing": [], "added": []}
     for n in names:
         b1, b2, h = (_load(d / n) for d in (base1, base2, head))
-        if b1 is None:
+        if n in KNOWN_RACY:
+            out["racy"].append(n)
+        elif b1 is None:
             out["added"].append(n)
         elif h is None:
             out["missing"].append(n)
