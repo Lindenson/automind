@@ -77,8 +77,8 @@ no helper "somewhere convenient", no flag arguments added, names say what the th
 
 ### S3b Tests to the mirror tree (PR 5)
 
-- [ ] T037 Write `specs/012-refactoring/moves/S3b.yaml` mapping `backend/tests/unit/**` to mirror the new src tree (`tests/unit/<area>/<package>/test_<module>.py`); `graph/`, `golden/`, `eval/`, `integration/`, `fakes/`, `fixtures/` keep their kind folders
-- [ ] T038 Run the codemod; gate (test count identical, behaviour diff empty)
+- [x] T037 Write `specs/012-refactoring/moves/S3b.yaml` mapping `backend/tests/unit/**` to mirror the new src tree (`tests/unit/<area>/<package>/test_<module>.py`); `graph/`, `golden/`, `eval/`, `integration/`, `fakes/`, `fixtures/` keep their kind folders
+- [x] T038 Run the codemod; gate (test count identical, behaviour diff empty)
 
 ### S3c Package docs and constitution (PR 6)
 
