@@ -44,7 +44,7 @@ def _cost(est: en.EnergyEstimate | None, home: str) -> dict[str, Any]:
 def _car_values(car: dict[str, Any], t: tco.TcoCar, est: en.EnergyEstimate | None, r: tco.TcoRates,
                 label: dict[str, Any] | None) -> dict[str, Any]:  # fmt: skip
     use = t.use or en.UsageContext(annual_km=15000)
-    ecar = tco._energy_car(t)  # noqa: SLF001 - same model the cost uses
+    ecar = tco.energy_car(t)  # the same model the cost uses
     real, real_how = en.electric_range(ecar, tco.energy_rates(r), use)
     ac = _num(car, "charge_ac_kw")
     usable = t.battery_kwh

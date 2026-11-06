@@ -81,3 +81,10 @@ def test_racy_tests_are_listed_not_gated(tmp_path: Path) -> None:
     other = {"type": "status", "payload": {"text": "paused", "opts": []}}
     r = diff.compare(*_dumps(tmp_path, "t.json", [E1], [other], [E2]))
     assert r["racy"] == ["t.json"] and diff.report(r) == 0
+
+
+def test_a_stable_test_whose_head_only_reorders_a_list_is_order_only(tmp_path: Path) -> None:
+    a = {"type": "status", "payload": {"opts": ["265 CV", "288 CV"]}}
+    b = {"type": "status", "payload": {"opts": ["288 CV", "265 CV"]}}
+    r = diff.compare(*_dumps(tmp_path, "t.json", [a], [a], [b]))
+    assert r["order-only"] == ["t.json"] and diff.report(r) == 0

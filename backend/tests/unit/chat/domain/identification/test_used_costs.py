@@ -90,7 +90,7 @@ def test_depreciation_of_a_used_car_starts_from_its_used_price() -> None:
     car = tco.TcoCar(
         "a", "A4", "ICE", condition="USED", age_years=3, price_eur=48000, used_price_eur=26000, retention_curve=CURVE
     )
-    item = tco._depreciation(car, 5)
+    item = tco.depreciation_item(car, 5)
     expected = 26000 - 26000 * 0.36 / 0.62  # value share at 8 years over the share at 3
     assert abs((item.five_year_eur or 0) - expected) < 1
     assert "value now €26,000 (sourced used price, 3 years)" in item.inputs[0]
@@ -98,7 +98,7 @@ def test_depreciation_of_a_used_car_starts_from_its_used_price() -> None:
 
 def test_a_used_car_without_a_used_price_is_valued_from_the_new_price_at_its_age_never_as_new() -> None:
     car = tco.TcoCar("a", "A4", "ICE", condition="USED", age_years=0, price_eur=48000, retention_curve=CURVE)
-    item = tco._depreciation(car, 5)
+    item = tco.depreciation_item(car, 5)
     at6 = 0.5 + (0.36 - 0.5) / 3  # the class curve between 5 and 8 years
     assert abs((item.five_year_eur or 0) - 48000 * (0.8 - at6)) < 1  # from age 1 (0.8 of new), not from new
     assert any("value now" in x for x in item.inputs)
