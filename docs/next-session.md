@@ -101,6 +101,10 @@ branches too, or local only; (c) `# fmt: skip` ×843 — leave as is (proposal) 
    unit tests for CLTC filing / Chinese units / `Aliases.names_of`; `Variant.market` at `upsert_variant`;
    electrive.com robots/terms (details: `docs/history/wip-home-market-research.md`).
 
+5. Found by the spec 012 behaviour diff (2026-11-06): the report's order of criteria with equal weights (e.g.
+   ownership_cost and reliability, both 6.2) depends on Python's hash seed (set iteration), so it can differ
+   between runs for the user. Fix after the refactoring: a stable tie-break (criterion key).
+
 ## 5. Rules that stay in force
 
 - Reply to the owner in Russian. Commit, push and merge to main without review (owner's standing instruction).

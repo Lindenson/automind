@@ -84,7 +84,8 @@ def _run(ref: str, wt: Path, dump: Path, args: list[str], env: dict[str, str], r
     if not reuse:
         subprocess.run(["git", "worktree", "add", "--detach", str(wt), ref], cwd=REPO, check=True, capture_output=True)
     dump.mkdir(parents=True)
-    run_env = {**env, "BEHAVIOUR_DUMP": str(dump),
+    # a fixed hash seed: set iteration order (e.g. ties between equal criteria weights) is the same in every run
+    run_env = {**env, "BEHAVIOUR_DUMP": str(dump), "PYTHONHASHSEED": "0",
                "PYTHONPATH": os.pathsep.join(filter(None, [str(PLUGIN_DIR), env.get("PYTHONPATH")]))}  # fmt: skip
     cmd = ["uv", "run", "pytest", "-q", "-p", "behaviour_dump_plugin", "-p", "no:randomly", *args]
     r = subprocess.run(cmd, cwd=wt / "backend", env=run_env, capture_output=True, text=True)
