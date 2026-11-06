@@ -1,19 +1,67 @@
-# Next session: start here (parked on 2026-11-06)
+# Next session: start here (parked on 2026-11-06, after S6)
 
 **First task: refactoring — spec 012, executed by `specs/012-refactoring/tasks.md` (one phase = one PR).**
-Done: S0–S3c (2026-11-06): hygiene, safety net, shrink + typed facade, tree move, tests mirrored, package docs. S4 shared kernel, S5 chat domain, S6 dialog machine done. Next: S7 identification service (T066–T069). First deploy checkpoint after 2026-11-12: S3a–S6 together. No new features until it is done (owner, 2026-11-06). All functional work below is
-parked, still valid, and resumes after the refactoring.
+No new features until it is done (owner, 2026-11-06). All functional work in §4 is parked, still valid, and
+resumes after the refactoring.
 
-Context to read first: `README.md` ("Acquisition engine"), `docs/adr/ADR-032-acquisition-engine.md`.
-What the system is and how it got here: `docs/history/next-session-2026-11-06-engine.md` (§1 = the current
-architecture in one page), older: `docs/history/next-session-until-2026-11-06.md`, specs 001–009: `docs/baseline.md`.
+Owner's bar (memory "refactoring clarity criterion"): maximum clarity of what happens, zero spaghetti, patterns,
+architecture — self-check every PR against it.
+
+Context to read first: `specs/012-refactoring/{spec,plan,research,data-model}.md`, `contracts/code-shape.md`
+(use case = class with `run()`; service = ports in constructor + `run()` listing named stages; stages pure;
+fallbacks = strategies behind a Protocol), then `tasks.md` from S7 on.
+What the system is: `README.md` ("Acquisition engine"), `docs/adr/ADR-032-acquisition-engine.md`,
+`docs/history/next-session-2026-11-06-engine.md` §1, specs 001–009: `docs/baseline.md`.
+
+## 0. Resume S7 (next action)
+
+Done and merged: S0–S6 (PRs up to #97, main = `f6487b1`). Tree now: `chat/ acquisition/ shared/ observability/
+delivery/` (target in `data-model.md`). S6 made the dialog explicit: `chat/dialog/policy/` (chain of rules,
+`RULES`, `RulesInOrder`), `phases.py`, `confirmation.py` (prepare → wait → apply, 5 configurations), `graph.py`
+as tables (`NODES`, `POLICY_ROUTES`, `CONFIRMATIONS`, `TERMINALS`; shape frozen by
+`tests/graph/graph_shape.json`), `state.py` (`DecisionState` TypedDict, plain data in checkpoints).
+
+**Next: S7 identification service, T066–T069** (tasks.md "S7"):
+1. `git switch -c 012-s7-identification`.
+2. T066: characterisation tests to ≥ 80 % branch coverage of `chat/application/services/identification/{identify,resolve}.py`
+   (before: 83 % / 82 % per `coverage-before.txt` — re-measure, cover fallback order, ladder narrowing, gearbox,
+   catalogue hit/miss) under `backend/tests/unit/chat/application/services/identification/`.
+3. T067: package with `contracts.py`, `service.py` (`IdentificationService.run()` ≤ 60 lines), `stages/`,
+   `strategies/`; pure matching → `chat/domain/identification/variant_match.py`.
+4. T068 (+T028 part): `acquisition.api` catalogue calls `find_variants`/`get_variant`/`upsert_variant`; port
+   `VariantCatalogue`; drop `resolve`/`lineup` `ignore_imports` in `backend/.importlinter`.
+5. T069: `chat/dialog/nodes/identify.py` ≤ 30 lines; gate; behaviour diff; PR; merge; delete branch.
+Then S8 report (+`car_data()` read model, T072), S9 interpretation/research/feasibility/usage (+T059 confirm.py
+characterisation, 47 % now), S10 use cases, S11 acquisition pipeline + parsing package, S12 admin/persistence split
++ contracts, S13 order/API + mypy scope, S14 docs, S15 acceptance.
+
+Known deferred inside 012: nodes still fat (`chat/dialog/nodes/compute.py` 719, `understand.py` 500) — logic leaves
+in S7–S9; T019a flaky `test_catalog_merge` (host load) open.
+
+### Workflow per step (what worked S3a–S6)
+
+```bash
+set -a; . ./.env.docker; set +a   # TEST_DATABASE_URL (port 5433, automind_test); without it the test DB is empty
+scripts/check.sh > $SCRATCH/check.log 2>&1        # ruff, format, mypy strict scope, lint-imports (11), structure ratchet, pytest, vitest
+scripts/refactor/diff_behaviour.py --base origin/main --head HEAD   # base→head→base, PYTHONHASHSEED=0; must end "differs 0"
+cd backend && uv run python ../scripts/check_checkpoints.py      # read-only prod: 0 module paths in blobs, threads load
+```
+- Moves: `scripts/refactor/move.py <map.yaml>` (maps in `specs/012-refactoring/moves/`; whole packages first);
+  after moves `scripts/check_structure.py --write-baseline` only if the count did not grow.
+- Structure ratchet baseline `scripts/structure_baseline.txt` (903 now); new violations fail the gate.
+- Never run two test runs on one DB at once. Commit → push → `gh pr create` → `gh pr merge --merge` → delete
+  local+remote branch; update this file's §0 at the end of each step.
 
 ## 1. State when parked
 
-- main = `2b5eb92`+ (PRs #83–#85), deployed (`scripts/deploy.sh up --monitoring`, app :8090), worker healthy.
-- `scripts/check.sh` green: 1445 backend + 161 frontend tests.
-- Last live check: chat ccd5f7d8 (Deepal S09 vs Li L9) — S09 energy computed (EREV estimate from one page's
-  battery ÷ CLTC range), L9 honestly "no data" (generation mix, see §4).
+- main = `f6487b1` (S6 merged). **Production still runs the pre-012 code** (`2b5eb92`, PRs #83–#85, `scripts/deploy.sh
+  up --monitoring`, app :8090). Deploy policy: none before the baseline closes on 2026-11-12; then S3a–S6 go
+  together as the first checkpoint (compose worker command is now `python -m automind.cli worker`), live replay of
+  chat ccd5f7d8 after it, then deploys only at S9, S12, S15.
+- Last gate: `check.sh` green — 1467 backend passed (2 skipped) + 161 frontend; 11 import contracts kept;
+  structure 903/903; behaviour diff vs previous main: differs 0; check_checkpoints: 375 blobs, 0 paths, 10 threads.
+- Repo hygiene: no worktrees, no feature branches local or remote.
+- Last live check (pre-012): chat ccd5f7d8 (Deepal S09 vs Li L9) — S09 energy computed (EREV estimate), L9 "no data".
 - Backup before the last data repair: `backups/automind-20261106-100212.sql.gz`.
 
 ## 2. Refactoring — goal and rules
