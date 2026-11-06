@@ -16,6 +16,18 @@ def results(old: list[Any] | None, new: list[Any] | None) -> list[Any]:
     return [*(old or []), *(new or [])]
 
 
+class DecisionState(TypedDict, total=False):
+    """The policy's Action as stored in the graph state (plain data: the checkpoint never holds a class)."""
+
+    kind: str  # chat.domain.decision.ActionKind
+    questions: list[str]
+    cars: list[str]
+    nothing_new: bool
+    profile: bool
+    over_cap: bool
+    reason: str
+
+
 class TurnState(TypedDict, total=False):
     chat_id: str
     turn_id: str
@@ -25,7 +37,7 @@ class TurnState(TypedDict, total=False):
     interpretation: dict[str, Any]
     case_version: int
     assessments: dict[str, dict[str, Any]]  # car key -> {state, candidates, generations}
-    decision: dict[str, Any]  # policy Action
+    decision: DecisionState  # the policy's Action (model_dump)
     action: str  # final action kind of the turn (recorded on the turn)
     cost_estimate: float | None
     research_plan: dict[str, Any]

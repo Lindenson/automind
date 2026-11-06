@@ -25,7 +25,7 @@ from langgraph.errors import GraphRecursionError
 from langgraph.types import Command
 
 from automind.chat.application.ports import Ports, TurnBusy
-from automind.chat.dialog import outcomes
+from automind.chat.dialog import tracing as outcomes
 from automind.chat.dialog.phrases import t
 from automind.chat.dialog.retry import transient_provider_error
 from automind.shared.infrastructure.metrics import prom

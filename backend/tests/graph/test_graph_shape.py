@@ -12,3 +12,12 @@ def test_the_compiled_graph_has_the_recorded_nodes_and_edges():
     g = build_graph().get_graph()
     assert sorted(g.nodes) == expected["nodes"]
     assert sorted([e.source, e.target, bool(e.conditional)] for e in g.edges) == expected["edges"]
+
+
+def test_every_node_has_a_phase_and_the_confirmations_are_the_confirm_kinds():
+    from automind.chat.dialog.graph import CONFIRMATIONS
+    from automind.chat.dialog.phases import PHASE_OF, ConfirmKind
+
+    nodes = {n for n in build_graph().get_graph().nodes if n not in ("__start__", "__end__")}
+    assert nodes == set(PHASE_OF)
+    assert {c.kind for c in CONFIRMATIONS} == {k.value for k in ConfirmKind}

@@ -6,7 +6,7 @@ from types import SimpleNamespace
 import pytest
 
 from automind.chat.application.ports import VersionConflict
-from automind.chat.dialog.nodes.common import history
+from automind.chat.dialog.context import history
 from automind.chat.domain.case import CaseFile
 from automind.chat.infrastructure.persistence.repositories import CaseRepo, MessageRepo, TurnRepo
 from automind.delivery.web import rest

@@ -18,7 +18,7 @@ from langgraph.runtime import Runtime
 from langgraph.types import Send
 
 from automind.acquisition import api as acquisition
-from automind.chat.dialog.nodes.common import ctx, load_case, notice, record_intake, save_case
+from automind.chat.dialog.context import ctx, load_case, notice, record_intake, save_case
 from automind.chat.dialog.phrases import t, yes_or_no
 from automind.chat.dialog.report_text import area_label
 from automind.chat.dialog.runner import TurnContext

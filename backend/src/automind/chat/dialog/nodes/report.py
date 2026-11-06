@@ -17,9 +17,10 @@ from typing import Any
 from langgraph.runtime import Runtime
 
 from automind.chat.application.services.report import compose
-from automind.chat.dialog import agents, outcomes
+from automind.chat.dialog import agents
+from automind.chat.dialog import tracing as outcomes
+from automind.chat.dialog.context import ctx, history, load_case, save_case
 from automind.chat.dialog.guard import check_numbers, drop_sentences, numbers_in, report_violations, violations_prompt
-from automind.chat.dialog.nodes.common import ctx, history, load_case, save_case
 from automind.chat.dialog.nodes.compute import compute
 from automind.chat.dialog.phrases import t
 from automind.chat.dialog.runner import TurnContext

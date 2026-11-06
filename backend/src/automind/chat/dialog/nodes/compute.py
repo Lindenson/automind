@@ -15,8 +15,8 @@ from automind.acquisition import api as acquisition
 from automind.chat.application.services.feasibility import feasibility as fz_app
 from automind.chat.application.services.report import car_view, compose, electric_block
 from automind.chat.dialog import report_text
+from automind.chat.dialog.context import notice, record_intake
 from automind.chat.dialog.guard import CheckInput as GuardInput
-from automind.chat.dialog.nodes.common import notice, record_intake
 from automind.chat.dialog.phrases import energy_input, market_name, t
 from automind.chat.dialog.runner import TurnContext
 from automind.chat.domain import understanding

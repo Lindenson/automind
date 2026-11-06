@@ -1,0 +1,3 @@
+moves:
+  automind.chat.dialog.nodes.common: automind.chat.dialog.context
+  automind.chat.dialog.outcomes: automind.chat.dialog.tracing

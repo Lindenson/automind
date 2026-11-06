@@ -13,8 +13,8 @@ from automind.chat.application.services.identification import resolve
 from automind.chat.application.services.interpretation.interpret import Interpretation, InterpretError, interpret
 from automind.chat.application.services.report import car_view
 from automind.chat.dialog import phrases
+from automind.chat.dialog.context import ctx, current_year, history, load_case, notice, record_intake, save_case
 from automind.chat.dialog.nodes import feasibility as fz_nodes
-from automind.chat.dialog.nodes.common import ctx, current_year, history, load_case, notice, record_intake, save_case
 from automind.chat.dialog.phrases import t
 from automind.chat.dialog.policy import decide
 from automind.chat.dialog.runner import TurnContext

@@ -5,7 +5,6 @@ func|acquisition/admin_api.py|value
 func|acquisition/pipeline/job.py|_run
 func|acquisition/registry/application/review.py|review
 func|chat/application/services/report/compose.py|load_car
-func|chat/dialog/graph.py|build_graph
 func|chat/dialog/nodes/compute.py|compute
 node|chat/dialog/nodes/compute.py|compute
 node|chat/dialog/nodes/compute.py|ownership_facts
@@ -898,7 +897,6 @@ size|shared/infrastructure/db/models.py|>400
 sql|acquisition/reputation/baseline.py|turn_outcomes@observability
 table|acquisition/infrastructure/fetch.py|_Text.handle_starttag
 table|acquisition/pipeline/validate.py|fuel_of
-table|chat/dialog/graph.py|build_graph
 table|chat/dialog/nodes/understand.py|route_policy
 table|shared/vehicle/specs/converters.py|km
 table|shared/vehicle/specs/normalize.py|normalize_drivetrain
