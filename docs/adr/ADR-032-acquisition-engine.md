@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-11-05
 - **Spec:** `specs/011-acquisition-engine`
-- **Input:** `docs/review-2026-11-05-acquisition.md`; constitution 1.3.0 (XII amended, XIII new)
+- **Input:** `docs/history/review-2026-11-05-acquisition.md`; constitution 1.3.0 (XII amended, XIII new)
 - ADR-031 stays reserved for spec 010's T076.
 
 ## Context

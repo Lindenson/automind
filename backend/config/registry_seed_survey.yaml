@@ -3327,7 +3327,7 @@
   verdict: candidate
   checked: 2026-11-05
   survey: uk
-# --- Sources revision 2026-11-05 (docs/sources-revision-2026-11-05.md): robots.txt and terms read for every entry; samples fetched
+# --- Sources revision 2026-11-05 (docs/history/sources-revision-2026-11-05.md): robots.txt and terms read for every entry; samples fetched
 # with our UA. Candidates first, then the new tos_forbids / blocked_robots / js_only / classifieds findings.
 - domain: autocentrum.pl
   section: /usterki/, /oceny/, /nasze-pomiary/, /dane-techniczne/, /dziennik-kosztow/ {marka}/{model}/

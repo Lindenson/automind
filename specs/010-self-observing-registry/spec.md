@@ -277,7 +277,7 @@ Shipped alert rules:
 
 ### User Story 10 - The user sees what was understood and corrects it cheaply (Priority: P1)
 
-Source: UI audit of 2026-11-05 (`docs/ux-audit-2026-11-05.md`, findings F1–F6 and its quick wins). The owner's first complaint, "the assistant loses the dialogue and picks the wrong version", is partly a UI problem: what the system understood disappears or is hidden, and correcting it costs a free-text turn that the model must reinterpret.
+Source: UI audit of 2026-11-05 (`docs/history/ux-audit-2026-11-05.md`, findings F1–F6 and its quick wins). The owner's first complaint, "the assistant loses the dialogue and picks the wrong version", is partly a UI problem: what the system understood disappears or is hidden, and correcting it costs a free-text turn that the model must reinterpret.
 
 - **Agreed version stays visible**: after the user confirms the cars, a compact read-only "Agreed" entry stays in the chat with the final values and their basis. The full version line (engine · gearbox · trim · year) is shown in the case summary, in the case panel and under the verdict headline.
 - **Cheap structured correction**: each car in the case panel and in the report's spec-table header has a "Change" action offering the same choices as the intake card (generation, engine, gearbox, trim) plus "Not this car" and "Remove"; the change is applied by code, not reinterpreted by the model. Intake-card fields without choices get an inline edit.
