@@ -191,6 +191,38 @@ PHRASES: dict[str, dict[str, str]] = {
         "ru": "{car}: дважды без ответа — взял {label} (базовая версия). Назовите другую, если нужно.",
         "es": "{car}: sin respuesta dos veces; tomé {label} (la versión base). Dime otra para cambiarla.",
     },
+    # chat 2026-11-06 (owner): a car not sold in Spain says where it was found — Europe (one market, no country
+    # preferred) first, else its home market; prices from European markets only (spec 009 FR-009)
+    "sold_in_europe": {
+        "en": "{car} is not sold in Spain — found it on sale in {market}: its data and prices come from European "
+        "markets.",
+        "ru": "{car} в Испании не продаётся — нашёл на рынке {market}: данные и цены беру с европейских рынков.",
+        "es": "El {car} no se vende en España; lo encontré en el mercado de {market}: sus datos y precios vienen de "
+        "mercados europeos.",
+    },
+    "sold_abroad": {
+        "en": "{car} is not sold in Spain or anywhere in Europe — found it on sale in {market}: specs, consumption "
+        "and reliability come from there; prices are taken from European markets only, never converted into euros.",
+        "ru": "{car} в Европе не продаётся — нашёл на рынке {market}: характеристики, расход и надёжность беру "
+        "оттуда; цены — только с европейских рынков, местные в евро не пересчитываю.",
+        "es": "El {car} no se vende en España ni en Europa; lo encontré en el mercado de {market}: especificaciones, "
+        "consumo y fiabilidad vienen de allí; los precios, solo de mercados europeos, nunca convertidos a euros.",
+    },
+    "abroad_no_price": {
+        "en": "{car}: not sold in Europe (found on sale in {market}), and no European price was found — no price in "
+        "euros is given for it, so its purchase price and cost of ownership are not compared.",
+        "ru": "{car}: в Европе не продаётся (нашёл на рынке {market}), европейской цены нет — цену в евро не "
+        "придумываю, поэтому цена покупки и стоимость владения по нему не сравниваются.",
+        "es": "{car}: no se vende en Europa (lo encontré en el mercado de {market}) y no hay precio europeo; no doy "
+        "un precio en euros, así que su precio de compra y su coste de uso no se comparan.",
+    },
+    "abroad_priced": {
+        "en": "{car}: not sold in Europe — its data come from the market in {market}, its price from a European "
+        "source.",
+        "ru": "{car}: в Европе не продаётся — данные с рынка {market}, цена — из европейского источника.",
+        "es": "{car}: no se vende en Europa; sus datos vienen del mercado de {market} y su precio, de una fuente "
+        "europea.",
+    },
     "identity_less_certain": {
         "en": "{car}: no source lists its versions, so the exact version is less certain — check it on the card.",
         "ru": "{car}: список версий не найден в источниках — точная версия менее надёжна, проверьте её в карточке.",
@@ -442,6 +474,42 @@ ENERGY_INPUTS: dict[str, dict[str, str]] = {  # the inputs domain/energy.py name
 
 def energy_input(name: str, language: str | None) -> str:
     return ENERGY_INPUTS.get(name, {}).get((language or "en")[:2].lower(), name)
+
+
+# market names as they follow "на рынке …" / "on sale in …" / "en el mercado de …" (owner 2026-11-06)
+_MARKETS: dict[str, tuple[str, str, str]] = {
+    "EU": ("Europe", "Европы", "Europa"), "CN": ("China", "Китая", "China"),
+    "ANY": ("a market outside Europe", "за пределами Европы", "fuera de Europa"),
+    "JP": ("Japan", "Японии", "Japón"), "US": ("the US", "США", "EE. UU."), "KR": ("Korea", "Кореи", "Corea"),
+    "DE": ("Germany", "Германии", "Alemania"), "FR": ("France", "Франции", "Francia"),
+    "IT": ("Italy", "Италии", "Italia"), "PT": ("Portugal", "Португалии", "Portugal"),
+    "NL": ("the Netherlands", "Нидерландов", "Países Bajos"), "BE": ("Belgium", "Бельгии", "Bélgica"),
+    "LU": ("Luxembourg", "Люксембурга", "Luxemburgo"), "AT": ("Austria", "Австрии", "Austria"),
+    "CH": ("Switzerland", "Швейцарии", "Suiza"), "IE": ("Ireland", "Ирландии", "Irlanda"),
+    "GB": ("the UK", "Великобритании", "Reino Unido"), "SE": ("Sweden", "Швеции", "Suecia"),
+    "DK": ("Denmark", "Дании", "Dinamarca"), "NO": ("Norway", "Норвегии", "Noruega"),
+    "FI": ("Finland", "Финляндии", "Finlandia"), "IS": ("Iceland", "Исландии", "Islandia"),
+    "PL": ("Poland", "Польши", "Polonia"), "CZ": ("Czechia", "Чехии", "Chequia"),
+    "SK": ("Slovakia", "Словакии", "Eslovaquia"), "HU": ("Hungary", "Венгрии", "Hungría"),
+    "SI": ("Slovenia", "Словении", "Eslovenia"), "HR": ("Croatia", "Хорватии", "Croacia"),
+    "RO": ("Romania", "Румынии", "Rumanía"), "BG": ("Bulgaria", "Болгарии", "Bulgaria"),
+    "GR": ("Greece", "Греции", "Grecia"), "CY": ("Cyprus", "Кипра", "Chipre"), "MT": ("Malta", "Мальты", "Malta"),
+    "EE": ("Estonia", "Эстонии", "Estonia"), "LV": ("Latvia", "Латвии", "Letonia"),
+    "LT": ("Lithuania", "Литвы", "Lituania"), "RS": ("Serbia", "Сербии", "Serbia"),
+    "BA": ("Bosnia and Herzegovina", "Боснии и Герцеговины", "Bosnia y Herzegovina"),
+    "ME": ("Montenegro", "Черногории", "Montenegro"), "MK": ("North Macedonia", "Северной Македонии",
+                                                             "Macedonia del Norte"),
+    "AL": ("Albania", "Албании", "Albania"), "XK": ("Kosovo", "Косово", "Kosovo"),
+    "UA": ("Ukraine", "Украины", "Ucrania"), "MD": ("Moldova", "Молдовы", "Moldavia"),
+    "TR": ("Turkey", "Турции", "Turquía"),
+}  # fmt: skip
+PHRASES.update({f"market_{k}": {"en": en, "ru": ru, "es": es} for k, (en, ru, es) in _MARKETS.items()})
+
+
+def market_name(code: str | None, language: str | None) -> str:
+    """A market code ("CN") as an adjective in the conversation language; an unknown code as it is."""
+    key = f"market_{code}"
+    return t(key, language) if key in PHRASES else str(code or "")
 
 
 def t(key: str, language: str | None, **kw: object) -> str:

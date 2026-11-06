@@ -224,6 +224,7 @@ class LineupModel:
     powertrains: tuple[str, ...] = ()  # petrol, diesel, hybrid, mhev, phev, bev
     price_from_eur: int | None = None
     source_url: str | None = None
+    country: str | None = None  # a European line-up: the country whose page lists it ("PL"), when its domain says
 
 
 @dataclass(frozen=True)
@@ -667,4 +668,119 @@ def cars_in_text(text: str | None, match_make: Callable[[str], str | None]) -> l
                 start = i
                 break
         out.append((" ".join(words[start:]), make))
+    return out
+
+
+# --- cars not sold in Spain (chat 2026-11-06: "Deepal S09 vs Lixiang L9") ------------------------------------------
+
+EUROPE = "EU"  # the European markets as one (spec 009 FR-009)
+ANYWHERE = "ANY"
+# geographic Europe as one market (owner 2026-11-06): the EU, the UK, Switzerland, Norway, Iceland, the Balkans,
+# Ukraine, Moldova, Turkey — no country preferred
+EUROPEAN_COUNTRIES = frozenset({"ES", "DE", "FR", "IT", "PT", "NL", "BE", "LU", "AT", "CH", "IE", "GB", "SE", "DK",
+                                "NO", "FI", "IS", "PL", "CZ", "SK", "HU", "SI", "HR", "RO", "BG", "GR", "CY", "MT",
+                                "EE", "LV", "LT", "RS", "BA", "ME", "MK", "AL", "XK", "UA", "MD", "TR"})  # fmt: skip
+EUROPEAN = EUROPEAN_COUNTRIES | {EUROPE, "EN", "UK"}
+_TLD = {"uk": "GB", "gr": "GR", "si": "SI"}  # a top-level domain that is not the country code
+
+
+def country_of_url(url: str | None) -> str | None:
+    """The European country a page is for, by its country domain (deepal.pl → PL, autoexpress.co.uk → GB); None
+    for .com, .eu and the like."""
+    host = re.sub(r"^[a-z]+://", "", (url or "").lower()).split("/", 1)[0].split(":", 1)[0]
+    tld = host.rsplit(".", 1)[-1] if "." in host else ""
+    code = _TLD.get(tld, tld.upper())
+    return code if code in EUROPEAN_COUNTRIES else None
+
+
+def lookup_markets(home: str | None) -> list[str]:
+    """Where a car missing from the Spanish line-up is looked up, in order: Europe first, then the market its make
+    comes from, then anywhere."""
+    out = [EUROPE]
+    if home and home.upper() not in EUROPEAN and home.upper() != ANYWHERE:
+        out.append(home.upper())
+    out.append(ANYWHERE)
+    return out
+
+
+def european(market: str | None) -> bool:
+    """A car of this market is priced from its own sources (None: Spain); outside Europe no price is ever taken
+    (spec 009 FR-009: prices come from European markets only)."""
+    return market is None or market.upper() in EUROPEAN
+
+
+def market_note(market: str | None) -> str:
+    """The phrase that says where a car not sold in Spain was found: in Europe (its data and prices from there) or
+    outside it (data from there, prices from Europe only)."""
+    return "sold_in_europe" if european(market) else "sold_abroad"
+
+
+def abroad_note(market: str | None, priced: bool) -> str | None:
+    """What the report says about a car not sold in Spain (a phrase key): found on a European market, where it was
+    found; outside Europe, that its data come from there and its price only from a European source — and when there
+    is none, that no euro price is given (FR-009). None for a car sold in Spain."""
+    if market is None:
+        return None
+    if european(market):
+        return "sold_in_europe"
+    return "abroad_priced" if priced else "abroad_no_price"
+
+
+def _name_key(s: str | None) -> str:
+    return re.sub(r"[\W_]", "", (s or "").lower())
+
+
+def same_name(a: str | None, b: str | None) -> bool:
+    """The same model name written another way ("S09", "s-09", "S 09", "Deepal S09" for make Deepal)."""
+    return bool(a and b) and _name_key(a) == _name_key(b)
+
+
+def other_names(asked: str | None, names: Iterable[str]) -> list[str]:
+    """Alternatives to a model not found, never the very name asked (chat 2026-11-06: "I did not find «Deepal S09»
+    on sale in Spain. Nearest: Deepal S09")."""
+    return [n for n in names if not same_name(n, asked)]
+
+
+_CODE = re.compile(r"^([^\W\d_]*)-?(\d+)([^\W\d_]*)$")  # a model code: S09, L9, X5, 320d
+
+
+def _code(token: str) -> tuple[str, str, str] | None:
+    m = _CODE.match(token.strip(".,;:!?»«\"'()"))
+    return (m.group(1).lower(), m.group(2), m.group(3).lower()) if m else None
+
+
+def user_model(car: CaseCar) -> str | None:
+    """The model as the user named it ("L9" of "Lixiang L9"), unless the car was resolved to a confirmed model."""
+    if car.resolution == "CONFIRMED" or not car.model:
+        return car.model
+    low = (car.request_text or "").lower()
+    if car.model.lower() in low:
+        i = low.index(car.model.lower())
+        return car.request_text[i : i + len(car.model)]
+    return car.model
+
+
+def keep_user_names(sentence: str, cars: Sequence[CaseCar]) -> str:
+    """The asker's sentence with each car under the model name the user gave (live chat 2026-11-06: "Deepal S09"
+    came back as "Deepal S07", a sibling the model knew better). A model code after the car's make that differs
+    from the user's code in its number only (S07 for S09, L7 for L9) is put back; other words are left alone."""
+    out = sentence
+    for car in cars:
+        model = user_model(car)
+        first = model.split()[0] if model else ""
+        mine = _code(first) if first else None
+        if mine is None or not car.make:
+            continue
+        makes = {car.make, *(w for w in (car.request_text or "").split() if w.lower() not in (model or "").lower())}
+        alts = "|".join(re.escape(m) for m in sorted(makes, key=len, reverse=True) if _code(m) is None)
+        if not alts:
+            continue
+
+        def put_back(m: re.Match[str], mine: tuple[str, str, str] = mine, first: str = first) -> str:
+            said = _code(m.group(2))
+            if said is None or said == mine or said[0] != mine[0] or len(said[1]) != len(mine[1]):
+                return m.group(0)
+            return f"{m.group(1)}{first}"
+
+        out = re.sub(rf"(?i)((?<!\w)(?:{alts})\s+)([^\s,.;:!?»«]+)", put_back, out)
     return out

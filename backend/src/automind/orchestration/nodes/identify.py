@@ -9,7 +9,7 @@ from langgraph.runtime import Runtime
 
 from automind.application import identify
 from automind.domain.casefile import MAX_CARS
-from automind.orchestration.phrases import t
+from automind.orchestration.phrases import market_name, t
 from automind.orchestration.runner import TurnContext
 from automind.orchestration.state import TurnState
 
@@ -28,6 +28,8 @@ async def _notices(c: TurnContext, car: Any, o: Any, url: str | None, lang: str 
     name = f"{car.make} {car.model}" if car.make and car.model else car.display_name
     for ev in o.events:  # spec 008: what the ladder did on its own, said (FR-004, FR-005, FR-010, FR-020)
         vals = {k: v for k, v in ev.items() if k != "kind"}
+        if "market" in vals:  # a car not sold in Spain: the market named in the user's language
+            vals["market"] = market_name(vals["market"], lang)
         out.append(notice(t(ev["kind"], lang, car=name, **vals), "info" if ev["kind"] != "ladder_missing"
                           else "warning"))  # fmt: skip
     if car.previous_label and car.label and car.previous_label != car.label:  # a correction, shown back (FR-014)

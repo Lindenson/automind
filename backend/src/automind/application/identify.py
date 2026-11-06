@@ -8,6 +8,10 @@ Outcome per car (`IdentifyOutcome`):
 - NOT_FOUND: looked up and not found; `checked` names what was looked at, `choices` the closest real names.
 
 Never raises UnknownModel to the caller; the policy asks with concrete options instead (FR-009).
+
+A car not on the Spanish line-up (a make not sold in Spain, or a model its Spanish line-up lacks) is looked up where
+it is sold — Europe first, then the make's home market, then anywhere (chat 2026-11-06: Deepal S09, Li Auto L9) —
+and identified there (`CaseCar.market`); outside Europe it never carries a price (spec 009 FR-009).
 """
 
 from __future__ import annotations
@@ -20,12 +24,12 @@ from typing import Any
 from urllib.parse import urlparse
 
 from automind.acquisition.api import DatasetVersion
-from automind.application import resolve, versions
+from automind.application import makes, resolve, versions
 from automind.application.ports import Ports
 from automind.domain import evidence, identity, intake, ladder, used
 from automind.domain.casefile import CaseCar, CaseFile, Choice, EngineHint, IdentifyOutcome, LadderMemo
 
-LineupLookup = Callable[[Ports, str], Awaitable[Any]]  # (ports, make) -> application.lineup.Lineup | None
+LineupLookup = Callable[..., Awaitable[Any]]  # (ports, make[, market=]) -> application.lineup.Lineup | None
 
 
 def _plain(s: str | None) -> str:
@@ -83,7 +87,7 @@ def _choices_from_lineup(lineup: Any, make: str, case: CaseFile | None = None) -
 def _strip_make(text: str, make: str, aliases: list[str]) -> str:
     low = text
     for a in sorted({make.lower(), *aliases}, key=len, reverse=True):
-        low = re.sub(rf"(?i)(?<![\w]){re.escape(a)}(?![\w])", " ", low)
+        low = re.sub(rf"(?i){makes.alias_pattern(a)}", " ", low)
     return " ".join(low.split())
 
 
@@ -99,9 +103,22 @@ async def identify_car(
             car.make = canon
     if not car.make:
         return _done(car, IdentifyOutcome(outcome="NEED", need="MAKE", note=note))
-    lineup = await lineup_lookup(ports, car.make) if lineup_lookup is not None else None
-    known = set(await resolve.known_models(car.make, ports.ref)) | {m.model for m in _lineup_models(lineup)}
+    in_spain = reg is None or reg.sold_in_spain(car.make)
+    lineup = await lineup_lookup(ports, car.make) if lineup_lookup is not None and in_spain else None
+    catalog = set(await resolve.known_models(car.make, ports.ref))
+    known = catalog | {m.model for m in _lineup_models(lineup)}
     _match_model(car, reg, known)
+    if not car.model and not in_spain:  # a make not sold in Spain: its models where it is sold
+        _, lineup = await _where_sold(ports, car, reg, lineup_lookup, any_model=True)
+        known |= {m.model for m in _lineup_models(lineup)}
+        _match_model(car, reg, known)
+    return await _identify_model(ports, case, car, current_year, lineup_lookup, lineup, catalog, known, note)
+
+
+async def _identify_model(ports: Ports, case: CaseFile, car: CaseCar, current_year: int,
+                          lineup_lookup: LineupLookup | None, lineup: Any, catalog: set[str], known: set[str],
+                          note: str | None) -> IdentifyOutcome:  # fmt: skip
+    """The model is named (or asked for): placed on its market, then the ladder or the fallback."""
     if not car.model:
         choices = _choices_from_lineup(lineup, car.make, case) or [
             Choice(label=f"{car.make} {m}", make=car.make, model=m) for m in sorted(known)[:6]
@@ -110,11 +127,72 @@ async def identify_car(
         return _done(car, IdentifyOutcome(outcome=kind, need="MODEL", choices=choices, note=note))  # type: ignore[arg-type]
     if car.variant_id and car.resolution in ("CONFIRMED", "AUTO_OK", "PROPOSED"):
         return _done(car, IdentifyOutcome(outcome="IDENTIFIED"))
+    lineup = await _place(ports, car, lineup_lookup, lineup, catalog, known)
     if (year_asked := _year_first(ports, case, car, current_year)) is not None:
         return year_asked
     if (laddered := await _ladder(ports, case, car, current_year)) is not None:
-        return laddered
-    return await _fallback(ports, case, car, current_year, lineup)
+        return _abroad(car, laddered)
+    return _abroad(car, await _fallback(ports, case, car, current_year, lineup))
+
+
+async def _place(ports: Ports, car: CaseCar, lookup: LineupLookup | None, lineup: Any, catalog: set[str],
+                 known: set[str]) -> Any:  # fmt: skip
+    """The market of a car not on the Spanish line-up (a make not sold in Spain, or a model its Spanish line-up and
+    the catalog lack): where a line-up lists it, else the make's home market (chat 2026-11-06). Returns the line-up
+    to identify with: the one that lists the model, else one of the make's (its models are the nearest ones)."""
+    reg = ports.ref.makes
+    in_spain = reg is None or reg.sold_in_spain(car.make)
+    car.market = None
+    if in_spain and (lineup is None or _listed(lineup, car.model) or car.model in catalog):
+        return lineup
+    market, there = await _where_sold(ports, car, reg, lookup)
+    # a make not sold in Spain is of its home market even when no line-up names the model
+    home = reg.home(car.make) if reg is not None else None
+    car.market = market or (None if in_spain else home or intake.ANYWHERE)
+    if market == intake.EUROPE:  # the European country whose page lists it, when its domain says ("PL")
+        car.market = next((m.country for m in _lineup_models(there) if m.country and _listed_as(m, car.model)),
+                          intake.EUROPE)  # fmt: skip
+    if there is None:
+        return lineup
+    if market is not None:
+        _match_model(car, reg, known | {m.model for m in _lineup_models(there)})
+    return there
+
+
+def _listed_as(m: Any, model: str | None) -> bool:
+    return resolve.same_model(model, m.model) or resolve.same_model(m.model, model)
+
+
+def _listed(lineup: Any, model: str | None) -> bool:
+    return any(_listed_as(m, model) for m in _lineup_models(lineup))
+
+
+async def _where_sold(ports: Ports, car: CaseCar, reg: Any, lookup: LineupLookup | None,
+                      any_model: bool = False) -> tuple[str | None, Any]:  # fmt: skip
+    """The first market whose line-up lists the car's model (any model with `any_model`): Europe, then the make's
+    home market, then anywhere (domain/intake.lookup_markets). When none lists it: (None, the first line-up found),
+    whose models are the nearest ones to offer."""
+    if lookup is None or not car.make:
+        return None, None
+    first = None
+    for market in intake.lookup_markets(reg.home(car.make) if reg is not None else None):
+        try:
+            lu = await lookup(ports, car.make, market=market)
+        except Exception:  # noqa: BLE001 - a failed look-up never blocks the intake
+            lu = None
+        if lu is not None and (_listed(lu, car.model) if not any_model else bool(_lineup_models(lu))):
+            return market, lu
+        first = first if first is not None or not _lineup_models(lu) else lu
+    return None, first
+
+
+def _abroad(car: CaseCar, o: IdentifyOutcome) -> IdentifyOutcome:
+    """An identified car not sold in Spain says where its data and prices come from (spec 009 FR-009)."""
+    if car.market is not None and o.outcome == "IDENTIFIED":
+        kind = intake.market_note(car.market)
+        if not any(e.get("kind") == kind for e in o.events):
+            o.events.append({"kind": kind, "market": car.market})
+    return o
 
 
 def _year_first(ports: Ports, case: CaseFile, car: CaseCar, now: int) -> IdentifyOutcome | None:
@@ -357,6 +435,7 @@ async def _resolve_open(ports: Ports, case: CaseFile, car: CaseCar, year: int, l
                                           note=str(e)))  # fmt: skip
     except resolve.UnknownModel as e:
         names = e.closest or [f"{car.make} {m.model}" for m in _lineup_models(lineup)[:6]]
+        names = intake.other_names(f"{car.make} {car.model}", intake.other_names(car.model, names))  # never itself
         choices = [Choice(label=n, make=car.make, model=n.removeprefix(f"{car.make} ")) for n in names]
         car.resolution, car.variant_id, car.label = "UNRESOLVED", None, None
         return _done(car, IdentifyOutcome(outcome="NOT_FOUND", need="MODEL", choices=choices, checked=e.checked))
@@ -591,7 +670,7 @@ async def _ladder(ports: Ports, case: CaseFile, car: CaseCar, year: int) -> Iden
     try:
         fuel = car.constraints.engine_hint.fuel if car.constraints.engine_hint else None
         g = await versions.lookup(ports, car.make, car.model, generation=gen, year=None if new else car.year, new=new,
-                                  current_year=year, fuel=fuel)  # fmt: skip
+                                  current_year=year, fuel=fuel, market=car.market)  # fmt: skip
     except Exception:  # noqa: BLE001 - a failed look-up never blocks the intake: the fallback identifies
         g = None
     if g is None or not g.versions:

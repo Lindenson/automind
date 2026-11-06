@@ -188,6 +188,11 @@ def _num(car: dict, key: str) -> float | None:
     return sv.value_num if sv is not None and sv.available else None
 
 
+def new_price(car: dict) -> float | None:
+    """The car's new price from its sources (research reads prices on European markets only, spec 009 FR-009)."""
+    return _num(car, "official_price_es")
+
+
 def _txt(car: dict, key: str) -> str | None:
     sv = car["values"].get(key)
     return sv.value_text if sv is not None and sv.available else None

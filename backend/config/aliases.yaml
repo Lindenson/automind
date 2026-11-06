@@ -13,6 +13,15 @@ makes:
   hyundai: Hyundai
   dacia: Dacia
   tesla: Tesla
+  # chat 2026-11-06: Chinese makes by their transliterations and Chinese names (config/makes.yaml)
+  lixiang: Li Auto
+  li xiang: Li Auto
+  理想: Li Auto
+  理想汽车: Li Auto
+  deepal: Deepal
+  changan deepal: Deepal
+  深蓝: Deepal
+  深蓝汽车: Deepal
 models:
   # "<make>|<alias>" -> canonical model
   "Land Rover|prado": {make: Toyota, model: Land Cruiser Prado}
@@ -25,6 +34,12 @@ models:
   "Volkswagen|golf": Golf
   "Land Rover|rr sport": Range Rover Sport
   "Land Rover|range rover sport": Range Rover Sport
+  "Li Auto|理想l9": L9
+  "Li Auto|理想 l9": L9
+  "Li Auto|lixiang l9": L9
+  "Deepal|深蓝s09": S09
+  "Deepal|深蓝 s09": S09
+  "Deepal|deepal s09": S09
 generations:
   # "<canonical make>|<canonical model>" -> {alias: canonical generation}
   "Toyota|Land Cruiser Prado": {j150: J150, "150": J150, prado 150: J150, lc150: J150, j250: J250, "250": J250,

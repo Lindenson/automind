@@ -11,8 +11,8 @@ from collections.abc import Callable
 from typing import Any
 
 from automind.application.ports import LLM
-from automind.domain import ladder
-from automind.domain.casefile import CaseFile, Pending, QuestionKind
+from automind.domain import intake, ladder
+from automind.domain.casefile import CaseCar, CaseFile, Pending, QuestionKind
 
 
 def fill_questions(
@@ -120,7 +120,10 @@ def understood_summary(case: CaseFile) -> str:
     if case.persona != "UNKNOWN":
         parts.append(f"persona {case.persona.lower()}")
     for c in case.cars:
-        bits = [c.request_text, c.condition.lower() if c.condition != "UNKNOWN" else ""]
+        name = c.request_text  # the user's words, unless the car was resolved to another, confirmed model
+        if c.resolution == "CONFIRMED" and c.make and c.model and c.model.lower() not in name.lower():
+            name = f"{c.make} {c.model}"
+        bits = [name, c.condition.lower() if c.condition != "UNKNOWN" else ""]
         parts.append(" ".join(b for b in bits if b))
     if case.budget.max_eur:
         parts.append(f"budget up to €{case.budget.max_eur:,}")
@@ -381,8 +384,11 @@ def intake_quick_replies(items: list[dict[str, Any]], case: CaseFile, labels: di
     return [*answers, *fixed, *removes]
 
 
-async def acknowledge(llm: LLM, system_prompt: str, language: str, understood: str) -> str:
-    """One sentence restating what was understood (asker v2); the questions are added by code."""
-    return (
+async def acknowledge(llm: LLM, system_prompt: str, language: str, understood: str,
+                      cars: list[CaseCar] | None = None) -> str:  # fmt: skip
+    """One sentence restating what was understood (asker v2); the questions are added by code. Each car keeps the
+    model name the user gave (`cars`; live chat 2026-11-06: "Deepal S09" came back as "Deepal S07")."""
+    text = (
         await llm.text("asker", system_prompt, f"Language: {language}\nWhat I understood so far: {understood}")
     ).strip()
+    return intake.keep_user_names(text, cars or [])

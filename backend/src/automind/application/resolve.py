@@ -20,7 +20,7 @@ from sqlalchemy import func, select
 from automind.acquisition import api as acquisition
 from automind.application.ports import Ports, Reference
 from automind.config import settings
-from automind.domain import identification, identity, sense
+from automind.domain import identification, identity, intake, sense
 from automind.domain.casefile import CaseCar
 from automind.domain.policy import CarState
 from automind.infrastructure import db
@@ -273,7 +273,9 @@ def auto_resolve(car: CaseCar, a: Assessment) -> bool:
 async def resolve_with_llm(
     ports: Ports, car: CaseCar, current_year: int, level: str = "BASE", *, lineup: Any = None, insist: str = ""
 ) -> tuple[db.Variant, VariantIdentity]:
-    """Catalog miss: ask the resolver with the case context, validate years, upsert with de-dup."""
+    """Catalog miss: ask the resolver with the case context, validate years, upsert with de-dup. A car not sold in
+    Spain (`car.market`, chat 2026-11-06) is read from the market where it is sold, and outside Europe its version
+    never carries a price (spec 009 FR-009)."""
     docs = await _resolver_docs(ports, car, lineup)
     snippets = "\n\n".join(
         f'<untrusted_document url="{u}">\n{t}\n{x[:1500]}\n</untrusted_document>' for u, t, x in docs[:8]
@@ -290,6 +292,8 @@ async def resolve_with_llm(
     )  # fmt: skip
     ident = await ports.llm.structured("resolver", VariantIdentity, ports.ref.prompts["resolver"], user)
     await _check_known(ports.ref, car, ident, lineup)
+    if not intake.european(car.market) and ident.price_eur is not None:
+        ident = ident.model_copy(update={"price_eur": None})  # never a euro price from outside Europe
     if current is not None and (ident.generation or "").lower() != current[0].lower():
         # a NEW car must be the current generation: ask once more with the generation named, then take it
         again = await ports.llm.structured(
@@ -346,7 +350,12 @@ def _context(car: CaseCar, current: tuple[str, int] | None, level: str) -> list[
     if car.constraints.trim_hint:
         context.append(f"version named by the user: {car.constraints.trim_hint} (return its trim_level)")
     elif car.condition != "USED":
-        context.append(f"equipment level wanted: {level} (BASE = the cheapest version OF THIS MODEL on sale in Spain)")
+        where = "in Spain" if car.market is None else "on its market"
+        context.append(f"equipment level wanted: {level} (BASE = the cheapest version OF THIS MODEL on sale {where})")
+    if car.market is not None:  # chat 2026-11-06: a car not sold in Spain
+        sold = "in other European countries" if car.market == intake.EUROPE else f"on the {car.market} market"
+        context.append(f"market: NOT sold in Spain; sold {sold}: return its version sold there; price_eur only "
+                       "when a European list price in euros is written, else null")  # fmt: skip
     return context
 
 
@@ -358,8 +367,15 @@ async def _resolver_docs(ports: Ports, car: CaseCar, lineup: Any = None) -> list
     query = " ".join(x for x in (car.make, car.model, car.constraints.generation_hint) if x) or car.request_text
     listed = (m.source_url for m in getattr(lineup, "models", None) or []
               if car.model and m.model.lower() == car.model.lower() and m.source_url)  # fmt: skip
-    hints = await ports.acquisition.generation_hints(query, lineup_url=next(listed, None), user_url=car.constraints.url,
-                                                     prices=car.condition != "USED")  # fmt: skip
+    url = next(listed, None)
+    if car.market is None:
+        hints = await ports.acquisition.generation_hints(query, lineup_url=url, user_url=car.constraints.url,
+                                                         prices=car.condition != "USED")  # fmt: skip
+    else:  # a car not sold in Spain: read where it is sold (no prices from outside Europe)
+        hints = await ports.acquisition.generation_hints(
+            query, lineup_url=url, user_url=car.constraints.url, market=car.market,
+            prices=car.condition != "USED" and intake.european(car.market),
+        )  # fmt: skip
     return [(h.url, h.title, h.text) for h in hints]
 
 
@@ -379,8 +395,13 @@ async def _check_known(ref: Reference, car: CaseCar, ident: VariantIdentity, lin
     other_model = fuzz.ratio(asked, got) < 80
     if ident.known_model and ident.generation and not other_model:
         return  # a model new to us but known to the resolver
+    if ident.known_model and not other_model and intake.same_name(ident.model, model):
+        # the resolver knows the very model asked, without a generation: it exists, only not on the Spanish line-up
+        # (chat 2026-11-06: "not found «Deepal S09» in Spain; nearest: Deepal S09"); identified on another market
+        ident.note = (ident.note + " " if ident.note else "") + "Not on the Spanish line-up."
+        return
     pool = known | ({ident.model} if ident.known_model and ident.model else set())
-    closest = identification.closest_models(model, pool, fuzz.WRatio)
+    closest = intake.other_names(model, identification.closest_models(model, pool, fuzz.WRatio))
     checked = [str(src.get("url")) for src in getattr(lineup, "sources", None) or [] if src.get("url")]
     raise UnknownModel(f"{make} {model}", [f"{make} {m}" for m in closest], checked)
 
