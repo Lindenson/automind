@@ -22,7 +22,7 @@ import pytest
 # Where EventBus lives before and after the spec 012 tree move.
 _EVENT_MODULES = ("automind.infrastructure.events", "automind.shared.infrastructure.events")
 _UUID = re.compile(r"\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b")
-_HEX_ID = re.compile(r"\b[0-9a-f]{32}\b")
+_HEX_ID = re.compile(r"\b(?=[0-9a-f]*\d)(?=[0-9a-f]*[a-f])[0-9a-f]{16}(?:[0-9a-f]{16})?\b")  # 16/32-hex ids, hashes
 _TS = re.compile(r"\b\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?\b")
 _VOLATILE_KEYS = {"seq", "duration_ms", "elapsed_ms", "elapsed_s", "latency_ms", "created_at", "updated_at", "at",
                   "ts", "started_at", "finished_at", "eta_s"}  # fmt: skip
@@ -70,7 +70,7 @@ def normalise(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if key in _VOLATILE_KEYS:
             return "<v>"
         if isinstance(v, dict):
-            return {k: walk(x, k) for k, x in v.items()}
+            return {walk(k): walk(x, k) for k, x in v.items()}
         if isinstance(v, list | tuple):
             return [walk(x) for x in v]
         if isinstance(v, str):

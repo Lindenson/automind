@@ -5,8 +5,10 @@
 
 Runs the behaviour suites (tests/graph, tests/golden, tests/integration by default) on the base and on the head,
 each in its own temporary git worktree, with `behaviour_dump_plugin` writing every test's normalised chat events.
-The base runs twice: tests whose events differ between two base runs (parallel research interleaving) are
-compared as multisets; all others byte for byte. Exit 1 on any difference, with the first differing event.
+The base runs twice. Tests whose events are equal in both base runs are compared byte for byte; tests that differ
+only in order/ids (parallel research interleaving, unordered reads) are compared in a canonical form (ids collapsed,
+lists sorted); tests whose canonical content differs even between the two base runs are "racy" (timing decides,
+e.g. which jobs a limit pause catches): listed, not gated. Exit 1 on any other difference.
 
 Runs never overlap (one test database). TEST_DATABASE_URL is taken from the environment or .env.docker like
 scripts/check.sh does.
@@ -17,6 +19,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -54,7 +57,7 @@ def main(argv: list[str] | None = None) -> int:
 
 def compare(base1: Path, base2: Path, head: Path) -> dict[str, list[str]]:
     names = sorted({p.name for p in base1.glob("*.json")} | {p.name for p in head.glob("*.json")})
-    out: dict[str, list[str]] = {"same": [], "unstable": [], "differs": [], "missing": [], "added": []}
+    out: dict[str, list[str]] = {"same": [], "unstable": [], "racy": [], "differs": [], "missing": [], "added": []}
     for n in names:
         b1, b2, h = (_load(d / n) for d in (base1, base2, head))
         if b1 is None:
@@ -63,6 +66,8 @@ def compare(base1: Path, base2: Path, head: Path) -> dict[str, list[str]]:
             out["missing"].append(n)
         elif b1 == b2:
             out["same" if h == b1 else "differs"].append(n + ("" if h == b1 else _first_diff(b1, h)))
+        elif _multiset(b1) != _multiset(b2):
+            out["racy"].append(n)  # timing decides even the canonical content on the base: reported, not gated
         else:
             same = _multiset(b1) == _multiset(h)
             out["unstable" if same else "differs"].append(n + ("" if same else " (as multiset)"))
@@ -70,7 +75,7 @@ def compare(base1: Path, base2: Path, head: Path) -> dict[str, list[str]]:
 
 
 def report(r: dict[str, list[str]]) -> int:
-    for k in ("differs", "missing", "added"):
+    for k in ("differs", "missing", "added", "racy"):
         for n in r[k]:
             print(f"{k.upper():8} {n}")
     print(", ".join(f"{k} {len(v)}" for k, v in r.items()))
@@ -114,7 +119,19 @@ def _load(p: Path) -> list[dict] | None:
 
 
 def _multiset(events: list[dict]) -> Counter[str]:
-    return Counter(json.dumps(e, sort_keys=True) for e in events)
+    """Canonical form for tests that are not stable even on the base: ids collapsed (parallel jobs interleave, so
+    first-appearance numbers shift) and every list sorted (unordered DB reads and job completion order). Stable
+    tests are still compared byte for byte, order included."""
+    return Counter(json.dumps(_canonical(json.loads(re.sub(r"<id\d+>", "<id>", json.dumps(e)))), sort_keys=True)
+                   for e in events)  # fmt: skip
+
+
+def _canonical(v: object) -> object:
+    if isinstance(v, dict):
+        return {k: _canonical(x) for k, x in v.items()}
+    if isinstance(v, list):
+        return sorted((_canonical(x) for x in v), key=lambda x: json.dumps(x, sort_keys=True))
+    return v
 
 
 def _first_diff(a: list[dict], b: list[dict]) -> str:

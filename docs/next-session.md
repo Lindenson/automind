@@ -104,6 +104,8 @@ branches too, or local only; (c) `# fmt: skip` ×843 — leave as is (proposal) 
 5. Found by the spec 012 behaviour diff (2026-11-06): the report's order of criteria with equal weights (e.g.
    ownership_cost and reliability, both 6.2) depends on Python's hash seed (set iteration), so it can differ
    between runs for the user. Fix after the refactoring: a stable tie-break (criterion key).
+   Same diff: the order of engine options offered for a model (Kia Sorento "288/265/215 CV" vs "215/265/288 CV") and
+   of sources in a block varies between runs (DB reads without ORDER BY / job completion order). Fix: explicit order.
 
 ## 5. Rules that stay in force
 
