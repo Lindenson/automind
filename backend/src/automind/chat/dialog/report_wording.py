@@ -1,5 +1,6 @@
-"""The report's wording in the person's language (implements `report.contracts.ReportWording`): the phrases of
-`phrases` and the verdict, insight, electric and suggestion texts of `report_text`."""
+"""The application's wording in the person's language (implements `report.contracts.ReportWording` and
+`research.contracts.ResearchWording`): the phrases of `phrases` and the verdict, insight, electric, suggestion and
+area texts of `report_text`."""
 
 from __future__ import annotations
 
@@ -20,6 +21,9 @@ class DialogWording:
 
     def market_name(self, code: str | None, lang: str | None) -> str:
         return phrases.market_name(code, lang)
+
+    def area_label(self, area: str, lang: str | None) -> str:
+        return report_text.area_label(area, lang)
 
     def thousands(self, value: float, lang: str | None) -> str:
         return report_text.thousands(value, lang)
