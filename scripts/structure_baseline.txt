@@ -9,8 +9,6 @@ node|chat/dialog/nodes/confirm.py|apply_variants
 node|chat/dialog/nodes/confirm.py|ask_node
 node|chat/dialog/nodes/confirm.py|prepare_intake
 node|chat/dialog/nodes/confirm.py|prepare_variants
-node|chat/dialog/nodes/research.py|after_research
-node|chat/dialog/nodes/research.py|research_job
 node|chat/dialog/nodes/understand.py|apply_delta_node
 node|chat/dialog/nodes/understand.py|assess_node
 node|chat/dialog/nodes/understand.py|interpret_node
