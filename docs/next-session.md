@@ -1,4 +1,4 @@
-# Next session: start here (parked on 2026-11-06, after S9b)
+# Next session: start here (parked on 2026-11-07, after S9.0 controls)
 
 **First task: refactoring — spec 012, executed by `specs/012-refactoring/tasks.md` (one phase = one PR).**
 No new features until it is done (owner, 2026-11-06). All functional work in §4 is parked, still valid, and
@@ -21,7 +21,18 @@ ResearchService create/run_job/conclude, rounds). Ports for the dialog's side: `
 `research.contracts.ResearchWording`/`ResearchEvents` — all implemented by `dialog/report_wording.py` (WORDING) and
 the TurnContext; no second port over `acquisition.api`.
 
-**Next: S9c — T075 interpretation** (tasks.md "S9"): `chat/dialog/nodes/understand.py` (≈500 lines; fat nodes
+**S9.0 done (T074a, owner 2026-11-07):** `chat/application/usecases/challenge.py` is the named antipattern (Any where
+the types matter, dict result, DB directly, one 55-line public function, no docstring, no failure handling). Controls
+added: API rules `any`/`untyped`/`doc`/`public`/`ignore`/`lazy`/`exempt` (`scripts/structure_api.py`, in the ratchet;
+baseline 799 → 1667), contracts/code-shape.md "Public API of a layer", `specs/012-refactoring/checklists/pr-self-check.md`
+(copied into every PR body and answered), strict mypy override fixed to the post-S3a modules.
+
+**Next: S9.1 — T074b**: bring `identification/`, `report/`, `research/` (written in S7–S9b, they fail the new bar too:
+`mypy --strict` 82 errors, mostly bare `dict`/`list`; 61 `any`, 72 `doc`, 11 `public`, 13 `ignore` entries) to
+strict + no `Any` in their public API (research jobs/results as DTOs), docs, ≤ 40-line public callables; add them to
+the strict list in check.sh and pyproject. Then:
+
+**S9c — T075 interpretation** (tasks.md "S9"): `chat/dialog/nodes/understand.py` (≈500 lines; fat nodes
 interpret_node, apply_delta_node, assess_node).
 1. `git switch -c 012-s9c-interpretation`.
 2. Safety nets of the text (`_pick`, `_makes_named`, `_make_to_choose_from`, `_charging_from_text`, `_car_named`,
@@ -51,7 +62,8 @@ cd backend && uv run python ../scripts/check_checkpoints.py      # read-only pro
 ```
 - Moves: `scripts/refactor/move.py <map.yaml>` (maps in `specs/012-refactoring/moves/`; whole packages first);
   after moves `scripts/check_structure.py --write-baseline` only if the count did not grow.
-- Structure ratchet baseline `scripts/structure_baseline.txt` (799 now); new violations fail the gate.
+- Structure ratchet baseline `scripts/structure_baseline.txt` (1667 now, of which 868 API rules); new violations fail
+  the gate; a PR shrinks the entries of every package it touches (pr-self-check.md).
 - Never run two test runs on one DB at once. Commit → push → `gh pr create` → `gh pr merge --merge` → delete
   local+remote branch; update this file's §0 at the end of each step.
 
