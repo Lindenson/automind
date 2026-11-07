@@ -8,6 +8,7 @@ from dataclasses import dataclass, replace
 from typing import Any
 
 from automind.chat.application.services.report.case_facts import condition_of, usage_context, years_of
+from automind.chat.application.services.report.contracts import KeyedCars
 from automind.chat.application.services.report.facts.scoring_inputs import car_facts
 from automind.chat.application.services.report.stages.ownership import (
     Ownership,
@@ -19,14 +20,15 @@ from automind.chat.application.services.report.stages.used_cars import UsedFacts
 from automind.chat.domain.assessment.criteria import CriteriaModel, CriteriaScore, score, weights_for
 from automind.chat.domain.case import CaseFile
 from automind.chat.domain.cost import tco
+from automind.shared.contracts.json import JsonObject
 
 
 @dataclass
 class ScoreInputs:
     """What scoring reads besides the case: the cars, their race results, ages, costs and used prices."""
 
-    keyed: list[Any]
-    sims: dict[str, Any]
+    keyed: KeyedCars
+    sims: JsonObject
     ages: dict[str, int | None]
     used: dict[str, UsedFacts]
     year: int | None

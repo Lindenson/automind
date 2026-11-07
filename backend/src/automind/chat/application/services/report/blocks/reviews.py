@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from automind.chat.application.services.report.contracts import LoadedCar
 from automind.chat.application.services.report.facts.car import evidence_sources
 from automind.chat.application.services.report.facts.quality import review_items
 from automind.chat.domain.assessment import reviews
+from automind.shared.contracts.json import JsonObject
 
 
-def reviews_block(cars: list[dict]) -> dict | None:
+def reviews_block(cars: list[LoadedCar]) -> JsonObject | None:
     out = []
     for c in cars:
         v = c["variant"]
@@ -15,7 +17,7 @@ def reviews_block(cars: list[dict]) -> dict | None:
             continue
         items = review_items(c)
         summary = reviews.summarize_reviews(items)
-        points: dict[str, list[dict]] = {"PRO": [], "CON": []}
+        points: dict[str, list[JsonObject]] = {"PRO": [], "CON": []}
         seen: set[tuple[str, str]] = set()
         for r in items:
             rec_pc = summary.recurring.get(r.tag)

@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from automind.chat.application.services.report.contracts import LoadedCar
 from automind.chat.application.services.report.facts.car import evidence_sources
 from automind.chat.application.services.report.facts.quality import merged_issues
 from automind.chat.domain.assessment import reliability
+from automind.shared.contracts.json import JsonObject
 
 
-def reliability_block(cars: list[dict], ages: dict[str, int | None]) -> dict | None:
+def reliability_block(cars: list[LoadedCar], ages: dict[str, int | None]) -> JsonObject | None:
     out = []
     for c in cars:
         v = c["variant"]

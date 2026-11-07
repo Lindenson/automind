@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+from automind.chat.application.services.report.contracts import LoadedCar
+from automind.shared.contracts.json import JsonObject
 
-def sources_block(cars: list[dict]) -> dict:
+
+def sources_block(cars: list[LoadedCar]) -> JsonObject:
     """Accepted sources first (favourites marked, values read from tables flagged), then the pages rejected
     for another variant with their reasons (FR-012)."""
     seen: set[str] = set()
-    items: list[dict] = []
+    items: list[JsonObject] = []
     readers: dict[str, bool] = {}
     for c in cars:
         for src in c["claim_src"].values():

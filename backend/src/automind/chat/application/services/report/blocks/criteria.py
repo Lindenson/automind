@@ -5,9 +5,10 @@ from __future__ import annotations
 from typing import Any
 
 from automind.chat.domain.assessment.criteria import CriteriaModel, CriteriaScore
+from automind.shared.contracts.json import JsonObject
 
 
-def criteria_block(sc: CriteriaScore, model: CriteriaModel, unmapped: list[str], breakdown: Any = None) -> dict:
+def criteria_block(sc: CriteriaScore, model: CriteriaModel, unmapped: list[str], breakdown: Any = None) -> JsonObject:
     """criteria_scores (contracts/chat-protocol.md): 0–100 scores computed from the sourced data, with the data each
     one is built from (per criterion and per car); each weight with its reasons (spec 007 FR-011)."""
     lines = breakdown.lines if breakdown is not None else {}
@@ -60,7 +61,7 @@ def _relative(sc: CriteriaScore) -> dict[str, dict[str, float]]:
     if len(sc.cars) < 2:
         return out
     for k in sc.weights:
-        scores = {c.car_id: c.parts[k].score for c in sc.cars if k in c.parts and c.parts[k].score is not None}
+        scores = {c.car_id: s for c in sc.cars if k in c.parts and (s := c.parts[k].score) is not None}
         best = max(scores.values(), default=None)
         if best and len(scores) >= 2:
             out[k] = {cid: round(100 * (v or 0) / best, 0) for cid, v in scores.items()}

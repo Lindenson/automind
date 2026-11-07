@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+from automind.chat.application.services.report.contracts import LoadedCar
 from automind.chat.application.services.report.facts.car import claim_source, txt
 from automind.chat.application.services.report.facts.display import display
 from automind.chat.application.services.report.facts.quality import ENGINEERING_ATTRS
+from automind.shared.contracts.json import JsonObject
 from automind.shared.vehicle import specs
 
 
-def engineering_block(cars: list[dict], explainers: dict | None = None) -> dict | None:
+def engineering_block(cars: list[LoadedCar], explainers: JsonObject | None = None) -> JsonObject | None:
     out = []
     for c in cars:
         items = []
@@ -32,7 +34,7 @@ def engineering_block(cars: list[dict], explainers: dict | None = None) -> dict 
     return {"type": "engineering", "title": "Engineering", "cars": out}
 
 
-def tech_explainers(car: dict, cfg: dict) -> list[dict]:
+def tech_explainers(car: LoadedCar, cfg: JsonObject) -> list[JsonObject]:
     """What the car's drivetrain technology means (spec 004 FR-004): config text matched on the car's own
     validated gearbox / engine / powertrain, never web text. Most specific match first, at most two."""
     v = car["variant"]

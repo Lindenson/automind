@@ -3,10 +3,12 @@ structured "Change", from the catalog and the cached version ladder only (no sea
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any
 
 from automind.chat.application.services.identification import catalogue
 from automind.chat.domain.case import CarContext, CaseCar, CaseDelta, CaseFile, Constraints
+from automind.shared.contracts.json import JsonObject
 from automind.shared.vehicle.identity import parse_engine
 
 EDIT_FIELDS = ("generation", "engine", "gearbox", "trim", "not_this_car", "remove")
@@ -62,9 +64,9 @@ def variant_label(car: CaseCar, v: Any | None) -> str | None:
     return " · ".join(str(b) for b in bits if b)
 
 
-async def view(case: CaseFile) -> dict[str, dict[str, Any]]:
+async def view(case: CaseFile) -> dict[str, JsonObject]:
     """Per car key: `variant_label` and `options` {generation, engine, gearbox, trim} for the "Change" action."""
-    out: dict[str, dict[str, Any]] = {}
+    out: dict[str, JsonObject] = {}
     catalogs: dict[tuple[str, str], list[Any]] = {}
     for car in case.cars:
         v = await catalogue.get_variant(car.variant_id) if car.variant_id else None
@@ -78,7 +80,7 @@ async def view(case: CaseFile) -> dict[str, dict[str, Any]]:
     return out
 
 
-def _distinct(values: list[str | None], current: str | None) -> list[str]:
+def _distinct(values: Sequence[str | None], current: str | None) -> list[str]:
     seen: list[str] = []
     for x in values:
         if x and x != current and x not in seen:
@@ -154,7 +156,7 @@ def _model_words(text: str, make: str | None) -> str:
     return " ".join(words)[:60]
 
 
-async def case_payload(case: CaseFile) -> dict[str, Any]:
+async def case_payload(case: CaseFile) -> JsonObject:
     """The case as the client sees it: each car also carries its version line and the choices of "Change"
     (FR-036/FR-037); these are views, never stored in the case."""
     data = case.model_dump(mode="json")

@@ -5,9 +5,10 @@ from __future__ import annotations
 from dataclasses import asdict
 
 from automind.chat.domain.assessment import dragrace
+from automind.shared.contracts.json import JsonObject
 
 
-def race_block(race: dragrace.RaceResult, predicted_car_id: str | None = None) -> dict:
+def race_block(race: dragrace.RaceResult, predicted_car_id: str | None = None) -> JsonObject:
     """race_chart; with a user prediction it also says whether the prediction was right (US6)."""
     winner = next((r.car_id for r in race.results if r.rank == 1), None)
     return {

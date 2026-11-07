@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from automind.acquisition.api.car import SpecValueRow
 from automind.shared.vehicle import specs, units
 
 TABLE_ROWS = [
@@ -39,12 +40,15 @@ TABLE_ROWS = [
 ]
 
 
-def display(key: str, sv) -> str | None:
+def display(key: str, sv: SpecValueRow | None) -> str | None:
+    """A stored value as the spec table shows it (units of its attribute), None when there is no value."""
     if sv is None or not sv.available:
         return None
     if sv.value_text is not None:
         return sv.value_text
     x = sv.value_num
+    if x is None:  # marked available with neither a number nor a text
+        return None
     unit = specs.ATTRS[key].unit
     if key == "max_power":
         return units.kw_to_hp_display(x)

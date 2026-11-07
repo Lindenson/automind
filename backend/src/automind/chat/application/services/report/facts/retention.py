@@ -3,20 +3,24 @@ config/feasibility.yaml (none for a make new in the market, spec 006 FR-018)."""
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
+from automind.chat.application.services.report.contracts import Curves, LoadedCar
 from automind.chat.application.services.report.facts.car import num
+from automind.shared.contracts.json import JsonObject
 
 RETENTION_YEARS = (3, 5)
 
 
-def retention_points(car: dict, curve: dict[str, dict[float, float]], new_in_market: bool = False) -> list[dict]:
+def retention_points(car: LoadedCar, curve: Curves, new_in_market: bool = False) -> list[JsonObject]:
     """Value left after 3 and 5 years: sourced points (median per year when several), else the labelled
     depreciation curve of the car's class (feasibility.yaml). A recent make gets no curve (spec 006 FR-018)."""
     v = car["variant"]
-    out = []
+    out: list[JsonObject] = []
     for years in RETENTION_YEARS:
         rows = [(r, e) for r, e in car.get("retention", []) if r.years == years and r.share is not None]
         if rows:
-            shares = sorted(float(r.share) for r, _ in rows)
+            shares = sorted(float(s) for r, _ in rows if (s := r.share) is not None)
             mid = shares[len(shares) // 2]
             srcs = [{"name": e.source_name, "url": e.url, "type": e.source_type, "excerpt": r.excerpt,
                      "retrieved_at": e.retrieved_at.isoformat()} for r, e in rows if e is not None][:3]  # fmt: skip
@@ -38,7 +42,7 @@ def retention_points(car: dict, curve: dict[str, dict[float, float]], new_in_mar
     return out
 
 
-def sourced_retention(car: dict) -> dict[int, float]:
+def sourced_retention(car: LoadedCar) -> dict[int, float]:
     """Sourced value share per year (median when several sources), for the depreciation item (spec 007 FR-016)."""
     out: dict[int, float] = {}
     for years in RETENTION_YEARS:
@@ -48,12 +52,13 @@ def sourced_retention(car: dict) -> dict[int, float]:
     return out
 
 
-def class_curve(vehicle_class: str | None, curves: dict) -> dict[float, float]:
+def class_curve(vehicle_class: str | None, curves: Curves) -> dict[float, float]:
+    """The depreciation curve of a vehicle class (years -> share kept), the compact one by default."""
     table = curves.get(vehicle_class or "compact") or curves.get("compact") or {}
     return {float(k): float(v) for k, v in table.items()}
 
 
-def _interp(table: dict, years: float) -> float | None:
+def _interp(table: Mapping[float, float], years: float) -> float | None:
     pts = sorted((float(k), float(x)) for k, x in table.items())
     for (a, va), (b, vb) in zip(pts, pts[1:], strict=False):
         if a <= years <= b:

@@ -5,34 +5,35 @@ validated facts for the writer (numbers only from code, constitution III)."""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
 
 from automind.chat.application.services.report.blocks import electric
 from automind.chat.application.services.report.blocks.notice import Notice, notice
 from automind.chat.application.services.report.case_facts import assumption_lines
-from automind.chat.application.services.report.contracts import ReportWording
+from automind.chat.application.services.report.contracts import KeyedCars, ReportWording
 from automind.chat.application.services.report.facts.car import short_name
 from automind.chat.application.services.report.stages.ownership import Ownership, ownership_facts
 from automind.chat.application.services.report.stages.used_cars import UsedFacts, used_lines
 from automind.chat.application.services.report.stages.verdict import Judged, profile_focus
 from automind.chat.application.services.report.writer_facts import summary_for_llm
 from automind.chat.domain.assessment.criteria import CriteriaScore
+from automind.chat.domain.assessment.dragrace import RaceResult
 from automind.chat.domain.case import CaseFile
 from automind.chat.domain.cost import tco
 from automind.chat.domain.verdict import suggestions
 from automind.chat.domain.verdict.report_layout import annotate_sections, depths, order_blocks
 from automind.shared.contracts.config import Reference
+from automind.shared.contracts.json import JsonObject
 
 
 @dataclass
 class Presented:
-    blocks: list[dict[str, Any]]  # in the persona's order, the verdict card first
+    blocks: list[JsonObject]  # in the persona's order, the verdict card first
     electric_lines: list[str] = field(default_factory=list)
     assumed: list[str] = field(default_factory=list)
 
 
-def present(ref: Reference, case: CaseFile, keyed: list[Any], own: Ownership, judged: Judged,
-            extras: dict[str, Any], blocks: list[dict[str, Any]], notices: list[Notice], rates: tco.TcoRates,
+def present(ref: Reference, case: CaseFile, keyed: KeyedCars, own: Ownership, judged: Judged,
+            extras: JsonObject, blocks: list[JsonObject], notices: list[Notice], rates: tco.TcoRates,
             lang: str, words: ReportWording) -> Presented:  # fmt: skip
     cars = [car for _, car in keyed]
     vblock, verdict, iset = judged.block, judged.verdict, judged.insights
@@ -69,9 +70,9 @@ def present(ref: Reference, case: CaseFile, keyed: list[Any], own: Ownership, ju
     return Presented([*head, *body] if cars else [], lines, assumed)
 
 
-def writer_summary(ref: Reference, case: CaseFile, keyed: list[Any], race: Any, crit: CriteriaScore | None,
+def writer_summary(ref: Reference, case: CaseFile, keyed: KeyedCars, race: RaceResult, crit: CriteriaScore | None,
                    own: Ownership, judged: Judged, shown: Presented, used: dict[str, UsedFacts], lang: str,
-                   words: ReportWording) -> dict[str, Any]:  # fmt: skip
+                   words: ReportWording) -> JsonObject:  # fmt: skip
     """The validated facts the writer is given."""
     cars = [car for _, car in keyed]
     names = {car["variant"].id: short_name(car["variant"]) for car in cars}

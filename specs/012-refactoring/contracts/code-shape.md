@@ -27,7 +27,9 @@ Rules for every public callable in `*/application/**` and `*/domain/**` (checked
 1. **Typed promise.** Every parameter and the return annotated; no `Any` in a public signature — a collaborator is a
    Protocol (port), a result is a frozen dataclass / pydantic DTO, a closed set of values is a `Literal` or `StrEnum`
    (`Outcome = Literal["CONFIRMED", "CORRECTED", "REMOVED", "UNRESOLVED"]`). `dict[str, Any]` crosses a boundary only
-   as graph state (`TypedDict`) or JSON at the edge, never as an application result. `Callable[..., X]` is not a
+   as graph state (`TypedDict`) or JSON at the edge, never as an application result. JSON at the edge (a UI block,
+   an event payload, a config section as loaded) is written `JsonObject` (`shared/contracts/json.py`), the one
+   sanctioned loose type; anything the application reads back from it is typed first (`LoadedCar`, `IntakeConfig`). `Callable[..., X]` is not a
    type: name the parameters (a Protocol with `__call__`).
 2. **Storage through a port.** No `sqlalchemy`, no `shared.infrastructure.db` in application or domain; a write is
    one port call that is one transaction. A new `ignore_imports` line is never the answer (rule `exempt`).

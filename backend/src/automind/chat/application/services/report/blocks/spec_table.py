@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+from automind.chat.application.services.report.contracts import LoadedCar
 from automind.chat.application.services.report.facts.display import TABLE_ROWS, display
 from automind.chat.domain.verdict import insights as ins
+from automind.shared.contracts.json import JsonObject
 from automind.shared.vehicle import specs
 
 
-def spec_table(cars: list[dict], from_cache: dict[str, bool], insight_set: ins.InsightSet | None = None) -> dict:
+def spec_table(
+    cars: list[LoadedCar], from_cache: dict[str, bool], insight_set: ins.InsightSet | None = None
+) -> JsonObject:
     """The comparison table (spec 004 FR-016): only rows with data for at least one car; missing cells are
     marked; `better` marks the clearly best car of a meaningful difference (never a sub-threshold one)."""
     rows = []
@@ -20,16 +24,17 @@ def spec_table(cars: list[dict], from_cache: dict[str, bool], insight_set: ins.I
         vals = []
         for c in cars:
             sv = c["values"].get(key)
-            available = bool(sv is not None and sv.available)
-            sources = [c["claim_src"][cid] for cid in (sv.claim_ids if available else []) if cid in c["claim_src"]][:4]
+            ok = sv if sv is not None and sv.available else None
+            available = ok is not None
+            sources = [c["claim_src"][cid] for cid in (ok.claim_ids if ok else []) if cid in c["claim_src"]][:4]
             vals.append(
                 {
                     "car_id": c["variant"].id,
                     "available": available,
                     "display": display(key, sv),
-                    "value": (sv.value_num if sv.value_num is not None else sv.value_text) if available else None,
-                    "provenance": sv.provenance if available else None,
-                    "confidence": sv.confidence if available else None,
+                    "value": (ok.value_num if ok.value_num is not None else ok.value_text) if ok else None,
+                    "provenance": ok.provenance if ok else None,
+                    "confidence": ok.confidence if ok else None,
                     "sources": sources,
                     "missing": not available,
                     "better": best == c["variant"].id,
@@ -46,7 +51,7 @@ def spec_table(cars: list[dict], from_cache: dict[str, bool], insight_set: ins.I
     }
 
 
-def car_header(car: dict, from_cache: bool) -> dict:
+def car_header(car: LoadedCar, from_cache: bool) -> JsonObject:
     v = car["variant"]
     return {
         "id": v.id,

@@ -3,6 +3,7 @@ used-car issues with an age or mileage, value retention, the energy the person s
 
 from __future__ import annotations
 
+from automind.chat.application.services.report.contracts import Curves, LoadedCar
 from automind.chat.application.services.report.facts.car import num, txt
 from automind.chat.application.services.report.facts.retention import class_curve, sourced_retention
 from automind.chat.domain.cost import energy, tco
@@ -10,8 +11,8 @@ from automind.shared.vehicle import identity
 
 
 async def tco_car(
-    car: dict, condition: str, age_years: int | None, mileage_km: int | None,
-    retention_curve: dict | None = None, use: energy.UsageContext | None = None, new_in_market: bool = False,
+    car: LoadedCar, condition: str, age_years: int | None, mileage_km: int | None,
+    retention_curve: Curves | None = None, use: energy.UsageContext | None = None, new_in_market: bool = False,
     stated: dict[str, tuple[float, str]] | None = None, used_price_eur: float | None = None,
 ) -> tco.TcoCar:  # fmt: skip
     """Assemble TCO inputs from validated data: specs, sourced maintenance items, used-car issues."""

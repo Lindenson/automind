@@ -2,55 +2,46 @@
 
 from __future__ import annotations
 
+from automind.chat.application.services.report.contracts import LoadedCar
 from automind.chat.application.services.report.facts.car import relevant
 from automind.chat.application.services.report.facts.display import TABLE_ROWS, display
 from automind.chat.application.services.report.facts.scoring_inputs import car_facts
 from automind.chat.domain.assessment import dragrace
 from automind.chat.domain.assessment import metrics as scoring
 from automind.chat.domain.assessment.criteria import CriteriaScore
+from automind.shared.contracts.json import JsonObject
 
 
-def summary_for_llm(cars: list[dict], race: dragrace.RaceResult, criteria: CriteriaScore | None = None) -> dict:
-    """Compact, validated facts for the analyst/hub prompt (numbers come only from here)."""
-    out = {
-        "cars": [],
-        "race": {
-            "model_version": race.model_version,
-            "results": [
-                {
-                    "label": r.label,
-                    "rank": r.rank,
-                    "t_0_100": r.t_0_100,
-                    "t_400m": r.t_400m,
-                    "v_400m": r.v_400m,
-                    "claimed_0_100": r.claimed_0_100,
-                }
-                for r in race.results
-            ],
-            "excluded": race.excluded,
-        },
+def summary_for_llm(
+    cars: list[LoadedCar], race: dragrace.RaceResult, criteria: CriteriaScore | None = None
+) -> JsonObject:
+    """Compact, validated facts for the analyst/hub prompt (numbers come only from here): each car's specs with
+    their confidence, its metrics and the specs it lacks, the race and the criteria scores."""
+    return {
+        "cars": [_car_facts(c) for c in cars],
+        "race": _race_facts(race),
         "criteria_scores": _criteria_facts(criteria),
     }
-    for c in cars:
-        vals = {}
-        for k in TABLE_ROWS:
-            sv = c["values"].get(k)
-            if sv is not None and sv.available:
-                vals[k] = {"value": display(k, sv), "confidence": sv.confidence, "provenance": sv.provenance}
-        out["cars"].append(
-            {
-                "label": c["variant"].label,
-                "powertrain": c["variant"].powertrain,
-                "specs": vals,
-                "metrics": scoring.metrics(car_facts(c)),
-                "missing": [k for k in TABLE_ROWS if k not in vals and relevant(k, c["variant"].powertrain)],
-            }
-        )
-
-    return out
 
 
-def _criteria_facts(sc: CriteriaScore | None) -> dict | None:
+def _car_facts(c: LoadedCar) -> JsonObject:
+    vals: JsonObject = {}
+    for k in TABLE_ROWS:
+        sv = c["values"].get(k)
+        if sv is not None and sv.available:
+            vals[k] = {"value": display(k, sv), "confidence": sv.confidence, "provenance": sv.provenance}
+    v = c["variant"]
+    return {"label": v.label, "powertrain": v.powertrain, "specs": vals, "metrics": scoring.metrics(car_facts(c)),
+            "missing": [k for k in TABLE_ROWS if k not in vals and relevant(k, v.powertrain)]}  # fmt: skip
+
+
+def _race_facts(race: dragrace.RaceResult) -> JsonObject:
+    results = [{"label": r.label, "rank": r.rank, "t_0_100": r.t_0_100, "t_400m": r.t_400m, "v_400m": r.v_400m,
+                "claimed_0_100": r.claimed_0_100} for r in race.results]  # fmt: skip
+    return {"model_version": race.model_version, "results": results, "excluded": race.excluded}
+
+
+def _criteria_facts(sc: CriteriaScore | None) -> JsonObject | None:
     if sc is None:
         return None
     return {

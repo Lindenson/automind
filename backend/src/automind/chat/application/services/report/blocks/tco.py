@@ -6,9 +6,10 @@ from dataclasses import asdict
 
 from automind.acquisition import api as acquisition
 from automind.chat.domain.cost import tco
+from automind.shared.contracts.json import JsonObject
 
 
-def tco_block(estimates: list[tco.TcoEstimate], evidence: dict[str, dict] | None = None) -> dict:
+def tco_block(estimates: list[tco.TcoEstimate], evidence: dict[str, JsonObject] | None = None) -> JsonObject:
     ev = evidence or {}
     years = estimates[0].years if estimates else 5
     return {
@@ -45,5 +46,5 @@ def tco_block(estimates: list[tco.TcoEstimate], evidence: dict[str, dict] | None
     }
 
 
-async def evidence_refs(ids: list[str]) -> dict[str, dict]:
+async def evidence_refs(ids: list[str]) -> dict[str, JsonObject]:
     return await acquisition.evidence_refs(ids)

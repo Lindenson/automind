@@ -4,16 +4,14 @@ takes its data from its market and its price only from a European source (spec 0
 
 from __future__ import annotations
 
-from typing import Any
-
 from automind.chat.application.services.report.blocks.notice import Notice, notice
-from automind.chat.application.services.report.contracts import ReportWording
+from automind.chat.application.services.report.contracts import KeyedCars, LoadedCar, ReportWording
 from automind.chat.application.services.report.facts.car import new_price, short_name
 from automind.chat.domain.assessment.metrics import new_generation_since
 from automind.shared.vehicle import markets
 
 
-def car_notices(keyed: list[Any], year: int | None, notices: list[Notice], lang: str,
+def car_notices(keyed: KeyedCars, year: int | None, notices: list[Notice], lang: str,
                 words: ReportWording) -> None:  # fmt: skip
     """`notices` in place: the young generations' reliability gaps dropped, the generation and market notes added."""
     young = {x.key for x, car in keyed if new_gen(car, year)}
@@ -27,6 +25,6 @@ def car_notices(keyed: list[Any], year: int | None, notices: list[Notice], lang:
             notices.append(notice(text, "info", car_key=x.key))
 
 
-def new_gen(car: dict[str, Any], year: int | None) -> int | None:
+def new_gen(car: LoadedCar, year: int | None) -> int | None:
     """The first year of a generation on sale for under two years, else None."""
     return new_generation_since(getattr(car["variant"], "generation_years_from", None), year)
