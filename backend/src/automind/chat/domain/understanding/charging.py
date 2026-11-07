@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import re
 
+from automind.chat.domain.case.enums import HomeCharging
+
 _CHARGE_NO = (r"на улице", r"нет гаража", r"без гаража", r"не могу заряжать дома", r"негде заряжать",
               r"no garage", r"street parking", r"park on the street", r"can'?t charge at home", r"no home charging",
               r"no tengo garaje", r"sin garaje", r"aparco en la calle", r"no puedo cargar en casa",
@@ -33,18 +35,21 @@ _PRICE = re.compile(
 
 
 def any_match(patterns: tuple[str, ...], low: str) -> str | None:
+    """The words of the first pattern found in `low` (already lower case), or None."""
     for p in patterns:
         if m := re.search(p, low):
             return m.group(0)
     return None
 
 
-def charging_of(text: str | None) -> tuple[str, str] | None:
+def charging_of(text: str | None) -> tuple[HomeCharging, str] | None:
     """(YES | WORK | NO, the words) when the user says where they can charge; "no garage" wins over "garage"."""
     if not text:
         return None
     low = text.lower()
-    for value, pats in (("NO", _CHARGE_NO), ("WORK", _CHARGE_WORK), ("YES", _CHARGE_YES)):
+    rules: tuple[tuple[HomeCharging, tuple[str, ...]], ...] = (("NO", _CHARGE_NO), ("WORK", _CHARGE_WORK),
+                                                                ("YES", _CHARGE_YES))  # fmt: skip
+    for value, pats in rules:
         if (w := any_match(pats, low)) is not None:
             return value, w
     return None

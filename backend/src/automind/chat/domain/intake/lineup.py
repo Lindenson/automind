@@ -7,6 +7,7 @@ import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from automind.chat.domain.case.enums import Body
 from automind.chat.domain.case.fit import Fit
 
 _FAMILY_BODIES = ("suv", "estate", "mpv", "crossover", "familiar", "monovolumen", "todocamino")
@@ -70,7 +71,7 @@ def rank_lineup(models: Sequence[LineupModel], fit: Fit, limit: int = 3) -> list
     return [(m, why) for (s, why), m in scored[:limit] if s > -2]
 
 
-BODY_WORDS: dict[str, tuple[str, ...]] = {
+BODY_WORDS: dict[Body, tuple[str, ...]] = {
     "suv": ("кроссовер", "кроссовера", "кроссоверы", "внедорожник", "паркетник", "джип", "suv", "crossover",
             "todocamino", "todoterreno"),
     "estate": ("универсал", "estate", "wagon", "familiar", "touring", "sportstourer"),
@@ -91,7 +92,7 @@ def body_class_of(body: str | None) -> str | None:
     return next((b for b, ws in _BODY_MATCH.items() if any(w in low for w in ws)), None) if low else None
 
 
-def body_of(text: str) -> str | None:
+def body_of(text: str) -> Body | None:
     """The body class named in the user's words ("семейный кроссовер" → suv), or None."""
     words = set(_WORD.findall((text or "").lower()))
     return next((b for b, ws in BODY_WORDS.items() if words & set(ws)), None)

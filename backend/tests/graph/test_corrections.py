@@ -5,7 +5,8 @@ with the engines that do (chat 5be54966: "Ateca 1.5, you wrote 1.0" was ignored)
 
 import uuid
 
-from automind.chat.application.services.interpretation.interpret import Interpretation, engine_hints
+from automind.chat.application.services.interpretation.contracts import Interpretation
+from automind.chat.application.services.interpretation.interpret import engine_hints
 from automind.chat.dialog.graph import build_graph
 from automind.chat.dialog.runner import ChatRunner
 from automind.chat.infrastructure.persistence.repositories import MessageRepo

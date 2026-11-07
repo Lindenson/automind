@@ -1,8 +1,9 @@
 """Chat · chat.application.services.report: builds the report — numbers, blocks and cards — from stored data only.
 
 Owns: `service` — `ReportService.run()`: load → used cars → ownership → notices → scores → verdict → blocks →
-  presentation; `contracts` — `Computed`, `CheckInput`, the `ReportWording` port (the dialog's language) and
-  `IntakeLog`; `stages/` — the steps; `case_facts` — what the case says (km, years, usage, assumptions);
+  presentation; `contracts` — `Computed`, `CheckInput`, the `ReportWording` port (the dialog's language; the
+  intake log is `ports.IntakeLog`); `stages/` — the steps; `case_facts` — what the case says (km, years, usage,
+  assumptions);
   `facts/` — the car as the report reads it (`car.load_car` over acquisition.api's read model), its display,
   reliability and reviews, scoring inputs, race and value retention; `blocks/` — one module per report block (spec
   table, metric bars, race, sources, data panel, criteria, case summary, engineering, manufacturer, tco,

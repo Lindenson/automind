@@ -1,6 +1,7 @@
 """Persona and profile need the user's own words, from this or an earlier message (spec 007 FR-002)."""
 
-from automind.chat.application.services.interpretation.interpret import Interpretation, _persona_from_users_words
+from automind.chat.application.services.interpretation.contracts import Interpretation
+from automind.chat.application.services.interpretation.interpret import _persona_from_users_words
 
 
 def interp(evidence):
@@ -37,7 +38,7 @@ def test_profile_field_dropped_when_the_words_were_never_written():
 
 
 def test_numbers_with_russian_and_spanish_words():
-    from automind.chat.application.services.interpretation.interpret import numbers_in
+    from automind.chat.domain.understanding import amounts_in as numbers_in
 
     assert numbers_in("до 20 тыщ") == {20000}
     assert numbers_in("1,5 млн") == {1500000}
@@ -49,12 +50,10 @@ def test_numbers_with_russian_and_spanish_words():
 
 
 def test_constraint_numbers_must_be_in_this_message():
-    from automind.chat.application.services.interpretation.interpret import (
-        Interpretation,
-        _constraints_from_this_message,
-        numbers_in,
-    )
+    from automind.chat.application.services.interpretation.contracts import Interpretation
+    from automind.chat.application.services.interpretation.interpret import _constraints_from_this_message
     from automind.chat.domain.case import Budget, CaseDelta, Needs, RunningLimit
+    from automind.chat.domain.understanding import amounts_in as numbers_in
 
     assert {25000.0, 150.0} <= numbers_in("tengo 25.000 € y no más de 150 al mes")
     assert 25000.0 in numbers_in("бюджет 25 тыс") and 25000.0 in numbers_in("budget 25k")
@@ -68,7 +67,7 @@ def test_constraint_numbers_must_be_in_this_message():
 
 
 def test_cyrillic_k_thousands_not_km():
-    from automind.chat.application.services.interpretation.interpret import numbers_in
+    from automind.chat.domain.understanding import amounts_in as numbers_in
 
     assert 20000.0 in numbers_in("бюджет 20к")
     assert 20000.0 not in numbers_in("20 км в день") and 20.0 in numbers_in("20 км в день")

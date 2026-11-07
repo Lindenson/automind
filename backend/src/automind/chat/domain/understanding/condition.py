@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import re
 
+from automind.chat.domain.case.enums import Condition
+
 _NEW = re.compile(r"\b(нов\w*|new|nuev\w*|0 ?km|с нуля|из салона)\b", re.I)
 
 
@@ -12,7 +14,7 @@ _USED = re.compile(
 )
 
 
-def condition_of(text: str | None) -> str | None:
+def condition_of(text: str | None) -> Condition | None:
     """NEW / USED from a short answer ("новые", "б/у", "de segunda mano"); None when the text says neither."""
     if not text:
         return None
