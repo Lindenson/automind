@@ -27,10 +27,13 @@ _AWD_WORD = re.compile(r"awd|4motion|quattro|xdrive|4x4|4wd", re.IGNORECASE)  # 
 
 
 class SourcedVersions:
+    """The first fallback: the versions the sources list for the model's generation (spec 008 FR-020)."""
+
     def __init__(self, ports: Ports) -> None:
         self.ports = ports
 
     async def identify(self, placed: Placed) -> IdentifyOutcome | None:
+        """The ladder over the sourced versions; None when no versions store or no sourced list."""
         ports, case, car, year = self.ports, placed.case, placed.car, placed.year
         if not (car.make and car.model) or ports.versions is None:
             return None
@@ -68,11 +71,11 @@ class SourcedVersions:
         assert v is not None
         name = v.engine + (f" {ladder.GEARBOX_LABEL.get(step.gearbox, step.gearbox)}" if step.gearbox else "")
         name += " AWD" if step.drive == "AWD" and not _AWD_WORD.search(name) else ""
-        ident = VariantIdentity(
-            make=car.make or g.make, model=car.model or g.model, generation=g.generation,
-            generation_years_from=g.years_from, generation_years_to=g.years_to, variant_name=name,
-            powertrain=ladder.POWERTRAIN.get(v.fuel or "", "ICE"), body_class=g.body_class,  # type: ignore[arg-type]
-            transmission=step.gearbox, drive=step.drive, engine_cc=v.engine_cc, power_kw=v.power_kw,  # type: ignore[arg-type]
-            fuel=v.fuel, certainty="exact",  # type: ignore[arg-type]
-        )  # fmt: skip
+        ident = VariantIdentity.model_validate({  # the sources' strings, validated as the identity's closed sets
+            "make": car.make or g.make, "model": car.model or g.model, "generation": g.generation,
+            "generation_years_from": g.years_from, "generation_years_to": g.years_to, "variant_name": name,
+            "powertrain": ladder.POWERTRAIN.get(v.fuel or "", "ICE"), "body_class": g.body_class,
+            "transmission": step.gearbox, "drive": step.drive, "engine_cc": v.engine_cc, "power_kw": v.power_kw,
+            "fuel": v.fuel, "certainty": "exact",
+        })  # fmt: skip
         return await upsert_variant(ident, self.ports.ref)

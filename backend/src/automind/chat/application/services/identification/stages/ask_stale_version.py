@@ -53,7 +53,7 @@ def ask_stale_version(car: CaseCar, v: ladder.Version, events: Events, found: li
 
 async def registered(ports: Ports, car: CaseCar, pool: list[ladder.Version], year: int) -> list[DatasetVersion]:
     """The model's versions registered in the EU since its catalog rows' first year, of the car's fuel."""
-    fuel = (car.constraints.engine_hint.fuel if car.constraints.engine_hint else None) or next(
+    fuel: str | None = (car.constraints.engine_hint.fuel if car.constraints.engine_hint else None) or next(
         (p.fuel for p in pool if p.fuel), None)  # fmt: skip
     since = min((p.years_from for p in pool if p.years_from), default=year - versions.DATASET_YEARS)
     return await versions.dataset_versions(ports, car.make or "", car.model or "", None, fuel, since)

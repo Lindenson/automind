@@ -27,6 +27,7 @@ CAR_QUESTIONS = frozenset({"CAR_IDENTITY", "USED_AGE", "TRIM", "GEARBOX", "UNKNO
 # offered as generation options to confirm, never guessed.
 REASK = frozenset({"CAR_IDENTITY", "UNKNOWN_MODEL", "GEARBOX"})
 LEVELS: tuple[Level, ...] = ("BASE", "MID", "TOP")
+_LEVEL_OF: dict[str, Level] = {lv: lv for lv in LEVELS}
 
 
 def settled(car: CaseCar) -> tuple[bool, Unsettled | None]:
@@ -74,11 +75,11 @@ def level_in_range(position: int, size: int) -> Level:
     return "MID"
 
 
-def level_for(named_levels: Sequence[Level | None]) -> tuple[Level, LevelSource]:
-    """The common level: the level of the first version the user named, otherwise BASE."""
+def level_for(named_levels: Sequence[str | None]) -> tuple[Level, LevelSource]:
+    """The common level: the level of the first version the user named (a known level), otherwise BASE."""
     for lv in named_levels:
-        if lv in LEVELS:
-            return lv, "USER_TRIM"
+        if lv in _LEVEL_OF:
+            return _LEVEL_OF[lv], "USER_TRIM"
     return "BASE", "DEFAULT"
 
 

@@ -13,10 +13,12 @@ from automind.chat.domain.case import CaseCar
 
 
 async def catalogue_lookup(ports: Ports, car: CaseCar, lookup: LineupLookup | None) -> KnownModels:
-    reg = ports.ref.makes
+    """The models known for the car's make, the model matched to one of them in place. The make is known (the
+    service asks for it first)."""
+    reg, make = ports.ref.makes, car.make or ""
     in_spain = reg is None or reg.sold_in_spain(car.make)
-    lineup = await lookup(ports, car.make) if lookup is not None and in_spain else None
-    catalog = set(await known_models(car.make or "", ports.ref))
+    lineup = await lookup(ports, make) if lookup is not None and in_spain else None
+    catalog = set(await known_models(make, ports.ref))
     known = catalog | {m.model for m in lineup_models(lineup)}
     match_model(car, reg, known)
     if not car.model and not in_spain:  # a make not sold in Spain: its models where it is sold

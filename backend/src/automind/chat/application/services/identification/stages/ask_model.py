@@ -12,6 +12,8 @@ MAX_MODELS = 6  # options offered
 
 
 def ask_model(car: CaseCar, case: CaseFile, names: KnownModels, note: str | None) -> IdentifyOutcome:
+    """The model is not named: the make's models are offered (its line-up ranked for the person, else the known
+    models); `note` is what the URL the person sent turned out to be."""
     make = car.make or ""
     choices = _from_lineup(names, make, case) or [
         Choice(label=f"{make} {m}", make=make, model=m) for m in sorted(names.known)[:MAX_MODELS]

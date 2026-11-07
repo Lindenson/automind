@@ -6,15 +6,15 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from typing import Any
 from urllib.parse import urlparse
 
 from automind.chat.domain.case import CaseCar
 from automind.shared import evidence
+from automind.shared.contracts.config import MakeNames
 from automind.shared.vehicle import makes
 
 
-def classify_url(car: CaseCar, reg: Any) -> str | None:
+def classify_url(car: CaseCar, reg: MakeNames | None) -> str | None:
     """The note on the URL the person sent: "refused:<host>", "page:<host>" or None (none, or a maker's home page,
     which only names the make)."""
     url = car.constraints.url
@@ -31,7 +31,7 @@ def classify_url(car: CaseCar, reg: Any) -> str | None:
     return f"page:{host}"
 
 
-def canonical_make(car: CaseCar, reg: Any) -> None:
+def canonical_make(car: CaseCar, reg: MakeNames | None) -> None:
     """The make in the registry's spelling, or found in the person's words ("Skoda" / "Škoda": the catalog's)."""
     if reg is None:
         return
@@ -40,7 +40,7 @@ def canonical_make(car: CaseCar, reg: Any) -> None:
         car.make = canon
 
 
-def match_model(car: CaseCar, reg: Any, known: set[str]) -> None:
+def match_model(car: CaseCar, reg: MakeNames | None, known: set[str]) -> None:
     """The model in any script or spelling, mapped to a known one ("атека" → Ateca, "сил ю" → Seal U)."""
     if reg is None or not known or not car.make:
         return

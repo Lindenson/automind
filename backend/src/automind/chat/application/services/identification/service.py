@@ -38,6 +38,8 @@ Progress = Callable[[CaseCar], Awaitable[None]]  # called before a car is identi
 
 @dataclass
 class CarIdentified:
+    """One car after identification: the car as now, its outcome, and the page the person had sent."""
+
     car: CaseCar
     outcome: IdentifyOutcome
     page_url: str | None  # the page the person sent, as it was before identification read or refused it

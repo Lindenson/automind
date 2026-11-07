@@ -33,7 +33,7 @@ async def compare_level(cars: list[CaseCar]) -> tuple[str, str]:
         if c.constraints.trim_hint and c.variant_id:
             v = await get_variant(c.variant_id)
             named.append(v.trim_level if v is not None else None)
-    return identification.level_for(named)  # type: ignore[arg-type]
+    return identification.level_for(named)
 
 
 async def revalidate_level(car: CaseCar, level: str) -> str | None:
@@ -82,15 +82,13 @@ async def split_by_gearbox(car: CaseCar, ref: Reference) -> str | None:
         car.variant_id, car.label, car.resolution = None, None, "UNRESOLVED"
         return f"{car.key}: {old} is another gearbox or drive; identified again"
     extra = " ".join(x for x in (k.gearbox_hint, k.drive_hint) if x)
-    ident = VariantIdentity(
-        make=v.make, model=v.model, generation=v.generation, generation_years_from=v.generation_years_from,
-        generation_years_to=v.generation_years_to, variant_name=f"{v.variant_name} {extra}",
-        powertrain=v.powertrain,  # type: ignore[arg-type]
-        body_class=v.body_class, vehicle_class=v.vehicle_class, segment=v.segment,  # type: ignore[arg-type]
-        transmission=k.gearbox_hint or v.transmission, drive=k.drive_hint or v.drive,  # type: ignore[arg-type]
-        trim=v.trim, trim_level=v.trim_level, price_eur=int(v.price_eur) if v.price_eur else None,  # type: ignore[arg-type]
-        certainty="exact",
-    )  # fmt: skip
+    ident = VariantIdentity.model_validate({  # catalogue strings, validated as the identity's closed sets
+        "make": v.make, "model": v.model, "generation": v.generation, "generation_years_from": v.generation_years_from,
+        "generation_years_to": v.generation_years_to, "variant_name": f"{v.variant_name} {extra}",
+        "powertrain": v.powertrain, "body_class": v.body_class, "vehicle_class": v.vehicle_class, "segment": v.segment,
+        "transmission": k.gearbox_hint or v.transmission, "drive": k.drive_hint or v.drive, "trim": v.trim,
+        "trim_level": v.trim_level, "price_eur": int(v.price_eur) if v.price_eur else None, "certainty": "exact",
+    })  # fmt: skip
     new = await upsert_variant(ident, ref)
     car.variant_id, car.label, car.resolution = new.id, new.label, "CONFIRMED"
     return f"{car.key}: {new.label} (the gearbox you named)"
