@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from typing import Literal
 
@@ -162,7 +162,7 @@ KEYWORD_LISTS = ("auto", "awd", "two_wd", "not_manual", "not_auto", "not_awd")
 KEYWORDS: dict[str, tuple[str, ...]] = {}
 
 
-def configure_keywords(extra: dict[str, Sequence[str]]) -> None:
+def configure_keywords(extra: Mapping[str, Sequence[str]]) -> None:
     KEYWORDS.clear()
     KEYWORDS.update({k: tuple(str(w).lower() for w in v) for k, v in extra.items() if k in KEYWORD_LISTS and v})
 

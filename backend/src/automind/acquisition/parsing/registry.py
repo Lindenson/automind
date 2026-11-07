@@ -210,9 +210,9 @@ class ParserRegistry:
         from automind.acquisition.infrastructure import overrides  # noqa: PLC0415
 
         if overrides.in_shadow("parser") or overrides.in_shadow("rule"):  # spec 011 T102: feed the shadow gate
-            from automind.acquisition.gates import shadow  # noqa: PLC0415
+            from automind.acquisition.gates.infrastructure.wiring import shadow_gate  # noqa: PLC0415
 
-            await shadow.notify_read({sid: key for sid, (_, key) in pending.items()})
+            await shadow_gate().notify_read({sid: key for sid, (_, key) in pending.items()})
 
     async def _flush_streaks(self) -> None:
         if not self.from_db:

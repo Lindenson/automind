@@ -1,4 +1,4 @@
-# Next session: start here (parked on 2026-11-07, after A1 reputation; next: acquisition A2 gates)
+# Next session: start here (parked on 2026-11-07, after A2 gates; next: acquisition A3 pipeline + parsing)
 
 **First task: refactoring — spec 012, executed by `specs/012-refactoring/tasks.md` (one phase = one PR).**
 No new features until it is done (owner, 2026-11-06). All functional work in §4 is parked, still valid, and
@@ -13,7 +13,7 @@ fallbacks = strategies behind a Protocol), then `tasks.md` from S7 on.
 What the system is: `README.md` ("Acquisition engine"), `docs/adr/ADR-032-acquisition-engine.md`,
 `docs/history/next-session-2026-11-06-engine.md` §1, specs 001–009: `docs/baseline.md`.
 
-## 0. Resume acquisition A2 (next action)
+## 0. Resume acquisition A3 (next action)
 
 Done and merged: S0–S8, S9a (T074 characterisation, PR #101), S9b (T076 research service, PR #102).
 Services so far: `identification/` (S7), `report/` (S8: ReportService, facts/, blocks/, stages/), `research/` (S9b:
@@ -68,8 +68,10 @@ code running in production now still has it).
 **Next: acquisition A1–A8 before S9d** (tasks.md "S9.3"): one PR per package, each leaves 0 `storage` and 0 `size`
 in its package, in layers. **A1 done (PR #117)**: `reputation/` fully layered (0 entries) — the template for the
 rest: rules → `domain/` (records + pure functions), services with Protocol ports → `application/`, every SQL →
-`infrastructure/` (+ `wiring.py`), CLIs → `delivery/cli/`. **Next A2 = `gates/`** (evaluate, journal 529,
-relevance_replay, replay_gate, shadow, watch). Then
+`infrastructure/` (+ `wiring.py`), CLIs → `delivery/cli/`. **A2 done (PR #118)**: `gates/` layered (0 entries;
+callers use `gates.infrastructure.wiring.change_journal()/replay_gate()/shadow_gate()/watch()`). **Next A3 =
+`pipeline/` + `parsing/`** (job 439, persist 420, plan, locate, parse, merge, relevance, validate, extract; parsing
+registry/store/spec/migrate_v1; = S11 T081–T084). Then
 S9d — T078: `confirm.py` nodes ≤ 30 lines, `ask.py` out of interpretation into its own service (questions), `ChallengeValue`
 use case + port, purity contracts for chat.dialog and chat.application. Then T074c (2)-(5) re-review as listed in
 tasks.md. Deploy checkpoint after 2026-11-12.
@@ -92,7 +94,7 @@ cd backend && uv run python ../scripts/check_checkpoints.py      # read-only pro
 ```
 - Moves: `scripts/refactor/move.py <map.yaml>` (maps in `specs/012-refactoring/moves/`; whole packages first);
   after moves `scripts/check_structure.py --write-baseline` only if the count did not grow.
-- Structure ratchet baseline `scripts/structure_baseline.txt` (1551 now: +storage, size 200; A1 −30); new violations fail
+- Structure ratchet baseline `scripts/structure_baseline.txt` (1470 now: +storage, size 200; A1 −30, A2 −81); new violations fail
   the gate; a PR shrinks the entries of every package it touches (pr-self-check.md).
 - Never run two test runs on one DB at once. Commit → push → `gh pr create` → `gh pr merge --merge` → delete
   local+remote branch; update this file's §0 at the end of each step.

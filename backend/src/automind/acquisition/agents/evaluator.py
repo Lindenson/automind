@@ -37,10 +37,11 @@ async def accuracy_kpi() -> dict[str, dict[str, float | None]]:
 
 
 async def run(now: datetime | None = None) -> dict[str, Any]:
-    from automind.acquisition.gates import journal, shadow, watch  # noqa: PLC0415
+    from automind.acquisition.gates.infrastructure.engine_ports import publish_gauges  # noqa: PLC0415
+    from automind.acquisition.gates.infrastructure.wiring import shadow_gate, watch  # noqa: PLC0415
 
     kpi = await accuracy_kpi()
-    shadows = await shadow.decide_all(now)
-    watched = await watch.check_all(now)
-    await journal.publish_gauges()
+    shadows = await shadow_gate().decide_all(now)
+    watched = await watch().check_all(now)
+    await publish_gauges()
     return {"kpi": kpi, "shadow": shadows, "watch": watched}

@@ -20,7 +20,7 @@ from tests.fakes.fake_llm import FakeLLM
 from automind.acquisition.agents import rule_auditor
 from automind.acquisition.agents.levers import RuleProposal
 from automind.acquisition.domain import relevance as rel
-from automind.acquisition.gates import journal, replay_gate, shadow
+from automind.acquisition.gates.infrastructure.wiring import change_journal, replay_gate, shadow_gate
 from automind.acquisition.gold import repo
 from automind.acquisition.gold.domain.match import GoldValue
 from automind.acquisition.infrastructure import overrides
@@ -172,12 +172,12 @@ async def test_manuales_cluster_stop_phrase_passes_replay_and_shadow_and_is_acce
     assert "manual del vehículo" in call.user.split("<untrusted_document", 1)[1].lower()
     cid = mine[0]["change_id"]
 
-    rep = await replay_gate.run(cid, llm=FakeLLM(), now=started)
+    rep = await replay_gate().run(cid, llm=FakeLLM(), now=started)
     assert rep["verdict"] == "pass", rep
     r = rep["relevance"]
     assert r["flipped"] == 4 and r["values_checked"] >= 16 and r["values_right"] == r["values_checked"], r
     assert (r["correct_rejections"], r["junk_accepted"]) == (3, 0), r
-    c = await journal.load(cid)
+    c = await change_journal().load(cid)
     assert c is not None and c.status == "shadow"
     assert rel.KEYWORDS.get("not_manual") is None  # nothing in force before acceptance
 
@@ -186,9 +186,9 @@ async def test_manuales_cluster_stop_phrase_passes_replay_and_shadow_and_is_acce
     for i, name in enumerate(("530d", "520i", "520d")):
         await w.page(w.vids[name], CARS[name][0], f"BMW Serie 5 G30 {name} manual del vehículo (pdf) | km77.com",
                      live + timedelta(minutes=i), *REJECT)  # fmt: skip
-    sh = await shadow.run(cid, llm=FakeLLM(), now=started + timedelta(days=4))
+    sh = await shadow_gate().run(cid, llm=FakeLLM(), now=started + timedelta(days=4))
     assert sh["verdict"] == "pass", sh
-    c = await journal.load(cid)
+    c = await change_journal().load(cid)
     assert c is not None and c.status == "watch"
     async with db.sessionmaker()() as s:
         active = (await s.execute(select(db.RuleOverride).where(db.RuleOverride.change_id == cid))).scalar_one()
@@ -202,14 +202,14 @@ async def test_manuales_cluster_stop_phrase_passes_replay_and_shadow_and_is_acce
 async def test_a_stop_word_that_accepts_junk_pages_is_rejected_at_replay(world) -> None:
     _, started = world
     # proposed as if it had come through the auditor: strip every "manual" from titles
-    cid = await journal.propose("rule_auditor", RuleProposal(path=PATH, value=["manual"]), "relevance cluster",
+    cid = await change_journal().propose("rule_auditor", RuleProposal(path=PATH, value=["manual"]), "relevance cluster",
                                 {"trigger": "test: the bare word", "as_of": started.isoformat()})  # fmt: skip
     assert cid is not None
-    rep = await replay_gate.run(cid, llm=FakeLLM(), now=started)
+    rep = await replay_gate().run(cid, llm=FakeLLM(), now=started)
     assert rep["verdict"] == "fail", rep
     r = rep["relevance"]
     assert r["flipped"] == 7 and r["junk_accepted"] == 3 and r["correct_rejections"] == 3, r
-    c = await journal.load(cid)
+    c = await change_journal().load(cid)
     assert c is not None and c.status == "rejected" and c.closed_at is not None
     assert "junk acceptance 3/3 correct rejections flipped" in c.explanation
     async with db.sessionmaker()() as s:

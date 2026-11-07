@@ -182,12 +182,14 @@ async def run_tuner(payload: dict[str, Any], *, llm: LLM | None = None, charge: 
                     now: datetime | None = None) -> dict[str, Any]:  # fmt: skip
     from sqlalchemy import select  # noqa: PLC0415
 
-    from automind.acquisition.gates import journal  # noqa: PLC0415
+    from automind.acquisition.gates.infrastructure.wiring import change_journal  # noqa: PLC0415
     from automind.acquisition.infrastructure.config import agents_config
     from automind.acquisition.worker.budget import BudgetExceeded  # noqa: PLC0415
     from automind.shared.infrastructure.config.loader import prices  # noqa: PLC0415
     from automind.shared.infrastructure.db import PromptVersion, sessionmaker  # noqa: PLC0415
     from automind.shared.infrastructure.llm import gateway as llm_gateway  # noqa: PLC0415
+
+    journal = change_journal()
 
     now = now or datetime.now(UTC)
     current_model = llm_gateway.model_name("extractor")

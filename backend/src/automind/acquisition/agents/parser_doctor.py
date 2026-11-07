@@ -187,7 +187,9 @@ class Doctor:
         return {"drafts": n, "draft": spec, "errors": []}
 
     async def validate(self, st: DoctorState) -> DoctorState:
-        from automind.acquisition.gates import journal  # noqa: PLC0415
+        from automind.acquisition.gates.infrastructure.wiring import change_journal  # noqa: PLC0415
+
+        journal = change_journal()
 
         spec = st.get("draft")
         if spec is None:
@@ -219,7 +221,9 @@ class Doctor:
         return "propose" if int(st.get("drafts") or 0) >= MAX_DRAFTS else "draft"
 
     async def propose(self, st: DoctorState) -> DoctorState:
-        from automind.acquisition.gates import journal  # noqa: PLC0415
+        from automind.acquisition.gates.infrastructure.wiring import change_journal  # noqa: PLC0415
+
+        journal = change_journal()
 
         best = st.get("best")
         if best is None:
@@ -344,7 +348,7 @@ def trigger(reason: str, changed_on: date | None, as_of: date) -> str:
 
 
 async def collect(payload: dict[str, Any]) -> DoctorState:
-    from automind.acquisition.gates import evaluate  # noqa: PLC0415
+    from automind.acquisition.gates.infrastructure import page_reading as evaluate  # noqa: PLC0415
     from automind.acquisition.infrastructure.fetch import decode_body  # noqa: PLC0415
     from automind.acquisition.parsing import store  # noqa: PLC0415
     from automind.acquisition.replay import run  # noqa: PLC0415
@@ -368,7 +372,7 @@ async def collect(payload: dict[str, Any]) -> DoctorState:
     refs.sort(key=lambda r: (not r.variant_ids,))  # pages of known cars (with gold) first, stable
     picked = refs[:SAMPLE_PAGES]
     bodies = await snapshots.load_bodies(sorted({r.blob_sha256 for r in picked}))
-    gold = await run._gold({v for r in picked for v in r.variant_ids})
+    gold = await run.gold_values({v for r in picked for v in r.variant_ids})
     samples = []
     found: list[str] = []
     for r in picked:

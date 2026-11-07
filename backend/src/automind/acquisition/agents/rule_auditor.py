@@ -183,9 +183,11 @@ def _cfg() -> dict[str, Any]:
 
 
 async def run_auditor(*, llm: LLM | None = None, charge: Any = None, now: datetime | None = None) -> dict[str, Any]:
-    from automind.acquisition.gates import journal  # noqa: PLC0415
+    from automind.acquisition.gates.infrastructure.wiring import change_journal  # noqa: PLC0415
     from automind.acquisition.infrastructure.config import effective_rules  # noqa: PLC0415
     from automind.acquisition.worker.budget import BudgetExceeded  # noqa: PLC0415
+
+    journal = change_journal()
 
     now = now or datetime.now(UTC)
     cfg = _cfg()
@@ -245,7 +247,7 @@ async def contradicted_rejections(since: datetime, until: datetime, *, min_famil
     ≥ `min_share` of the confirmed attributes (a page of another variant shares a value or two by chance)."""
     from sqlalchemy import text  # noqa: PLC0415
 
-    from automind.acquisition.gates import relevance_replay as rr  # noqa: PLC0415
+    from automind.acquisition.gates.infrastructure import relevance_pages as rr  # noqa: PLC0415
     from automind.shared.infrastructure.db import sessionmaker  # noqa: PLC0415
 
     items = await rr.judged(since, until, rejected_only=True, limit=limit)
@@ -275,14 +277,14 @@ async def contradicted_rejections(since: datetime, until: datetime, *, min_famil
 def _confirmed_on_page(variant_id: str, rows: list[tuple[float, str, str]], nums: set[float],
                        min_families: int) -> tuple[list[str], int]:  # fmt: skip
     """(attributes whose agreed value the page writes, attributes with an agreed value)."""
-    from automind.acquisition.gates import relevance_replay as rr  # noqa: PLC0415
+    from automind.acquisition.gates.domain.relevance_change import agreement  # noqa: PLC0415
 
     by_attr: dict[str, list[tuple[float, str]]] = defaultdict(list)
     for x, attr, fam in rows:
         by_attr[attr].append((x, fam))
     confirmed, agreed = [], 0
     for attr, vals in sorted(by_attr.items()):
-        g = rr.agreement(variant_id, attr, vals, ("rel", CLOSE_REL), min_families)
+        g = agreement(variant_id, attr, vals, ("rel", CLOSE_REL), min_families)
         if g is None or g.num is None:
             continue
         agreed += 1
@@ -309,8 +311,10 @@ def relevance_message(c: ra.RelevanceCluster, current: list[str], min_pages: int
 async def audit_relevance(model: LLM, charge: Any, cfg: Mapping[str, Any], rules: Mapping[str, Any],
                           now: datetime) -> tuple[list[dict[str, Any]], list[dict[str, Any]], bool]:  # fmt: skip
     """(clusters, proposals, stopped on budget) of relevance rejections later contradicted."""
-    from automind.acquisition.gates import journal  # noqa: PLC0415
+    from automind.acquisition.gates.infrastructure.wiring import change_journal  # noqa: PLC0415
     from automind.acquisition.worker.budget import BudgetExceeded  # noqa: PLC0415
+
+    journal = change_journal()
 
     rcfg = dict(cfg.get("relevance") or {})
     min_cluster = int(rcfg.get("min_cluster", MIN_CLUSTER))
