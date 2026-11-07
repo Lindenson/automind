@@ -77,7 +77,7 @@ def baseline(argv: list[str]) -> int:
 
 def fit_physics(argv: list[str]) -> int:
     """Fit the power-mass-acceleration envelope of config/physics.yaml."""
-    from automind.acquisition.reputation import fit_physics as module  # noqa: PLC0415
+    from automind.delivery.cli import fit_physics as module  # noqa: PLC0415
 
     return int(asyncio.run(module.main_async(argv)) or 0)
 

@@ -94,12 +94,12 @@ async def reputation_signals(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any]
     stored claims (no pipeline hook needed); disputed wrong signals queue a `blame_judge` task."""
     from datetime import UTC, datetime, timedelta  # noqa: PLC0415
 
-    from automind.acquisition.reputation import rollup, signals  # noqa: PLC0415
+    from automind.acquisition.reputation.infrastructure.wiring import daily_rollup, signal_scan  # noqa: PLC0415
 
     hours = float(task.payload.get("lookback_h") or (ctx.cfg.get("reputation") or {}).get("lookback_h", 26))
-    out = await signals.scan(since=datetime.now(UTC) - timedelta(hours=hours))
+    out = await signal_scan().scan(since=datetime.now(UTC) - timedelta(hours=hours))
     try:
-        await rollup.publish_gauges()
+        await daily_rollup().publish_gauges()
     except Exception:  # noqa: BLE001 - gauges are best effort
         log.exception("reputation.gauges_failed")
     return out
@@ -107,9 +107,9 @@ async def reputation_signals(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any]
 
 async def rollup(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any]:
     """Spec 011 T072: acq_daily, exploration reset, component fade, reputation gauges."""
-    from automind.acquisition.reputation import rollup as daily  # noqa: PLC0415
+    from automind.acquisition.reputation.infrastructure.wiring import daily_rollup  # noqa: PLC0415
 
-    return await daily.run()
+    return await daily_rollup().run()
 
 
 async def blame_judge(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any]:

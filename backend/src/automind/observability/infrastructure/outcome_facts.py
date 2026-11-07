@@ -1,6 +1,6 @@
 """What the turns' outcomes say over a period, for the KPI baseline (implements
 `acquisition.reputation.application.baseline.OutcomeFacts`): read here because observability owns `turn_outcomes`.
-A database failure becomes `BaselineStoreUnavailable` with the cause chained."""
+A database failure becomes `ReputationStoreUnavailable` with the cause chained."""
 
 from __future__ import annotations
 
@@ -8,13 +8,13 @@ from datetime import datetime
 
 from sqlalchemy import text
 
-from automind.acquisition.reputation.application.baseline import BaselineStoreUnavailable
+from automind.acquisition.reputation.application.errors import ReputationStoreUnavailable
 from automind.acquisition.reputation.domain.baseline import Satisfaction
 from automind.shared.contracts.json import JsonObject
 from automind.shared.infrastructure.db.errors import translate_errors
 from automind.shared.infrastructure.db.session import sessionmaker
 
-_store_errors = translate_errors(BaselineStoreUnavailable)
+_store_errors = translate_errors(ReputationStoreUnavailable)
 _SATISFACTION = text(
     "SELECT avg(score), count(*) FROM turn_outcomes WHERE created_at >= :t0 AND created_at < :t1 "
     "AND status <> 'WAITING_CONFIRMATION'"

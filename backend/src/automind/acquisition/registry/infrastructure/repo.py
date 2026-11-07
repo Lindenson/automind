@@ -12,7 +12,7 @@ from automind.acquisition.domain.blame import LABEL_010, REPUTATION_KIND
 from automind.acquisition.registry.api import Attempt, TruthSignalIn
 from automind.acquisition.registry.domain.model import Capability, Source
 from automind.acquisition.registry.domain.score import Counts, decay, score_of
-from automind.acquisition.reputation import components
+from automind.acquisition.reputation.infrastructure import component_store
 from automind.acquisition.snapshots import store
 from automind.shared.infrastructure.db.models import (
     CapabilityRow,
@@ -297,7 +297,7 @@ class RegistryRepo:
         for comp, share in vector.items():
             if comp == "source" or share <= 0 or comp not in REPUTATION_KIND:
                 continue
-            await components.add(s, REPUTATION_KIND[comp], comps.get(comp) or "unknown", verdict, weight * share,
+            await component_store.add(s, REPUTATION_KIND[comp], comps.get(comp) or "unknown", verdict, weight * share,
                                  self.hl)  # fmt: skip
         return cap
 
