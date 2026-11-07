@@ -33,7 +33,6 @@ from automind.shared.infrastructure.config.loader import config_dir, search_conf
 from automind.shared.infrastructure.config.runtime import reference
 from automind.shared.infrastructure.db.usage import UsageRepo
 from automind.shared.infrastructure.llm import gateway as llm_gateway
-from automind.shared.infrastructure.metrics import prom
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -77,7 +76,6 @@ def live_ports(events: EventBus, prompts: dict[str, str]) -> Ports:
         models_on_sale=models_on_sale,
         versions=ModelVersionsRepo(),
         outcomes=_outcomes(ref, prompts),
-        metrics=prom.inc,
         registry=registry,
     )
 

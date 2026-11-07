@@ -78,7 +78,7 @@ async def compute(c: TurnContext, case: CaseFile, notices: list[Notice], lang: s
     """The report's numbers and blocks for this turn (the report service, in the person's language)."""
 
     async def intake_log(kind: str, **details: object) -> None:
-        await record_intake(c, kind, **details)
+        await record_intake(c, kind, None, None, **details)
 
     return await ReportService(c.ports, WORDING, intake_log).run(case, notices, lang)
 
