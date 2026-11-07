@@ -7,7 +7,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from automind.chat.application.services.report.blocks.notice import notice
+from automind.chat.application.services.report.blocks.notice import Notice, notice
 from automind.chat.application.services.report.case_facts import (
     condition_of,
     recent_make,
@@ -41,7 +41,7 @@ class Ownership:
 
 
 async def price_ownership(case: CaseFile, keyed: list[Any], ages: dict[str, int | None], used: dict[str, UsedFacts],
-                          rates: tco.TcoRates, ref: Reference, notices: list[dict[str, Any]], lang: str,
+                          rates: tco.TcoRates, ref: Reference, notices: list[Notice], lang: str,
                           words: ReportWording) -> Ownership:  # fmt: skip
     curve = (ref.feasibility or {}).get("depreciation") or {}
     use, recent = usage_context(case), recent_make(ref)
@@ -65,7 +65,7 @@ async def price_ownership(case: CaseFile, keyed: list[Any], ages: dict[str, int 
 
 
 def checked_costs(estimates: list[tco.TcoEstimate], ages: dict[str, int | None],
-                  notices: list[dict[str, Any]]) -> dict[str, float]:  # fmt: skip
+                  notices: list[Notice]) -> dict[str, float]:  # fmt: skip
     """Sense check on the result (spec 004 FR-027): a yearly cost outside the configured range is an error upstream
     (EUR 513,672/year from a unit error). It is shown flagged and never scored."""
     out: dict[str, float] = {}
@@ -105,7 +105,7 @@ def energy_missing(e: tco.TcoEstimate) -> list[str]:
 
 
 def energy_notices(estimates: list[tco.TcoEstimate], names: dict[str, str], lang: str | None,
-                   words: ReportWording) -> list[dict[str, Any]]:  # fmt: skip
+                   words: ReportWording) -> list[Notice]:  # fmt: skip
     """One warning per car whose energy cost cannot be computed, naming the missing inputs (spec 006 FR-001)."""
     out = []
     for e in estimates:

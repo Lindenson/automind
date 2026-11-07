@@ -10,6 +10,7 @@ from typing import Any
 
 from langgraph.runtime import Runtime
 
+from automind.chat.application.services.report.blocks.notice import Notice
 from automind.chat.application.services.report.computations import persist_computations
 from automind.chat.application.services.report.contracts import Computed
 from automind.chat.application.services.report.service import ReportService
@@ -73,7 +74,7 @@ async def general_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[
     return {"reply_text": text, "blocks": [], "action": "ANSWER_GENERAL"}
 
 
-async def compute(c: TurnContext, case: CaseFile, notices: list[dict[str, Any]], lang: str = "en") -> Computed:
+async def compute(c: TurnContext, case: CaseFile, notices: list[Notice], lang: str = "en") -> Computed:
     """The report's numbers and blocks for this turn (the report service, in the person's language)."""
 
     async def intake_log(kind: str, **details: object) -> None:

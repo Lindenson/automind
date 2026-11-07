@@ -50,7 +50,8 @@ uv run ruff format --check src tests
 uv run mypy src/automind/chat/domain src/automind/chat/dialog/policy src/automind/shared/vehicle/identity.py src/automind/shared/vehicle/markets.py src/automind/shared/vehicle/engine.py src/automind/shared/text src/automind/shared/vehicle/specs \
   src/automind/shared/vehicle/units.py src/automind/shared/evidence src/automind/shared/research_order \
   src/automind/acquisition/domain/plausibility.py src/automind/acquisition/domain/sense_ev.py \
-  src/automind/acquisition/domain/relevance.py src/automind/observability/domain/outcome.py
+  src/automind/acquisition/domain/relevance.py src/automind/observability/domain/outcome.py \
+  src/automind/chat/application/services/research src/automind/chat/application/services/report/blocks/notice.py
 # spec 012: mypy over all of src in report mode (the strict scope grows step by step, research R16)
 echo "mypy report (all of src): $(uv run mypy src/automind 2>/dev/null | tail -1)"
 uv run lint-imports

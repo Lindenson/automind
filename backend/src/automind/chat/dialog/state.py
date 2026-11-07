@@ -6,6 +6,9 @@ from __future__ import annotations
 
 from typing import Annotated, Any, TypedDict
 
+from automind.chat.application.services.report.blocks.notice import Notice
+from automind.chat.application.services.research.contracts import JobResult, JobState, LimitHit, PlanState
+
 RESET = "__reset__"
 
 
@@ -40,16 +43,16 @@ class TurnState(TypedDict, total=False):
     decision: DecisionState  # the policy's Action (model_dump)
     action: str  # final action kind of the turn (recorded on the turn)
     cost_estimate: float | None
-    research_plan: dict[str, Any]
-    jobs: list[dict[str, Any]]
+    research_plan: PlanState
+    jobs: list[JobState]
     round: int
     cost_approved: bool
     research_declined: bool
     research_done: bool
     confirm_payload: dict[str, Any] | None
     resume: dict[str, Any] | None
-    research_results: Annotated[list[dict[str, Any]], results]
-    notices: list[dict[str, Any]]
+    research_results: Annotated[list[JobResult], results]
+    notices: list[Notice]
     reply_text: str
     blocks: list[dict[str, Any]]
     fingerprint: str | None
@@ -57,7 +60,7 @@ class TurnState(TypedDict, total=False):
     route: str | None
     case_changed: bool
     persona_changed: bool
-    limit_hit: dict[str, Any] | None  # research paused at a limit: {reason, jobs} (asks the user, never cancels)
+    limit_hit: LimitHit | None  # research paused at a limit (asks the user, never cancels)
     limit_extensions: int  # how many times the user said "continue" in this turn
     feasibility: dict[str, Any] | None  # {results, fingerprint} from application.feasibility (spec 003 US3)
     preset: dict[str, Any] | None  # a request from a button (no interpretation): {kind, focus_cars, areas, language}
