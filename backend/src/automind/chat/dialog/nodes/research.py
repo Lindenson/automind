@@ -17,6 +17,7 @@ from langgraph.runtime import Runtime
 from langgraph.types import Send
 
 from automind.chat.application.services.research import rounds
+from automind.chat.application.services.research.contracts import JobState, LimitHit
 from automind.chat.application.services.research.service import ResearchService
 from automind.chat.dialog.context import ctx, load_case, record_intake, save_case
 from automind.chat.dialog.phrases import t, yes_or_no
@@ -45,7 +46,7 @@ def fan_out(state: TurnState) -> list[Send] | str:
     return sends or "after_research"
 
 
-async def research_job(job: dict[str, Any], runtime: Runtime[TurnContext]) -> dict[str, Any]:
+async def research_job(job: JobState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
     c = ctx(runtime)
     _, case = await load_case(c)
     return {"research_results": [await _service(c).run_job(job, case)]}
@@ -74,7 +75,7 @@ def route_round(state: TurnState) -> str:
 async def prepare_limit(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
     """Research paused at a limit: offer to continue with one more allowance, or answer now."""
     c = ctx(runtime)
-    hit = state.get("limit_hit") or {}
+    hit = state.get("limit_hit") or LimitHit(reasons=[], jobs=[])
     b = c.budget
     lang = state.get("language")
     reasons = ", ".join(t(f"limit_{r}", lang) for r in hit.get("reasons", []))
@@ -102,7 +103,7 @@ async def apply_limit(state: TurnState, runtime: Runtime[TurnContext]) -> dict[s
     c = ctx(runtime)
     answer = state.get("resume") or {}
     choice = str(answer.get("choice") or "")
-    hit = state.get("limit_hit") or {}
+    hit = state.get("limit_hit") or LimitHit(reasons=[], jobs=[])
     if choice in ("text", "edit", "") and answer.get("text"):
         typed = yes_or_no(answer.get("text"))  # "Continue", "да", "продолжай" … or a new request
         if typed is None:

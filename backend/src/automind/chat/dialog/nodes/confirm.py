@@ -16,7 +16,7 @@ from automind.chat.application.services.identification import candidates, catalo
 from automind.chat.application.services.identification.contracts import GenerationMismatch, UnknownModel
 from automind.chat.application.services.interpretation import ask as asking
 from automind.chat.application.services.report.blocks import car_view, intake_card
-from automind.chat.application.services.report.blocks.notice import notice
+from automind.chat.application.services.report.blocks.notice import Notice, notice
 from automind.chat.dialog import phrases
 from automind.chat.dialog.context import ctx, current_year, load_case, record_intake, save_case
 from automind.chat.dialog.phrases import PHRASES, t
@@ -101,7 +101,7 @@ async def prepare_variants(state: TurnState, runtime: Runtime[TurnContext]) -> d
     year = current_year(c)
     await c.status("resolving", "Identifying the exact variants")
     options: list[dict[str, Any]] = []
-    notices: list[dict[str, Any]] = []
+    notices: list[Notice] = []
     items: list[dict[str, Any]] = []
     unknown: list[str] = []
     lang = state.get("language")

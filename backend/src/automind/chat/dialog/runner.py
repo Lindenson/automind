@@ -25,6 +25,7 @@ from langgraph.errors import GraphRecursionError
 from langgraph.types import Command
 
 from automind.chat.application.ports import Ports, TurnBusy
+from automind.chat.application.services.research.contracts import GridCell
 from automind.chat.dialog import tracing as outcomes
 from automind.chat.dialog.phrases import t
 from automind.chat.dialog.retry import transient_provider_error
@@ -49,6 +50,10 @@ class TurnContext:
 
     async def status(self, stage: str, text: str, **extra: Any) -> None:
         await self.emit("status", {"stage": stage, "text": text, **extra})
+
+    async def progress(self, cell: GridCell) -> None:
+        """A cell of the research grid (the research service's `ResearchEvents`)."""
+        await self.emit("progress", dict(cell))
 
 
 @dataclass

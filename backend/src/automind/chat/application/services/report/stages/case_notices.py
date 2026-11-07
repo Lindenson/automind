@@ -6,14 +6,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from automind.chat.application.services.report.blocks.notice import notice
+from automind.chat.application.services.report.blocks.notice import Notice, notice
 from automind.chat.application.services.report.contracts import ReportWording
 from automind.chat.application.services.report.facts.car import new_price, short_name
 from automind.chat.domain.assessment.metrics import new_generation_since
 from automind.shared.vehicle import markets
 
 
-def car_notices(keyed: list[Any], year: int | None, notices: list[dict[str, Any]], lang: str,
+def car_notices(keyed: list[Any], year: int | None, notices: list[Notice], lang: str,
                 words: ReportWording) -> None:  # fmt: skip
     """`notices` in place: the young generations' reliability gaps dropped, the generation and market notes added."""
     young = {x.key for x, car in keyed if new_gen(car, year)}

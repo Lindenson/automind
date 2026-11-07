@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from automind.chat.application.services.report.blocks import electric
-from automind.chat.application.services.report.blocks.notice import notice
+from automind.chat.application.services.report.blocks.notice import Notice, notice
 from automind.chat.application.services.report.case_facts import assumption_lines
 from automind.chat.application.services.report.contracts import ReportWording
 from automind.chat.application.services.report.facts.car import short_name
@@ -32,7 +32,7 @@ class Presented:
 
 
 def present(ref: Reference, case: CaseFile, keyed: list[Any], own: Ownership, judged: Judged,
-            extras: dict[str, Any], blocks: list[dict[str, Any]], notices: list[dict[str, Any]], rates: tco.TcoRates,
+            extras: dict[str, Any], blocks: list[dict[str, Any]], notices: list[Notice], rates: tco.TcoRates,
             lang: str, words: ReportWording) -> Presented:  # fmt: skip
     cars = [car for _, car in keyed]
     vblock, verdict, iset = judged.block, judged.verdict, judged.insights
@@ -64,7 +64,7 @@ def present(ref: Reference, case: CaseFile, keyed: list[Any], own: Ownership, ju
     if not any(gaps_by_car.values()):
         vblock["find"] = False  # nothing left a "find it" could bring (spec 007 F)
     head = [vblock, *([sugg] if sugg else [])]
-    body = order_blocks(case.persona, out_notices + blocks, cars=len(cars))
+    body = order_blocks(case.persona, [*(dict(n) for n in out_notices), *blocks], cars=len(cars))
     body = annotate_sections(case.persona, body, ref.layouts or {})
     return Presented([*head, *body] if cars else [], lines, assumed)
 

@@ -4,10 +4,8 @@ own, a correction), and which of the person's answers are understood now."""
 
 from __future__ import annotations
 
-from typing import Any
-
 from automind.chat.application.services.identification.service import CarIdentified
-from automind.chat.application.services.report.blocks.notice import notice
+from automind.chat.application.services.report.blocks.notice import Notice, notice
 from automind.chat.dialog.context import record_intake
 from automind.chat.dialog.phrases import market_name, t
 from automind.chat.dialog.runner import TurnContext
@@ -17,7 +15,7 @@ from automind.chat.domain.case import CaseFile
 _RANK = {None: 0, "NEED": 1, "NOT_FOUND": 1, "CHOICES": 2, "IDENTIFIED": 3}  # how far an outcome got
 
 
-async def car_notices(c: TurnContext, done: CarIdentified, lang: str | None) -> list[dict[str, Any]]:
+async def car_notices(c: TurnContext, done: CarIdentified, lang: str | None) -> list[Notice]:
     """What the user should see about this car: a refused link, what was taken from a page, a correction."""
     car, o, url = done.car, done.outcome, done.page_url
     out = []

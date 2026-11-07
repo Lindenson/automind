@@ -10,6 +10,7 @@ from typing import Any
 from automind.acquisition import api as acquisition
 from automind.chat.application.ports import Ports
 from automind.chat.application.services.feasibility import feasibility as fz_app
+from automind.chat.application.services.report.blocks.notice import Notice
 from automind.chat.application.services.report.contracts import Computed, IntakeLog, ReportWording
 from automind.chat.application.services.report.facts.car import load_car
 from automind.chat.application.services.report.facts.race import run_race
@@ -35,7 +36,7 @@ class ReportService:
     def __init__(self, ports: Ports, words: ReportWording, log: IntakeLog) -> None:
         self.ports, self.words, self.log = ports, words, log
 
-    async def run(self, case: CaseFile, notices: list[dict[str, Any]], lang: str = "en") -> Computed:
+    async def run(self, case: CaseFile, notices: list[Notice], lang: str = "en") -> Computed:
         ref, words, now = self.ports.ref, self.words, self._now()
         year = now.year if now is not None else None
         keyed = [(x, await load_car(x.variant_id)) for x in case.cars if x.variant_id]
