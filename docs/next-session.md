@@ -1,4 +1,4 @@
-# Next session: start here (parked on 2026-11-07, after S9.2 ports)
+# Next session: start here (parked on 2026-11-07, after S9c-1 interpretation)
 
 **First task: refactoring — spec 012, executed by `specs/012-refactoring/tasks.md` (one phase = one PR).**
 No new features until it is done (owner, 2026-11-06). All functional work in §4 is parked, still valid, and
@@ -13,7 +13,7 @@ fallbacks = strategies behind a Protocol), then `tasks.md` from S7 on.
 What the system is: `README.md` ("Acquisition engine"), `docs/adr/ADR-032-acquisition-engine.md`,
 `docs/history/next-session-2026-11-06-engine.md` §1, specs 001–009: `docs/baseline.md`.
 
-## 0. Resume T074c (next action)
+## 0. Resume S9c-2 (next action)
 
 Done and merged: S0–S8, S9a (T074 characterisation, PR #101), S9b (T076 research service, PR #102).
 Services so far: `identification/` (S7), `report/` (S8: ReportService, facts/, blocks/, stages/), `research/` (S9b:
@@ -38,31 +38,29 @@ Protocol. mypy report over src: 330 → 271.
 `JobRecord`, `MessageRecord`), never ORM rows; writes typed (`Unpack[TurnChanges|JobChanges|OutcomeFields]`);
 `StoreUnavailable` for every driver error (`persistence/errors.store_errors`); Protocols for every optional port.
 
-**Next: T074c — the re-review the owner asked for ("после моих замечаний всё нужно пересмотреть")**, one PR per
-package, list in tasks.md T074c: (2) remaining services (interpretation, feasibility) and usecases with the
-ChallengeValue rework; (3) chat/domain (docs, Any, ignores); (4) chat/dialog — first `context.record_intake`,
-which writes `intake_events` through a lazy DB import (an `IntakeLog` port), and the 8 ignores; (5) observability/
-acquisition with S11/S12. Each PR: the package's API baseline entries → 0, the package joins strict mypy, the PR
-body answers `checklists/pr-self-check.md`. S9c/S9d (T075, T078) can interleave: S9c rewrites understand.py anyway.
+**S9c-1 done (PR #114, T075):** `services/interpretation/` — `InterpretationService.read()` (button / car edit /
+tapped option / model) and `.apply()` listing the stages (`stages/`: picked_option, make_to_choose, cars_safety_net,
+brand_explained, person_facts, stated_energy, understood); `contracts.py` (Interpretation, Preset, Reading, Applied,
+state TypedDicts, `ReplyWords` port implemented by `dialog/report_wording.DialogWording`); one `ports.IntakeLog`
+(report uses it too; `dialog.context.intake_log(c)` builds it); patterns → `chat/domain/understanding/{amounts,
+ownership}`; domain types narrowed (`HomeCharging`, `Body`, `CLIMATES`). `understand.py` 509 → 228 lines;
+structure 1448 → 1427; mypy report 271 → 261. `edit_delta` stays in `report/blocks/car_view.py` (with the "Change"
+choices it applies).
 
-**S9c — T075 interpretation** (tasks.md "S9"): `chat/dialog/nodes/understand.py` (≈500 lines; fat nodes
-interpret_node, apply_delta_node, assess_node).
-1. `git switch -c 012-s9c-interpretation`.
-2. Safety nets of the text (`_pick`, `_makes_named`, `_make_to_choose_from`, `_charging_from_text`, `_car_named`,
-   `_energy_from_text`, `_person_from_text`, `_cars_safety_net`, `_brand_from_text`) → stages of
-   `services/interpretation/` (regexes `_REPLACE`, `_OWN`, `_SENTENCE` → `chat/domain/vocabulary` or named constants);
-   `_not_understood`, `_pending_answered` → `interpretation/understood.py`; `assess_node` + `_plan` → a service
-   (assessment of the cars and the research plan); nodes ≤ 30 lines.
-3. Then S9d — T078: `confirm.py` nodes (ask_node, prepare/apply variants, prepare/apply intake) ≤ 30 lines,
-   `ChallengeValue` use case + port (← usecases/challenge.py; last `ignore_imports` with repair), purity contracts for
-   chat.dialog and chat.application; T077 feasibility is already thin. Deploy checkpoint after 2026-11-12.
-Coverage before S9c (characterisation is enough, no new pinning needed): `understand.py` 90 %, `confirm.py` 89 %,
+**Next: S9c-2** (branch `012-s9c-assessment`): `assess_node` + `_plan` + `_warning_text` → a service (assessment of
+the cars, the research plan and its cost, the feasibility check; `acquisition.powertrains/last_done/unmet_areas/
+registry_done` through a port, not `acquisition.api` directly); `policy_node` + `_intake_limits` thin (the 3
+`type: ignore` left in understand.py: assess_node ×1, policy_node ×1, `Assessment` reuse of `a`). Then S9d — T078:
+`confirm.py` nodes ≤ 30 lines, `ask.py` out of interpretation into its own service (questions), `ChallengeValue`
+use case + port, purity contracts for chat.dialog and chat.application. Then T074c (2)-(5) re-review as listed in
+tasks.md. Deploy checkpoint after 2026-11-12.
+Coverage (characterisation is enough, no new pinning needed): `understand.py` 90 %, `confirm.py` 89 %,
 `interpretation/ask.py` 85 %, `interpretation/interpret.py` 95 %, `research.py` 94 %.
 Gate per step: check.sh, then (never in parallel) diff_behaviour, check_checkpoints; PR; merge; update this §0.
 Then S10 use cases, S11 acquisition pipeline + parsing package, S12 admin/persistence split + contracts, S13
 order/API + mypy scope, S14 docs, S15 acceptance.
 
-Known deferred inside 012: nodes still fat (`understand.py` 500, `confirm.py` 465) — S9c/S9d; T019a flaky `test_catalog_merge` (host load) open.
+Known deferred inside 012: nodes still fat (`understand.py` assess/policy, `confirm.py` 465) — S9c-2/S9d; T019a flaky `test_catalog_merge` (host load) open.
 
 ### Workflow per step (what worked S3a–S7)
 
@@ -75,7 +73,7 @@ cd backend && uv run python ../scripts/check_checkpoints.py      # read-only pro
 ```
 - Moves: `scripts/refactor/move.py <map.yaml>` (maps in `specs/012-refactoring/moves/`; whole packages first);
   after moves `scripts/check_structure.py --write-baseline` only if the count did not grow.
-- Structure ratchet baseline `scripts/structure_baseline.txt` (1448 now); new violations fail
+- Structure ratchet baseline `scripts/structure_baseline.txt` (1427 now); new violations fail
   the gate; a PR shrinks the entries of every package it touches (pr-self-check.md).
 - Never run two test runs on one DB at once. Commit → push → `gh pr create` → `gh pr merge --merge` → delete
   local+remote branch; update this file's §0 at the end of each step.
