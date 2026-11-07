@@ -213,7 +213,13 @@ Acquisition, one PR per package, each leaves its package with **0 `storage`, 0 `
   (`ReputationStoreUnavailable` for every reputation store); `infrastructure/` signal_facts_repo, page_texts,
   component_store (`add` in the registry's transaction), rollup_store (+ gauges, calendar), physics_points, wiring;
   CLI `delivery/cli/fit_physics.py`. reputation: 30 baseline entries → 0.
-- [ ] A2 `gates/`: evaluate, journal (529), relevance_replay, replay_gate, shadow, watch
+- [x] A2 `gates/` (PR #118): `domain/` change (the `Change` record: explanation, gate results, corpus window,
+  version text), relevance_change (keyword lists, references, the measure of re-judged pages); `application/`
+  `ChangeJournal`, `ReplayGate`, `ShadowGate`, `Watch`, `settle`, ports (+ `measure_ports`: `Measure`,
+  `RelevanceMeasure`, `NoMeasure`, budgets); `infrastructure/` change_store, candidates, objects, experiments,
+  lever_state, page_reading, measure, measure_extractor, relevance_pages, relevance_measure, engine_ports, wiring.
+  `replay/run` helpers made public (`load_variants`, `gold_values`, `extract_cached`, `accepted_values`) instead of
+  callers reaching into privates. gates: 79 baseline entries → 0; structure 1551 → 1470.
 - [ ] A3 `pipeline/` + `parsing/` (= S11, T081–T084): job (439), persist (420), plan, locate, parse, merge, relevance,
   validate, extract; parsing registry/store/spec/migrate_v1
 - [ ] A4 `registry/` (admission, review, repo), `gold/` (load, repo, versions, match, rdw), `snapshots/`, `drift/`,

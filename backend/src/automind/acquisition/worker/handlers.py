@@ -173,24 +173,25 @@ def _guard(task: queue.Task, ctx: WorkerCtx) -> Any:
 
 async def gate_replay(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any]:
     """Spec 011 T101: the replay gate of one change."""
-    from automind.acquisition.gates import replay_gate  # noqa: PLC0415
+    from automind.acquisition.gates.infrastructure.wiring import replay_gate  # noqa: PLC0415
 
-    return await replay_gate.run(str(task.payload["change_id"]), guard=_guard(task, ctx))
+    return await replay_gate().run(str(task.payload["change_id"]), budget=_guard(task, ctx))
 
 
 async def gate_shadow(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any]:
     """Spec 011 T102: one live page added to a change's shadow, then the shadow decision."""
-    from automind.acquisition.gates import shadow  # noqa: PLC0415
+    from automind.acquisition.gates.infrastructure.wiring import shadow_gate  # noqa: PLC0415
 
     sid = task.payload.get("snapshot_id")
-    return await shadow.run(str(task.payload["change_id"]), str(sid) if sid else None, guard=_guard(task, ctx))
+    return await shadow_gate().run(str(task.payload["change_id"]), str(sid) if sid else None,
+                                   budget=_guard(task, ctx))  # fmt: skip
 
 
 async def watch(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any]:
     """Spec 011 T103: the watch of one accepted change (keep or roll back)."""
-    from automind.acquisition.gates import watch as watching  # noqa: PLC0415
+    from automind.acquisition.gates.infrastructure.wiring import watch as watching  # noqa: PLC0415
 
-    return await watching.check(str(task.payload["change_id"]))
+    return await watching().check(str(task.payload["change_id"]))
 
 
 async def evaluator(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any]:

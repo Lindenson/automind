@@ -101,6 +101,7 @@ class ReplayReport(BaseModel):
 
 
 # --- reader versions (spec 011 US4: parser specs) ------------------------------------------------------------------
+PageFn = Callable[[list[SnapshotRef], dict[str, bytes], dict[str, Variant]], Awaitable[list[scoring.PageResult]]]
 
 
 async def resolve_reader(req: ReplayRequest) -> tuple[str, ParserSpec]:
@@ -133,20 +134,7 @@ async def resolve_reader(req: ReplayRequest) -> tuple[str, ParserSpec]:
     raise InvalidSpec(f"no parser version {req.reader!r}")
 
 
-# --- validation: the research-time rules ------------------------------------------------------------------------
-
-
-def _validate(c: Any, v: Variant | None, d: WebDoc, rules: dict[str, Any], excerpt_checked: bool) -> tuple[Any, ...]:
-    from automind.acquisition.pipeline import validate as rs  # noqa: PLC0415 - the live rules
-
-    if v is None:
-        return c, *rs.check(c, d, None, None, excerpt_checked=excerpt_checked)
-    c, bad = rs.sense_before(c, v, ev.classify_source(d.url), d.url)
-    ctx = rs.plausibility_ctx(v, {})
-    return c, *(bad or rs.check(c, d, ctx, rules, excerpt_checked=excerpt_checked))
-
-
-def _values(
+def accepted_values(
     ref: SnapshotRef, claims: list[Any], variants: dict[str, Variant], d: WebDoc, rules: dict[str, Any], checked: bool
 ) -> list[scoring.Value]:
     out = []
@@ -181,8 +169,78 @@ def read_page(
     rows = [r for r in reading.rows if not attributes or r.attribute in attributes]
     claims = [rs.ReaderClaim(r.attribute, r.raw_value, r.raw_unit, r.excerpt) for r in rows]
     d = WebDoc(url, "", "", False)
-    accepted = _values(ref, claims, variants, d, rules, True)
+    accepted = accepted_values(ref, claims, variants, d, rules, True)
     return scoring.PageResult(ref.id, url, ref.variant_ids, len(rows), accepted, _read(ref, claims, d))
+
+
+async def load_variants(ids: set[str], have: dict[str, Variant]) -> None:
+    """The catalogue versions with these ids added to `have` (those already there are not read again)."""
+    missing = [i for i in ids if i and i not in have]
+    if not missing:
+        return
+    async with sessionmaker()() as s:
+        for v in (await s.execute(select(Variant).where(Variant.id.in_(missing)))).scalars():
+            have[v.id] = v
+
+
+async def gold_values(variant_ids: set[str]) -> dict[tuple[str, str], scoring.Gold]:
+    """The best gold value of each (version, attribute)."""
+    out: dict[tuple[str, str], scoring.Gold] = {}
+    for vid in variant_ids:
+        if not vid:
+            continue
+        for attr, g in gold_repo.best_by_attribute(await gold_repo.gold_for(vid)).items():
+            out[(vid, attr)] = scoring.Gold(vid, attr, g.value_num, g.value_text, g.unit, g.tolerance,
+                                            g.tolerance_kind, g.match_rule, g.dataset_id)  # fmt: skip
+    return out
+
+
+async def extract_cached(doc: WebDoc, sha: str, name: str, text: str, area: str, model: str, target: str,
+                          llm: Any = None) -> Any:  # fmt: skip
+    from automind.acquisition.pipeline import extract as extraction  # noqa: PLC0415
+    from automind.chat.infrastructure.adapters import LiveLLM  # noqa: PLC0415
+
+    schema = extraction.schema_for(area)
+    phash = hashlib.sha256(text.encode("utf-8")).hexdigest()[:12]
+    async with sessionmaker()() as s:
+        hit = await s.get(ExtractionCache, (phash, model, sha, area))
+    if hit is not None:
+        return schema.model_validate(hit.output)
+    out = await extraction.extract(llm or LiveLLM(), {name: text}, area, target, doc)
+    async with sessionmaker()() as s:
+        row = {"prompt_hash": phash, "model": model, "blob_sha256": sha, "area": area,
+               "output": out.model_dump(mode="json"), "created_at": datetime.now(UTC)}  # fmt: skip
+        stmt = insert(ExtractionCache).values(**row)
+        await s.execute(stmt.on_conflict_do_nothing())
+        await s.commit()
+    return out
+
+
+async def run(req: ReplayRequest) -> ReplayReport:
+    """Replay one version over the stored pages of the period; raises `ReplayError` (with its exit code)."""
+    if sum(x is not None for x in (req.reader, req.reader_spec, req.extractor)) != 1:
+        raise InvalidSpec("give exactly one of reader, reader_spec, extractor")
+    started, t0 = datetime.now(UTC), time.monotonic()
+    key, pages, attempts = await (_extractor_pages(req) if req.extractor else _reader_pages(req))
+    if not pages:
+        raise NoPages("no stored pages of this version's sites in the period")
+    gold = await gold_values({v for p in pages for v in p.variant_ids})
+    period = None
+    if req.since or req.until:
+        period = ((req.since or started).date().isoformat(), (req.until or started).date().isoformat())
+    rep = scoring.report(key, pages, gold, acq_config.gold_tolerances(), period)
+    return ReplayReport(**rep, duration_s=round(time.monotonic() - t0, 3), network_calls=attempts,
+                        llm_calls=await _llm_calls_since(started))  # fmt: skip
+
+
+def _validate(c: Any, v: Variant | None, d: WebDoc, rules: dict[str, Any], excerpt_checked: bool) -> tuple[Any, ...]:
+    from automind.acquisition.pipeline import validate as rs  # noqa: PLC0415 - the live rules
+
+    if v is None:
+        return c, *rs.check(c, d, None, None, excerpt_checked=excerpt_checked)
+    c, bad = rs.sense_before(c, v, ev.classify_source(d.url), d.url)
+    ctx = rs.plausibility_ctx(v, {})
+    return c, *(bad or rs.check(c, d, ctx, rules, excerpt_checked=excerpt_checked))
 
 
 def _read(ref: SnapshotRef, claims: list[Any], d: WebDoc) -> list[scoring.Value]:
@@ -201,35 +259,9 @@ def _read(ref: SnapshotRef, claims: list[Any], d: WebDoc) -> list[scoring.Value]
     return out
 
 
-# --- shared ----------------------------------------------------------------------------------------------------
-
-
-async def _variants(ids: set[str], have: dict[str, Variant]) -> None:
-    missing = [i for i in ids if i and i not in have]
-    if not missing:
-        return
-    async with sessionmaker()() as s:
-        for v in (await s.execute(select(Variant).where(Variant.id.in_(missing)))).scalars():
-            have[v.id] = v
-
-
-async def _gold(variant_ids: set[str]) -> dict[tuple[str, str], scoring.Gold]:
-    out: dict[tuple[str, str], scoring.Gold] = {}
-    for vid in variant_ids:
-        if not vid:
-            continue
-        for attr, g in gold_repo.best_by_attribute(await gold_repo.gold_for(vid)).items():
-            out[(vid, attr)] = scoring.Gold(vid, attr, g.value_num, g.value_text, g.unit, g.tolerance,
-                                            g.tolerance_kind, g.match_rule, g.dataset_id)  # fmt: skip
-    return out
-
-
 async def _llm_calls_since(t: datetime) -> int:
     async with sessionmaker()() as s:
         return int((await s.execute(select(func.count()).where(LLMCall.created_at >= t))).scalar_one())
-
-
-PageFn = Callable[[list[SnapshotRef], dict[str, bytes], dict[str, Variant]], Awaitable[list[scoring.PageResult]]]
 
 
 async def _corpus(req: ReplayRequest, domains: list[str] | None, limit: int | None, per_batch: PageFn) -> list[Any]:
@@ -242,12 +274,9 @@ async def _corpus(req: ReplayRequest, domains: list[str] | None, limit: int | No
         if not refs:
             break
         bodies = await store.load_bodies(sorted({r.blob_sha256 for r in refs}))
-        await _variants({v for r in refs for v in r.variant_ids}, variants)
+        await load_variants({v for r in refs for v in r.variant_ids}, variants)
         pages += await per_batch(refs, bodies, variants)
     return pages
-
-
-# --- runs --------------------------------------------------------------------------------------------------------
 
 
 async def _reader_pages(req: ReplayRequest) -> tuple[str, list[scoring.PageResult], int]:
@@ -292,27 +321,6 @@ def _prompt(key: str) -> tuple[str, str, str]:
     return name, text, area
 
 
-async def _extract_cached(doc: WebDoc, sha: str, name: str, text: str, area: str, model: str, target: str,
-                          llm: Any = None) -> Any:  # fmt: skip
-    from automind.acquisition.pipeline import extract as extraction  # noqa: PLC0415
-    from automind.chat.infrastructure.adapters import LiveLLM  # noqa: PLC0415
-
-    schema = extraction.schema_for(area)
-    phash = hashlib.sha256(text.encode("utf-8")).hexdigest()[:12]
-    async with sessionmaker()() as s:
-        hit = await s.get(ExtractionCache, (phash, model, sha, area))
-    if hit is not None:
-        return schema.model_validate(hit.output)
-    out = await extraction.extract(llm or LiveLLM(), {name: text}, area, target, doc)
-    async with sessionmaker()() as s:
-        row = {"prompt_hash": phash, "model": model, "blob_sha256": sha, "area": area,
-               "output": out.model_dump(mode="json"), "created_at": datetime.now(UTC)}  # fmt: skip
-        stmt = insert(ExtractionCache).values(**row)
-        await s.execute(stmt.on_conflict_do_nothing())
-        await s.commit()
-    return out
-
-
 async def _extractor_pages(req: ReplayRequest) -> tuple[str, list[scoring.PageResult], int]:
     if not req.allow_llm:
         raise Refused("extractor replay calls models: run it in the worker or pass --allow-llm")
@@ -340,28 +348,11 @@ async def _extractor_pages(req: ReplayRequest) -> tuple[str, list[scoring.PageRe
             d = WebDoc(url, title, body, False, snapshot_id=r.id)
             v = variants.get(r.variant_ids[0]) if r.variant_ids else None
             target = rs.target_of(v) if v is not None else "the vehicle on this page"
-            got = await _extract_cached(d, r.blob_sha256, name, text, area, model, target)
+            got = await extract_cached(d, r.blob_sha256, name, text, area, model, target)
             claims = [c for c in getattr(got, "claims", []) if not req.attributes or c.attribute in req.attributes]
             out.append(scoring.PageResult(r.id, url, r.variant_ids, len(claims),
-                                          _values(r, claims, variants, d, rules, False)))  # fmt: skip
+                                          accepted_values(r, claims, variants, d, rules, False)))  # fmt: skip
         return out
 
     limit = min(cap, req.limit_pages) if req.limit_pages else cap
     return f"{key}|{model}", await _corpus(req, req.domains, limit, per_batch), 0
-
-
-async def run(req: ReplayRequest) -> ReplayReport:
-    """Replay one version over the stored pages of the period; raises `ReplayError` (with its exit code)."""
-    if sum(x is not None for x in (req.reader, req.reader_spec, req.extractor)) != 1:
-        raise InvalidSpec("give exactly one of reader, reader_spec, extractor")
-    started, t0 = datetime.now(UTC), time.monotonic()
-    key, pages, attempts = await (_extractor_pages(req) if req.extractor else _reader_pages(req))
-    if not pages:
-        raise NoPages("no stored pages of this version's sites in the period")
-    gold = await _gold({v for p in pages for v in p.variant_ids})
-    period = None
-    if req.since or req.until:
-        period = ((req.since or started).date().isoformat(), (req.until or started).date().isoformat())
-    rep = scoring.report(key, pages, gold, acq_config.gold_tolerances(), period)
-    return ReplayReport(**rep, duration_s=round(time.monotonic() - t0, 3), network_calls=attempts,
-                        llm_calls=await _llm_calls_since(started))  # fmt: skip

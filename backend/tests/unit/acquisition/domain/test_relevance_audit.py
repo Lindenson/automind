@@ -4,13 +4,13 @@ relevance rules; the sense rules of a sense lever."""
 
 from __future__ import annotations
 
-from types import SimpleNamespace
-
 import pytest
 
 from automind.acquisition.domain import relevance as rel
 from automind.acquisition.domain import relevance_audit as ra
-from automind.acquisition.gates import evaluate
+from automind.acquisition.gates.application.measure_ports import NoMeasure
+from automind.acquisition.gates.domain.change import Change
+from automind.acquisition.gates.infrastructure.measure import rule_sets
 
 CFG = ra.RelevanceGateConfig()
 REASON = "other gearbox: manual (wanted automatic)"
@@ -133,11 +133,11 @@ def test_stop_lists_loosen_the_gearbox_and_drive_rules(stop_lists) -> None:
 
 
 def test_a_sense_lever_has_an_offline_measure() -> None:
-    c = SimpleNamespace(object_key="sense.magnitude.service_interval_km.max", status="replay",
-                        diff={"from": 60000, "to": 70000})  # fmt: skip
-    before, after = evaluate.rule_sets(c)  # type: ignore[arg-type]
+    c = Change("c1", "agent:rule_auditor", "rule", "sense.magnitude.service_interval_km.max", "60000", "70000",
+               "replay", diff={"from": 60000, "to": 70000})  # fmt: skip
+    before, after = rule_sets(c)
     assert before["sense"]["magnitude"]["service_interval_km"]["max"] == 60000
     assert after["sense"]["magnitude"]["service_interval_km"]["max"] == 70000
     assert after["plausibility"] == before["plausibility"]
-    with pytest.raises(evaluate.NoMeasure):
-        evaluate.rule_sets(SimpleNamespace(object_key="relevance.keywords.not_manual", status="replay", diff={}))  # type: ignore[arg-type]
+    with pytest.raises(NoMeasure):
+        rule_sets(Change("c2", "agent:rule_auditor", "rule", "relevance.keywords.not_manual", None, None, "replay"))

@@ -119,12 +119,12 @@ async def _shadow_extracted(area: str, pages: list[Page]) -> None:
     worker; no work in the turn)."""
     if not (overrides.in_shadow("prompt") or overrides.in_shadow("role_model")):
         return
-    from automind.acquisition.gates import shadow  # noqa: PLC0415
+    from automind.acquisition.gates.infrastructure.wiring import shadow_gate  # noqa: PLC0415
 
     ids = [p.snapshot_id for p in pages if p.snapshot_id]
     if ids:
         with contextlib.suppress(Exception):  # bookkeeping never fails the job
-            await shadow.notify_extracted(ex.PROMPT_FOR_AREA.get(area), ids)
+            await shadow_gate().notify_extracted(ex.PROMPT_FOR_AREA.get(area), ids)
 
 
 async def run_job(ports: AcqPorts, job: JobSpec, emit: Emit) -> JobResult:
