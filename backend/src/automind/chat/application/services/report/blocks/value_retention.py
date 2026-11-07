@@ -4,12 +4,14 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from automind.chat.application.services.report.contracts import LoadedCar
 from automind.chat.application.services.report.facts.retention import retention_points
+from automind.shared.contracts.json import JsonObject
 
 
-def value_retention_block(cars: list[dict], curve: dict[str, dict[float, float]],
-                          recent: Callable[[str | None], bool] | None = None) -> dict | None:  # fmt: skip
-    def is_new(c: dict) -> bool:
+def value_retention_block(cars: list[LoadedCar], curve: dict[str, dict[float, float]],
+                          recent: Callable[[str | None], bool] | None = None) -> JsonObject | None:  # fmt: skip
+    def is_new(c: LoadedCar) -> bool:
         return bool(recent and recent(getattr(c["variant"], "make", None)))
 
     rows = [{"car_id": c["variant"].id, "label": c["variant"].label,

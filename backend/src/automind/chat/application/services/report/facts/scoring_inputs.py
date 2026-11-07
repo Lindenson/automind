@@ -3,6 +3,7 @@ price is its used price, never the new one)."""
 
 from __future__ import annotations
 
+from automind.chat.application.services.report.contracts import Curves, LoadedCar
 from automind.chat.application.services.report.facts.car import num, short_name, txt
 from automind.chat.application.services.report.facts.quality import (
     engineering_completeness,
@@ -19,7 +20,7 @@ INSIGHT_ATTRS = ("boot_volume", "consumption", "measured_0_100", "max_power", "m
 
 
 def car_facts(
-    car: dict,
+    car: LoadedCar,
     sim: dragrace.CarResult | None = None,
     *,
     condition: str = "NEW",
@@ -74,13 +75,13 @@ def car_facts(
 
 
 def insight_values(
-    car: dict,
+    car: LoadedCar,
     *,
     annual_cost: float | None,
     reliability_score: float | None,
     energy_eur_per_unit: float | None,
     accel_0_100: float | None = None,
-    retention_curve: dict | None = None,
+    retention_curve: Curves | None = None,
     used: bool = False,
     used_price_eur: float | None = None,
     period_total: float | None = None,

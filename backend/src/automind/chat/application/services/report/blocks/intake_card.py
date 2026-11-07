@@ -7,9 +7,12 @@ item carries its basis — STATED (the user's words), INFERRED (with evidence), 
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
+from automind.acquisition.api import CatalogueVariant
 from automind.chat.domain.case import CaseCar, CaseFile
+from automind.shared.contracts.json import JsonObject
 from automind.shared.vehicle.identity import parse_engine
 
 FUEL = {"petrol": {"en": "petrol", "ru": "бензин", "es": "gasolina"},
@@ -82,8 +85,8 @@ def _w(table: dict[str, dict[str, str]], key: str, lang: str) -> str:
     return table.get(key, {}).get(lang) or table.get(key, {}).get("en") or key.lower()
 
 
-def _item(field: str, value: str, basis: str, **extra: Any) -> dict[str, Any]:
-    out: dict[str, Any] = {"field": field, "value": value, "basis": basis}
+def _item(field: str, value: str, basis: str, **extra: Any) -> JsonObject:
+    out: JsonObject = {"field": field, "value": value, "basis": basis}
     out.update({k: v for k, v in extra.items() if v not in (None, [], "")})
     return out
 
@@ -106,7 +109,7 @@ def _settled_by_me(car: CaseCar, levels: tuple[str, ...]) -> str | None:
     return next((origin[lv] for lv in levels if origin.get(lv) in ("CHOSEN", "LIMIT")), None)
 
 
-def _engine_item(car: CaseCar, v: Any, lang: str, options: list[str], src: dict[str, Any]) -> dict[str, Any]:
+def _engine_item(car: CaseCar, v: Any, lang: str, options: list[str], src: JsonObject) -> JsonObject:
     """The engine as settled: "you said" only when the user named it; chosen by me when "choose for me" or the
     ask limit settled it (spec 008, live chat 8c6a2a58)."""
     e, others = car.constraints.engine_hint, [o for o in options if o != v.label]
@@ -127,7 +130,7 @@ def _engine_item(car: CaseCar, v: Any, lang: str, options: list[str], src: dict[
                  source=None if said else src, options=others)  # fmt: skip
 
 
-def _car_items(car: CaseCar, v: Any, lang: str, options: list[str], before: dict[str, str]) -> list[dict[str, Any]]:
+def _car_items(car: CaseCar, v: Any, lang: str, options: list[str], before: dict[str, str]) -> list[JsonObject]:
     k = car.constraints
     memo = car.ladder
     sourced = memo is not None and memo.certainty == "SOURCED"
@@ -165,7 +168,7 @@ def _car_items(car: CaseCar, v: Any, lang: str, options: list[str], before: dict
     return items
 
 
-def _condition_items(car: CaseCar, lang: str) -> list[dict[str, Any]]:
+def _condition_items(car: CaseCar, lang: str) -> list[JsonObject]:
     """New or used (new is assumed when nobody said), and the year and mileage of a used car."""
     if car.condition == "UNKNOWN":
         return [_item("condition", _w(WORDS, "new", lang), "ASSUMED")]
@@ -177,7 +180,7 @@ def _condition_items(car: CaseCar, lang: str) -> list[dict[str, Any]]:
     return out
 
 
-def _profile_items(case: CaseFile, lang: str) -> list[dict[str, Any]]:
+def _profile_items(case: CaseFile, lang: str) -> list[JsonObject]:
     p, ev, b = case.profile, case.profile.evidence, case.basis
     out = [
         # spec 007 US1: who the user is and how long they keep a car, with how it is known; chips edit it
@@ -210,10 +213,15 @@ def _profile_items(case: CaseFile, lang: str) -> list[dict[str, Any]]:
 
 
 def build_card(
-    case: CaseFile, variants: dict[str, Any], options: dict[str, list[str]], estimate: dict[str, Any], lang: str
-) -> dict[str, Any]:
+    case: CaseFile,
+    variants: Mapping[str, CatalogueVariant],
+    options: dict[str, list[str]],
+    estimate: JsonObject,
+    lang: str,
+) -> JsonObject:
     """The card as in contracts/intake-protocol.md; items changed since the last card carry `changed`."""
-    prev = (case.intake.card or {}).get("values") or {}
+    shown = (case.intake.card or {}).get("values")
+    prev = shown if isinstance(shown, dict) else {}
     cars = []
     values: dict[str, dict[str, str]] = {}
     for car in case.cars:

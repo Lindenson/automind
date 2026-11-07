@@ -2,6 +2,7 @@
 
 Owns:
 - `config` — `Reference`: static reference data from config/*.yaml, built by infrastructure, passed to both areas.
+- `json` — `JsonObject`: a JSON document at the edge (UI blocks, event payloads), the one sanctioned loose type.
 - `llm` — `LLM`: model access per role (the protocol; shared.infrastructure.llm.gateway implements it).
 - `web` — `WebDoc`, `SearchHit`, `Page` and the `SearchProvider` / `Searcher` / `PageStore` protocols.
 - `site_readers` — `SiteReading` rows from a known site's page and the `SiteReaders` protocol.
@@ -10,4 +11,4 @@ delivery, shared.infrastructure (contracts are declarations; implementations liv
 Public API: the modules in __all__ (callers import from them).
 """
 
-__all__ = ["config", "llm", "site_readers", "web"]
+__all__ = ["config", "json", "llm", "site_readers", "web"]

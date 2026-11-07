@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from automind.chat.application.services.report.contracts import LoadedCar
 from automind.chat.application.services.report.facts.scoring_inputs import car_facts
 from automind.chat.domain.assessment import metrics as scoring
+from automind.shared.contracts.json import JsonObject
 
 
-def metric_bars(cars: list[dict]) -> dict:
+def metric_bars(cars: list[LoadedCar]) -> JsonObject:
     ms = {c["variant"].id: scoring.metrics(car_facts(c)) for c in cars}
     defs = [
         ("power_to_weight", "Power-to-weight", "kW/t", "higher"),

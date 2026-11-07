@@ -3,6 +3,7 @@ config/severity.yaml, installed at startup), and how complete its engineering da
 
 from __future__ import annotations
 
+from automind.chat.application.services.report.contracts import LoadedCar
 from automind.chat.domain.assessment import reliability, reviews
 from automind.chat.domain.assessment.metrics import ReliabilitySummary, ReviewSummary
 from automind.shared.vehicle import specs
@@ -19,7 +20,7 @@ def severity_rules() -> reliability.SeverityRules:
     return _SEVERITY[0]
 
 
-def merged_issues(car: dict) -> list[reliability.MergedIssue]:
+def merged_issues(car: LoadedCar) -> list[reliability.MergedIssue]:
     items = [
         reliability.IssueIn(
             component=i.component,
@@ -37,14 +38,14 @@ def merged_issues(car: dict) -> list[reliability.MergedIssue]:
     return reliability.merge_issues(items, severity_rules())
 
 
-def reliability_summary(car: dict) -> ReliabilitySummary | None:
+def reliability_summary(car: LoadedCar) -> ReliabilitySummary | None:
     run = car.get("runs", {}).get("reliability")
     if run is None:
         return None
     return reliability.summarize(merged_issues(car), minimum_met=bool(run.minimum_met))
 
 
-def review_items(car: dict) -> list[reviews.ReviewIn]:
+def review_items(car: LoadedCar) -> list[reviews.ReviewIn]:
     return [
         reviews.ReviewIn(
             tag=r.tag, polarity=r.polarity, text=r.text, domain=e.domain, reviewer=r.reviewer, evidence_id=e.id
@@ -53,13 +54,13 @@ def review_items(car: dict) -> list[reviews.ReviewIn]:
     ]
 
 
-def review_summary(car: dict) -> ReviewSummary | None:
+def review_summary(car: LoadedCar) -> ReviewSummary | None:
     if car.get("runs", {}).get("reviews") is None:
         return None
     return reviews.summarize_reviews(review_items(car))
 
 
-def engineering_completeness(car: dict) -> float | None:
+def engineering_completeness(car: LoadedCar) -> float | None:
     if "engineering" not in car.get("runs", {}):
         return None
     vals = car["values"]

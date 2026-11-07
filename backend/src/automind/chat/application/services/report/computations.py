@@ -6,19 +6,21 @@ from __future__ import annotations
 from dataclasses import asdict
 
 from automind.chat.application.ports import ComputationStore
+from automind.chat.application.services.report.contracts import LoadedCar
 from automind.chat.application.services.report.facts.race import race_inputs
 from automind.chat.domain.assessment import dragrace
 from automind.chat.domain.cost import tco
+from automind.shared.contracts.json import JsonObject
 
 
 async def persist_computations(
     store: ComputationStore,
     turn_id: str,
     estimates: list[tco.TcoEstimate],
-    cars: list[dict],
+    cars: list[LoadedCar],
     race: dragrace.RaceResult | None,
-    rates: dict,
-    prediction: dict | None,
+    rates: JsonObject,
+    prediction: JsonObject | None,
     mileage: dict[str, int | None],
 ) -> None:
     """Store TCO estimates and the race simulation of a turn (inputs, assumptions, versions; constitution IX)."""

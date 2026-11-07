@@ -7,22 +7,22 @@ A combustion car in the same comparison appears only with its cost per 100 km, s
 
 from __future__ import annotations
 
-from typing import Any
-
+from automind.chat.application.services.report.contracts import LoadedCar
 from automind.chat.domain.cost import energy as en
 from automind.chat.domain.cost import tco
+from automind.shared.contracts.json import JsonObject
 
 ROWS = ["battery", "range", "consumption", "charging_home", "charging_dc", "electric_share", "cost_per_100km",
         "label"]  # fmt: skip
 TITLE = {"en": "Electric", "ru": "Электро", "es": "Eléctrico"}
 
 
-def _num(car: dict[str, Any], key: str) -> float | None:
+def _num(car: LoadedCar, key: str) -> float | None:
     sv = car["values"].get(key)
     return sv.value_num if sv is not None and sv.available else None
 
 
-def _txt(car: dict[str, Any], key: str) -> str | None:
+def _txt(car: LoadedCar, key: str) -> str | None:
     sv = car["values"].get(key)
     return sv.value_text if sv is not None and sv.available else None
 
@@ -32,7 +32,7 @@ def _estimate(e: tco.TcoEstimate) -> en.EnergyEstimate | None:
     return item.estimate if item is not None else None
 
 
-def _cost(est: en.EnergyEstimate | None, home: str) -> dict[str, Any]:
+def _cost(est: en.EnergyEstimate | None, home: str) -> JsonObject:
     if est is None or est.eur_per_100km is None:
         return {"used_eur": None, "home_eur": None, "public_eur": None, "missing": list(est.missing) if est else []}
     at_home = home in ("YES", "WORK", "UNKNOWN")
@@ -41,8 +41,8 @@ def _cost(est: en.EnergyEstimate | None, home: str) -> dict[str, Any]:
             "public_eur": alt if at_home else est.eur_per_100km, "missing": []}  # fmt: skip
 
 
-def _car_values(car: dict[str, Any], t: tco.TcoCar, est: en.EnergyEstimate | None, r: tco.TcoRates,
-                label: dict[str, Any] | None) -> dict[str, Any]:  # fmt: skip
+def _car_values(car: LoadedCar, t: tco.TcoCar, est: en.EnergyEstimate | None, r: tco.TcoRates,
+                label: JsonObject | None) -> JsonObject:  # fmt: skip
     use = t.use or en.UsageContext(annual_km=15000)
     ecar = tco.energy_car(t)  # the same model the cost uses
     real, real_how = en.electric_range(ecar, tco.energy_rates(r), use)
@@ -66,9 +66,9 @@ def _car_values(car: dict[str, Any], t: tco.TcoCar, est: en.EnergyEstimate | Non
     }  # fmt: skip
 
 
-def build(cars: list[dict[str, Any]], tcars: list[tco.TcoCar], estimates: list[tco.TcoEstimate],
-          rates: tco.TcoRates, labels: dict[str, Any], lang: str | None,
-          incentives: dict[str, list[dict[str, Any]]] | None = None) -> dict[str, Any] | None:  # fmt: skip
+def build(cars: list[LoadedCar], tcars: list[tco.TcoCar], estimates: list[tco.TcoEstimate],
+          rates: tco.TcoRates, labels: JsonObject, lang: str | None,
+          incentives: dict[str, list[JsonObject]] | None = None) -> JsonObject | None:  # fmt: skip
     """None when no electric or plug-in car is compared."""
     by_id = {e.car_id: e for e in estimates}
     rows, others = [], []
@@ -85,7 +85,7 @@ def build(cars: list[dict[str, Any]], tcars: list[tco.TcoCar], estimates: list[t
         return None
     cfg = rates.energy
     notes = [p.line() for p in (cfg.home, cfg.public_ac, cfg.public_dc)]
-    seen: dict[str, dict[str, Any]] = {}
+    seen: dict[str, JsonObject] = {}
     for items in (incentives or {}).values():  # one list for the section: the facts are about the market
         for i in items:
             seen.setdefault(i["key"], i)

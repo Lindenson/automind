@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from automind.chat.application.services.report.contracts import LoadedCar
 from automind.chat.application.services.report.facts.car import manufacturer_facts
+from automind.shared.contracts.json import JsonObject
 
 
-def manufacturer_block(cars: list[dict]) -> dict | None:
-    makes: dict[str, list[dict]] = {}
+def manufacturer_block(cars: list[LoadedCar]) -> JsonObject | None:
+    makes: dict[str, list[JsonObject]] = {}
     for c in cars:
         make = c["variant"].make
         if make in makes:

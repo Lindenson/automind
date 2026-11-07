@@ -4,7 +4,10 @@ tried — one panel instead of a warning per section."""
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+
+from automind.acquisition.api.car import ResearchRunRow
+from automind.chat.application.services.report.contracts import LoadedCar
+from automind.shared.contracts.json import JsonObject
 
 DATA_AREAS = ("specs", "price", "maintenance", "reliability", "reviews", "measured", "engineering", "manufacturer",
               "depreciation", "used_issues", "used_price")  # fmt: skip
@@ -14,12 +17,12 @@ NO_SOURCES_RETRY_H = 12
 
 
 def data_panel_block(
-    cars: list[tuple[str, str, dict]],
+    cars: list[tuple[str, str, LoadedCar]],
     areas: dict[str, set[str]],
     now: datetime | None,
     previous: dict[str, int] | None = None,
     tried: dict[str, list[str]] | None = None,
-) -> dict | None:
+) -> JsonObject | None:
     """One "what we know" panel instead of a warning per section (spec 004 FR-014, FR-015, SC-008).
 
     `cars` are (case car key, short name, loaded car); `areas` the areas each car needs (by case key).
@@ -60,7 +63,7 @@ def data_panel_block(
     return {"type": "data_panel", "cars": out, "changed": changed}
 
 
-def _tried_of(car: dict, area: str, run: Any) -> dict:
+def _tried_of(car: LoadedCar, area: str, run: ResearchRunRow | None) -> JsonObject:
     """`{"tried": [...]}` for an area researched without an accepted value ("no data", spec 011 FR-022), else {}."""
     tried = (car.get("tried") or {}).get(area)
     if not tried or run is None or run.minimum_met or run.claims_accepted:

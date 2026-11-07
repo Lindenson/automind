@@ -5,12 +5,12 @@ maker's warranty."""
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
 
+from automind.acquisition.api import CatalogueVariant
 from automind.chat.application.services.report.blocks.notice import Notice, notice
-from automind.chat.application.services.report.contracts import ReportWording
+from automind.chat.application.services.report.contracts import KeyedCars, ReportWording
 from automind.chat.application.services.report.facts.car import short_name, used_price, warranty_years
-from automind.chat.domain.case import CaseFile
+from automind.chat.domain.case import CaseCar, CaseFile
 from automind.chat.domain.identification import used
 from automind.shared.contracts.config import Reference
 
@@ -27,7 +27,7 @@ class UsedFacts:
     warranty: used.Warranty
 
 
-def car_age(x: Any, v: Any, ref: Reference, year: int | None, notices: list[Notice], lang: str,
+def car_age(x: CaseCar, v: CatalogueVariant, ref: Reference, year: int | None, notices: list[Notice], lang: str,
             words: ReportWording) -> int | None:  # fmt: skip
     """A used car is costed at its age, never as new (spec 008 FR-022): an assumed year is said in a notice; a car
     with no age at all (a case from before 008) gets one assumed here."""
@@ -50,7 +50,7 @@ def car_age(x: Any, v: Any, ref: Reference, year: int | None, notices: list[Noti
     return max(1, age)
 
 
-def used_facts(keyed: list[Any], ages: dict[str, int | None], year: int | None, notices: list[Notice],
+def used_facts(keyed: KeyedCars, ages: dict[str, int | None], year: int | None, notices: list[Notice],
                lang: str, words: ReportWording) -> dict[str, UsedFacts]:  # fmt: skip
     """Per used car's key: its year, sourced used price and warranty; the missing price and the warranty said."""
     now = year or DEFAULT_YEAR

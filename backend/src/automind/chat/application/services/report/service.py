@@ -5,13 +5,12 @@ Criteria scores, metrics, drag race and blocks come only from code (constitution
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Any
 
 from automind.acquisition import api as acquisition
 from automind.chat.application.ports import Ports
 from automind.chat.application.services.feasibility import feasibility as fz_app
 from automind.chat.application.services.report.blocks.notice import Notice
-from automind.chat.application.services.report.contracts import Computed, IntakeLog, ReportWording
+from automind.chat.application.services.report.contracts import Computed, IntakeLog, KeyedCars, ReportWording
 from automind.chat.application.services.report.facts.car import load_car
 from automind.chat.application.services.report.facts.race import run_race
 from automind.chat.application.services.report.stages.assemble import assemble_blocks
@@ -28,6 +27,7 @@ from automind.chat.application.services.report.stages.verdict import (
 )
 from automind.chat.domain.case import CaseFile
 from automind.chat.domain.cost import tco
+from automind.shared.contracts.json import JsonObject
 
 
 class ReportService:
@@ -77,7 +77,7 @@ class ReportService:
         return tco.TcoRates.from_config({**(self.ports.ref.rates or {}), "today": today.isoformat() if today else None},
                                         case.rates_override.model_dump())  # fmt: skip
 
-    async def _energy_metrics(self, keyed: list[Any], estimates: list[tco.TcoEstimate]) -> None:
+    async def _energy_metrics(self, keyed: KeyedCars, estimates: list[tco.TcoEstimate]) -> None:
         """FR-022 (spec 006), one event per report: cars without an energy line, EV values rejected by rule, weighted
         plug-in figures blocked from the energy cost. Metrics only: never fails the report."""
         try:
@@ -89,7 +89,7 @@ class ReportService:
         except Exception:  # noqa: BLE001 - metrics only
             return
 
-    async def _market_facts(self) -> list[dict[str, Any]]:
+    async def _market_facts(self) -> list[JsonObject]:
         store = getattr(self.ports, "market_facts", None)
         if store is None:
             return []
@@ -98,7 +98,7 @@ class ReportService:
         except Exception:  # noqa: BLE001 - incentives are context; the report is built without them
             return []
 
-    async def _feasibility(self, case: CaseFile) -> dict[str, Any] | None:
+    async def _feasibility(self, case: CaseFile) -> JsonObject | None:
         if not fz_app.has_constraints(case) or self.ports.feasibility is None:
             return None
         return await fz_app.evaluate(case, self.ports.ref.feasibility, self.ports.ref.rates or {},

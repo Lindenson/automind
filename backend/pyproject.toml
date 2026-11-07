@@ -99,5 +99,6 @@ module = [
     "automind.acquisition.domain.sense_ev", "automind.acquisition.domain.relevance",
     "automind.observability.domain.outcome", "automind.chat.application.services.research.*",
     "automind.chat.application.services.report.blocks.notice", "automind.chat.application.services.identification.*",
+    "automind.chat.application.services.report.*", "automind.shared.contracts.json",
 ]
 strict = true

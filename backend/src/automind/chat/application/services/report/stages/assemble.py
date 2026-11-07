@@ -5,7 +5,6 @@ and the ownership cost (the persona's layout orders them later, spec 004 FR-019)
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
 
 from automind.chat.application.services.feasibility import feasibility as fz_app
 from automind.chat.application.services.report.blocks import car_view
@@ -23,17 +22,21 @@ from automind.chat.application.services.report.blocks.spec_table import spec_tab
 from automind.chat.application.services.report.blocks.tco import evidence_refs, tco_block
 from automind.chat.application.services.report.blocks.value_retention import value_retention_block
 from automind.chat.application.services.report.case_facts import case_facts, km_assumed, recent_make
+from automind.chat.application.services.report.contracts import KeyedCars
 from automind.chat.application.services.report.facts.car import short_name
 from automind.chat.domain.assessment.criteria import CriteriaScore, weight_breakdown
+from automind.chat.domain.assessment.dragrace import RaceResult
 from automind.chat.domain.case import CaseFile
 from automind.chat.domain.cost import tco
+from automind.chat.domain.verdict.insights import InsightSet
 from automind.shared.contracts.config import Reference
+from automind.shared.contracts.json import JsonObject
 from automind.shared.research_order import plan as research_plan
 
 
-async def assemble_blocks(ref: Reference, case: CaseFile, keyed: list[tuple[Any, dict[str, Any]]], race: Any,
-                          crit: CriteriaScore | None, estimates: list[tco.TcoEstimate], iset: Any,
-                          fz: dict[str, Any] | None, now: datetime | None) -> list[dict[str, Any]]:  # fmt: skip
+async def assemble_blocks(ref: Reference, case: CaseFile, keyed: KeyedCars, race: RaceResult,
+                          crit: CriteriaScore | None, estimates: list[tco.TcoEstimate], iset: InsightSet,
+                          fz: JsonObject | None, now: datetime | None) -> list[JsonObject]:  # fmt: skip
     cars = [car for _, car in keyed]
     model = ref.criteria
     try:
@@ -43,7 +46,7 @@ async def assemble_blocks(ref: Reference, case: CaseFile, keyed: list[tuple[Any,
     summary = [{"key": x.key, "label": x.label or x.request_text, "condition": x.condition, "year": x.year,
                 "variant_label": (views.get(x.key) or {}).get("variant_label"), "variant_id": x.variant_id}
                for x in case.cars]  # fmt: skip
-    blocks: list[dict[str, Any]] = [
+    blocks: list[JsonObject] = [
         case_summary_block(case.persona, case_facts(case), summary),
         spec_table(cars, {}, iset),
         metric_bars(cars),
@@ -75,7 +78,7 @@ async def assemble_blocks(ref: Reference, case: CaseFile, keyed: list[tuple[Any,
     return blocks
 
 
-def _data_panel(case: CaseFile, keyed: list[tuple[Any, dict[str, Any]]], now: datetime | None) -> dict[str, Any] | None:
+def _data_panel(case: CaseFile, keyed: KeyedCars, now: datetime | None) -> JsonObject | None:
     criteria = [p.criterion for p in case.priorities] + [k for k, w in case.weights.items() if w > 0]
     budget_used = bool(case.budget.max_eur) and case.budget.intent in ("USED", "ANY")
     areas = {x.key: research_plan.areas_for(case.persona, criteria, x.condition, budget_used) for x, _ in keyed}

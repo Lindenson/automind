@@ -5,7 +5,6 @@ every compared car has it), the energy cost per 100 km, and a warning per car wh
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
 
 from automind.chat.application.services.report.blocks.notice import Notice, notice
 from automind.chat.application.services.report.case_facts import (
@@ -14,14 +13,16 @@ from automind.chat.application.services.report.case_facts import (
     usage_context,
     years_of,
 )
-from automind.chat.application.services.report.contracts import ReportWording
+from automind.chat.application.services.report.contracts import KeyedCars, ReportWording
 from automind.chat.application.services.report.facts.car import short_name
 from automind.chat.application.services.report.stages.used_cars import UsedFacts, used_price_of
 from automind.chat.application.services.report.tco_inputs import tco_car
 from automind.chat.domain import understanding
 from automind.chat.domain.case import CaseFile
 from automind.chat.domain.cost import tco
+from automind.chat.domain.verdict.insights import InsightSet
 from automind.shared.contracts.config import Reference
+from automind.shared.contracts.json import JsonObject
 from automind.shared.evidence import sense
 
 
@@ -40,7 +41,7 @@ class Ownership:
     no_energy: set[str] = field(default_factory=set)  # car keys without an energy line
 
 
-async def price_ownership(case: CaseFile, keyed: list[Any], ages: dict[str, int | None], used: dict[str, UsedFacts],
+async def price_ownership(case: CaseFile, keyed: KeyedCars, ages: dict[str, int | None], used: dict[str, UsedFacts],
                           rates: tco.TcoRates, ref: Reference, notices: list[Notice], lang: str,
                           words: ReportWording) -> Ownership:  # fmt: skip
     curve = (ref.feasibility or {}).get("depreciation") or {}
@@ -129,13 +130,13 @@ def buy_price(t: tco.TcoCar) -> float | None:
 
 
 def ownership_facts(estimates: list[tco.TcoEstimate], totals: dict[str, float], years: int,
-                    names: dict[str, str], iset: Any = None) -> dict[str, Any]:  # fmt: skip
+                    names: dict[str, str], iset: InsightSet | None = None) -> JsonObject:  # fmt: skip
     """Ownership cost for the writer (chat 5821ac77): the total over the period including depreciation is THE
     comparison; running costs per year are labelled as without depreciation. Code decides which car is cheaper."""
     cars = []
     for e in estimates:
         dep = next((i.five_year_eur for i in e.items if i.kind == "DEPRECIATION"), None)
-        row: dict[str, Any] = {
+        row: JsonObject = {
             "car": names.get(e.car_id, e.label),
             "running_costs_per_year_without_depreciation_eur": e.annual_total,
             "items": [{"kind": i.kind, "annual_eur": i.annual_eur, "basis": i.basis} for i in e.items],
@@ -144,7 +145,7 @@ def ownership_facts(estimates: list[tco.TcoEstimate], totals: dict[str, float], 
             row["total_over_the_period_including_depreciation_eur"] = totals[e.car_id]
             row["depreciation_over_the_period_eur"] = dep
         cars.append(row)
-    out: dict[str, Any] = {"period_years": years, "cars": cars}
+    out: JsonObject = {"period_years": years, "cars": cars}
     period = iset.get("tco_period") if iset is not None else None
     if len(totals) >= 2 and period is not None and period.meaningful:
         cheap = [names.get(c, c) for c in period.tiers[0]]
@@ -169,7 +170,7 @@ def ownership_facts(estimates: list[tco.TcoEstimate], totals: dict[str, float], 
     return out
 
 
-def costlier_names(iset: Any, names: dict[str, str]) -> tuple[str, ...]:
+def costlier_names(iset: InsightSet | None, names: dict[str, str]) -> tuple[str, ...]:
     """The cars whose total over the period (running + value lost) is meaningfully higher than the cheapest one:
     the text may never call them the saving (chat 5821ac77)."""
     period = iset.get("tco_period") if iset is not None else None
