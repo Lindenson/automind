@@ -92,7 +92,8 @@ def test_function_node_usecase_and_service_lengths(tmp_path: Path) -> None:
         "chat/application/services/s/__init__.py": DOC_INIT,
         "chat/application/services/s/service.py": "class S:\n    def run(self):\n" + "        x = 1\n" * 60,
     }
-    assert _rules(_tree(tmp_path, files)) == {
+    lengths = {k for k in _rules(_tree(tmp_path, files)) if k.split("|")[0] in ("func", "node")}
+    assert lengths == {
         "func|chat/m.py|long",
         "node|chat/dialog/nodes/n.py|fat",
         "node|chat/application/usecases/u.py|U.run",
@@ -141,3 +142,50 @@ def test_exceptions_file_silences_a_rule_for_a_path(tmp_path: Path) -> None:
     (root / "scripts/structure_exceptions.txt").write_text("size|chat/words.py|vocabulary table, data only\n")
     (root / "scripts/structure_baseline.txt").write_text("")
     assert cs.main(["--root", str(root)]) == 0
+
+
+# --- API rules (scripts/structure_api.py), from the antipattern usecases/challenge.py ---------------------------
+
+LAYER = {"chat/__init__.py": DOC_INIT, "chat/application/__init__.py": DOC_INIT}
+
+
+def test_public_api_of_a_layer_is_typed_without_any_and_documented(tmp_path: Path) -> None:
+    code = (
+        "from typing import Any\n"
+        "def loose(x, y: int) -> int:\n    '''Doc.'''\n    return y\n"
+        "def vague(x: Any) -> dict[str, Any]:\n    '''Doc.'''\n    return {}\n"
+        "def silent(x: int) -> int:\n    return x\n"
+        "class Service:\n"
+        "    def __init__(self, store: Any) -> None:\n        self.store = store\n"
+        "    def run(self) -> int:\n        '''Doc.'''\n        return 1\n"
+        "def _private(x):\n    return x\n"
+    )
+    root = _tree(tmp_path, {**LAYER, "chat/application/m.py": code})
+    assert _rules(root) == {
+        "untyped|chat/application/m.py|loose",
+        "any|chat/application/m.py|vague",
+        "doc|chat/application/m.py|silent",
+        "doc|chat/application/m.py|Service",
+        "any|chat/application/m.py|Service.__init__",
+    }
+
+
+def test_public_function_over_40_lines_but_only_in_a_layer(tmp_path: Path) -> None:
+    long = "def long() -> int:\n    '''Doc.'''\n" + "    x = 1\n" * 38 + "    return x\n"
+    root = _tree(tmp_path, {**LAYER, "chat/application/m.py": long, "chat/web.py": long})
+    assert _rules(root) == {"public|chat/application/m.py|long"}
+
+
+def test_type_ignore_and_lazy_import_in_any_layer(tmp_path: Path) -> None:
+    code = "x: int = 'a'  # type: ignore\ndef f():\n    import os  # noqa\n    return os.sep  # type: ignore[attr]\n"
+    root = _tree(tmp_path, {"chat/__init__.py": DOC_INIT, "chat/m.py": code})
+    assert _rules(root) == {"ignore|chat/m.py|<module>", "ignore|chat/m.py|f", "lazy|chat/m.py|f"}
+
+
+def test_each_ignore_imports_line_is_an_exemption(tmp_path: Path) -> None:
+    root = _tree(tmp_path, {"chat/__init__.py": DOC_INIT})
+    (root / "backend/.importlinter").write_text(
+        "[importlinter:contract:app]\nname = x\nignore_imports =\n    # why\n    a.b -> c.d\n    a.e -> sqlalchemy\n"
+        "[importlinter:contract:other]\nname = y\n"
+    )
+    assert _rules(root) == {"exempt|.importlinter|app:a.b -> c.d", "exempt|.importlinter|app:a.e -> sqlalchemy"}

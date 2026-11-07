@@ -88,6 +88,15 @@ mypy_path = "src"
 explicit_package_bases = true
 ignore_missing_imports = true
 
+# The strict scope (scripts/check.sh runs these paths; spec 012 R16 grows it step by step). Listed by module so that
+# strict applies however mypy is called; the former `automind.domain.*` stopped matching after the S3a tree move.
 [[tool.mypy.overrides]]
-module = "automind.domain.*"
+module = [
+    "automind.chat.domain.*", "automind.chat.dialog.policy.*", "automind.shared.vehicle.identity",
+    "automind.shared.vehicle.markets", "automind.shared.vehicle.engine", "automind.shared.text.*",
+    "automind.shared.vehicle.specs.*", "automind.shared.vehicle.units", "automind.shared.evidence.*",
+    "automind.shared.research_order.*", "automind.acquisition.domain.plausibility",
+    "automind.acquisition.domain.sense_ev", "automind.acquisition.domain.relevance",
+    "automind.observability.domain.outcome",
+]
 strict = true

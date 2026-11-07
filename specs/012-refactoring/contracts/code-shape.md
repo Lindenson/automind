@@ -11,7 +11,37 @@ from __future__ import annotations
 # 2. public functions / classes (the API of the module), most important first
 # 3. private helpers (_name), in the order they are used
 ```
-Limits: module ≤ 400 lines (allow-list for data modules), function ≤ 50 lines (target; > 80 fails).
+Limits: module ≤ 400 lines (allow-list for data modules), function ≤ 50 lines (target; > 80 fails), a public
+function of application/domain ≤ 40 lines (fails).
+
+## Public API of a layer (owner, 2026-11-07; antipattern: `chat/application/usecases/challenge.py`)
+
+The antipattern, so it is recognised: `recheck(ref, chat_id, variant_id, attribute, user_text="", registry: Any = None,
+gold: Callable[..., Awaitable[bool]] | None = None) -> dict[str, Any]` — 55 lines in one public function that opens
+two DB sessions directly, decides the outcome with bare strings, writes a row, calls a lazily imported registry and a
+gold sink; no docstring; `Any` exactly where the collaborators and the result are; a DB failure after the re-check
+leaves values changed and nothing recorded, and nobody said what should happen.
+
+Rules for every public callable in `*/application/**` and `*/domain/**` (checked: scripts/structure_api.py):
+
+1. **Typed promise.** Every parameter and the return annotated; no `Any` in a public signature — a collaborator is a
+   Protocol (port), a result is a frozen dataclass / pydantic DTO, a closed set of values is a `Literal` or `StrEnum`
+   (`Outcome = Literal["CONFIRMED", "CORRECTED", "REMOVED", "UNRESOLVED"]`). `dict[str, Any]` crosses a boundary only
+   as graph state (`TypedDict`) or JSON at the edge, never as an application result. `Callable[..., X]` is not a
+   type: name the parameters (a Protocol with `__call__`).
+2. **Storage through a port.** No `sqlalchemy`, no `shared.infrastructure.db` in application or domain; a write is
+   one port call that is one transaction. A new `ignore_imports` line is never the answer (rule `exempt`).
+3. **Errors are part of the contract.** A port documents what it raises (one typed error per failure class, e.g.
+   `StoreUnavailable`, `VersionConflict`), never a driver exception. The use case/service docstring says what happens
+   on each: propagate, retry, degrade with a notice. A step that changes data before a step that can fail states the
+   order and why it is safe (or makes it one transaction). At least one test drives the failure path.
+4. **Short public surface.** A public function or method ≤ 40 lines and reads as named steps (rule `public`); the
+   decision (e.g. the outcome of a challenge) is a pure domain function with its own tests.
+5. **Docstring that tells the contract**, not the ticket: what it does in one sentence, the non-obvious parameters,
+   the result, the errors and side effects (what is written, what is published). Spec/ticket ids may follow as a
+   reference, never replace the meaning (rule `doc`).
+6. **No escape hatches** without a written reason on the same line: `# type: ignore[code]  # why` (rule `ignore`), an
+   import inside a function only to break a real cycle or for an optional heavy dependency (rule `lazy`).
 
 ## Use case (chat/application/usecases/<action>.py)
 

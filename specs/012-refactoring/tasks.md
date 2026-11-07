@@ -14,8 +14,11 @@ quickstart gate). Each task carries the user story it serves. Paths are relative
 **Gate of every PR** (quickstart §1–3, §1a from S3a, §1b before restructure steps): `scripts/check.sh` green,
 `alembic check` empty, behaviour diff empty, structure baseline only shrinks, test count not lower.
 **Deploy**: none before 2026-11-12; then only after S3a, S6, S9, S12, S15 (quickstart §6).
-**Self-check before every PR** (memory "refactoring clarity criterion"): one concept per module, no logic in nodes,
-no helper "somewhere convenient", no flag arguments added, names say what the thing is.
+**Self-check before every PR** (memory "refactoring clarity criterion"): `checklists/pr-self-check.md`, copied into
+the PR body and answered item by item — typed API without `Any`, storage only through ports with named errors, public
+callables ≤ 40 lines, contract docstrings, no unexplained escape hatches (contracts/code-shape.md "Public API of a
+layer", checked by `scripts/structure_api.py`); one concept per module, no logic in nodes, no helper "somewhere
+convenient", no flag arguments added, names say what the thing is.
 
 ## Format: `[ID] [P?] [Story] Description`
 
@@ -156,10 +159,22 @@ entry points (≤ 60 lines), every stage named.
 ### S9 Interpretation, research, feasibility, usage services (PR 12; deploy checkpoint)
 
 - [x] T074 [US2] (S9a: only confirm.py was below, 59 % → 89 % with `tests/unit/chat/dialog/test_confirm_variants_cost.py`; interpret 95 %, ask 85 %, understand 90 %, research 94 %, feasibility 95 %) Characterisation tests to ≥ 80 % for `interpret.py`, `ask.py`, `nodes/understand.py`, `nodes/confirm.py`, `nodes/research.py`, `nodes/feasibility.py`
+- [x] T074a [US2] (S9.0, owner 2026-11-07: challenge.py antipattern) Controls: API rules `any`, `untyped`, `doc`,
+  `public`, `ignore`, `lazy`, `exempt` in `scripts/structure_api.py` (ratchet), contracts/code-shape.md "Public API
+  of a layer", `checklists/pr-self-check.md`; the strict mypy override follows the S3a tree (was `automind.domain.*`)
+- [ ] T074b [US2] (S9.1) The services already written in 012 meet the new bar: `identification/`, `report/`,
+  `research/` pass `mypy --strict` and join the strict scope; their public API has no `Any` (research jobs and
+  results as DTOs/TypedDicts, report rows typed), every public callable documented, ≤ 40 lines; baseline entries of
+  these packages for `any`/`doc`/`public`/`ignore` → 0
 - [ ] T075 [P] [US2] `chat/application/services/interpretation/` (← interpret.py, ask.py, understand node's `_*_from_text` safety nets as stages using `chat/domain/understanding`)
 - [x] T076 [P] [US2] (S9b: `research/service.py` ResearchService create/run_job/conclude, `rounds.py`, `contracts.py` events + wording ports; the graph keeps the fan-out and rounds) `chat/application/services/research/` (plan jobs, order via `acquisition.api.acquire(…, budget)`, collect rounds, limit handling ← nodes/research.py logic)
 - [ ] T077 [P] [US2] (usage: done in S3a as `shared/metering/usage.py`, T029; the feasibility nodes are already ≤ 30 lines) `chat/application/services/feasibility/` (← application/feasibility.py + nodes/feasibility.py logic) and `services/usage/` (← usage.py)
-- [ ] T078 [US2] All `chat/dialog/nodes/*.py` ≤ 30 lines (read state → call service → write state); `ChallengeValue` use case + port (← challenge.py), remove its `ignore_imports` (none left); purity contracts for `chat.dialog` and `chat.application` (contracts/import-contracts.md); gate; after 2026-11-12 deploy + live replay
+- [ ] T078 [US2] All `chat/dialog/nodes/*.py` ≤ 30 lines (read state → call service → write state); `ChallengeValue` use case + port (← challenge.py), remove its `ignore_imports` (none left) — built as the
+  counter-example of the antipattern: `ChallengeValue.run(ChallengeCommand) -> ChallengeResult` (frozen DTO,
+  `Outcome` Literal), the outcome rule a pure domain function with a test per outcome, `ChallengeStore` port (current
+  value, record challenge; raises a named error), `TruthSignals` and `GoldSink` ports typed (no `Any`, no
+  `Callable[...]`, no lazy import), documented order and failure handling (re-check done, record failed → what the
+  person sees), a test of the store failure; baseline entries of challenge.py → 0; purity contracts for `chat.dialog` and `chat.application` (contracts/import-contracts.md); gate; after 2026-11-12 deploy + live replay
 
 ### S10 Use cases (PR 13)
 
