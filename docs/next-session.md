@@ -1,4 +1,4 @@
-# Next session: start here (parked on 2026-11-07, after S9.1a)
+# Next session: start here (parked on 2026-11-07, after S9.1c-1)
 
 **First task: refactoring — spec 012, executed by `specs/012-refactoring/tasks.md` (one phase = one PR).**
 No new features until it is done (owner, 2026-11-06). All functional work in §4 is parked, still valid, and
@@ -27,15 +27,18 @@ added: API rules `any`/`untyped`/`doc`/`public`/`ignore`/`lazy`/`exempt` (`scrip
 baseline 799 → 1667), contracts/code-shape.md "Public API of a layer", `specs/012-refactoring/checklists/pr-self-check.md`
 (copied into every PR body and answered), strict mypy override fixed to the post-S3a modules.
 
-**S9.1a done (PR #105):** `research/` meets the bar (TypedDict state shapes in `research/contracts.py`, narrow
-`ResearchEvents`, typed `Notice`, strict mypy, 0 baseline entries). Pattern to reuse: graph-state shapes are
-TypedDicts in the service's `contracts.py`; results built by a typed helper; old checkpoint shapes read with `.get`
-and a test.
+**S9.1a/b/c-1 done (PRs #105, #107, #108):** `research/`, `identification/` meet the bar (strict, 0 API baseline
+entries); `report/` is typed and strict (`LoadedCar`, `KeyedCars`, typed `Computed`/`ReportWording`; `JsonObject` in
+`shared/contracts/json.py` is the one sanctioned loose type, for UI blocks and config sections — owner to confirm).
+Patterns: graph-state shapes are TypedDicts in the service's `contracts.py`; closed sets read through typed maps
+(`FUELS`, `GEARBOXES`, `DRIVES`, `INTAKE_ITEMS`) or `Model.model_validate`; `Reference.makes` is the `MakeNames`
+Protocol. mypy report over src: 330 → 271.
 
-**Next: S9.1b — T074b identification** (`mypy --strict` 5 errors; baseline: 16 `any`, 22 `doc`, 7 `ignore`, 3 `public`
-— `grep services/identification/ scripts/structure_baseline.txt`), then **S9.1c report** (69 strict errors, mostly
-bare `dict`/`list`; 34 `any`, 45 `doc`, 8 `public`, 4 `ignore`). Each joins the strict list in check.sh + pyproject.
-Then:
+**Next: S9.1c-2 — report docs and shape** (`grep services/report/ scripts/structure_baseline.txt | grep -E
+"^(any|doc|public|ignore)"`): 28 `doc`, 9 `public` (criteria_block, data_panel_block, persist_computations, load_car,
+car_facts, insight_values, assemble_blocks, tco_car), 4 `ignore` (car_view._constraints, intake_card._car_edit/
+_profile_edit, verdict.limits_from), 8 `any` (car_view edit helpers, criteria breakdown, scores.facts_of, verdict
+persona_counterfactual/profile_focus). Then T074b is done. Then:
 
 **S9c — T075 interpretation** (tasks.md "S9"): `chat/dialog/nodes/understand.py` (≈500 lines; fat nodes
 interpret_node, apply_delta_node, assess_node).
@@ -67,7 +70,7 @@ cd backend && uv run python ../scripts/check_checkpoints.py      # read-only pro
 ```
 - Moves: `scripts/refactor/move.py <map.yaml>` (maps in `specs/012-refactoring/moves/`; whole packages first);
   after moves `scripts/check_structure.py --write-baseline` only if the count did not grow.
-- Structure ratchet baseline `scripts/structure_baseline.txt` (1645 now); new violations fail
+- Structure ratchet baseline `scripts/structure_baseline.txt` (1555 now); new violations fail
   the gate; a PR shrinks the entries of every package it touches (pr-self-check.md).
 - Never run two test runs on one DB at once. Commit → push → `gh pr create` → `gh pr merge --merge` → delete
   local+remote branch; update this file's §0 at the end of each step.
