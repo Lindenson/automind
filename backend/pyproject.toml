@@ -109,6 +109,6 @@ module = [
     "automind.acquisition.reputation.domain.*", "automind.acquisition.reputation.application.*",
     "automind.acquisition.reputation.infrastructure.*", "automind.delivery.cli.baseline",
     "automind.shared.infrastructure.db.errors", "automind.chat.infrastructure.persistence.errors",
-    "automind.delivery.baselines", "automind.observability.infrastructure.outcome_facts",
+    "automind.delivery.baselines", "automind.observability.infrastructure.outcome_facts", "automind.delivery.cli.fit_physics",
 ]
 strict = true

@@ -9,7 +9,8 @@ from sqlalchemy import select
 from automind.acquisition.agents import blame_judge
 from automind.acquisition.registry.application.service import RegistryService
 from automind.acquisition.registry.infrastructure.repo import RegistryRepo
-from automind.acquisition.reputation import components, signals
+from automind.acquisition.reputation.infrastructure.component_store import ComponentRepo
+from automind.acquisition.reputation.infrastructure.wiring import signal_scan
 from automind.shared.infrastructure import db
 from automind.shared.infrastructure.config.loader import load_yaml
 from automind.shared.infrastructure.db import models as m
@@ -37,7 +38,7 @@ async def _disputed(w: World, svc: RegistryService, name: str) -> str:
     page = f"Ficha {name}. Peso 1450 kg. {INJECTION} Masa en orden de marcha 1615 kg. Maletero 400 l."
     await w.page(vid, SITE, "PUBLICATION", page, [("curb_mass", 1450, "Peso 1450 kg")])
     await w.select(vid)
-    out = await signals.scan([vid], cfg=svc.cfg, reg=svc)
+    out = await signal_scan(svc.cfg, svc).scan([vid])
     assert out["gold_wrong"] == 1 and out["disputed"] == 1 and out["judge_tasks"] == 1
     (sig,) = await w.signals(kind="gold", variant_id=vid, verdict="wrong")
     assert sig.disputed and sig.blame_vector == {"extractor": 1.0}
@@ -65,7 +66,7 @@ async def test_judge_verifies_quotes_and_ignores_injected_instructions(world: Wo
     (sig,) = await w.signals(id=sid)
     assert not sig.disputed and sig.blame == "extractor" and "rejected" in sig.details["judge"]
     assert (await w.cap(SITE)).wrong_w == 0  # the source is not punished
-    assert (await components.get("extractor", key)).wrong_w == pytest.approx(1.0)
+    assert (await ComponentRepo().get("extractor", key)).wrong_w == pytest.approx(1.0)
 
     # 2. an answer outside the closed list never parses: the code's vector stands
     sid = await _disputed(w, svc, "J2")
@@ -78,5 +79,5 @@ async def test_judge_verifies_quotes_and_ignores_injected_instructions(world: Wo
     llm = FakeLLM().queue("blame_judge", {"component": "extractor", "quote": "Masa en orden de marcha 1615 kg"})
     out = await blame_judge.judge(sid, llm=llm)
     assert out["verdict"] == "accepted" and out["applied"] == {"extractor": 1.0}
-    assert (await components.get("extractor", key)).wrong_w == pytest.approx(3.0)
+    assert (await ComponentRepo().get("extractor", key)).wrong_w == pytest.approx(3.0)
     assert await blame_judge.judge(sid, llm=FakeLLM()) == {"skipped": "settled"}  # once

@@ -12,8 +12,8 @@ from tests.fakes.reputation_world import World
 from automind.acquisition.registry.api import Attempt, TruthSignalIn
 from automind.acquisition.registry.application.service import RegistryService
 from automind.acquisition.registry.infrastructure.repo import RegistryRepo
-from automind.acquisition.reputation import rollup
 from automind.acquisition.reputation.application.baseline import BaselineError
+from automind.acquisition.reputation.infrastructure.wiring import daily_rollup
 from automind.acquisition.worker import budget, exporter
 from automind.delivery.baselines import kpi_baselines, worker_handlers
 from automind.delivery.cli import baseline as baseline_cli
@@ -63,17 +63,17 @@ async def test_rollup_counts_searches_per_value_and_resets_exploration(world: Wo
         await svc.signal(TruthSignalIn(kind="gold", verdict=verdict, domain=DOM, area=AREA, claim_id=db.uid()))
 
     today = datetime.now(UTC).date()
-    assert await rollup.roll_day(today) >= 2
+    assert await daily_rollup().roll_day(today) >= 2
     async with db.sessionmaker()() as s:
         rows = {r.market: r for r in (await s.execute(select(m.AcqDaily).where(m.AcqDaily.area == AREA))).scalars()}
     assert rows["*"].searches == 10  # cached searches cost nothing and are not counted
     es = rows["ES"]
     assert (es.pages, es.accepted_values, es.wrong_values, es.gold_checked, es.gold_wrong) == (5, 20, 2, 3, 2)
     assert float(es.explore_eur) == pytest.approx(0.05)
-    k = await rollup.kpis(today)
+    k = await daily_rollup().kpis(today)
     assert k["searches_per_value"][AREA] == pytest.approx(10 / 20) and k["wrong_share"][AREA] == pytest.approx(0.1)
 
-    out = await rollup.run(today)
+    out = await daily_rollup().run(today)
     assert out["rows"] >= 2
     assert (await world.cap(DOM, AREA)).explore_spent_eur == 0  # a new day of exploration budget
     assert _gauge(exporter.SEARCHES_PER_VALUE, area=AREA) == pytest.approx(0.5)

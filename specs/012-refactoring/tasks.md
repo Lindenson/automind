@@ -208,7 +208,11 @@ dirs and allowed 400 lines, so acquisition's flat packages passed a green gate. 
 Acquisition, one PR per package, each leaves its package with **0 `storage`, 0 `size`** and layers
 `domain/application/infrastructure` (pure rules / services with ports / stores), strict mypy, named errors. Order
 (inside-out, smallest blast radius first); it absorbs S11, S12a and the acquisition half of S12:
-- [ ] A1 `reputation/` rest: rollup, signals (408), components, fit_physics
+- [x] A1 `reputation/` rest (PR #117): `domain/` signal_facts + findings (the five rules pure, blame from a page text),
+  components (fading weights), rollup (rows, KPIs); `application/` `SignalScan`, `DailyRollup`, `errors`
+  (`ReputationStoreUnavailable` for every reputation store); `infrastructure/` signal_facts_repo, page_texts,
+  component_store (`add` in the registry's transaction), rollup_store (+ gauges, calendar), physics_points, wiring;
+  CLI `delivery/cli/fit_physics.py`. reputation: 30 baseline entries → 0.
 - [ ] A2 `gates/`: evaluate, journal (529), relevance_replay, replay_gate, shadow, watch
 - [ ] A3 `pipeline/` + `parsing/` (= S11, T081–T084): job (439), persist (420), plan, locate, parse, merge, relevance,
   validate, extract; parsing registry/store/spec/migrate_v1

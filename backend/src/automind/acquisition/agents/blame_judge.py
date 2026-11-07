@@ -118,7 +118,7 @@ class _Case:
 async def _load(signal_id: str) -> _Case | None:
     from sqlalchemy import select  # noqa: PLC0415
 
-    from automind.acquisition.reputation.signals import page_text_of  # noqa: PLC0415
+    from automind.acquisition.reputation.infrastructure.page_texts import page_text_of  # noqa: PLC0415
     from automind.acquisition.snapshots import store  # noqa: PLC0415
     from automind.shared.infrastructure.db import Claim, Document, Evidence, GoldValueRow, TruthSignal, sessionmaker  # noqa: PLC0415
 

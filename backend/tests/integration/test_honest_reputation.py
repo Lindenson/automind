@@ -22,7 +22,8 @@ from automind.acquisition.registry.api import Attempt
 from automind.acquisition.registry.application.review import review
 from automind.acquisition.registry.application.service import RegistryService
 from automind.acquisition.registry.infrastructure.repo import RegistryRepo
-from automind.acquisition.reputation import components, signals
+from automind.acquisition.reputation.infrastructure.component_store import ComponentRepo
+from automind.acquisition.reputation.infrastructure.wiring import signal_scan
 from automind.shared.infrastructure import db
 from automind.shared.infrastructure.config.loader import load_yaml
 
@@ -72,7 +73,7 @@ async def _job(w: World, svc: RegistryService, cfg: dict[str, Any], i: int, gold
     attempts = [Attempt(domain=FAST, area="specs", market="ES", url=f"https://{FAST}/{car}", outcome="accepted",
                         values=5, job_id=f"job-{i}", variant_id=vid)]  # fmt: skip
     await w.select(vid)
-    for k, n in (await signals.scan([vid], cfg=cfg, reg=svc, judge=False)).items():
+    for k, n in (await signal_scan(cfg, svc).scan([vid], judge=False)).items():
         stats[k] = stats.get(k, 0) + n
     # honest: three jobs in four, every value right; its source type (a publication) outranks a spec database
     if i % gold["honest_skips_every"] != 3:
@@ -88,7 +89,7 @@ async def _job(w: World, svc: RegistryService, cfg: dict[str, Any], i: int, gold
             await w.page(vid, d, "SPEC_DATABASE", _text(pages[d], car, truth, {}), [("max_power", kw, f"Power {kw}")])
     await svc.record(attempts)
     await w.select(vid)
-    for k, n in (await signals.scan([vid], cfg=cfg, reg=svc, judge=False)).items():
+    for k, n in (await signal_scan(cfg, svc).scan([vid], judge=False)).items():
         stats[k] = stats.get(k, 0) + n
     return vid, stats
 
@@ -153,10 +154,10 @@ async def test_parser_blame_and_physics_outlier(world: World) -> None:
                  producer_version="km77@v1")  # fmt: skip
     await w.select(vid)
     before = (await w.cap(FAST)).wrong_w
-    out = await signals.scan([vid], cfg=cfg, reg=svc, judge=False)
+    out = await signal_scan(cfg, svc).scan([vid], judge=False)
     assert out["gold_wrong"] == 1
     assert (await w.cap(FAST)).wrong_w == pytest.approx(before)  # the source is not punished
-    rep = await components.get("parser", "km77@v1")
+    rep = await ComponentRepo().get("parser", "km77@v1")
     assert rep is not None and rep.wrong_w == pytest.approx(1.0) and rep.right_w == 0
     (sig,) = await w.signals(kind="gold", variant_id=vid)
     assert sig.blame == "parser" and sig.component == "parser:km77@v1" and sig.capability_id is None
@@ -167,9 +168,9 @@ async def test_parser_blame_and_physics_outlier(world: World) -> None:
                  [("max_power", ph["max_power"], f"Potencia {ph['max_power']} kW"),
                   ("max_torque", ph["max_torque"], f"Par máximo {ph['max_torque']} Nm")])  # fmt: skip
     await w.select(hv)
-    out = await signals.scan([hv], cfg=cfg, reg=svc, judge=False)
+    out = await signal_scan(cfg, svc).scan([hv], judge=False)
     assert out["physics"] == 1
     (phys,) = await w.signals(kind="physics", variant_id=hv)
     assert phys.attribute == "max_torque" and phys.verdict == "wrong"
     assert phys.capability_id == (await w.cap(FAST)).id and phys.details["check"] == "torque_power"
-    assert await signals.scan([hv], cfg=cfg, reg=svc, judge=False) == {"variants": 1, "disputed": 0}  # once only
+    assert await signal_scan(cfg, svc).scan([hv], judge=False) == {"variants": 1, "disputed": 0}  # once only

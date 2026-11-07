@@ -3,7 +3,7 @@ of the open ones (the daily `baseline` task), show one, close it after `MIN_DAYS
 `registry.autonomy` on by hand after a closed baseline (T078): nothing here reads or writes it.
 
 Errors: `BaselineAlreadyOpen`, `NoOpenBaseline`, `BaselineTooYoung` (all `BaselineError`: the person's request
-cannot be done, nothing is written); `BaselineStoreUnavailable` when a store cannot be read or written (propagates;
+cannot be done, nothing is written); `ReputationStoreUnavailable` when a store cannot be read or written (propagates;
 a window is written in one transaction, so a failure leaves it as it was)."""
 
 from __future__ import annotations
@@ -15,12 +15,12 @@ from typing import Protocol
 from automind.acquisition.reputation.domain.baseline import (
     MIN_DAYS,
     BaselineValues,
-    Kpis,
     Satisfaction,
     baseline_values,
     days_run,
     may_close,
 )
+from automind.acquisition.reputation.domain.rollup import Kpis
 from automind.shared.contracts.json import JsonObject
 
 
@@ -49,10 +49,6 @@ class BaselineTooYoung(BaselineError):
         super().__init__(f"baseline {name!r} has run {days:.1f} days; it needs at least {MIN_DAYS}")
 
 
-class BaselineStoreUnavailable(RuntimeError):
-    """A store of the baseline could not read or write (its database); the cause is chained."""
-
-
 @dataclass(frozen=True)
 class Window:
     """A baseline window as stored. `values` is empty until the first recording."""
@@ -79,7 +75,7 @@ class Window:
 
 
 class BaselineStore(Protocol):
-    """The baseline windows (table `kpi_baselines`). Raises `BaselineStoreUnavailable`."""
+    """The baseline windows (table `kpi_baselines`). Raises `ReputationStoreUnavailable`."""
 
     async def latest(self, name: str) -> Window | None:
         """The newest window of the name, open or closed."""
@@ -107,7 +103,7 @@ class BaselineStore(Protocol):
 
 
 class OutcomeFacts(Protocol):
-    """What the turns' outcomes say over a period (table `turn_outcomes`). Raises `BaselineStoreUnavailable`."""
+    """What the turns' outcomes say over a period (table `turn_outcomes`). Raises `ReputationStoreUnavailable`."""
 
     async def satisfaction(self, start: datetime, end: datetime) -> Satisfaction:
         """The satisfaction of the finished turns (a turn waiting for confirmation is not finished)."""
@@ -119,7 +115,7 @@ class OutcomeFacts(Protocol):
 
 
 class KpiSource(Protocol):
-    """The daily roll-up's KPIs (`acq_daily`). Raises `BaselineStoreUnavailable`."""
+    """The daily roll-up's KPIs (`acq_daily`). Raises `ReputationStoreUnavailable`."""
 
     async def kpis(self, since: date, until: date) -> Kpis:
         """The KPIs over the days [since, until]."""

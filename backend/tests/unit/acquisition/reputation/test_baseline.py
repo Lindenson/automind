@@ -9,19 +9,19 @@ import pytest
 
 from automind.acquisition.reputation.application.baseline import (
     BaselineAlreadyOpen,
-    BaselineStoreUnavailable,
     BaselineTooYoung,
     KpiBaselines,
     NoOpenBaseline,
     Window,
 )
+from automind.acquisition.reputation.application.errors import ReputationStoreUnavailable
 from automind.acquisition.reputation.domain.baseline import (
     BaselineValues,
-    Kpis,
     Satisfaction,
     baseline_values,
     may_close,
 )
+from automind.acquisition.reputation.domain.rollup import Kpis
 from automind.shared.contracts.json import JsonObject
 
 T0 = datetime(2026, 11, 5, 18, 11, tzinfo=UTC)
@@ -60,7 +60,7 @@ class _Store:
 
     def _check(self) -> None:
         if self.fail_writes:
-            raise BaselineStoreUnavailable("kpi_baselines: OperationalError")
+            raise ReputationStoreUnavailable("kpi_baselines: OperationalError")
 
 
 class _Outcomes:
@@ -127,7 +127,7 @@ async def test_a_failed_write_leaves_the_window_open() -> None:
     store = _Store()
     await _service(store, T0).start("pre-autonomy", at=T0)
     store.fail_writes = True
-    with pytest.raises(BaselineStoreUnavailable):
+    with pytest.raises(ReputationStoreUnavailable):
         await _service(store, T0 + timedelta(days=8)).close("pre-autonomy")
     window = await store.open_window("pre-autonomy")
     assert window is not None and window.ended_at is None

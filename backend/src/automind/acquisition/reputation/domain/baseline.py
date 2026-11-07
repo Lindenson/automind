@@ -10,16 +10,10 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import TypedDict
 
+from automind.acquisition.reputation.domain.rollup import Kpis
 from automind.shared.contracts.json import JsonObject
 
 MIN_DAYS = 7  # a window closes after a week at least: one week of every weekday's traffic
-
-
-class Kpis(TypedDict):
-    """The daily roll-up's KPIs over a period, by area: searches per accepted value, share of wrong values."""
-
-    searches_per_value: dict[str, float]
-    wrong_share: dict[str, float]
 
 
 @dataclass(frozen=True)
