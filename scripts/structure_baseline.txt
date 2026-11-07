@@ -426,8 +426,6 @@ ignore|acquisition/snapshots/retention.py|run_snapshot_retention
 ignore|chat/application/services/interpretation/ask.py|intake_quick_replies.fresh
 ignore|chat/application/usecases/challenge.py|_signals
 ignore|chat/dialog/graph.py|build_graph
-ignore|chat/dialog/nodes/understand.py|assess_node
-ignore|chat/dialog/nodes/understand.py|policy_node
 ignore|chat/dialog/report_followup.py|profile_question
 ignore|chat/dialog/report_text.py|_trade_total
 ignore|chat/domain/assessment/ask_value.py|questions
@@ -642,7 +640,6 @@ node|chat/dialog/nodes/confirm.py|apply_variants
 node|chat/dialog/nodes/confirm.py|ask_node
 node|chat/dialog/nodes/confirm.py|prepare_intake
 node|chat/dialog/nodes/confirm.py|prepare_variants
-node|chat/dialog/nodes/understand.py|assess_node
 order|acquisition/admin_api.py|accuracy
 order|acquisition/admin_api.py|change
 order|acquisition/admin_api.py|changes

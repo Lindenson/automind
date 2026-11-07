@@ -1,5 +1,6 @@
 """The application's wording in the person's language (implements `report.contracts.ReportWording`,
-`research.contracts.ResearchWording` and `interpretation.contracts.ReplyWords`): the phrases of `phrases`, how a
+`research.contracts.ResearchWording`, `interpretation.contracts.ReplyWords` and
+`assessment.contracts.PlanWording`): the phrases of `phrases`, how a
 short reply reads, and the verdict, insight, electric, suggestion and area texts of `report_text`."""
 
 from __future__ import annotations
@@ -11,8 +12,16 @@ from automind.chat.dialog import phrases, report_text
 from automind.chat.domain.verdict.insights import InsightSet
 from automind.chat.domain.verdict.verdict import Verdict
 
+_PLAN_WARNINGS = {  # the research plan's warnings about a car; English in every chat so far (not in PHRASES yet)
+    "OLD_CAR": "{label}: older than 25 years — sources are scarce, several sections may show insufficient data.",
+    "NOT_SOLD_IN_ES": "{label}: not sold new in Spain — prices and specifications may refer to another market.",
+}
+
 
 class DialogWording:
+    def plan_warning(self, kind: str, label: str) -> str:
+        return _PLAN_WARNINGS[kind].format(label=label)
+
     def t(self, key: str, lang: str | None, **params: object) -> str:
         return phrases.t(key, lang, **params)
 

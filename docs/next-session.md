@@ -1,4 +1,4 @@
-# Next session: start here (parked on 2026-11-07, after S9c-1 interpretation)
+# Next session: start here (parked on 2026-11-07, after S9c-2 assessment)
 
 **First task: refactoring — spec 012, executed by `specs/012-refactoring/tasks.md` (one phase = one PR).**
 No new features until it is done (owner, 2026-11-06). All functional work in §4 is parked, still valid, and
@@ -13,7 +13,7 @@ fallbacks = strategies behind a Protocol), then `tasks.md` from S7 on.
 What the system is: `README.md` ("Acquisition engine"), `docs/adr/ADR-032-acquisition-engine.md`,
 `docs/history/next-session-2026-11-06-engine.md` §1, specs 001–009: `docs/baseline.md`.
 
-## 0. Resume S9c-2 (next action)
+## 0. Resume S9d (next action)
 
 Done and merged: S0–S8, S9a (T074 characterisation, PR #101), S9b (T076 research service, PR #102).
 Services so far: `identification/` (S7), `report/` (S8: ReportService, facts/, blocks/, stages/), `research/` (S9b:
@@ -47,11 +47,16 @@ ownership}`; domain types narrowed (`HomeCharging`, `Body`, `CLIMATES`). `unders
 structure 1448 → 1427; mypy report 271 → 261. `edit_delta` stays in `report/blocks/car_view.py` (with the "Change"
 choices it applies).
 
-**Next: S9c-2** (branch `012-s9c-assessment`): `assess_node` + `_plan` + `_warning_text` → a service (assessment of
-the cars, the research plan and its cost, the feasibility check; `acquisition.powertrains/last_done/unmet_areas/
-registry_done` through a port, not `acquisition.api` directly); `policy_node` + `_intake_limits` thin (the 3
-`type: ignore` left in understand.py: assess_node ×1, policy_node ×1, `Assessment` reuse of `a`). Then S9d — T078:
-`confirm.py` nodes ≤ 30 lines, `ask.py` out of interpretation into its own service (questions), `ChallengeValue`
+**S9c-2 done (PR #115):** `services/assessment/` — `AssessmentService.cars()` (comparison level, every car
+checked again / looked up / auto-resolved; the node saves the case, then) `.plan()` (research plan from
+`PlanHistory`, cost, declined plan, feasibility, warnings); stages `car_checked`, `research_plan` (pure), `warnings`;
+port `ports.ResearchHistory` (`chat/infrastructure/research_history.py` over `acquisition.api`, `StoreUnavailable`);
+`intake.Limits.from_config`; `request_kind` typed `RequestKind` through the interpretation contracts and TurnState;
+plan warnings worded by `DialogWording.plan_warning` (still English only, as before). `understand.py` 228 → ~145
+lines, 0 `type: ignore`; structure 1427 → 1424; mypy report 261 → 259. Left: `report/stages/verdict.py` still calls
+`acquisition.unmet_areas` directly — move to `ResearchHistory` with S9d.
+
+**Next: S9d** — T078: `confirm.py` nodes ≤ 30 lines, `ask.py` out of interpretation into its own service (questions), `ChallengeValue`
 use case + port, purity contracts for chat.dialog and chat.application. Then T074c (2)-(5) re-review as listed in
 tasks.md. Deploy checkpoint after 2026-11-12.
 Coverage (characterisation is enough, no new pinning needed): `understand.py` 90 %, `confirm.py` 89 %,
@@ -60,7 +65,7 @@ Gate per step: check.sh, then (never in parallel) diff_behaviour, check_checkpoi
 Then S10 use cases, S11 acquisition pipeline + parsing package, S12 admin/persistence split + contracts, S13
 order/API + mypy scope, S14 docs, S15 acceptance.
 
-Known deferred inside 012: nodes still fat (`understand.py` assess/policy, `confirm.py` 465) — S9c-2/S9d; T019a flaky `test_catalog_merge` (host load) open.
+Known deferred inside 012: nodes still fat (`confirm.py` 465) — S9d; T019a flaky `test_catalog_merge` (host load) open.
 
 ### Workflow per step (what worked S3a–S7)
 
@@ -73,7 +78,7 @@ cd backend && uv run python ../scripts/check_checkpoints.py      # read-only pro
 ```
 - Moves: `scripts/refactor/move.py <map.yaml>` (maps in `specs/012-refactoring/moves/`; whole packages first);
   after moves `scripts/check_structure.py --write-baseline` only if the count did not grow.
-- Structure ratchet baseline `scripts/structure_baseline.txt` (1427 now); new violations fail
+- Structure ratchet baseline `scripts/structure_baseline.txt` (1424 now); new violations fail
   the gate; a PR shrinks the entries of every package it touches (pr-self-check.md).
 - Never run two test runs on one DB at once. Commit → push → `gh pr create` → `gh pr merge --merge` → delete
   local+remote branch; update this file's §0 at the end of each step.

@@ -36,6 +36,7 @@ from automind.chat.application.services.interpretation.stages.understood import 
 from automind.chat.application.services.report.blocks.car_view import edit_delta
 from automind.chat.domain import intake
 from automind.chat.domain.case import CaseFile, apply, apply_defaults
+from automind.chat.domain.decision import RequestKind
 from automind.shared.contracts.config import Reference
 from automind.shared.contracts.llm import LLM
 
@@ -97,7 +98,7 @@ class InterpretationService:
         changes += intake.inherit_condition(before, new)
         _keep_persona_words(new, i)
         new = apply_defaults(new, self.ref.profile_defaults)  # spec 007 FR-003: what is assumed is marked ASSUMED
-        request: str = "choose_for_me" if self.words.choose_for_me(text) else i.request
+        request: RequestKind = "choose_for_me" if self.words.choose_for_me(text) else i.request
         if _intake_pending(before) and request in ("general_question", "chitchat"):
             request = "compare"  # spec 005 FR-022: while an intake step is pending, every reply is an intake answer
             changes += brand_from_text(new, before, text, self.ref.makes)

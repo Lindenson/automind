@@ -22,6 +22,7 @@ from automind.chat.infrastructure.persistence.repositories import (
     MessageRepo,
     TurnRepo,
 )
+from automind.chat.infrastructure.research_history import EngineResearchHistory
 from automind.delivery.bootstrap import reference
 from automind.shared.infrastructure.db import init_db
 from automind.shared.metering.usage import Limits, Prices, TurnBudget
@@ -70,6 +71,7 @@ def make_ports(llm=None, search=None, events=None) -> Ports:
         ref=ref,
         messages=MessageRepo(),
         computations=ComputationRepo(),
+        research=EngineResearchHistory(),
         estimator=FixedEstimator(),
         feasibility=FeasibilityRepo(),
         market_facts=facts,

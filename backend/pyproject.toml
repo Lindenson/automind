@@ -104,5 +104,7 @@ module = [
     "automind.chat.application.services.interpretation.service",
     "automind.chat.application.services.interpretation.interpret",
     "automind.chat.application.services.interpretation.stages.*",
+    "automind.chat.application.services.assessment", "automind.chat.application.services.assessment.*",
+    "automind.chat.infrastructure.research_history",
 ]
 strict = true

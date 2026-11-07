@@ -210,6 +210,27 @@ class Estimator(Protocol):
         ...
 
 
+class ResearchHistory(Protocol):
+    """What earlier research left per catalogue version (the engine's read model, `acquisition.api`): the planner's
+    inputs. Raises `StoreUnavailable` when the store cannot be read (the turn fails and resumes from its checkpoint)."""
+
+    async def powertrains(self, variant_ids: list[str]) -> dict[str, str | None]:
+        """variant id -> its powertrain ("BEV", "PHEV", …), None when not known."""
+        ...
+
+    async def last_done(self, variant_ids: list[str]) -> dict[str, dict[str, datetime]]:
+        """variant id -> area -> when its research last completed; versions never researched are absent."""
+        ...
+
+    async def unmet_areas(self, variant_ids: list[str]) -> dict[str, set[str]]:
+        """variant id -> areas researched before whose evidence minimum was not reached."""
+        ...
+
+    async def registry_done(self, variant_ids: list[str]) -> dict[str, dict[str, datetime]]:
+        """variant id -> area -> when its research last tried the registry's sources of the other markets."""
+        ...
+
+
 class Clock(Protocol):
     """The time of the system (a fixed one in tests)."""
 
@@ -364,6 +385,7 @@ class Ports:
     messages: MessageRepo
     estimator: Estimator
     computations: ComputationStore
+    research: ResearchHistory  # spec 012 S9c: what earlier research left, for the planner
     acquisition: AcquisitionPort | None = None  # spec 011 S8: the engine (search, pages, readers live there)
     feasibility: FeasibilityStore | None = None  # spec 003 US3: used-price ranges and the checks of a turn
     lineup: LineupLookup | None = None  # spec 005: a make's line-up on a market; None: no look-up

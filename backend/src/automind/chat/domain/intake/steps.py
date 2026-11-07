@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from automind.chat.domain.case import CaseCar, CaseFile, Choice, IdentifyKind, IntakeItem
+from automind.shared.contracts.json import JsonObject
 
 StepKind = Literal["ASK", "PROPOSE", "REMOVE_OR_CHOOSE", "CARD", "NONE"]
 
@@ -27,6 +28,15 @@ class Limits:
     max_attempts_per_item: int = 2
     max_attempts_per_car: int = 4
     full_intake: bool = True  # ask new/used for every car and the year of used ones (US4)
+
+    @classmethod
+    def from_config(cls, section: JsonObject) -> Limits:
+        """The limits of `search.yaml intake`; a key not given takes its default, `full_intake` is off."""
+        return cls(
+            max_attempts_per_item=int(section.get("max_attempts_per_item", 2)),
+            max_attempts_per_car=int(section.get("max_attempts_per_car", 4)),
+            full_intake=bool(section.get("full_intake", False)),
+        )
 
 
 @dataclass(frozen=True)
