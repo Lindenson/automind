@@ -36,7 +36,8 @@ async def prepare_feasibility(state: TurnState, runtime: Runtime[TurnContext]) -
     c = ctx(runtime)
     _, case = await load_case(c)
     data = state.get("feasibility") or {}
-    await fz_app.persist(c.ports.feasibility, c.chat_id, c.turn_id, case, data)
+    if c.ports.feasibility is not None:  # None: the feasibility checks are off
+        await fz_app.persist(c.ports.feasibility, c.chat_id, c.turn_id, case, data)
     lang = state.get("language")
     lines = "\n".join(f"- {x}" for x in fz_app.problems(data))
     options = [{"id": "report", "label": t("feasibility_report", lang)}]

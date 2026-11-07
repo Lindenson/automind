@@ -3,13 +3,16 @@
 
 from __future__ import annotations
 
-from typing import Any
-
+from automind.chat.infrastructure.persistence.errors import store_errors
+from automind.shared.contracts.json import JsonObject
 from automind.shared.infrastructure import db
 
 
 class ComputationRepo:
-    async def record(self, turn_id: str, estimates: list[dict[str, Any]], simulation: dict[str, Any] | None) -> None:
+    """Implements `ComputationStore` over `tco_estimates` and `simulations`."""
+
+    @store_errors
+    async def record(self, turn_id: str, estimates: list[JsonObject], simulation: JsonObject | None) -> None:
         async with db.sessionmaker()() as s:
             for e in estimates:
                 s.add(db.TcoEstimateRow(turn_id=turn_id, **e))

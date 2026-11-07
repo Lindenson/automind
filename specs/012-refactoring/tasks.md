@@ -169,13 +169,14 @@ entry points (≤ 60 lines), every stage named.
 - [ ] T074c [US2] (S9.2…, owner 2026-11-07: "после моих замечаний всё нужно пересмотреть") Re-review of everything
   012 already produced against the API bar, one PR per package, most critical first (counts: `scripts/
   structure_baseline.txt`, rules any/doc/public/ignore/lazy):
-  1. `chat/application/ports.py` — the ports themselves (22 `any`, 38 `doc`): every port a typed Protocol, its
+  1. (done, S9.2 ports) `chat/application/ports.py` — the ports themselves (22 `any`, 38 `doc`): every port a typed Protocol, its
      methods documented with the errors they raise; `Ports` fields typed (no `Any = None`); a port's failure is
      named (`StoreUnavailable`, `VersionConflict`, …), never a driver exception
   2. `chat/application/services` rest (interpretation, feasibility) and `usecases` (with T078/T079)
   3. `chat/domain/*` (assessment 46 doc/8 any, cost 40/4, case 21 doc/7 ignore, verdict 21/6/3, identification 18/5,
      intake, understanding) — strict already; docs, `Any`, `type: ignore`
-  4. `chat/dialog` (8 `ignore`), `chat/infrastructure` (lazy imports)
+  4. `chat/dialog` (8 `ignore`; `context.record_intake` writes `intake_events` with a lazy import of the DB — an
+     `IntakeLog` port), `chat/infrastructure` (lazy imports)
   5. `observability/application|domain` (analyse.py 6 any/12 doc), `acquisition/domain|registry` (any/doc) — with
      S11/S12; lazy imports of acquisition agents/gates/worker/parsing (≈130) — with S11/S12a
   Each PR: the package's API entries → 0, its modules join strict mypy.

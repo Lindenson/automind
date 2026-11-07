@@ -392,9 +392,16 @@ async def assess_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[s
     # Recomputed on every assess: the plan can grow inside a turn (a car confirmed after the first assess),
     # and a refusal of the smaller plan must not block research for the new one.
     out["research_declined"] = bool(plan.jobs) and case.declined_plan == out["research_plan"]["key"]
-    if fz_app.has_constraints(case) and case.cars and not plan.jobs and all(x.variant_id for x in case.cars):
+    store = c.ports.feasibility  # None: the feasibility checks are off
+    if (
+        store is not None
+        and fz_app.has_constraints(case)
+        and case.cars
+        and not plan.jobs
+        and all(x.variant_id for x in case.cars)
+    ):
         out["feasibility"] = await fz_app.evaluate(
-            case, c.ports.ref.feasibility, c.ports.ref.rates or {}, c.ports.clock.now().year, c.ports.feasibility
+            case, c.ports.ref.feasibility, c.ports.ref.rates or {}, c.ports.clock.now().year, store
         )
     warn = [notice(_warning_text(w.kind, case.car(w.car_key).label or case.car(w.car_key).request_text), "warning")
             for w in plan.warnings]  # fmt: skip
@@ -418,7 +425,7 @@ async def _plan(
     ]  # fmt: skip
     criteria = [p.criterion for p in case.priorities] + [k for k, w in case.weights.items() if w > 0]
     last = await acquisition.last_done([x.variant_id for x in cars])
-    market = await c.ports.market_facts.done() if getattr(c.ports, "market_facts", None) is not None else None
+    market = await c.ports.market_facts.done() if c.ports.market_facts is not None else None
     for x in cars:  # market-level areas: one date for every car (spec 006 US5)
         last.setdefault(x.variant_id, {}).pop("incentives", None)
         if market is not None:
