@@ -1,4 +1,4 @@
-# Next session: start here (parked on 2026-11-07, after S9.0 controls)
+# Next session: start here (parked on 2026-11-07, after S9.1a)
 
 **First task: refactoring — spec 012, executed by `specs/012-refactoring/tasks.md` (one phase = one PR).**
 No new features until it is done (owner, 2026-11-06). All functional work in §4 is parked, still valid, and
@@ -27,10 +27,15 @@ added: API rules `any`/`untyped`/`doc`/`public`/`ignore`/`lazy`/`exempt` (`scrip
 baseline 799 → 1667), contracts/code-shape.md "Public API of a layer", `specs/012-refactoring/checklists/pr-self-check.md`
 (copied into every PR body and answered), strict mypy override fixed to the post-S3a modules.
 
-**Next: S9.1 — T074b**: bring `identification/`, `report/`, `research/` (written in S7–S9b, they fail the new bar too:
-`mypy --strict` 82 errors, mostly bare `dict`/`list`; 61 `any`, 72 `doc`, 11 `public`, 13 `ignore` entries) to
-strict + no `Any` in their public API (research jobs/results as DTOs), docs, ≤ 40-line public callables; add them to
-the strict list in check.sh and pyproject. Then:
+**S9.1a done (PR #105):** `research/` meets the bar (TypedDict state shapes in `research/contracts.py`, narrow
+`ResearchEvents`, typed `Notice`, strict mypy, 0 baseline entries). Pattern to reuse: graph-state shapes are
+TypedDicts in the service's `contracts.py`; results built by a typed helper; old checkpoint shapes read with `.get`
+and a test.
+
+**Next: S9.1b — T074b identification** (`mypy --strict` 5 errors; baseline: 16 `any`, 22 `doc`, 7 `ignore`, 3 `public`
+— `grep services/identification/ scripts/structure_baseline.txt`), then **S9.1c report** (69 strict errors, mostly
+bare `dict`/`list`; 34 `any`, 45 `doc`, 8 `public`, 4 `ignore`). Each joins the strict list in check.sh + pyproject.
+Then:
 
 **S9c — T075 interpretation** (tasks.md "S9"): `chat/dialog/nodes/understand.py` (≈500 lines; fat nodes
 interpret_node, apply_delta_node, assess_node).
@@ -62,7 +67,7 @@ cd backend && uv run python ../scripts/check_checkpoints.py      # read-only pro
 ```
 - Moves: `scripts/refactor/move.py <map.yaml>` (maps in `specs/012-refactoring/moves/`; whole packages first);
   after moves `scripts/check_structure.py --write-baseline` only if the count did not grow.
-- Structure ratchet baseline `scripts/structure_baseline.txt` (1667 now, of which 868 API rules); new violations fail
+- Structure ratchet baseline `scripts/structure_baseline.txt` (1645 now); new violations fail
   the gate; a PR shrinks the entries of every package it touches (pr-self-check.md).
 - Never run two test runs on one DB at once. Commit → push → `gh pr create` → `gh pr merge --merge` → delete
   local+remote branch; update this file's §0 at the end of each step.
