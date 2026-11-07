@@ -106,5 +106,9 @@ module = [
     "automind.chat.application.services.interpretation.stages.*",
     "automind.chat.application.services.assessment", "automind.chat.application.services.assessment.*",
     "automind.chat.infrastructure.research_history",
+    "automind.acquisition.reputation.domain.*", "automind.acquisition.reputation.application.*",
+    "automind.acquisition.reputation.infrastructure.*", "automind.delivery.cli.baseline",
+    "automind.shared.infrastructure.db.errors", "automind.chat.infrastructure.persistence.errors",
+    "automind.delivery.baselines", "automind.observability.infrastructure.outcome_facts",
 ]
 strict = true

@@ -11,7 +11,7 @@ from __future__ import annotations
 # 2. public functions / classes (the API of the module), most important first
 # 3. private helpers (_name), in the order they are used
 ```
-Limits: module ≤ 400 lines (allow-list for data modules), function ≤ 50 lines (target; > 80 fails), a public
+Limits: module ≤ 200 lines (owner 2026-11-07, was 400; allow-list for data modules), function ≤ 50 lines (target; > 80 fails), a public
 function of application/domain ≤ 40 lines (fails).
 
 ## Public API of a layer (owner, 2026-11-07; antipattern: `chat/application/usecases/challenge.py`)
@@ -31,7 +31,10 @@ Rules for every public callable in `*/application/**` and `*/domain/**` (checked
    an event payload, a config section as loaded) is written `JsonObject` (`shared/contracts/json.py`), the one
    sanctioned loose type; anything the application reads back from it is typed first (`LoadedCar`, `IntakeConfig`). `Callable[..., X]` is not a
    type: name the parameters (a Protocol with `__call__`).
-2. **Storage through a port.** No `sqlalchemy`, no `shared.infrastructure.db` in application or domain; a write is
+2. **Storage through a port.** No `sqlalchemy`, no `shared.infrastructure.db` outside an `infrastructure/` package —
+   in **every** area and package, whatever its directory is called (owner 2026-11-07: `acquisition/reputation/baseline.py`
+   had raw SQL beside its logic and no rule saw it; rule `storage`); a table is read and written by its owner's
+   infrastructure (`scripts/table_owners.yaml`), a cross-area port is wired in `delivery` (composition root); a write is
    one port call that is one transaction. A new `ignore_imports` line is never the answer (rule `exempt`).
 3. **Errors are part of the contract.** A port documents what it raises (one typed error per failure class, e.g.
    `StoreUnavailable`, `VersionConflict`), never a driver exception. The use case/service docstring says what happens

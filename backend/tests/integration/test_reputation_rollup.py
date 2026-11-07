@@ -12,9 +12,11 @@ from tests.fakes.reputation_world import World
 from automind.acquisition.registry.api import Attempt, TruthSignalIn
 from automind.acquisition.registry.application.service import RegistryService
 from automind.acquisition.registry.infrastructure.repo import RegistryRepo
-from automind.acquisition.reputation import baseline, rollup
+from automind.acquisition.reputation import rollup
+from automind.acquisition.reputation.application.baseline import BaselineError
 from automind.acquisition.worker import budget, exporter
-from automind.acquisition.worker.handlers import HANDLERS
+from automind.delivery.baselines import kpi_baselines, worker_handlers
+from automind.delivery.cli import baseline as baseline_cli
 from automind.shared.infrastructure import db
 from automind.shared.infrastructure.config.loader import load_yaml
 from automind.shared.infrastructure.db import models as m
@@ -82,24 +84,27 @@ async def test_baseline_window_needs_seven_days(world: World) -> None:
     name = "t072-pre-autonomy"
     autonomy = load_yaml("registry.yaml")["autonomy"]
     started = datetime.now(UTC) - timedelta(days=2)
+    baseline = kpi_baselines()
     await baseline.start(name, "test", at=started)
-    with pytest.raises(baseline.BaselineError, match="already open"):
+    with pytest.raises(BaselineError, match="already open"):
         await baseline.start(name)
-    with pytest.raises(baseline.BaselineError, match="needs at least 7"):
+    with pytest.raises(BaselineError, match="needs at least 7"):
         await baseline.close(name)
-    assert (await baseline.record_open())["open"] and (await baseline.status(name))["recorded_at"]
+    assert name in await baseline.record_open()
+    st = await baseline.status(name)
+    assert st is not None and st.recorded_at is not None
     values = await baseline.close(name, now=started + timedelta(days=7, minutes=1))
     assert {"accuracy_share_wrong", "searches_per_value", "satisfaction_index", "nodata_share", "coverage"} <= set(
         values
     )
     st = await baseline.status(name)
-    assert st and st["ended_at"]
-    assert await baseline.main_async(["close", "--name", name]) == 1  # nothing open any more
+    assert st is not None and st.ended_at is not None
+    assert await baseline_cli.main_async(["close", "--name", name]) == 1  # nothing open any more
     assert load_yaml("registry.yaml")["autonomy"] is autonomy is False  # the owner switches it (T078)
 
 
 def test_worker_has_the_reputation_tasks() -> None:
-    assert {"reputation_signals", "rollup", "baseline", "blame_judge"} <= set(HANDLERS)
+    assert {"reputation_signals", "rollup", "baseline", "blame_judge"} <= set(worker_handlers())
     assert budget.cap_for("blame_judge") == pytest.approx(0.05)
     schedule = load_yaml("acquisition.yaml")["schedule"]
     assert {"reputation_signals", "rollup", "baseline"} <= set(schedule)

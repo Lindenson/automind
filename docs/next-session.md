@@ -1,4 +1,4 @@
-# Next session: start here (parked on 2026-11-07, after S9c-2 assessment)
+# Next session: start here (parked on 2026-11-07, after S9.3 storage rule; next: acquisition A1)
 
 **First task: refactoring — spec 012, executed by `specs/012-refactoring/tasks.md` (one phase = one PR).**
 No new features until it is done (owner, 2026-11-06). All functional work in §4 is parked, still valid, and
@@ -13,7 +13,7 @@ fallbacks = strategies behind a Protocol), then `tasks.md` from S7 on.
 What the system is: `README.md` ("Acquisition engine"), `docs/adr/ADR-032-acquisition-engine.md`,
 `docs/history/next-session-2026-11-06-engine.md` §1, specs 001–009: `docs/baseline.md`.
 
-## 0. Resume S9d (next action)
+## 0. Resume acquisition A1 (next action)
 
 Done and merged: S0–S8, S9a (T074 characterisation, PR #101), S9b (T076 research service, PR #102).
 Services so far: `identification/` (S7), `report/` (S8: ReportService, facts/, blocks/, stages/), `research/` (S9b:
@@ -56,7 +56,18 @@ plan warnings worded by `DialogWording.plan_warning` (still English only, as bef
 lines, 0 `type: ignore`; structure 1427 → 1424; mypy report 261 → 259. Left: `report/stages/verdict.py` still calls
 `acquisition.unmet_areas` directly — move to `ResearchHistory` with S9d.
 
-**Next: S9d** — T078: `confirm.py` nodes ≤ 30 lines, `ask.py` out of interpretation into its own service (questions), `ChallengeValue`
+**S9.3 done (PR #116, owner 2026-11-07):** the owner found SQL beside logic in `acquisition/reputation/baseline.py`
+and modules over 200 lines (`gates/evaluate.py` 286, …) under a green gate: the rules only looked at `application/`
+and `domain/` dirs and allowed 400 lines. Now rule `storage` (sqlalchemy / `shared.infrastructure.db` outside an
+`infrastructure/` package, any area) and module limit **200**; baseline 1424 → 1581 (109 storage, 73 size). The KPI
+baseline is the template: `reputation/{domain,application,infrastructure}/baseline*`, `turn_outcomes` read by
+observability (its owner), wired in `delivery/baselines.py`, worker handlers injected. **Owner's command changed**
+after the next deploy: `python -m automind.cli baseline close --name pre-autonomy` (the old module path is gone; the
+code running in production now still has it).
+
+**Next: acquisition A1–A8 before S9d** (tasks.md "S9.3"): one PR per package, each leaves 0 `storage` and 0 `size`
+in its package, in layers. A1 = `reputation/` rest (rollup, signals 408, components, fit_physics). Then
+S9d — T078: `confirm.py` nodes ≤ 30 lines, `ask.py` out of interpretation into its own service (questions), `ChallengeValue`
 use case + port, purity contracts for chat.dialog and chat.application. Then T074c (2)-(5) re-review as listed in
 tasks.md. Deploy checkpoint after 2026-11-12.
 Coverage (characterisation is enough, no new pinning needed): `understand.py` 90 %, `confirm.py` 89 %,
@@ -78,7 +89,7 @@ cd backend && uv run python ../scripts/check_checkpoints.py      # read-only pro
 ```
 - Moves: `scripts/refactor/move.py <map.yaml>` (maps in `specs/012-refactoring/moves/`; whole packages first);
   after moves `scripts/check_structure.py --write-baseline` only if the count did not grow.
-- Structure ratchet baseline `scripts/structure_baseline.txt` (1424 now); new violations fail
+- Structure ratchet baseline `scripts/structure_baseline.txt` (1581 now: +storage, size 200); new violations fail
   the gate; a PR shrinks the entries of every package it touches (pr-self-check.md).
 - Never run two test runs on one DB at once. Commit → push → `gh pr create` → `gh pr merge --merge` → delete
   local+remote branch; update this file's §0 at the end of each step.
@@ -160,7 +171,7 @@ branches too, or local only; (c) `# fmt: skip` ×843 — leave as is (proposal) 
 ## 3. Owner decisions pending (unchanged)
 
 1. **Autonomy (011 T078)**: baseline `pre-autonomy` runs since 2026-11-05 18:11 UTC. On/after **2026-11-12**:
-   `docker compose exec app python -m automind.acquisition.reputation.baseline close --name pre-autonomy`, review
+   `docker compose exec app python -m automind.acquisition.reputation.baseline close --name pre-autonomy` (pre-012 code in production; after the 012 deploy: `python -m automind.cli baseline close --name pre-autonomy`), review
    `/admin` Accuracy + Changes, then the owner decides `registry.autonomy: true` (backend/config/registry.yaml).
 2. **Physics check**: review the `fit_physics` envelope before enabling power–mass–acceleration (`config/physics.yaml`).
 3. **Used prices in Europe**: no open source allows robots; candidate = user-pasted listing (009 FR-033).

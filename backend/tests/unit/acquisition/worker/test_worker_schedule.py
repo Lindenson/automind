@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 
 from automind.acquisition.worker import scheduler
 from automind.acquisition.worker.config import worker_config
-from automind.acquisition.worker.handlers import HANDLERS
+from automind.delivery.baselines import worker_handlers
 
 SCHEDULE = {
     "metrics_snapshot": {"every_s": 60, "key": "snap"},
@@ -41,7 +41,7 @@ def test_interval_is_the_longest_gap():
 
 def test_shipped_schedule_has_handlers_and_prefetch_runs_hourly():
     cfg = worker_config()
-    assert set(cfg["schedule"]) <= set(HANDLERS)
+    assert set(cfg["schedule"]) <= set(worker_handlers())
     assert cfg["prefetch"]["enabled"] is True  # T057: the owner accepted the €0.30/day budget
     assert {"metrics_snapshot", "registry_review", "insight_run", "prune_tasks", "prefetch"} <= set(
         scheduler.enabled(cfg["schedule"])

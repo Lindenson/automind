@@ -16,6 +16,7 @@ import signal
 
 from automind.acquisition.worker import exporter
 from automind.acquisition.worker.config import worker_config
+from automind.acquisition.worker.handlers import Handler
 from automind.acquisition.worker.process import Worker
 from automind.shared.infrastructure.llm import gateway as llm_gateway
 
@@ -29,13 +30,15 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     return p.parse_args(argv)
 
 
-async def run(a: argparse.Namespace) -> int:
+async def run(a: argparse.Namespace, handlers: dict[str, Handler] | None = None) -> int:
+    """Run the worker until stopped (or one task with `--once`). `handlers`: every task kind's handler, as the
+    composition root assembles them (None: the engine's own, `handlers.HANDLERS`)."""
     cfg = worker_config()
     # the worker's own limit on model calls in flight (worker.llm_concurrency), apart from the API's turns
     llm_gateway._LLM_SEM[id(asyncio.get_running_loop())] = asyncio.Semaphore(  # noqa: SLF001
         int(cfg["worker"]["llm_concurrency"])
     )
-    worker = Worker(cfg, concurrency=a.concurrency)
+    worker = Worker(cfg, concurrency=a.concurrency, handlers=handlers)
     if a.once:
         await worker.register()
         row = await worker.once(a.once)
