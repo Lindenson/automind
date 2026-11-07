@@ -3,26 +3,7 @@ an unreachable database becomes `StoreUnavailable` with the cause chained; the p
 
 from __future__ import annotations
 
-import functools
-from collections.abc import Callable, Coroutine
-from typing import Any, ParamSpec, TypeVar
-
-from sqlalchemy.exc import SQLAlchemyError
-
 from automind.chat.application.ports import StoreUnavailable
+from automind.shared.infrastructure.db.errors import translate_errors
 
-P = ParamSpec("P")
-T = TypeVar("T")
-
-
-def store_errors(fn: Callable[P, Coroutine[Any, Any, T]]) -> Callable[P, Coroutine[Any, Any, T]]:
-    """Wrap a store method: SQLAlchemy errors and connection errors (OSError) become StoreUnavailable."""
-
-    @functools.wraps(fn)
-    async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-        try:
-            return await fn(*args, **kwargs)
-        except (SQLAlchemyError, OSError) as e:
-            raise StoreUnavailable(f"{fn.__qualname__}: {type(e).__name__}") from e
-
-    return wrapper
+store_errors = translate_errors(StoreUnavailable)

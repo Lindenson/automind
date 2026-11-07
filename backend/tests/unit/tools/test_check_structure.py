@@ -40,11 +40,11 @@ def _rules(tmp: Path) -> set[str]:
 DOC_INIT = '"""Package."""\n__all__: list[str] = []\n'
 
 
-def test_size_over_400_lines(tmp_path: Path) -> None:
+def test_size_over_200_lines(tmp_path: Path) -> None:
     root = _tree(
-        tmp_path, {"chat/__init__.py": DOC_INIT, "chat/big.py": "x = 1\n" * 401, "chat/ok.py": "x = 1\n" * 400}
+        tmp_path, {"chat/__init__.py": DOC_INIT, "chat/big.py": "x = 1\n" * 201, "chat/ok.py": "x = 1\n" * 200}
     )
-    assert _rules(root) == {"size|chat/big.py|>400"}
+    assert _rules(root) == {"size|chat/big.py|>200"}
 
 
 def test_package_needs_docstring_and_all(tmp_path: Path) -> None:
@@ -189,3 +189,23 @@ def test_each_ignore_imports_line_is_an_exemption(tmp_path: Path) -> None:
         "[importlinter:contract:other]\nname = y\n"
     )
     assert _rules(root) == {"exempt|.importlinter|app:a.b -> c.d", "exempt|.importlinter|app:a.e -> sqlalchemy"}
+
+
+SQL_AND_DB = "from sqlalchemy import text\nfrom automind.shared.infrastructure import db\n"
+
+
+def test_storage_outside_infrastructure_in_any_package(tmp_path: Path) -> None:
+    root = _tree(tmp_path, {
+        "acquisition/__init__.py": DOC_INIT,
+        "acquisition/reputation/__init__.py": DOC_INIT,
+        "acquisition/reputation/baseline.py": SQL_AND_DB,
+        "acquisition/reputation/infrastructure/__init__.py": DOC_INIT,
+        "acquisition/reputation/infrastructure/store.py": "from sqlalchemy import select\n",
+        "delivery/__init__.py": DOC_INIT,
+        "delivery/web/__init__.py": DOC_INIT,
+        "delivery/web/app.py": "from automind.shared.infrastructure import db\n",
+    })  # fmt: skip
+    assert _rules(root) == {
+        "storage|acquisition/reputation/baseline.py|sqlalchemy",
+        "storage|acquisition/reputation/baseline.py|automind.shared.infrastructure.db",
+    }

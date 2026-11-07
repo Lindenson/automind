@@ -112,13 +112,6 @@ async def rollup(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any]:
     return await daily.run()
 
 
-async def baseline(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any]:
-    """Spec 011 T073: refresh the values of open KPI baselines."""
-    from automind.acquisition.reputation.baseline import record_open  # noqa: PLC0415
-
-    return await record_open()
-
-
 async def blame_judge(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any]:
     """Spec 011 T071: settle one disputed signal within `agents.budgets.blame_judge`."""
     from automind.acquisition.agents.blame_judge import judge  # noqa: PLC0415
@@ -241,7 +234,6 @@ HANDLERS: dict[str, Handler] = {
     "prefetch": prefetch,
     "reputation_signals": reputation_signals,
     "rollup": rollup,
-    "baseline": baseline,
     "blame_judge": blame_judge,
     "parser_daily": parser_daily,
     "drift": drift,

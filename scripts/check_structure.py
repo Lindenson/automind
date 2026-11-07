@@ -2,7 +2,7 @@
 """Structure checker of spec 012 (research R6, contracts/code-shape.md): the shape rules import-linter cannot see.
 
 Rules (id: what fails):
-  size      a module over 400 lines
+  size      a module over 200 lines (owner 2026-11-07; was 400)
   pkgdoc    a package `__init__.py` without a docstring or without `__all__`
   order     a public top-level function/class after the first private one
   regex     a regex compiled or used with a literal pattern inside a function (patterns.py / vocabulary/ excepted)
@@ -41,7 +41,7 @@ BASELINE = Path("scripts/structure_baseline.txt")
 EXCEPTIONS = Path("scripts/structure_exceptions.txt")
 OWNERS = Path("scripts/table_owners.yaml")
 
-MODULE_MAX = 400
+MODULE_MAX = 200
 FUNC_MAX = 80
 NODE_MAX = 30
 USECASE_RUN_MAX = 30

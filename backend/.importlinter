@@ -47,6 +47,7 @@ source_modules =
     automind.chat.application
     automind.shared.metering
     automind.shared.vehicle.makes
+    automind.acquisition.reputation.application
 forbidden_modules =
     automind.chat.dialog
     automind.delivery.web
@@ -181,6 +182,7 @@ name = Acquisition engine pure cores (spec 011, constitution V, IX)
 type = forbidden
 source_modules =
     automind.acquisition.domain
+    automind.acquisition.reputation.domain
     automind.acquisition.gold.domain
     automind.acquisition.snapshots.codec
     automind.acquisition.parsing.spec

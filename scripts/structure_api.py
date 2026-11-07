@@ -12,6 +12,10 @@ Rules (id: what fails), for modules under an `application/` or `domain/` package
   ignore    a `# type: ignore` (any layer); the detail is the enclosing callable
   lazy      an import inside a function (any layer): a hidden dependency the import contracts cannot see
   exempt    an `ignore_imports` line of backend/.importlinter: a layer contract switched off for one module
+  storage   (any module outside an `infrastructure/` package, owner 2026-11-07: SQL inside
+            acquisition/reputation/baseline.py) an import of sqlalchemy or of the shared database package: storage is
+            reached through a port whose implementation lives in infrastructure; the detail is what is imported.
+            Composition roots that only wire the database (STORAGE_ROOTS) are allowed.
 
 Public = no part of the qualified name starts with "_" (dunders other than `__init__` are not API; `__init__`
 counts for typing). Nested functions are not API.
@@ -29,6 +33,11 @@ PUBLIC_MAX = 40
 LAYER_DIRS = ("/application/", "/domain/")
 IMPORTLINTER = Path("backend/.importlinter")
 Callable_ = ast.FunctionDef | ast.AsyncFunctionDef
+STORAGE_MODULES = ("sqlalchemy", "automind.shared.infrastructure.db")
+STORAGE_ROOTS = {  # composition roots: they create or migrate the database and wire the stores, nothing else
+    "delivery/web/app.py": "the app's startup: init_db and the stores wired",
+    "delivery/cli/main.py": "the `migrate` command runs the migrations",
+}
 
 
 def in_layer(rel: str) -> bool:
@@ -37,7 +46,7 @@ def in_layer(rel: str) -> bool:
 
 def api_rules(rel: str, text: str, tree: ast.Module) -> list[tuple[str, str]]:
     """(rule, detail) pairs of one module."""
-    out = _ignores(text, tree) + _lazy(tree)
+    out = _ignores(text, tree) + _lazy(tree) + _storage(rel, tree)
     if not in_layer(rel):
         return out
     for node, qual, owner in _api(tree):
@@ -128,6 +137,24 @@ def _ignores(text: str, tree: ast.Module) -> list[tuple[str, str]]:
     for ln in lines:
         inner = [s for s in spans if s[0] <= ln <= s[1]]
         out.add(("ignore", max(inner, key=lambda s: s[0])[2] if inner else "<module>"))
+    return sorted(out)
+
+
+def _storage(rel: str, tree: ast.Module) -> list[tuple[str, str]]:
+    """Imports of the database outside infrastructure (rule `storage`), one entry per imported storage module."""
+    if "/infrastructure/" in "/" + rel or rel in STORAGE_ROOTS:
+        return []
+    out = set()
+    for n in ast.walk(tree):
+        names: list[str] = []
+        if isinstance(n, ast.Import):
+            names = [a.name for a in n.names]
+        elif isinstance(n, ast.ImportFrom) and n.module:
+            names = [n.module] + [f"{n.module}.{a.name}" for a in n.names]
+        for name in names:
+            hit = next((m for m in STORAGE_MODULES if name == m or name.startswith(m + ".")), None)
+            if hit is not None:
+                out.add(("storage", hit))
     return sorted(out)
 
 

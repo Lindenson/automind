@@ -22,12 +22,13 @@ def main(argv: list[str] | None = None) -> int:
 def worker(argv: list[str]) -> int:
     """The acquisition worker: background tasks from the queue (`--once KIND` runs one task and exits)."""
     from automind.acquisition.worker import entry  # noqa: PLC0415
+    from automind.delivery.baselines import worker_handlers  # noqa: PLC0415
 
     logging.basicConfig(
         level=os.environ.get("LOG_LEVEL", "INFO"), format="%(asctime)s %(levelname)s %(name)s %(message)s"
     )
     _configure()
-    return asyncio.run(entry.run(entry.parse_args(argv)))
+    return asyncio.run(entry.run(entry.parse_args(argv), worker_handlers()))
 
 
 def replay(argv: list[str]) -> int:
@@ -69,7 +70,7 @@ def insight(argv: list[str]) -> int:
 
 def baseline(argv: list[str]) -> int:
     """KPI baseline before registry autonomy: start | status | close --name NAME."""
-    from automind.acquisition.reputation import baseline as module  # noqa: PLC0415
+    from automind.delivery.cli import baseline as module  # noqa: PLC0415
 
     return int(asyncio.run(module.main_async(argv)) or 0)
 
