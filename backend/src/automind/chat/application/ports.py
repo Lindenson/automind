@@ -342,6 +342,14 @@ class SpecSources(Protocol):
         ...
 
 
+class IntakeLog(Protocol):
+    """One intake event (spec 005 R13): metrics only, never fails the turn: the implementation swallows its own
+    failures (`chat.dialog.context.record_intake`)."""
+
+    async def __call__(self, kind: str, car_key: str | None = None, item: str | None = None,
+                       **details: object) -> None: ...  # fmt: skip
+
+
 @dataclass
 class Ports:
     """Everything the application reaches outside itself. An optional port left None turns its feature off."""

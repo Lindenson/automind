@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from automind.chat.dialog.nodes.understand import _energy_from_text
+from automind.chat.application.services.interpretation.stages.stated_energy import energy_from_text
 from automind.chat.domain.case import CaseCar, CaseFile, StatedEnergy
 from automind.chat.domain.cost import energy as en
 from automind.chat.domain.understanding import energy_figures_of, stated_for_cars
@@ -49,12 +49,12 @@ def _case() -> CaseFile:
 
 def test_figures_go_to_the_car_named_before_them():
     case = _case()
-    log = _energy_from_text(case, "У Атеки реальный расход 8 л, а BYD в гибридном режиме ест 5,5 л.", REG)
+    log = energy_from_text(case, "У Атеки реальный расход 8 л, а BYD в гибридном режиме ест 5,5 л.", REG)
     got = {(s.kind, s.car_key, s.value) for s in case.stated_energy}
     assert got == {("FUEL", "car#2", 8.0), ("CS", "car#1", 5.5)}
     assert len(log) == 2 and "your figure for car#1: 5.5" in log[1]
     # a newer figure replaces the older one for the same car and kind
-    _energy_from_text(case, "Нет, у BYD в гибридном режиме скорее 6 л", REG)
+    energy_from_text(case, "Нет, у BYD в гибридном режиме скорее 6 л", REG)
     assert sorted((s.kind, s.value) for s in case.stated_energy) == [("CS", 6.0), ("FUEL", 8.0)]
 
 

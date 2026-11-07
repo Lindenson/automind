@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from langgraph.runtime import Runtime
 
+from automind.chat.application.ports import IntakeLog
 from automind.chat.application.services.report.blocks import car_view
 from automind.chat.dialog.runner import TurnContext
 from automind.chat.domain.case import CaseFile
@@ -34,6 +35,15 @@ async def history(c: TurnContext, limit: int = 12) -> list[dict[str, str]]:
     msgs = [m for m in await c.ports.messages.history(c.chat_id) if m.role != "edit"]  # panel edits: not words
     prior = msgs[:-1] if msgs and msgs[-1].role == "user" else msgs
     return [{"role": m.role, "text": m.text} for m in prior[-limit:]]
+
+
+def intake_log(c: TurnContext) -> IntakeLog:
+    """The turn's intake log as the services' port (`record_intake` of this turn)."""
+
+    async def log(kind: str, car_key: str | None = None, item: str | None = None, **details: object) -> None:
+        await record_intake(c, kind, car_key, item, **details)
+
+    return log
 
 
 async def record_intake(c: TurnContext, kind: str, car_key: str | None = None, item: str | None = None,

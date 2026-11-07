@@ -7,10 +7,10 @@ from __future__ import annotations
 from datetime import date, datetime
 
 from automind.acquisition import api as acquisition
-from automind.chat.application.ports import Ports
+from automind.chat.application.ports import IntakeLog, Ports
 from automind.chat.application.services.feasibility import feasibility as fz_app
 from automind.chat.application.services.report.blocks.notice import Notice
-from automind.chat.application.services.report.contracts import Computed, IntakeLog, KeyedCars, ReportWording
+from automind.chat.application.services.report.contracts import Computed, KeyedCars, ReportWording
 from automind.chat.application.services.report.facts.car import load_car
 from automind.chat.application.services.report.facts.race import run_race
 from automind.chat.application.services.report.stages.assemble import assemble_blocks

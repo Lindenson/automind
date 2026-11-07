@@ -7,7 +7,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from automind.chat.domain.case.enums import BudgetIntent, Climate, CriterionKey, Strength
+from automind.chat.domain.case.enums import BudgetIntent, Climate, CriterionKey, HomeCharging, Strength
 
 
 class Profile(BaseModel):
@@ -24,7 +24,7 @@ class Profile(BaseModel):
     annual_km_min: int | None = Field(default=None, ge=1000, le=200000)
     annual_km_max: int | None = Field(default=None, ge=1000, le=200000)
     # spec 006 R5: where the user can charge (UNKNOWN is assumed YES and said so in the report)
-    home_charging: Literal["YES", "WORK", "NO", "UNKNOWN"] = "UNKNOWN"
+    home_charging: HomeCharging = "UNKNOWN"
     evidence: dict[str, str] = Field(default_factory=dict)
 
 

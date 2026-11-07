@@ -6,8 +6,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from automind.chat.application.services.interpretation.interpret import Interpretation
-from automind.chat.dialog.nodes.understand import _cars_safety_net
+from automind.chat.application.services.interpretation.contracts import Interpretation
+from automind.chat.application.services.interpretation.stages.cars_safety_net import cars_safety_net
 from automind.chat.domain.case import CaseFile
 from automind.chat.domain.understanding import cars_in_text
 from automind.shared.vehicle.makes import MakeRegistry
@@ -32,8 +32,7 @@ def test_cars_in_text(text, want):
 
 
 def test_general_question_with_two_cars_becomes_a_comparison():
-    i = Interpretation.model_validate({"request": "general_question", "language": "ru", "delta": {}})
-    case, request, log = _cars_safety_net(CaseFile(), i, TEXT, REG, 2026, "general_question")
+    case, request, log = cars_safety_net(CaseFile(), TEXT, REG, 2026, "general_question")
     assert request == "compare" and [c.make for c in case.cars] == ["BYD", "SEAT"]
     assert all(c.condition == "NEW" for c in case.cars) and log[0].startswith("cars from the user's words")
     ateca = case.cars[1].constraints.engine_hint
@@ -41,14 +40,12 @@ def test_general_question_with_two_cars_becomes_a_comparison():
 
 
 def test_one_named_make_stays_a_general_question():
-    i = Interpretation.model_validate({"request": "general_question", "language": "en", "delta": {}})
-    case, request, log = _cars_safety_net(CaseFile(), i, "Is BYD reliable?", REG, 2026, "general_question")
+    case, request, log = cars_safety_net(CaseFile(), "Is BYD reliable?", REG, 2026, "general_question")
     assert request == "general_question" and not case.cars and not log
 
 
 def test_compare_without_cars_gets_them_from_the_words():
-    i = Interpretation.model_validate({"request": "compare", "language": "ru", "delta": {}})
-    case, request, _ = _cars_safety_net(CaseFile(), i, TEXT, REG, 2026, "compare")
+    case, request, _ = cars_safety_net(CaseFile(), TEXT, REG, 2026, "compare")
     assert request == "compare" and len(case.cars) == 2
 
 

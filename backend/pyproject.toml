@@ -100,6 +100,9 @@ module = [
     "automind.observability.domain.outcome", "automind.chat.application.services.research.*",
     "automind.chat.application.services.report.blocks.notice", "automind.chat.application.services.identification.*",
     "automind.chat.application.services.report.*", "automind.shared.contracts.json",
-    "automind.chat.application.ports",
+    "automind.chat.application.ports", "automind.chat.application.services.interpretation.contracts",
+    "automind.chat.application.services.interpretation.service",
+    "automind.chat.application.services.interpretation.interpret",
+    "automind.chat.application.services.interpretation.stages.*",
 ]
 strict = true

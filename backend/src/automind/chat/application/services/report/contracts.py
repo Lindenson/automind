@@ -61,12 +61,6 @@ SameData = Callable[[CaseFile], tuple[str | None, bool]]
 """(a case with other weights) -> (winner, tie) on the same data (spec 007 FR-006/FR-018)."""
 
 
-class IntakeLog(Protocol):
-    """One intake event (spec 005 R13): metrics only, never fails the report."""
-
-    async def __call__(self, kind: str, **details: object) -> None: ...
-
-
 class ReportWording(Protocol):
     """The report decides what to say; the dialog says it in the person's language (`chat.dialog.phrases`,
     `chat.dialog.report_text`). Numbers come from the report, never from the wording."""

@@ -96,6 +96,13 @@ INTAKE_ITEMS: dict[str, IntakeItem] = {i: i for i in get_args(IntakeItem)}  # an
 
 
 Climate = Literal["HOT", "MILD", "COLD", "MOUNTAIN"]
+CLIMATES: dict[str, Climate] = {c: c for c in get_args(Climate)}  # a climate named in config: `.get(text)`
+
+
+HomeCharging = Literal["YES", "WORK", "NO", "UNKNOWN"]  # where the person can charge (spec 006 R5)
+
+
+Body = Literal["suv", "estate", "mpv", "sedan", "hatchback"]  # a body class asked for without a car (spec 007 US7)
 
 
 BudgetIntent = Literal["NEW", "USED", "ANY", "UNKNOWN"]

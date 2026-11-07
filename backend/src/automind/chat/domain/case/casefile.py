@@ -11,6 +11,7 @@ from automind.chat.domain.case.car import CaseCar, Choice
 from automind.chat.domain.case.enums import (
     BASIS_RANK,
     MAX_CARS,
+    Body,
     Depth,
     Persona,
     PersonaSource,
@@ -96,7 +97,7 @@ class CaseFile(BaseModel):
     find_tried: dict[str, list[str]] = Field(default_factory=dict)
     # spec 007 US7: the body the user asked for without naming a car ("семейный кроссовер"), and the candidates
     # proposed for it: {key, make, model, why: [reason keys], price_from_eur}
-    wanted_body: Literal["suv", "estate", "mpv", "sedan", "hatchback"] | None = None
+    wanted_body: Body | None = None
     candidates: list[dict[str, object]] = Field(default_factory=list)
     # 009 FR-022: the make to choose from when the user names a make but no model ("find me a Kia to replace my
     # Prado"): candidates of that make are proposed instead of asking "which model?"

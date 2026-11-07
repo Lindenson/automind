@@ -1,6 +1,6 @@
-"""The application's wording in the person's language (implements `report.contracts.ReportWording` and
-`research.contracts.ResearchWording`): the phrases of `phrases` and the verdict, insight, electric, suggestion and
-area texts of `report_text`."""
+"""The application's wording in the person's language (implements `report.contracts.ReportWording`,
+`research.contracts.ResearchWording` and `interpretation.contracts.ReplyWords`): the phrases of `phrases`, how a
+short reply reads, and the verdict, insight, electric, suggestion and area texts of `report_text`."""
 
 from __future__ import annotations
 
@@ -44,6 +44,25 @@ class DialogWording:
                        names: Mapping[str, str], lang: str | None, *,
                        years_said: bool = False) -> list[str]:  # fmt: skip
         return report_text.electric_lines(block, break_even, names, lang, years_said=years_said)
+
+    @property
+    def gearbox_words(self) -> Mapping[str, str]:
+        return phrases.GEARBOX_WORDS
+
+    def choose_for_me(self, text: str | None) -> bool:
+        return phrases.choose_for_me(text)
+
+    def go_ahead(self, text: str | None) -> bool:
+        return phrases.go_ahead(text)
+
+    def yes_or_no(self, text: str | None) -> str | None:
+        return phrases.yes_or_no(text)
+
+    def guess_language(self, texts: list[str]) -> str:
+        return phrases.guess_language(texts)
+
+    def stable_language(self, detected: str | None, current: str, earlier: list[str]) -> str | None:
+        return phrases.stable_language(detected, current, earlier)
 
     def suggestions_block(self, items: list[Any], names: Mapping[str, str],
                           lang: str | None) -> dict[str, Any] | None:  # fmt: skip

@@ -42,7 +42,6 @@ any|chat/application/services/interpretation/ask.py|phrase
 any|chat/application/services/interpretation/ask.py|record
 any|chat/application/services/interpretation/ask.py|status_line
 any|chat/application/services/interpretation/ask.py|template
-any|chat/application/services/interpretation/interpret.py|summarize
 any|chat/application/usecases/challenge.py|recheck
 any|chat/application/usecases/chats.py|delete_chats
 any|chat/domain/assessment/ask_value.py|changes
@@ -209,10 +208,6 @@ doc|chat/application/services/feasibility/feasibility.py|persist
 doc|chat/application/services/interpretation/ask.py|fill_questions
 doc|chat/application/services/interpretation/ask.py|phrase
 doc|chat/application/services/interpretation/ask.py|understood_summary
-doc|chat/application/services/interpretation/interpret.py|Interpretation
-doc|chat/application/services/interpretation/interpret.py|build_user_prompt
-doc|chat/application/services/interpretation/interpret.py|configure_history
-doc|chat/application/services/interpretation/interpret.py|interpret
 doc|chat/application/usecases/challenge.py|recheck
 doc|chat/application/usecases/chats.py|ChatStore
 doc|chat/application/usecases/chats.py|ChatStore.delete
@@ -355,7 +350,6 @@ doc|chat/domain/intake/steps.py|is_repeat
 doc|chat/domain/intake/steps.py|next_step
 doc|chat/domain/intake/steps.py|progress
 doc|chat/domain/intake/steps.py|question_hash
-doc|chat/domain/understanding/charging.py|any_match
 doc|chat/domain/understanding/energy_figures.py|EnergyFigure
 doc|chat/domain/verdict/insights.py|AttributeRule
 doc|chat/domain/verdict/insights.py|AttributeRule.from_config
@@ -432,9 +426,6 @@ ignore|acquisition/snapshots/retention.py|run_snapshot_retention
 ignore|chat/application/services/interpretation/ask.py|intake_quick_replies.fresh
 ignore|chat/application/usecases/challenge.py|_signals
 ignore|chat/dialog/graph.py|build_graph
-ignore|chat/dialog/nodes/understand.py|_charging_from_text
-ignore|chat/dialog/nodes/understand.py|_person_from_text
-ignore|chat/dialog/nodes/understand.py|apply_delta_node
 ignore|chat/dialog/nodes/understand.py|assess_node
 ignore|chat/dialog/nodes/understand.py|policy_node
 ignore|chat/dialog/report_followup.py|profile_question
@@ -453,7 +444,6 @@ ignore|chat/domain/cost/tco/items.py|_sourced_maintenance
 ignore|chat/domain/intake/pick.py|_apply_level
 ignore|chat/domain/intake/pick.py|pick
 ignore|chat/domain/intake/steps.py|next_step
-ignore|chat/domain/understanding/region.py|region_of
 ignore|chat/domain/verdict/insights.py|_min_conf
 ignore|chat/domain/verdict/verdict.py|_build
 ignore|chat/domain/verdict/verdict.py|_not_enough
@@ -652,9 +642,7 @@ node|chat/dialog/nodes/confirm.py|apply_variants
 node|chat/dialog/nodes/confirm.py|ask_node
 node|chat/dialog/nodes/confirm.py|prepare_intake
 node|chat/dialog/nodes/confirm.py|prepare_variants
-node|chat/dialog/nodes/understand.py|apply_delta_node
 node|chat/dialog/nodes/understand.py|assess_node
-node|chat/dialog/nodes/understand.py|interpret_node
 order|acquisition/admin_api.py|accuracy
 order|acquisition/admin_api.py|change
 order|acquisition/admin_api.py|changes
@@ -1044,10 +1032,6 @@ order|chat/application/services/interpretation/ask.py|record
 order|chat/application/services/interpretation/ask.py|status_line
 order|chat/application/services/interpretation/ask.py|template
 order|chat/application/services/interpretation/ask.py|understood_summary
-order|chat/application/services/interpretation/interpret.py|engine_hints
-order|chat/application/services/interpretation/interpret.py|interpret
-order|chat/application/services/interpretation/interpret.py|numbers_in
-order|chat/application/services/interpretation/interpret.py|summarize
 order|chat/application/services/report/blocks/car_view.py|case_payload
 order|chat/application/services/report/blocks/car_view.py|edit_delta
 order|chat/application/services/report/blocks/car_view.py|options
@@ -1082,7 +1066,6 @@ order|chat/dialog/nodes/research.py|prepare_limit
 order|chat/dialog/nodes/research.py|research_job
 order|chat/dialog/nodes/research.py|route_after_limit
 order|chat/dialog/nodes/research.py|route_round
-order|chat/dialog/nodes/understand.py|apply_delta_node
 order|chat/dialog/nodes/understand.py|assess_node
 order|chat/dialog/nodes/understand.py|policy_node
 order|chat/dialog/nodes/understand.py|route_after_apply
@@ -1394,12 +1377,9 @@ regex|acquisition/replay/command.py|_since
 regex|chat/application/services/identification/versions.py|_power_written
 regex|chat/application/services/interpretation/ask.py|_distinct_generations
 regex|chat/application/services/interpretation/ask.py|template
-regex|chat/application/services/interpretation/interpret.py|numbers_in
 regex|chat/dialog/guard.py|check_numbers
 regex|chat/dialog/guard.py|drop_sentences
 regex|chat/dialog/guard.py|readings
-regex|chat/dialog/nodes/understand.py|_car_named
-regex|chat/dialog/nodes/understand.py|_makes_named
 regex|chat/dialog/phrases.py|go_ahead
 regex|shared/evidence/excerpts.py|_norm
 regex|shared/evidence/excerpts.py|_number_in
@@ -1430,7 +1410,6 @@ size|acquisition/pipeline/job.py|>400
 size|acquisition/pipeline/persist.py|>400
 size|acquisition/reputation/signals.py|>400
 size|chat/dialog/nodes/confirm.py|>400
-size|chat/dialog/nodes/understand.py|>400
 size|chat/dialog/phrases.py|>400
 size|chat/dialog/report_text.py|>400
 size|chat/dialog/runner.py|>400
