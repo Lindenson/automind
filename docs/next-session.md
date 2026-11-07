@@ -13,7 +13,7 @@ fallbacks = strategies behind a Protocol), then `tasks.md` from S7 on.
 What the system is: `README.md` ("Acquisition engine"), `docs/adr/ADR-032-acquisition-engine.md`,
 `docs/history/next-session-2026-11-06-engine.md` §1, specs 001–009: `docs/baseline.md`.
 
-## 0. Resume S9c (next action)
+## 0. Resume T074c (next action)
 
 Done and merged: S0–S8, S9a (T074 characterisation, PR #101), S9b (T076 research service, PR #102).
 Services so far: `identification/` (S7), `report/` (S8: ReportService, facts/, blocks/, stages/), `research/` (S9b:
@@ -29,7 +29,7 @@ baseline 799 → 1667), contracts/code-shape.md "Public API of a layer", `specs/
 
 **S9.1a/b/c-1 done (PRs #105, #107, #108):** `research/`, `identification/` meet the bar (strict, 0 API baseline
 entries); `report/` is typed and strict (`LoadedCar`, `KeyedCars`, typed `Computed`/`ReportWording`; `JsonObject` in
-`shared/contracts/json.py` is the one sanctioned loose type, for UI blocks and config sections — owner to confirm).
+`shared/contracts/json.py` is the one sanctioned loose type, for UI blocks, event payloads and config sections — confirmed by the owner 2026-11-07).
 Patterns: graph-state shapes are TypedDicts in the service's `contracts.py`; closed sets read through typed maps
 (`FUELS`, `GEARBOXES`, `DRIVES`, `INTAKE_ITEMS`) or `Model.model_validate`; `Reference.makes` is the `MakeNames`
 Protocol. mypy report over src: 330 → 271.
