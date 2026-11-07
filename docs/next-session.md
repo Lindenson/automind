@@ -1,4 +1,4 @@
-# Next session: start here (parked on 2026-11-07, after S9.1c-1)
+# Next session: start here (parked on 2026-11-07, after S9.2 ports)
 
 **First task: refactoring — spec 012, executed by `specs/012-refactoring/tasks.md` (one phase = one PR).**
 No new features until it is done (owner, 2026-11-06). All functional work in §4 is parked, still valid, and
@@ -34,11 +34,16 @@ Patterns: graph-state shapes are TypedDicts in the service's `contracts.py`; clo
 (`FUELS`, `GEARBOXES`, `DRIVES`, `INTAKE_ITEMS`) or `Model.model_validate`; `Reference.makes` is the `MakeNames`
 Protocol. mypy report over src: 330 → 271.
 
-**Next: S9.1c-2 — report docs and shape** (`grep services/report/ scripts/structure_baseline.txt | grep -E
-"^(any|doc|public|ignore)"`): 28 `doc`, 9 `public` (criteria_block, data_panel_block, persist_computations, load_car,
-car_facts, insight_values, assemble_blocks, tco_car), 4 `ignore` (car_view._constraints, intake_card._car_edit/
-_profile_edit, verdict.limits_from), 8 `any` (car_view edit helpers, criteria breakdown, scores.facts_of, verdict
-persona_counterfactual/profile_focus). Then T074b is done. Then:
+**S9.1c-2 done (PR #110), T074b closed. S9.2 done (PR #111): the ports** — stores return records (`TurnRecord`,
+`JobRecord`, `MessageRecord`), never ORM rows; writes typed (`Unpack[TurnChanges|JobChanges|OutcomeFields]`);
+`StoreUnavailable` for every driver error (`persistence/errors.store_errors`); Protocols for every optional port.
+
+**Next: T074c — the re-review the owner asked for ("после моих замечаний всё нужно пересмотреть")**, one PR per
+package, list in tasks.md T074c: (2) remaining services (interpretation, feasibility) and usecases with the
+ChallengeValue rework; (3) chat/domain (docs, Any, ignores); (4) chat/dialog — first `context.record_intake`,
+which writes `intake_events` through a lazy DB import (an `IntakeLog` port), and the 8 ignores; (5) observability/
+acquisition with S11/S12. Each PR: the package's API baseline entries → 0, the package joins strict mypy, the PR
+body answers `checklists/pr-self-check.md`. S9c/S9d (T075, T078) can interleave: S9c rewrites understand.py anyway.
 
 **S9c — T075 interpretation** (tasks.md "S9"): `chat/dialog/nodes/understand.py` (≈500 lines; fat nodes
 interpret_node, apply_delta_node, assess_node).
@@ -70,7 +75,7 @@ cd backend && uv run python ../scripts/check_checkpoints.py      # read-only pro
 ```
 - Moves: `scripts/refactor/move.py <map.yaml>` (maps in `specs/012-refactoring/moves/`; whole packages first);
   after moves `scripts/check_structure.py --write-baseline` only if the count did not grow.
-- Structure ratchet baseline `scripts/structure_baseline.txt` (1555 now); new violations fail
+- Structure ratchet baseline `scripts/structure_baseline.txt` (1448 now); new violations fail
   the gate; a PR shrinks the entries of every package it touches (pr-self-check.md).
 - Never run two test runs on one DB at once. Commit → push → `gh pr create` → `gh pr merge --merge` → delete
   local+remote branch; update this file's §0 at the end of each step.
