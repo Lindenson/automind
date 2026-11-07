@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from automind.chat.domain import understanding
 from automind.chat.domain.case import CarRef, CaseDelta, CaseFile, Constraints, apply
+from automind.chat.domain.decision import RequestKind
 from automind.shared.contracts.config import MakeNames
 from automind.shared.vehicle.identity import parse_engine
 
@@ -12,7 +13,7 @@ MAX_FOUND = 3  # at most three cars are compared
 
 
 def cars_safety_net(new: CaseFile, text: str, makes: MakeNames | None, year: int,
-                    request: str) -> tuple[CaseFile, str, list[str]]:  # fmt: skip
+                    request: RequestKind) -> tuple[CaseFile, RequestKind, list[str]]:  # fmt: skip
     """(case, request, change log): with two or more makes in the words, their cars are added and the request is a
     comparison; otherwise everything is returned unchanged."""
     found = understanding.cars_in_text(text, makes.match_make) if makes is not None else []

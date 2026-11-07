@@ -8,6 +8,7 @@ from typing import Annotated, Any, TypedDict
 
 from automind.chat.application.services.report.blocks.notice import Notice
 from automind.chat.application.services.research.contracts import JobResult, JobState, LimitHit, PlanState
+from automind.chat.domain.decision import RequestKind
 
 RESET = "__reset__"
 
@@ -36,7 +37,7 @@ class TurnState(TypedDict, total=False):
     turn_id: str
     user_text: str
     language: str
-    request_kind: str
+    request_kind: RequestKind | None
     interpretation: dict[str, Any]
     case_version: int
     assessments: dict[str, dict[str, Any]]  # car key -> {state, candidates, generations}

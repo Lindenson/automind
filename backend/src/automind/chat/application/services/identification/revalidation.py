@@ -26,7 +26,7 @@ async def drop_wrong_variant(car: CaseCar) -> bool:
     return True
 
 
-async def compare_level(cars: list[CaseCar]) -> tuple[str, str]:
+async def compare_level(cars: list[CaseCar]) -> tuple[identification.Level, identification.LevelSource]:
     """The equipment level of the comparison: the level of the first version the user named, else BASE."""
     named = []
     for c in cars:

@@ -97,9 +97,12 @@ class Job:
     escalate: bool = False  # round 0 also queries the registry's sources of the other markets (spec 010 FR-022)
 
 
+WarningKind = Literal["OLD_CAR", "NOT_SOLD_IN_ES"]
+
+
 @dataclass(frozen=True)
 class Warning:
-    kind: Literal["OLD_CAR", "NOT_SOLD_IN_ES"]
+    kind: WarningKind
     car_key: str
 
 

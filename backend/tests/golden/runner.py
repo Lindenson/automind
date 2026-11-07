@@ -32,6 +32,7 @@ from automind.chat.infrastructure.persistence.repositories import (
     MessageRepo,
     TurnRepo,
 )
+from automind.chat.infrastructure.research_history import EngineResearchHistory
 from automind.shared.infrastructure.db import models as m
 from automind.shared.infrastructure.db.session import sessionmaker
 from tests.fakes.fake_llm import FakeLLM, FixedEstimator
@@ -458,6 +459,7 @@ async def _run_dialogue(d: Dialogue, saver: Any, *, live: bool, record: bool) ->
         ref=ref,
         messages=MessageRepo(),
         computations=ComputationRepo(),
+        research=EngineResearchHistory(),
         estimator=_estimator(live),
         feasibility=FeasibilityRepo(),
         market_facts=facts,

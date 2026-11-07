@@ -88,7 +88,7 @@ class ReadState(TypedDict, total=False):
     """What reading a message writes into the turn state: the interpretation, or the question asked back (`done`)."""
 
     interpretation: JsonObject  # `Interpretation` as JSON
-    request_kind: str
+    request_kind: RequestKind
     language: str | None
     picked: bool
     action: Literal["ASK"]
@@ -99,7 +99,7 @@ class ReadState(TypedDict, total=False):
 class AppliedState(TypedDict, total=False):
     """What applying a message writes into the turn state (`case_version` when the case was saved)."""
 
-    request_kind: str
+    request_kind: RequestKind
     not_understood: list[str]
     case_version: int
     case_changed: bool
@@ -142,7 +142,7 @@ class Applied:
     (`saved`: something changed). `ask`: the delta named a car the case does not have — nothing applied, ask which."""
 
     case: CaseFile
-    request: str
+    request: RequestKind
     changes: list[str] = field(default_factory=list)
     not_understood: list[str] = field(default_factory=list)
     saved: bool = False
