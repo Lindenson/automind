@@ -162,7 +162,7 @@ entry points (≤ 60 lines), every stage named.
 - [x] T074a [US2] (S9.0, owner 2026-11-07: challenge.py antipattern) Controls: API rules `any`, `untyped`, `doc`,
   `public`, `ignore`, `lazy`, `exempt` in `scripts/structure_api.py` (ratchet), contracts/code-shape.md "Public API
   of a layer", `checklists/pr-self-check.md`; the strict mypy override follows the S3a tree (was `automind.domain.*`)
-- [ ] T074b [US2] (S9.1; research done in S9.1a PR #105) The services already written in 012 meet the new bar: `identification/`, `report/`,
+- [ ] T074b [US2] (S9.1; research PR #105, identification PR #107, report types PR #108; report docs/shape S9.1c-2 left) The services already written in 012 meet the new bar: `identification/`, `report/`,
   `research/` pass `mypy --strict` and join the strict scope; their public API has no `Any` (research jobs and
   results as DTOs/TypedDicts, report rows typed), every public callable documented, ≤ 40 lines; baseline entries of
   these packages for `any`/`doc`/`public`/`ignore` → 0
