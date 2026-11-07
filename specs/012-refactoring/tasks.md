@@ -190,6 +190,41 @@ entry points (≤ 60 lines), every stage named.
   `Callable[...]`, no lazy import), documented order and failure handling (re-check done, record failed → what the
   person sees), a test of the store failure; baseline entries of challenge.py → 0; purity contracts for `chat.dialog` and `chat.application` (contracts/import-contracts.md); gate; after 2026-11-12 deploy + live replay
 
+### S9.3 Storage rule everywhere, module limit 200 (owner 2026-11-07) — then acquisition BEFORE S9d
+
+Owner: "ports again don't separate code and infrastructure" (`acquisition/reputation/baseline.py`: raw SQL beside
+the KPI logic) and "evaluate.py and many more are over 200 lines". Cause: the rules saw only `application/`/`domain/`
+dirs and allowed 400 lines, so acquisition's flat packages passed a green gate. Decision: limit 200, acquisition now.
+
+- [x] T074d (S9.3) Rule `storage` in `scripts/structure_api.py` (sqlalchemy / `shared.infrastructure.db` outside an
+  `infrastructure/` package, any area; composition roots `delivery/web/app.py`, `delivery/cli/main.py` allowed);
+  `MODULE_MAX` 400 → 200; code-shape.md rule 2 and limits updated; baseline 1424 → 1581 (109 `storage`, 73 `size`).
+  Template fix: `acquisition/reputation/baseline.py` → `reputation/{domain,application,infrastructure}/baseline*`
+  (`KpiBaselines` + ports `BaselineStore`/`OutcomeFacts`/`KpiSource`, named errors), `turn_outcomes` read by its owner
+  (`observability/infrastructure/outcome_facts.py`), wired in `delivery/baselines.py` (worker handlers injected via
+  `entry.run(…, handlers)`; contract `registry-no-chat` kept), CLI in `delivery/cli/baseline.py`; one
+  `shared/infrastructure/db/errors.translate_errors` for every area's "store unavailable".
+
+Acquisition, one PR per package, each leaves its package with **0 `storage`, 0 `size`** and layers
+`domain/application/infrastructure` (pure rules / services with ports / stores), strict mypy, named errors. Order
+(inside-out, smallest blast radius first); it absorbs S11, S12a and the acquisition half of S12:
+- [ ] A1 `reputation/` rest: rollup, signals (408), components, fit_physics
+- [ ] A2 `gates/`: evaluate, journal (529), relevance_replay, replay_gate, shadow, watch
+- [ ] A3 `pipeline/` + `parsing/` (= S11, T081–T084): job (439), persist (420), plan, locate, parse, merge, relevance,
+  validate, extract; parsing registry/store/spec/migrate_v1
+- [ ] A4 `registry/` (admission, review, repo), `gold/` (load, repo, versions, match, rdw), `snapshots/`, `drift/`,
+  `replay/` (run 367)
+- [ ] A5 `worker/`: queue, process, heartbeat, budget, prefetch, handlers (256)
+- [ ] A6 `agents/` (= S12a agents): scout (608), parser_doctor (434), rule_auditor, levers, evaluator, extractor_tuner,
+  blame_judge, budget
+- [ ] A7 engine top level: read, recheck, catalogue, car_data, facade → read model in infrastructure behind `api`;
+  `admin_api.py` (1049) → `admin/` package (= S12a admin); `api/` (contracts 330, __init__ 280, car) under 200
+- [ ] A8 `acquisition/domain/` modules over 200 (relevance_audit 347, relevance 333, gates 310, sense_ev, physics,
+  blame) and `infrastructure/fetch.py` (489)
+Then S9d (chat), S10, and the rest of S12 (observability, persistence split). The remaining non-acquisition `storage`
+entries (chat 3, observability 4, delivery 2) go with S9d/S10/S12; `size` entries of chat/shared/delivery with the
+step that touches them.
+
 ### S10 Use cases (PR 13)
 
 - [ ] T079 [US2] `chat/application/usecases/{send_message, confirm_answer, find_more, edit_car, rescore, open_chat, delete_chats, challenge_value}.py`: class per action, ports in constructor, `run()` ≤ 30 lines, command DTOs with their mappers (`ResearchPreset.from_command`, …) in `chat/application/usecases/contracts.py`; logic taken from `ChatRunner.run_turn` branches and `delivery/web/ws.py` `_resume_payload`/`_car_edit_preset`
