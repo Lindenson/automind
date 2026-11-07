@@ -11,6 +11,9 @@ from automind.shared.contracts.json import JsonObject
 
 def value_retention_block(cars: list[LoadedCar], curve: dict[str, dict[float, float]],
                           recent: Callable[[str | None], bool] | None = None) -> JsonObject | None:  # fmt: skip
+    """Value after 3 and 5 years per car (sourced, else the class curve; a recent make is marked insufficient); None
+    when no car has a point."""
+
     def is_new(c: LoadedCar) -> bool:
         return bool(recent and recent(getattr(c["variant"], "make", None)))
 

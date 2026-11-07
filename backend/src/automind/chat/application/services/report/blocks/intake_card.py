@@ -8,10 +8,10 @@ item carries its basis — STATED (the user's words), INFERRED (with evidence), 
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any
 
 from automind.acquisition.api import CatalogueVariant
 from automind.chat.domain.case import CaseCar, CaseFile
+from automind.chat.domain.case.enums import CONDITIONS, PERSONAS
 from automind.shared.contracts.json import JsonObject
 from automind.shared.vehicle.identity import parse_engine
 
@@ -85,13 +85,13 @@ def _w(table: dict[str, dict[str, str]], key: str, lang: str) -> str:
     return table.get(key, {}).get(lang) or table.get(key, {}).get("en") or key.lower()
 
 
-def _item(field: str, value: str, basis: str, **extra: Any) -> JsonObject:
+def _item(field: str, value: str, basis: str, **extra: object) -> JsonObject:
     out: JsonObject = {"field": field, "value": value, "basis": basis}
     out.update({k: v for k, v in extra.items() if v not in (None, [], "")})
     return out
 
 
-def _engine_text(v: Any) -> str:
+def _engine_text(v: CatalogueVariant) -> str:
     bits = []
     if v.engine_cc:
         bits.append(f"{v.engine_cc / 1000:.1f}")
@@ -109,7 +109,7 @@ def _settled_by_me(car: CaseCar, levels: tuple[str, ...]) -> str | None:
     return next((origin[lv] for lv in levels if origin.get(lv) in ("CHOSEN", "LIMIT")), None)
 
 
-def _engine_item(car: CaseCar, v: Any, lang: str, options: list[str], src: JsonObject) -> JsonObject:
+def _engine_item(car: CaseCar, v: CatalogueVariant, lang: str, options: list[str], src: JsonObject) -> JsonObject:
     """The engine as settled: "you said" only when the user named it; chosen by me when "choose for me" or the
     ask limit settled it (spec 008, live chat 8c6a2a58)."""
     e, others = car.constraints.engine_hint, [o for o in options if o != v.label]
@@ -130,7 +130,9 @@ def _engine_item(car: CaseCar, v: Any, lang: str, options: list[str], src: JsonO
                  source=None if said else src, options=others)  # fmt: skip
 
 
-def _car_items(car: CaseCar, v: Any, lang: str, options: list[str], before: dict[str, str]) -> list[JsonObject]:
+def _car_items(
+    car: CaseCar, v: CatalogueVariant, lang: str, options: list[str], before: dict[str, str]
+) -> list[JsonObject]:
     k = car.constraints
     memo = car.ladder
     sourced = memo is not None and memo.certainty == "SOURCED"
@@ -250,9 +252,10 @@ def _profile_edit(case: CaseFile, field: str, value: str) -> list[str]:
     """A profile chip on the card is the user's statement (STATED), applied before research (spec 007 FR-015)."""
     v = value.strip()
     if field == "persona":
-        key = next((k for k, tr in PERSONA.items() if v in tr.values() or v.upper() == k), None)
+        key = next((PERSONAS[k] for k, tr in PERSONA.items() if k in PERSONAS and (v in tr.values() or v.upper() == k)),
+                   None)  # fmt: skip
         if key and key != "UNKNOWN":
-            case.persona, case.persona_source, case.basis["persona"] = key, "USER_EDIT", "STATED"  # type: ignore[assignment]
+            case.persona, case.persona_source, case.basis["persona"] = key, "USER_EDIT", "STATED"
             return [f"persona: {key}"]
         return []
     if field == "ownership_years":
@@ -279,7 +282,7 @@ def _car_edit(car: CaseCar, field: str, value: str, current_year: int) -> list[s
     if field == "engine" and (e := parse_engine(value)) is not None:
         car.constraints.engine_hint = e
     elif field == "condition" and value.upper() in ("NEW", "USED"):
-        car.condition = value.upper()  # type: ignore[assignment]
+        car.condition = CONDITIONS[value.upper()]
     elif field == "year" and value.isdigit() and 1950 <= int(value) <= current_year + 1:
         car.year = int(value)
     else:

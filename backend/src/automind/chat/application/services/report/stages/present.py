@@ -27,6 +27,8 @@ from automind.shared.contracts.json import JsonObject
 
 @dataclass
 class Presented:
+    """What the report shows and what the writer is told about it."""
+
     blocks: list[JsonObject]  # in the persona's order, the verdict card first
     electric_lines: list[str] = field(default_factory=list)
     assumed: list[str] = field(default_factory=list)
@@ -35,6 +37,8 @@ class Presented:
 def present(ref: Reference, case: CaseFile, keyed: KeyedCars, own: Ownership, judged: Judged,
             extras: JsonObject, blocks: list[JsonObject], notices: list[Notice], rates: tco.TcoRates,
             lang: str, words: ReportWording) -> Presented:  # fmt: skip
+    """The blocks in the persona's order with the verdict card and the next steps first, the notices placed, and the
+    lines the writer needs (electric, assumptions)."""
     cars = [car for _, car in keyed]
     vblock, verdict, iset = judged.block, judged.verdict, judged.insights
     eb = electric.build(cars, own.tcars, own.estimates, rates, extras["labels"], lang, extras.get("incentives"))

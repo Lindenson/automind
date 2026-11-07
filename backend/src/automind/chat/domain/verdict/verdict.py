@@ -53,10 +53,13 @@ class WouldChange:
     shorter: bool = False  # BREAK_EVEN: keep the car for less than `years` (the pick pays back only after them)
 
 
+LimitKind = Literal["OVER_BUDGET", "OVER_MONTHLY"]  # a price over the budget, a monthly cost over its limit
+
+
 @dataclass(frozen=True)
 class Limit:
     car_id: str
-    kind: Literal["OVER_BUDGET", "OVER_MONTHLY"]
+    kind: LimitKind
     value_eur: float  # price, or running cost per month
     limit_eur: float
 

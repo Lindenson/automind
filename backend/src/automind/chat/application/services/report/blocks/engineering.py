@@ -11,6 +11,8 @@ from automind.shared.vehicle import specs
 
 
 def engineering_block(cars: list[LoadedCar], explainers: JsonObject | None = None) -> JsonObject | None:
+    """The engineering block: per car its engineering facts with sources and what its drivetrain technology means
+    (config explainers); None when no car has any."""
     out = []
     for c in cars:
         items = []

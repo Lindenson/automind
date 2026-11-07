@@ -9,6 +9,7 @@ from automind.shared.contracts.json import JsonObject
 
 
 def metric_bars(cars: list[LoadedCar]) -> JsonObject:
+    """Derived metrics computed from the specs (power-to-weight, torque-to-weight, specific output) as bars per car."""
     ms = {c["variant"].id: scoring.metrics(car_facts(c)) for c in cars}
     defs = [
         ("power_to_weight", "Power-to-weight", "kW/t", "higher"),

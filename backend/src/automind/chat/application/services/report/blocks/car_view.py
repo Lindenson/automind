@@ -3,43 +3,45 @@ structured "Change", from the catalog and the cached version ladder only (no sea
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from typing import Any
+from collections.abc import Callable, Sequence
 
+from automind.acquisition.api import CatalogueVariant
 from automind.chat.application.services.identification import catalogue
 from automind.chat.domain.case import CarContext, CaseCar, CaseDelta, CaseFile, Constraints
+from automind.chat.domain.case.enums import GEARBOXES, Gearbox
 from automind.shared.contracts.json import JsonObject
 from automind.shared.vehicle.identity import parse_engine
 
 EDIT_FIELDS = ("generation", "engine", "gearbox", "trim", "not_this_car", "remove")
-GEARBOXES = ("manual", "automatic", "dct", "cvt", "e-cvt", "single")
+MakeMatcher = Callable[[str], str | None]  # the make a text names (`MakeNames.match_make`)
 
 
-def engine_text(v: Any) -> str:
+def engine_text(v: CatalogueVariant) -> str:
     """ "1.5 TSI 150 CV" from a catalog row: the family from its name, displacement and power from its facts."""
-    e = parse_engine(getattr(v, "variant_name", None))
+    e = parse_engine(v.variant_name)
     bits = []
-    cc = getattr(v, "engine_cc", None)
+    cc = v.engine_cc
     if cc:
         bits.append(f"{cc / 1000:.1f}")
     elif e is not None and e.displacement_l:
         bits.append(f"{e.displacement_l:.1f}")
     if e is not None and e.family:
         bits.append(e.family)
-    kw = getattr(v, "power_kw", None)
+    kw = v.power_kw
     if kw:
         bits.append(f"{round(kw / 0.7355)} CV")
     elif e is not None and e.power_hp:
         bits.append(f"{e.power_hp} CV")
-    return " ".join(bits) or str(getattr(v, "variant_name", "") or "")
+    return " ".join(bits) or str(v.variant_name or "")
 
 
-def gearbox_kind(text: str | None) -> str | None:
+def gearbox_kind(text: str | None) -> Gearbox | None:
+    """The kind of gearbox a label names ("DSG" → dct, "6MT" → manual); any other automatic is "automatic"."""
     t = (text or "").lower()
     if not t:
         return None
     if t in GEARBOXES:
-        return t
+        return GEARBOXES[t]
     if "manual" in t or t == "mt":
         return "manual"
     if any(w in t for w in ("dsg", "dct", "edc", "s tronic", "pdk")):
@@ -51,26 +53,25 @@ def gearbox_kind(text: str | None) -> str | None:
     return "automatic"
 
 
-def variant_label(car: CaseCar, v: Any | None) -> str | None:
+def variant_label(car: CaseCar, v: CatalogueVariant | None) -> str | None:
     """engine · gearbox · trim · year of the resolved version (FR-036); None while the car is not identified."""
     if v is None:
         return None
     year: str | None = str(car.year) if car.year else None
     if year is None and car.condition != "USED":
-        lo, hi = getattr(v, "generation_years_from", None), getattr(v, "generation_years_to", None)
+        lo, hi = v.generation_years_from, v.generation_years_to
         year = f"{lo}–{hi}" if lo and hi else (f"{lo}–" if lo else None)
-    trim = getattr(v, "trim", None)
-    bits = [engine_text(v), getattr(v, "transmission", None), trim, year]
+    bits = [engine_text(v), v.transmission, v.trim, year]
     return " · ".join(str(b) for b in bits if b)
 
 
 async def view(case: CaseFile) -> dict[str, JsonObject]:
     """Per car key: `variant_label` and `options` {generation, engine, gearbox, trim} for the "Change" action."""
     out: dict[str, JsonObject] = {}
-    catalogs: dict[tuple[str, str], list[Any]] = {}
+    catalogs: dict[tuple[str, str], list[CatalogueVariant]] = {}
     for car in case.cars:
         v = await catalogue.get_variant(car.variant_id) if car.variant_id else None
-        rows: list[Any] = []
+        rows: list[CatalogueVariant] = []
         if car.make and car.model:
             k = (car.make.lower(), car.model.lower())
             if k not in catalogs:
@@ -88,9 +89,9 @@ def _distinct(values: Sequence[str | None], current: str | None) -> list[str]:
     return seen[:6]
 
 
-def options(car: CaseCar, v: Any | None, rows: list[Any]) -> dict[str, list[str]]:
+def options(car: CaseCar, v: CatalogueVariant | None, rows: list[CatalogueVariant]) -> dict[str, list[str]]:
     """The choices of the catalog (and the sourced versions of the ladder) for this make and model."""
-    gen = getattr(v, "generation", None) or car.constraints.generation_hint
+    gen = (v.generation if v is not None else None) or car.constraints.generation_hint
     same_gen = [r for r in rows if not gen or r.generation == gen] or rows
     current_engine = engine_text(v) if v is not None else None
     engines = [engine_text(r) for r in same_gen]
@@ -102,12 +103,14 @@ def options(car: CaseCar, v: Any | None, rows: list[Any]) -> dict[str, list[str]
     return {
         "generation": _distinct([r.generation for r in rows], gen),
         "engine": _distinct(engines, current_engine),
-        "gearbox": _distinct(gearboxes, gearbox_kind(getattr(v, "transmission", None))),
-        "trim": _distinct([r.trim for r in same_gen], getattr(v, "trim", None)),
+        "gearbox": _distinct(gearboxes, gearbox_kind(v.transmission if v is not None else None)),
+        "trim": _distinct([r.trim for r in same_gen], v.trim if v is not None else None),
     }
 
 
-def edit_delta(case: CaseFile, car_key: str, field: str, value: str, match_make: Any = None) -> CaseDelta:
+def edit_delta(
+    case: CaseFile, car_key: str, field: str, value: str, match_make: MakeMatcher | None = None
+) -> CaseDelta:
     """A structured car edit as a case delta, built by code (FR-037). Raises ValueError for an unknown car or
     field, or a value the field cannot take."""
     car = case.car(car_key)
@@ -139,7 +142,7 @@ def _constraints(k: Constraints, field: str, v: str) -> Constraints:
         if k.trim_hint and parse_engine(k.trim_hint) is not None:  # an engine in the trim words is the old engine
             k.trim_hint = None
     elif field == "gearbox":
-        k.gearbox_hint = gearbox_kind(v)  # type: ignore[assignment]
+        k.gearbox_hint = gearbox_kind(v)
     elif field == "trim":
         k.trim_hint = v
     else:

@@ -8,7 +8,7 @@ from collections.abc import Sequence
 
 from automind.acquisition import api as acquisition
 from automind.acquisition.api import CatalogueVariant
-from automind.acquisition.api.car import ClaimRow, EvidenceRow, ManufacturerFactRow, SpecValueRow
+from automind.acquisition.api.car import CarData, ClaimRow, EvidenceRow, ManufacturerFactRow, SpecValueRow
 from automind.chat.application.services.report.contracts import LoadedCar
 from automind.chat.domain.identification import used
 from automind.shared import evidence as evidence_rules
@@ -46,38 +46,14 @@ async def load_car(variant_id: str) -> LoadedCar:
     if data is None:
         raise KeyError(f"unknown variant {variant_id}")
     v = data.variant
-    rejected_pages = [
-        {
-            "name": (p.title or p.url)[:200],
-            "url": p.final_url or p.url,
-            "type": evidence_rules.classify_source(p.final_url or p.url),
-            "retrieved_at": (p.fetched_at or p.retrieved_at).isoformat(),
-            "rejected": {"reason": p.reason, "other": p.other},
-        }
-        for p in data.rejected_pages
-    ]
-    claim_src = {
-        c.id: {
-            "name": e.source_name,
-            "url": e.url,
-            "type": e.source_type,
-            "retrieved_at": e.retrieved_at.isoformat(),
-            "excerpt": c.excerpt,
-            "favourite": bool(e.favourite),
-            "extracted_by": c.extracted_by,
-            # spec 011 FR-022 (010 T059): read from a registry candidate, labelled "unverified source"
-            **({"unverified": True} if e.unverified else {}),
-        }
-        for c, e in data.claims
-    }
     researched = max((r.completed_at for r in data.runs), default=v.created_at)
     tried = await acquisition.tried_by_area(variant_id)
     return {
         "variant": v,
         "values": data.values,
         "cltc_pair": cltc_pair(data.claims, data.values.get("range_cltc")),
-        "claim_src": claim_src,
-        "rejected_pages": rejected_pages,
+        "claim_src": _claim_sources(data),
+        "rejected_pages": _rejected_pages(data),
         "researched_at": researched.isoformat() if researched else None,
         "runs": {r.area: r for r in data.runs},
         "tried": {a: [t.model_dump() for t in ts] for a, ts in tried.items()},  # area -> sources read (T123)
@@ -176,3 +152,21 @@ def cltc_pair(
     want = selected.value_num if selected is not None and selected.available else None
     pairs.sort(key=lambda x: (x[1] != want, x[2]))
     return pairs[0] if pairs else None
+
+
+def _claim_sources(data: CarData) -> dict[str, JsonObject]:
+    """Claim id -> its source as the UI shows it (a registry candidate is labelled unverified, spec 011 FR-022)."""
+    return {
+        c.id: {"name": e.source_name, "url": e.url, "type": e.source_type, "retrieved_at": e.retrieved_at.isoformat(),
+               "excerpt": c.excerpt, "favourite": bool(e.favourite), "extracted_by": c.extracted_by,
+               **({"unverified": True} if e.unverified else {})}
+        for c, e in data.claims
+    }  # fmt: skip
+
+
+def _rejected_pages(data: CarData) -> list[JsonObject]:
+    """The pages read for the car and rejected, with the reason, as the UI shows them."""
+    return [{"name": (p.title or p.url)[:200], "url": p.final_url or p.url,
+             "type": evidence_rules.classify_source(p.final_url or p.url),
+             "retrieved_at": (p.fetched_at or p.retrieved_at).isoformat(),
+             "rejected": {"reason": p.reason, "other": p.other}} for p in data.rejected_pages]  # fmt: skip

@@ -15,6 +15,7 @@ from automind.shared.contracts.config import Reference
 
 
 def case_facts(case: CaseFile) -> list[str]:
+    """The facts the person gave, as short lines for the case summary (assumed values marked as assumed)."""
     out = []
     if case.profile.age:
         out.append(f"age {case.profile.age}")
@@ -40,6 +41,7 @@ def case_facts(case: CaseFile) -> list[str]:
 
 
 def km_assumed(case: CaseFile) -> bool:
+    """The yearly mileage is assumed: the person never stated it."""
     return case.basis.get("annual_km", "ASSUMED") == "ASSUMED" and not case.annual_km_stated
 
 

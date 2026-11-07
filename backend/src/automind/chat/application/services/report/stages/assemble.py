@@ -37,17 +37,12 @@ from automind.shared.research_order import plan as research_plan
 async def assemble_blocks(ref: Reference, case: CaseFile, keyed: KeyedCars, race: RaceResult,
                           crit: CriteriaScore | None, estimates: list[tco.TcoEstimate], iset: InsightSet,
                           fz: JsonObject | None, now: datetime | None) -> list[JsonObject]:  # fmt: skip
+    """The content blocks of the report (case summary, specs, metrics, race, criteria, costs, quality, maker,
+    sources, data panel) before ordering."""
     cars = [car for _, car in keyed]
     model = ref.criteria
-    try:
-        views = await car_view.view(case)  # spec 010 FR-036: the version line of each car
-    except Exception:  # noqa: BLE001 - a label, never a reason to fail the report
-        views = {}
-    summary = [{"key": x.key, "label": x.label or x.request_text, "condition": x.condition, "year": x.year,
-                "variant_label": (views.get(x.key) or {}).get("variant_label"), "variant_id": x.variant_id}
-               for x in case.cars]  # fmt: skip
     blocks: list[JsonObject] = [
-        case_summary_block(case.persona, case_facts(case), summary),
+        case_summary_block(case.persona, case_facts(case), await _summary_cars(case)),
         spec_table(cars, {}, iset),
         metric_bars(cars),
         race_block(race, _predicted(case)),
@@ -71,11 +66,27 @@ async def assemble_blocks(ref: Reference, case: CaseFile, keyed: KeyedCars, race
         if extra is not None:
             blocks.append(extra)
     if estimates:
-        ids = [x for e in estimates for i in e.items for x in i.evidence_ids]
-        tb = tco_block(estimates, await evidence_refs(ids))
-        tb["annual_km_assumed"] = km_assumed(case)  # chat 5821ac77: said on the block, not only in the text
-        blocks.append(tb)
+        blocks.append(await _tco(case, estimates))
     return blocks
+
+
+async def _summary_cars(case: CaseFile) -> list[JsonObject]:
+    """Each car of the case as the summary lists it, with its version line (spec 010 FR-036)."""
+    try:
+        views = await car_view.view(case)
+    except Exception:  # noqa: BLE001 - a label, never a reason to fail the report
+        views = {}
+    return [{"key": x.key, "label": x.label or x.request_text, "condition": x.condition, "year": x.year,
+             "variant_label": (views.get(x.key) or {}).get("variant_label"), "variant_id": x.variant_id}
+            for x in case.cars]  # fmt: skip
+
+
+async def _tco(case: CaseFile, estimates: list[tco.TcoEstimate]) -> JsonObject:
+    """The ownership cost block with the sources of its items; an assumed yearly mileage is said on the block."""
+    ids = [x for e in estimates for i in e.items for x in i.evidence_ids]
+    tb = tco_block(estimates, await evidence_refs(ids))
+    tb["annual_km_assumed"] = km_assumed(case)  # chat 5821ac77: said on the block, not only in the text
+    return tb
 
 
 def _data_panel(case: CaseFile, keyed: KeyedCars, now: datetime | None) -> JsonObject | None:
