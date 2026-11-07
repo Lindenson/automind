@@ -52,6 +52,7 @@ def spec_table(
 
 
 def car_header(car: LoadedCar, from_cache: bool) -> JsonObject:
+    """A column header of the spec table: the car, its powertrain and when its data was researched."""
     v = car["variant"]
     return {
         "id": v.id,

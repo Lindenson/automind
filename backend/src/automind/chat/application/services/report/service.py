@@ -37,6 +37,9 @@ class ReportService:
         self.ports, self.words, self.log = ports, words, log
 
     async def run(self, case: CaseFile, notices: list[Notice], lang: str = "en") -> Computed:
+        """The report of the case from stored data: load the cars, race them, price the ownership, score, judge, build
+        and order the blocks, summarise for the writer. `notices` collects what the report must say
+        (assumed ages, missing prices, …)."""
         ref, words, now = self.ports.ref, self.words, self._now()
         year = now.year if now is not None else None
         keyed = [(x, await load_car(x.variant_id)) for x in case.cars if x.variant_id]

@@ -5,7 +5,6 @@ counterfactual use — no search, no model call."""
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from typing import Any
 
 from automind.chat.application.services.report.case_facts import condition_of, usage_context, years_of
 from automind.chat.application.services.report.contracts import KeyedCars
@@ -17,6 +16,7 @@ from automind.chat.application.services.report.stages.ownership import (
     period_totals,
 )
 from automind.chat.application.services.report.stages.used_cars import UsedFacts, used_price_of
+from automind.chat.domain.assessment import metrics as scoring
 from automind.chat.domain.assessment.criteria import CriteriaModel, CriteriaScore, score, weights_for
 from automind.chat.domain.case import CaseFile
 from automind.chat.domain.cost import tco
@@ -43,7 +43,8 @@ def scores(case: CaseFile, inp: ScoreInputs, own: Ownership, model: CriteriaMode
 
 
 def facts_of(inp: ScoreInputs, costs: dict[str, float], eff: dict[str, float], totals: dict[str, float],
-             years: int) -> list[Any]:  # fmt: skip
+             years: int) -> list[scoring.CarFacts]:  # fmt: skip
+    """The scoring facts of each car with the costs of this run."""
     return [
         car_facts(
             car,

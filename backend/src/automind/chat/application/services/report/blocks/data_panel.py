@@ -36,16 +36,7 @@ def data_panel_block(
         rows = []
         for area in (a for a in DATA_AREAS if a in areas.get(key, set())):
             r = runs.get(area)
-            if r is None:
-                status, reason, findable = "MISSING", None, True
-            elif r.minimum_met:
-                status, reason, findable = "COMPLETE", None, False
-            elif (r.claims_accepted or 0) > 0 or (r.docs_used or 0) > 0:
-                status, reason, findable = "PARTIAL", "fewer independent sources than the minimum", True
-            else:
-                recent = now is not None and (now - r.completed_at).total_seconds() < NO_SOURCES_RETRY_H * 3600
-                status = "UNAVAILABLE" if recent else "MISSING"
-                reason, findable = "no usable sources found", not recent
+            status, reason, findable = _status(r, now)
             if findable and area in (tried or {}).get(car["variant"].id, []):
                 reason, findable = "searched deeper: no more independent sources", False
             rows.append({"area": area, "status": status, "reason": reason, "findable": findable,
@@ -55,12 +46,25 @@ def data_panel_block(
         out.append({"car_id": car["variant"].id, "car_key": key, "label": name, "values": values, "areas": rows})
     if not out:
         return None
-    changed = None
-    if previous:
-        delta = total_now - sum(previous.values())
-        if delta:
-            changed = f"{delta:+d} values since the last report"
-    return {"type": "data_panel", "cars": out, "changed": changed}
+    return {"type": "data_panel", "cars": out, "changed": _changed(previous, total_now)}
+
+
+def _status(r: ResearchRunRow | None, now: datetime | None) -> tuple[str, str | None, bool]:
+    """(status, reason, findable) of an area from its last research run."""
+    if r is None:
+        return "MISSING", None, True
+    if r.minimum_met:
+        return "COMPLETE", None, False
+    if (r.claims_accepted or 0) > 0 or (r.docs_used or 0) > 0:
+        return "PARTIAL", "fewer independent sources than the minimum", True
+    recent = now is not None and (now - r.completed_at).total_seconds() < NO_SOURCES_RETRY_H * 3600
+    return ("UNAVAILABLE" if recent else "MISSING"), "no usable sources found", not recent
+
+
+def _changed(previous: dict[str, int] | None, total_now: int) -> str | None:
+    """What changed since the last report ("+3 values …"), None when nothing did or there was none."""
+    delta = total_now - sum(previous.values()) if previous else 0
+    return f"{delta:+d} values since the last report" if delta else None
 
 
 def _tried_of(car: LoadedCar, area: str, run: ResearchRunRow | None) -> JsonObject:

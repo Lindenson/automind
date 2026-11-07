@@ -162,10 +162,23 @@ entry points (≤ 60 lines), every stage named.
 - [x] T074a [US2] (S9.0, owner 2026-11-07: challenge.py antipattern) Controls: API rules `any`, `untyped`, `doc`,
   `public`, `ignore`, `lazy`, `exempt` in `scripts/structure_api.py` (ratchet), contracts/code-shape.md "Public API
   of a layer", `checklists/pr-self-check.md`; the strict mypy override follows the S3a tree (was `automind.domain.*`)
-- [ ] T074b [US2] (S9.1; research PR #105, identification PR #107, report types PR #108; report docs/shape S9.1c-2 left) The services already written in 012 meet the new bar: `identification/`, `report/`,
+- [x] T074b [US2] (S9.1: research PR #105, identification PR #107, report PR #108 + S9.1c-2) The services already written in 012 meet the new bar: `identification/`, `report/`,
   `research/` pass `mypy --strict` and join the strict scope; their public API has no `Any` (research jobs and
   results as DTOs/TypedDicts, report rows typed), every public callable documented, ≤ 40 lines; baseline entries of
   these packages for `any`/`doc`/`public`/`ignore` → 0
+- [ ] T074c [US2] (S9.2…, owner 2026-11-07: "после моих замечаний всё нужно пересмотреть") Re-review of everything
+  012 already produced against the API bar, one PR per package, most critical first (counts: `scripts/
+  structure_baseline.txt`, rules any/doc/public/ignore/lazy):
+  1. `chat/application/ports.py` — the ports themselves (22 `any`, 38 `doc`): every port a typed Protocol, its
+     methods documented with the errors they raise; `Ports` fields typed (no `Any = None`); a port's failure is
+     named (`StoreUnavailable`, `VersionConflict`, …), never a driver exception
+  2. `chat/application/services` rest (interpretation, feasibility) and `usecases` (with T078/T079)
+  3. `chat/domain/*` (assessment 46 doc/8 any, cost 40/4, case 21 doc/7 ignore, verdict 21/6/3, identification 18/5,
+     intake, understanding) — strict already; docs, `Any`, `type: ignore`
+  4. `chat/dialog` (8 `ignore`), `chat/infrastructure` (lazy imports)
+  5. `observability/application|domain` (analyse.py 6 any/12 doc), `acquisition/domain|registry` (any/doc) — with
+     S11/S12; lazy imports of acquisition agents/gates/worker/parsing (≈130) — with S11/S12a
+  Each PR: the package's API entries → 0, its modules join strict mypy.
 - [ ] T075 [P] [US2] `chat/application/services/interpretation/` (← interpret.py, ask.py, understand node's `_*_from_text` safety nets as stages using `chat/domain/understanding`)
 - [x] T076 [P] [US2] (S9b: `research/service.py` ResearchService create/run_job/conclude, `rounds.py`, `contracts.py` events + wording ports; the graph keeps the fan-out and rounds) `chat/application/services/research/` (plan jobs, order via `acquisition.api.acquire(…, budget)`, collect rounds, limit handling ← nodes/research.py logic)
 - [ ] T077 [P] [US2] (usage: done in S3a as `shared/metering/usage.py`, T029; the feasibility nodes are already ≤ 30 lines) `chat/application/services/feasibility/` (← application/feasibility.py + nodes/feasibility.py logic) and `services/usage/` (← usage.py)

@@ -8,6 +8,8 @@ from automind.shared.contracts.json import JsonObject
 
 
 def manufacturer_block(cars: list[LoadedCar]) -> JsonObject | None:
+    """The maker block: per make its sourced facts (situation, warranty, network), two per kind at most; None without
+    any."""
     makes: dict[str, list[JsonObject]] = {}
     for c in cars:
         make = c["variant"].make

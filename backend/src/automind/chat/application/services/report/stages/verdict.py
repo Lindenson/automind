@@ -10,7 +10,13 @@ from typing import Any
 
 from automind.acquisition import api as acquisition
 from automind.chat.application.services.report.case_facts import recent_make
-from automind.chat.application.services.report.contracts import CheckInput, KeyedCars, LoadedCar, ReportWording
+from automind.chat.application.services.report.contracts import (
+    CheckInput,
+    KeyedCars,
+    LoadedCar,
+    ReportWording,
+    SameData,
+)
 from automind.chat.application.services.report.facts.car import short_name
 from automind.chat.application.services.report.facts.scoring_inputs import insight_values
 from automind.chat.application.services.report.stages.case_notices import new_gen
@@ -36,7 +42,9 @@ USED_AREAS = {"used_price": "price_used", "used_issues": "wear"}
 
 @dataclass
 class Judged:
-    insights: Any  # domain.verdict.insights.InsightSet
+    """The verdict of the report: the insights, the verdict, its card and what the text check compares with."""
+
+    insights: ins.InsightSet
     verdict: vd.Verdict
     block: JsonObject  # the verdict card
     check: CheckInput
@@ -93,12 +101,12 @@ def limits_from(case: CaseFile, fz: JsonObject | None) -> list[vd.Limit]:
             nums = [n["value"] for n in ch["compared"] if n.get("value") is not None]
             if len(nums) < 2:
                 continue
-            kind = "OVER_BUDGET" if ch["check"] == "BUDGET" else "OVER_MONTHLY"
-            out.append(vd.Limit(vid, kind, float(nums[0]), float(nums[-1])))  # type: ignore[arg-type]
+            kind: vd.LimitKind = "OVER_BUDGET" if ch["check"] == "BUDGET" else "OVER_MONTHLY"
+            out.append(vd.Limit(vid, kind, float(nums[0]), float(nums[-1])))
     return out
 
 
-def persona_counterfactual(case: CaseFile, outcome: Any) -> vd.OtherProfile | None:
+def persona_counterfactual(case: CaseFile, outcome: SameData) -> vd.OtherProfile | None:
     """Same data, another persona's weights (spec 007 FR-018): the first persona with a different clear winner."""
     mine, _ = outcome(case)
     for p in PERSONAS:
@@ -146,8 +154,8 @@ def verdict_extras(keyed: KeyedCars, tcars: list[tco.TcoCar], estimates: list[tc
     return out
 
 
-def profile_focus(case: CaseFile, crit: CriteriaScore | None, verdict: Any, names: dict[str, str], lang: str,
-                  words: ReportWording) -> JsonObject:  # fmt: skip
+def profile_focus(case: CaseFile, crit: CriteriaScore | None, verdict: vd.Verdict | None, names: dict[str, str],
+                  lang: str, words: ReportWording) -> JsonObject:  # fmt: skip
     """For the writer (spec 007 FR-018): lead with the criteria this user weights highest, and the code facts
     about what the profile changes. The model may phrase these, never add to them."""
     weights = crit.weights if crit is not None else {}

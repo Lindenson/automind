@@ -10,6 +10,8 @@ from automind.shared.contracts.json import JsonObject
 
 
 def tco_block(estimates: list[tco.TcoEstimate], evidence: dict[str, JsonObject] | None = None) -> JsonObject:
+    """The ownership cost block: per car the running costs per year and the total over the period with each item and
+    its sources."""
     ev = evidence or {}
     years = estimates[0].years if estimates else 5
     return {
@@ -47,4 +49,5 @@ def tco_block(estimates: list[tco.TcoEstimate], evidence: dict[str, JsonObject] 
 
 
 async def evidence_refs(ids: list[str]) -> dict[str, JsonObject]:
+    """The sources of evidence ids as the UI shows them (`acquisition.api.evidence_refs`)."""
     return await acquisition.evidence_refs(ids)

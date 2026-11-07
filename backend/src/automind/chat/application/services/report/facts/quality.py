@@ -17,10 +17,12 @@ def configure_severity(rules: reliability.SeverityRules) -> None:
 
 
 def severity_rules() -> reliability.SeverityRules:
+    """The severity rules installed at startup (`configure_severity`)."""
     return _SEVERITY[0]
 
 
 def merged_issues(car: LoadedCar) -> list[reliability.MergedIssue]:
+    """The car's sourced issues merged across sources, with their severity (config/severity.yaml)."""
     items = [
         reliability.IssueIn(
             component=i.component,
@@ -39,6 +41,7 @@ def merged_issues(car: LoadedCar) -> list[reliability.MergedIssue]:
 
 
 def reliability_summary(car: LoadedCar) -> ReliabilitySummary | None:
+    """The reliability summary of the car, None when reliability was never researched."""
     run = car.get("runs", {}).get("reliability")
     if run is None:
         return None
@@ -46,6 +49,7 @@ def reliability_summary(car: LoadedCar) -> ReliabilitySummary | None:
 
 
 def review_items(car: LoadedCar) -> list[reviews.ReviewIn]:
+    """The car's sourced review points as the review summary reads them."""
     return [
         reviews.ReviewIn(
             tag=r.tag, polarity=r.polarity, text=r.text, domain=e.domain, reviewer=r.reviewer, evidence_id=e.id
@@ -55,12 +59,14 @@ def review_items(car: LoadedCar) -> list[reviews.ReviewIn]:
 
 
 def review_summary(car: LoadedCar) -> ReviewSummary | None:
+    """The review summary of the car, None when reviews were never researched."""
     if car.get("runs", {}).get("reviews") is None:
         return None
     return reviews.summarize_reviews(review_items(car))
 
 
 def engineering_completeness(car: LoadedCar) -> float | None:
+    """The share of engineering facts known (0–1), None when engineering was never researched."""
     if "engineering" not in car.get("runs", {}):
         return None
     vals = car["values"]

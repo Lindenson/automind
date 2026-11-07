@@ -10,6 +10,8 @@ from automind.shared.contracts.json import JsonObject
 
 
 def reviews_block(cars: list[LoadedCar]) -> JsonObject | None:
+    """The reviews block: per researched car its pros and cons (a recurring point once), with the summary; None when
+    no car was researched for reviews."""
     out = []
     for c in cars:
         v = c["variant"]

@@ -10,6 +10,8 @@ from automind.shared.contracts.json import JsonObject
 
 
 def reliability_block(cars: list[LoadedCar], ages: dict[str, int | None]) -> JsonObject | None:
+    """The reliability block: per researched car its issues merged and ordered for its age, and the sourced
+    statistics; None when no car was researched for reliability."""
     out = []
     for c in cars:
         v = c["variant"]

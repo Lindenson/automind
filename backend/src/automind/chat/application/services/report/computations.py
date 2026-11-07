@@ -24,40 +24,25 @@ async def persist_computations(
     mileage: dict[str, int | None],
 ) -> None:
     """Store TCO estimates and the race simulation of a turn (inputs, assumptions, versions; constitution IX)."""
-    rows = [
-        {
-            "variant_id": e.car_id,
-            "condition": e.condition,
-            "age_years": e.age_years,
-            "mileage_km": mileage.get(e.car_id),
-            "annual_km": e.annual_km,
-            "rates": rates,
+    rows = [_estimate_row(e, rates, mileage) for e in estimates]
+    simulation = _simulation(race, cars, prediction) if race is not None and race.results else None
+    await store.record(turn_id, rows, simulation)
+
+
+def _estimate_row(e: tco.TcoEstimate, rates: JsonObject, mileage: dict[str, int | None]) -> JsonObject:
+    """A TCO estimate as stored: its inputs (condition, age, mileage, rates), its items and totals."""
+    return {"variant_id": e.car_id, "condition": e.condition, "age_years": e.age_years,
+            "mileage_km": mileage.get(e.car_id), "annual_km": e.annual_km, "rates": rates,
             "items": [{k: v for k, v in asdict(i).items() if k != "estimate"} for i in e.items],
-            "annual_total": e.annual_total,
-            "five_year_total": e.five_year_total,
-            "rules_version": e.rules_version,
-        }
-        for e in estimates
-    ]
-    simulation = None
-    if race is not None and race.results:
-        simulation = {
-            "model_version": race.model_version,
-            "settings": asdict(race.settings),
-            "prediction": prediction,
+            "annual_total": e.annual_total, "five_year_total": e.five_year_total,
+            "rules_version": e.rules_version}  # fmt: skip
+
+
+def _simulation(race: dragrace.RaceResult, cars: list[LoadedCar], prediction: JsonObject | None) -> JsonObject:
+    """The race as stored: settings, inputs, assumptions and results, with the hash of its inputs."""
+    results = [{"car_id": r.car_id, "rank": r.rank, "t_0_100": r.t_0_100, "t_0_200": r.t_0_200,
+                "t_400m": r.t_400m, "v_400m": r.v_400m} for r in race.results]  # fmt: skip
+    return {"model_version": race.model_version, "settings": asdict(race.settings), "prediction": prediction,
             "inputs": [asdict(race_inputs(c)) for c in cars],
             "assumptions": [{"car_id": r.car_id, "items": r.assumptions} for r in race.results],
-            "results": [
-                {
-                    "car_id": r.car_id,
-                    "rank": r.rank,
-                    "t_0_100": r.t_0_100,
-                    "t_0_200": r.t_0_200,
-                    "t_400m": r.t_400m,
-                    "v_400m": r.v_400m,
-                }
-                for r in race.results
-            ],
-            "input_hash": race.input_hash,
-        }
-    await store.record(turn_id, rows, simulation)
+            "results": results, "input_hash": race.input_hash}  # fmt: skip

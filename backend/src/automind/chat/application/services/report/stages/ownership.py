@@ -44,6 +44,8 @@ class Ownership:
 async def price_ownership(case: CaseFile, keyed: KeyedCars, ages: dict[str, int | None], used: dict[str, UsedFacts],
                           rates: tco.TcoRates, ref: Reference, notices: list[Notice], lang: str,
                           words: ReportWording) -> Ownership:  # fmt: skip
+    """The ownership of each car priced: TCO inputs (used price, curve, stated energy), the like-for-like estimates,
+    the checked yearly costs and totals; a cost that cannot be checked is said in `notices`."""
     curve = (ref.feasibility or {}).get("depreciation") or {}
     use, recent = usage_context(case), recent_make(ref)
     stated = understanding.stated_for_cars(case.stated_energy, [(x.key, car["variant"].powertrain) for x, car in keyed])
@@ -102,6 +104,7 @@ def per_100km(estimates: list[tco.TcoEstimate]) -> dict[str, float]:
 
 
 def energy_missing(e: tco.TcoEstimate) -> list[str]:
+    """The inputs the energy cost of an estimate lacks ([] when it was computed)."""
     return next((i.missing for i in e.items if i.kind == "ENERGY" and i.missing), [])
 
 

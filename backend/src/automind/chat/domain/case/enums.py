@@ -40,6 +40,7 @@ CriterionKey = Literal[
 
 
 Persona = Literal["EXPERT", "PERFORMANCE", "BUYER", "UNKNOWN"]
+PERSONAS: dict[str, Persona] = {p: p for p in get_args(Persona)}  # a persona named in data: `.get(text)`
 
 
 PersonaSource = Literal["INFERRED", "ASKED", "USER_EDIT"]
@@ -64,6 +65,7 @@ Depth = Literal["QUICK", "STANDARD", "DEEP"]
 
 
 Condition = Literal["NEW", "USED", "UNKNOWN"]
+CONDITIONS: dict[str, Condition] = {c: c for c in get_args(Condition)}  # a condition named in data: `.get(text)`
 
 
 Gearbox = Literal["manual", "automatic", "dct", "cvt", "e-cvt", "single"]
