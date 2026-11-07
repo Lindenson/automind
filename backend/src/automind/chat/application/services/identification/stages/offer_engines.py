@@ -6,13 +6,14 @@ identifies it (spec 007 F, spec 005 FR-015); an option naming a generation not b
 from __future__ import annotations
 
 import re
-from typing import Any
 
 from automind.chat.application.ports import Ports
 from automind.chat.application.services.identification.catalogue import find_variants
+from automind.chat.application.services.identification.contracts import Lineup
 from automind.chat.application.services.identification.stages.place_market import lineup_models
 from automind.chat.domain.case import CaseCar, Choice
 from automind.chat.domain.identification.variant_match import fits, same_model
+from automind.shared.contracts.config import Reference
 from automind.shared.vehicle import identity
 
 MAX_OPTIONS = 6
@@ -38,13 +39,13 @@ async def engines_on_sale(ports: Ports, car: CaseCar, year: int, alternatives: l
     return out[:MAX_OPTIONS]
 
 
-def year_conflict(label: str, car: CaseCar, ref: Any) -> bool:
+def year_conflict(label: str, car: CaseCar, ref: Reference | None) -> bool:
     """The option names a generation that was not built in the user's year (chat 9b5c0b0c: "Audi A4 B5 2.5 TDI"
     offered for a 2023 car). A generation config knows is checked by its years; an unknown one is a conflict
     when config knows the generation of that year (it is another one)."""
     if car.year is None or not (car.make and car.model) or ref is None:
         return False
-    gens = list(getattr(ref, "generations", {}).get(f"{car.make}|{car.model}", []))
+    gens = list(ref.generations.get(f"{car.make}|{car.model}", []))
     if not gens:
         return False
     rest = re.sub(re.escape(car.model), " ", re.sub(re.escape(car.make), " ", label, flags=re.I), flags=re.I)
@@ -62,7 +63,7 @@ def year_conflict(label: str, car: CaseCar, ref: Any) -> bool:
     return False
 
 
-def close_lineup(lineup: Any, car: CaseCar) -> list[Choice]:
+def close_lineup(lineup: Lineup | None, car: CaseCar) -> list[Choice]:
     """Models of the make's line-up close to the name the user gave (the same model first)."""
     models = lineup_models(lineup)
     close = [m for m in models if same_model(car.model, m.model) or same_model(m.model, car.model)]

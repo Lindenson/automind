@@ -12,6 +12,7 @@ from __future__ import annotations
 from automind.chat.application.ports import Ports
 from automind.chat.domain import intake
 from automind.chat.domain.case import CaseCar, CaseFile, Fit
+from automind.chat.domain.case.enums import Condition
 
 
 def _same(a: str | None, b: str | None) -> bool:
@@ -51,7 +52,7 @@ async def propose(ports: Ports, case: CaseFile, limit: int = 3) -> list[dict[str
     reg = ports.ref.makes
     if reg is not None:  # only makes of the registry: never a renamed or unknown catalog row
         pool = [(mk, m) for mk, m in pool if reg.canonical(mk) is not None]
-    body = case.wanted_body
+    body: str | None = case.wanted_body
     if case.wanted_make:
         make = reg.canonical(case.wanted_make) if reg is not None else None
         pool = [(mk, m) for mk, m in pool if _same(mk, make or case.wanted_make)]
@@ -62,7 +63,7 @@ async def propose(ports: Ports, case: CaseFile, limit: int = 3) -> list[dict[str
         picked = intake.pick_candidates(pool, fit, None, limit=limit)  # the make has no model of that body
     if len(picked) < 2:
         return []
-    condition = "USED" if case.budget.intent == "USED" else "NEW"
+    condition: Condition = "USED" if case.budget.intent == "USED" else "NEW"
     out: list[dict[str, object]] = []
     for make, m, why in picked:
         key = f"car#{case.next_car_no}"
@@ -70,7 +71,7 @@ async def propose(ports: Ports, case: CaseFile, limit: int = 3) -> list[dict[str
         # the hub chose the model, so it takes the base version too: the card shows it and the user may change it,
         # but a proposal never starts with "which engine?" (009 FR-022)
         case.cars.append(CaseCar(key=key, request_text=f"{make} {m.model}", make=make, model=m.model,
-                                 condition=condition, chosen_for_me=True))  # type: ignore[arg-type]  # fmt: skip
+                                 condition=condition, chosen_for_me=True))  # fmt: skip
         out.append({"key": key, "make": make, "model": m.model, "why": why, "price_from_eur": m.price_from_eur})
     case.candidates = out
     return out

@@ -5,7 +5,8 @@ and shown as assumed everywhere it is used (FR-022)."""
 from __future__ import annotations
 
 from automind.chat.application.ports import Ports
-from automind.chat.application.services.identification.stages.narrow_ladder import intake_cfg, spans
+from automind.chat.application.services.identification.contracts import IntakeConfig
+from automind.chat.application.services.identification.stages.narrow_ladder import spans
 from automind.chat.application.services.identification.stages.settle import settle
 from automind.chat.domain.case import CaseCar, CaseFile, IdentifyOutcome
 from automind.chat.domain.identification import used
@@ -24,9 +25,8 @@ def year_first(ports: Ports, case: CaseFile, car: CaseCar, now: int) -> Identify
 
 
 def _assume_year(ports: Ports, car: CaseCar, now: int) -> None:
-    cfg = intake_cfg(ports)
+    cfg = IntakeConfig.of(ports.ref)
     span = spans(ports, car).get((car.constraints.generation_hint or "").lower(), (None, None))
-    age, _ = used.assumed_age(car.mileage_km, span[0], span[1], now,
-                              km_per_year=int(cfg.get("km_per_year_used", used.KM_PER_YEAR_USED)),
-                              default=int(cfg.get("default_used_age", used.DEFAULT_USED_AGE)))  # fmt: skip
+    age, _ = used.assumed_age(car.mileage_km, span[0], span[1], now, km_per_year=cfg.km_per_year_used,
+                              default=cfg.default_used_age)  # fmt: skip
     car.year, car.age_years, car.year_assumed = now - age, age, True

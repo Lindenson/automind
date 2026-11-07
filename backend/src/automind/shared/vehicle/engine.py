@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, get_args
 
 from pydantic import BaseModel, Field
 
 Fuel = Literal["petrol", "diesel", "hybrid", "mhev", "phev", "bev", "lpg"]
+FUELS: dict[str, Fuel] = {f: f for f in get_args(Fuel)}  # a fuel read from data: `FUELS.get(text)` (None: unknown)
 
 
 class EngineHint(BaseModel):

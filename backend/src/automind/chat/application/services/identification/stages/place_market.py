@@ -5,17 +5,18 @@ identified car not sold in Spain says where its data and prices come from (spec 
 
 from __future__ import annotations
 
-from typing import Any
-
 from automind.chat.application.ports import Ports
-from automind.chat.application.services.identification.contracts import KnownModels, LineupLookup
+from automind.chat.application.services.identification.contracts import KnownModels, Lineup, LineupLookup
 from automind.chat.application.services.identification.stages.normalise_name import match_model
 from automind.chat.domain.case import CaseCar, IdentifyOutcome
 from automind.chat.domain.identification.variant_match import same_model
+from automind.chat.domain.intake import LineupModel
+from automind.shared.contracts.config import MakeNames
 from automind.shared.vehicle import markets
 
 
-async def place_on_market(ports: Ports, car: CaseCar, lookup: LineupLookup | None, names: KnownModels) -> Any:
+async def place_on_market(ports: Ports, car: CaseCar, lookup: LineupLookup | None,
+                          names: KnownModels) -> Lineup | None:  # fmt: skip
     """Sets `car.market` (None: Spain) and returns the line-up to identify with: the one that lists the model, else
     one of the make's (its models are the nearest ones)."""
     reg, lineup = ports.ref.makes, names.lineup
@@ -37,14 +38,14 @@ async def place_on_market(ports: Ports, car: CaseCar, lookup: LineupLookup | Non
     return there
 
 
-async def where_sold(ports: Ports, car: CaseCar, reg: Any, lookup: LineupLookup | None,
-                     any_model: bool = False) -> tuple[str | None, Any]:  # fmt: skip
+async def where_sold(ports: Ports, car: CaseCar, reg: MakeNames | None, lookup: LineupLookup | None,
+                     any_model: bool = False) -> tuple[str | None, Lineup | None]:  # fmt: skip
     """The first market whose line-up lists the car's model (any model with `any_model`): Europe, then the make's
     home market, then anywhere (markets.lookup_markets). When none lists it: (None, the first line-up found),
     whose models are the nearest ones to offer."""
     if lookup is None or not car.make:
         return None, None
-    first = None
+    first: Lineup | None = None
     for market in markets.lookup_markets(reg.home(car.make) if reg is not None else None):
         try:
             lu = await lookup(ports, car.make, market=market)
@@ -65,13 +66,15 @@ def say_where_sold(car: CaseCar, o: IdentifyOutcome) -> IdentifyOutcome:
     return o
 
 
-def listed(lineup: Any, model: str | None) -> bool:
+def listed(lineup: Lineup | None, model: str | None) -> bool:
+    """The line-up lists the model (in any of its spellings)."""
     return any(_listed_as(m, model) for m in lineup_models(lineup))
 
 
-def lineup_models(lineup: Any) -> list[Any]:
-    return list(getattr(lineup, "models", None) or [])
+def lineup_models(lineup: Lineup | None) -> list[LineupModel]:
+    """The models of a line-up ([] without one)."""
+    return list(lineup.models) if lineup is not None else []
 
 
-def _listed_as(m: Any, model: str | None) -> bool:
+def _listed_as(m: LineupModel, model: str | None) -> bool:
     return same_model(model, m.model) or same_model(m.model, model)

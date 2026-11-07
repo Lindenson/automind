@@ -3,7 +3,7 @@ kinds."""
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Literal, get_args
 
 CRITERION_KEYS = (
     "reliability",
@@ -66,6 +66,14 @@ Depth = Literal["QUICK", "STANDARD", "DEEP"]
 Condition = Literal["NEW", "USED", "UNKNOWN"]
 
 
+Gearbox = Literal["manual", "automatic", "dct", "cvt", "e-cvt", "single"]
+GEARBOXES: dict[str, Gearbox] = {g: g for g in get_args(Gearbox)}  # a gearbox read from data: `.get(text)`
+
+
+Drive = Literal["FWD", "RWD", "AWD"]
+DRIVES: dict[str, Drive] = {d: d for d in get_args(Drive)}  # driven wheels read from data: `.get(text)`
+
+
 Resolution = Literal["UNRESOLVED", "PROPOSED", "CONFIRMED", "AUTO_OK", "UNKNOWN_MODEL"]
 
 
@@ -82,6 +90,7 @@ QuestionKind = Literal[
 # spec 005: what an intake step is about (R6)
 IntakeItem = Literal["MAKE", "MODEL", "ENGINE", "GEARBOX", "YEAR", "CONDITION", "MILEAGE", "TRIM", "CHOICE", "FUEL",
                      "POWER", "DRIVE"]  # fmt: skip
+INTAKE_ITEMS: dict[str, IntakeItem] = {i: i for i in get_args(IntakeItem)}  # an item named in data: `.get(text)`
 
 
 Climate = Literal["HOT", "MILD", "COLD", "MOUNTAIN"]

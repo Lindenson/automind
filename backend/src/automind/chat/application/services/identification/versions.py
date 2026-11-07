@@ -122,7 +122,7 @@ async def lookup(ports: Ports, make: str, model: str, *, generation: str | None,
     lim = _limits(ports)
     hit = await store.get(make, model, generation, year, new, int(lim["versions_ttl_days"]))
     if hit is not None and covers(hit, year):
-        return hit  # type: ignore[no-any-return]
+        return hit
     if ports.acquisition is None:
         return None
     if market is not None:

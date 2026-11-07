@@ -5,15 +5,15 @@ with its options. The domain `ladder` decides; this stage reads and writes the c
 
 from __future__ import annotations
 
-from typing import Any
-
 from automind.chat.application.ports import Ports
+from automind.chat.application.services.identification.contracts import IntakeConfig
 from automind.chat.application.services.identification.stages.settle import settle
 from automind.chat.domain.case import CaseCar, CaseFile, Choice, IdentifyOutcome, LadderMemo
+from automind.chat.domain.case.enums import DRIVES, GEARBOXES, INTAKE_ITEMS
 from automind.chat.domain.identification import ladder
 from automind.chat.domain.identification.variant_match import current_generation
 from automind.shared.vehicle import identity
-from automind.shared.vehicle.engine import EngineHint
+from automind.shared.vehicle.engine import FUELS, EngineHint
 
 Events = list[dict[str, str]]
 
@@ -42,10 +42,10 @@ def reconcile(ports: Ports, car: CaseCar) -> Events:
 def decide(ports: Ports, case: CaseFile, car: CaseCar, pool: list[ladder.Version], memo: LadderMemo,
            events: Events) -> ladder.Decision:  # fmt: skip
     """One ladder step over `pool`; the levels the hub settled are written with their origin."""
-    cfg = intake_cfg(ports)
     asks = {i: case.intake.attempt(car.key, i) for i in ladder.ITEMS}
     before = wanted(car)
-    d = ladder.decide(pool, before, asks, limit=int(cfg["max_attempts_per_item"]), chosen=car.chosen_for_me)
+    limit = IntakeConfig.of(ports.ref).max_attempts_per_item
+    d = ladder.decide(pool, before, asks, limit=limit, chosen=car.chosen_for_me)
     if d.auto:
         old = _levels(car, before)
         _write(car, d.wanted)
@@ -61,17 +61,19 @@ def asked(car: CaseCar, d: ladder.Decision, events: Events) -> IdentifyOutcome:
     """The open level asked with its options."""
     step = d.step
     choices = [choice(car, o) for o in step.options]
-    return settle(car, IdentifyOutcome(outcome="CHOICES", need=ladder.ITEM[step.kind], level=step.kind,  # type: ignore[arg-type]
+    return settle(car, IdentifyOutcome(outcome="CHOICES", need=INTAKE_ITEMS[ladder.ITEM[step.kind]], level=step.kind,
                                        choices=choices, missing=d.missing, events=events))  # fmt: skip
 
 
 def choice(car: CaseCar, o: ladder.Option) -> Choice:
+    """A ladder option as a choice of the card, with its facts (a tap sets them; the label is never parsed)."""
     return Choice(label=o.label, make=car.make, model=car.model, engine=o.engine, level=o.level, fuel=o.fuel,
                   engine_cc=o.engine_cc, family=o.family, power_kw=o.power_kw, gearbox=o.gearbox,
                   drive=o.drive)  # fmt: skip
 
 
 def wanted(car: CaseCar) -> ladder.Wanted:
+    """What the car's facts say about the version (the year only of a used car)."""
     k = car.constraints
     words = " ".join(x for x in (car.model or "", car.request_text or "", k.trim_hint or "") if x)
     return ladder.wanted_of(k.engine_hint, engine=k.version_hint, gearbox=k.gearbox_hint, drive=k.drive_hint,
@@ -111,11 +113,6 @@ def spans(ports: Ports, car: CaseCar) -> dict[str, tuple[int | None, int | None]
     return out
 
 
-def intake_cfg(ports: Ports) -> dict[str, Any]:
-    """config/search.yaml `intake`: ask limits, assumed ages, catalogue staleness."""
-    return dict((getattr(ports.ref, "search", None) or {}).get("intake") or {})
-
-
 def _levels(car: CaseCar, w: ladder.Wanted) -> dict[str, str]:
     return ladder.levels_of(car.year, car.year_assumed, car.constraints.generation_hint, w)
 
@@ -141,10 +138,10 @@ def _write(car: CaseCar, w: ladder.Wanted) -> None:
     """The levels the hub settled are written as the car's facts (with their origin in the memo)."""
     k = car.constraints
     if any((w.fuel, w.displacement_l, w.family, w.power_kw)):
-        k.engine_hint = EngineHint(fuel=w.fuel, displacement_l=w.displacement_l,  # type: ignore[arg-type]
+        k.engine_hint = EngineHint(fuel=FUELS.get(w.fuel or ""), displacement_l=w.displacement_l,
                                    family=(w.family or "")[:16] or None, power_kw=w.power_kw,
                                    power_hp=round(w.power_kw / 0.7355) if w.power_kw else None,
                                    evidence=(k.engine_hint.evidence if k.engine_hint else ""))  # fmt: skip
     k.version_hint = w.engine or k.version_hint
-    k.gearbox_hint = w.gearbox or k.gearbox_hint  # type: ignore[assignment]
-    k.drive_hint = w.drive or k.drive_hint  # type: ignore[assignment]
+    k.gearbox_hint = GEARBOXES.get(w.gearbox or "") or k.gearbox_hint
+    k.drive_hint = DRIVES.get(w.drive or "") or k.drive_hint

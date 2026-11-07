@@ -7,7 +7,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from automind.chat.domain.case.enums import Condition, IdentifyKind, IntakeItem, Resolution
+from automind.chat.domain.case.enums import Condition, Drive, Gearbox, IdentifyKind, IntakeItem, Resolution
 from automind.shared.vehicle.engine import EngineHint
 
 
@@ -16,8 +16,8 @@ class Constraints(BaseModel):
     fuel_hint: str | None = None
     body_hint: str | None = None
     trim_hint: str | None = None
-    gearbox_hint: Literal["manual", "automatic", "dct", "cvt", "e-cvt", "single"] | None = None  # spec 004 FR-028
-    drive_hint: Literal["FWD", "RWD", "AWD"] | None = None
+    gearbox_hint: Gearbox | None = None  # spec 004 FR-028
+    drive_hint: Drive | None = None
     version_hint: str | None = Field(default=None, max_length=80)  # spec 008: the exact engine of a tapped option
     url: str | None = None
     engine_hint: EngineHint | None = None  # spec 005 FR-012

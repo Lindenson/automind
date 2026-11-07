@@ -4,11 +4,9 @@ spelling per make, the model line apart from the version, no make or model repea
 
 from __future__ import annotations
 
-from typing import Any
-
 from automind.acquisition import api as acquisition
 from automind.acquisition.api import CatalogueVariant, VariantDraft
-from automind.chat.application.services.identification.contracts import VariantIdentity
+from automind.chat.application.services.identification.contracts import VariantIdentity, VariantRow
 from automind.chat.domain.identification.variant_match import model_line
 from automind.shared.contracts.config import Reference
 from automind.shared.vehicle import identity
@@ -24,10 +22,12 @@ async def known_models(make: str, ref: Reference) -> set[str]:
 
 
 async def find_variants(make: str, model: str) -> list[CatalogueVariant]:
+    """The catalogued versions of a model (any generation)."""
     return await acquisition.find_variants(make, model)
 
 
 async def get_variant(variant_id: str) -> CatalogueVariant | None:
+    """A catalogued version by id, None when it is gone."""
     return await acquisition.get_variant(variant_id)
 
 
@@ -39,7 +39,7 @@ async def stale_areas(variant_id: str) -> list[str]:
 async def upsert_variant(ident: VariantIdentity, ref: Reference) -> CatalogueVariant:
     """The catalogue version of a resolved identity (an existing one is reused, FR-019)."""
     make, model = identity.normalize_make_model(ident.make, ident.model, ref.aliases)
-    if getattr(ref, "makes", None) is not None:  # "Škoda" → "Skoda" (config/makes.yaml): one spelling per make
+    if ref.makes is not None:  # "Škoda" → "Skoda" (config/makes.yaml): one spelling per make
         make = ref.makes.canonical(make) or make
     model, trim = model_line(model, await known_models(make, ref))
     ident = _named_version(ident, model, trim)
@@ -61,7 +61,7 @@ async def upsert_variant(ident: VariantIdentity, ref: Reference) -> CatalogueVar
     return await acquisition.upsert_variant(draft)
 
 
-def variant_dict(v: Any) -> dict[str, Any]:
+def variant_dict(v: CatalogueVariant) -> VariantRow:
     """A catalogue version as the plain row the policy, the card and the case keep."""
     return {
         "id": v.id,

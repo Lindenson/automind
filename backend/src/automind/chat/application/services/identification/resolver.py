@@ -7,8 +7,6 @@ FR-009)."""
 
 from __future__ import annotations
 
-from typing import Any
-
 from rapidfuzz import fuzz
 
 from automind.acquisition.api import CatalogueVariant
@@ -16,6 +14,7 @@ from automind.chat.application.ports import Ports
 from automind.chat.application.services.identification.catalogue import known_models, upsert_variant
 from automind.chat.application.services.identification.contracts import (
     GenerationMismatch,
+    Lineup,
     NotOnSale,
     UnknownModel,
     VariantIdentity,
@@ -29,29 +28,55 @@ from automind.shared.vehicle import identity, markets
 
 
 async def resolve_with_llm(
-    ports: Ports, car: CaseCar, current_year: int, level: str = "BASE", *, lineup: Any = None, insist: str = ""
+    ports: Ports,
+    car: CaseCar,
+    current_year: int,
+    level: str = "BASE",
+    *,
+    lineup: Lineup | None = None,
+    insist: str = "",
 ) -> tuple[CatalogueVariant, VariantIdentity]:
-    """Catalog miss: ask the resolver with the case context, validate years, upsert with de-dup."""
-    docs = await _resolver_docs(ports, car, lineup)
-    snippets = "\n\n".join(
-        f'<untrusted_document url="{u}">\n{t}\n{x[:1500]}\n</untrusted_document>' for u, t, x in docs[:8]
-    )
+    """Catalogue miss: the resolver (a web reader over the search results, no tools) names the version with the
+    case's context; a NEW car is held to the generation on sale; the identity is stored as a catalogue version
+    (an existing one is reused).
+
+    Raises UnknownModel (a model the make does not have), GenerationMismatch (a generation outside the car's year),
+    NotOnSale (no engine named, or the named engine belongs to another generation); errors of the model gateway
+    propagate."""
     current = current_generation(ports.ref, car, current_year)
-    context = _context(car, current, level)
-    named = " ".join(x for x in (car.make, car.model) if x)
-    user = (
-        f"User's car: {car.display_name} (the user's words: {car.request_text})\n"
-        + (f"Model asked: {named} — return a version of exactly this model, never another model of the make.\n"
-           if car.make and car.model else "")
-        + f"Case context: {'; '.join(context)}\nCurrent year: {current_year}\n{insist}\n"
-        f"Search results:\n{snippets or '(none)'}"
-    )  # fmt: skip
+    user = _prompt(car, await _resolver_docs(ports, car, lineup), _context(car, current, level), current_year, insist)
     ident = await ports.llm.structured("resolver", VariantIdentity, ports.ref.prompts["resolver"], user)
     await _check_known(ports.ref, car, ident, lineup)
     if not markets.european(car.market) and ident.price_eur is not None:
         ident = ident.model_copy(update={"price_eur": None})  # never a euro price from outside Europe
     if current is not None and (ident.generation or "").lower() != current[0].lower():
         ident = await _on_sale_now(ports, car, user, current)
+    _check_version(car, ident)
+    if car.constraints.url and ident.price_eur is not None:
+        # a page the user sent is read for this chat only: its price never enters the shared catalogue, where it
+        # would reach every other chat (reviewer 2026-11-03); the price then comes from research with sources
+        ident = ident.model_copy(update={"price_eur": None})
+    return await upsert_variant(ident, ports.ref), ident
+
+
+def _prompt(car: CaseCar, docs: list[tuple[str, str, str]], context: list[str], current_year: int,
+            insist: str) -> str:  # fmt: skip
+    """The resolver's input: the car, the case's context and up to eight search results (untrusted)."""
+    snippets = "\n\n".join(
+        f'<untrusted_document url="{u}">\n{t}\n{x[:1500]}\n</untrusted_document>' for u, t, x in docs[:8]
+    )
+    named = " ".join(x for x in (car.make, car.model) if x)
+    return (
+        f"User's car: {car.display_name} (the user's words: {car.request_text})\n"
+        + (f"Model asked: {named} — return a version of exactly this model, never another model of the make.\n"
+           if car.make and car.model else "")
+        + f"Case context: {'; '.join(context)}\nCurrent year: {current_year}\n{insist}\n"
+        f"Search results:\n{snippets or '(none)'}"
+    )  # fmt: skip
+
+
+def _check_version(car: CaseCar, ident: VariantIdentity) -> None:
+    """A version of the car's years with an engine, or GenerationMismatch / NotOnSale."""
     if (
         car.year
         and ident.generation_years_from
@@ -70,11 +95,6 @@ async def resolve_with_llm(
     ):
         # a version without an engine ("Homura (2025+)") is an equipment level, not a variant: never stored
         raise NotOnSale(f"{ident.make} {ident.model} {ident.variant_name}: no engine named")
-    if car.constraints.url and ident.price_eur is not None:
-        # a page the user sent is read for this chat only: its price never enters the shared catalogue, where it
-        # would reach every other chat (reviewer 2026-11-03); the price then comes from research with sources
-        ident = ident.model_copy(update={"price_eur": None})
-    return await upsert_variant(ident, ports.ref), ident
 
 
 async def _on_sale_now(ports: Ports, car: CaseCar, user: str, current: tuple[str, int]) -> VariantIdentity:
@@ -121,13 +141,13 @@ def _context(car: CaseCar, current: tuple[str, int] | None, level: str) -> list[
     return context
 
 
-async def _resolver_docs(ports: Ports, car: CaseCar, lineup: Any = None) -> list[tuple[str, str, str]]:
+async def _resolver_docs(ports: Ports, car: CaseCar, lineup: Lineup | None = None) -> list[tuple[str, str, str]]:
     """Search results for the resolver: generations and engines, and (new cars) the Spanish price list of versions.
     A model of the make's line-up (spec 005) brings the line-up page that lists it."""
     if ports.acquisition is None:
         return []
     query = " ".join(x for x in (car.make, car.model, car.constraints.generation_hint) if x) or car.request_text
-    listed = (m.source_url for m in getattr(lineup, "models", None) or []
+    listed = (m.source_url for m in (lineup.models if lineup is not None else [])
               if car.model and m.model.lower() == car.model.lower() and m.source_url)  # fmt: skip
     url = next(listed, None)
     if car.market is None:
@@ -141,12 +161,12 @@ async def _resolver_docs(ports: Ports, car: CaseCar, lineup: Any = None) -> list
     return [(h.url, h.title, h.text) for h in hints]
 
 
-async def _check_known(ref: Reference, car: CaseCar, ident: VariantIdentity, lineup: Any = None) -> None:
+async def _check_known(ref: Reference, car: CaseCar, ident: VariantIdentity, lineup: Lineup | None = None) -> None:
     """Never invent a variant: a model unknown to the catalog, config and the make's line-up that the resolver
     cannot place (no generation, or another model than asked) is reported with the closest known models
     (FR-031; spec 005 FR-007, FR-009: "unknown" only after the line-up lookup)."""
     make, model = identity.normalize_make_model(car.make or ident.make, car.model or ident.model, ref.aliases)
-    in_lineup = {m.model for m in getattr(lineup, "models", None) or []}
+    in_lineup = {m.model for m in (lineup.models if lineup is not None else [])}
     known = await known_models(make, ref) | in_lineup
     if any(model.lower() == m.lower() for m in known):
         if in_lineup and not ident.generation and any(model.lower() == m.lower() for m in in_lineup):

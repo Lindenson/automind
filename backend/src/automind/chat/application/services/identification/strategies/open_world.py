@@ -24,10 +24,13 @@ MAX_NAMES = 6  # the line-up's models offered for an unknown one
 
 
 class OpenWorld:
+    """The last fallback: the resolver names the version from the search results (always answers)."""
+
     def __init__(self, ports: Ports) -> None:
         self.ports = ports
 
     async def identify(self, placed: Placed) -> IdentifyOutcome:
+        """The resolver's version, or what to ask when it cannot place one (the engines on sale, the line-up)."""
         o = await self._resolve(placed)
         if o.outcome == "IDENTIFIED":
             o.events.append({"kind": "identity_less_certain"})

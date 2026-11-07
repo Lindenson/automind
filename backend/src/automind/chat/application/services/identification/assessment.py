@@ -27,6 +27,8 @@ from automind.shared.vehicle import identity
 
 
 async def assess_car(car: CaseCar, ref: Reference, current_year: int, level: str | None = None) -> Assessment:
+    """The car looked up in the catalogue: the rows that fit it (best first, at most eight, at the comparison's
+    `level`), whether the words leave them ambiguous, its plausible generations and whether its data is fresh."""
     if not (car.make and car.model):
         return Assessment(state=CarState(identity_known=False))
     make, model = identity.normalize_make_model(car.make, car.model, ref.aliases)
