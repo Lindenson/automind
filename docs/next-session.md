@@ -1,4 +1,4 @@
-# Next session: start here (parked on 2026-11-07, after A2 gates; next: acquisition A3 pipeline + parsing)
+# Next session: start here (parked on 2026-11-07 after A2 gates; next: acquisition A3 pipeline + parsing)
 
 **First task: refactoring — spec 012, executed by `specs/012-refactoring/tasks.md` (one phase = one PR).**
 No new features until it is done (owner, 2026-11-06). All functional work in §4 is parked, still valid, and
@@ -15,73 +15,45 @@ What the system is: `README.md` ("Acquisition engine"), `docs/adr/ADR-032-acquis
 
 ## 0. Resume acquisition A3 (next action)
 
-Done and merged: S0–S8, S9a (T074 characterisation, PR #101), S9b (T076 research service, PR #102).
-Services so far: `identification/` (S7), `report/` (S8: ReportService, facts/, blocks/, stages/), `research/` (S9b:
-ResearchService create/run_job/conclude, rounds). Ports for the dialog's side: `report.contracts.ReportWording`,
-`research.contracts.ResearchWording`/`ResearchEvents` — all implemented by `dialog/report_wording.py` (WORDING) and
-the TurnContext; no second port over `acquisition.api`.
+**Where we are (2026-11-07, main = `058bbc3`, PR #118).** Chat services S7–S9c-2 are done (identification, report,
+research, interpretation, assessment — each a service over ports, strict). On 2026-11-07 the owner found SQL beside
+logic and modules over 200 lines in **acquisition**, under a green gate: the rules only looked at dirs named
+`application/`/`domain/` and allowed 400 lines. Since S9.3 (PR #116): rule `storage` (sqlalchemy /
+`shared.infrastructure.db` outside an `infrastructure/` package, **any** directory) and module limit **200**, both in
+the ratchet. Owner's decision: acquisition A1–A8 **before** S9d (tasks.md "S9.3"), one PR per package, each leaving
+**0 `storage`, 0 `size`, 0 entries** in its package.
 
-**S9.0 done (T074a, owner 2026-11-07):** `chat/application/usecases/challenge.py` is the named antipattern (Any where
-the types matter, dict result, DB directly, one 55-line public function, no docstring, no failure handling). Controls
-added: API rules `any`/`untyped`/`doc`/`public`/`ignore`/`lazy`/`exempt` (`scripts/structure_api.py`, in the ratchet;
-baseline 799 → 1667), contracts/code-shape.md "Public API of a layer", `specs/012-refactoring/checklists/pr-self-check.md`
-(copied into every PR body and answered), strict mypy override fixed to the post-S3a modules.
+Done: **A1 `reputation/`** (PR #117, −30 entries) and **A2 `gates/`** (PR #118, −81). Structure baseline 1470,
+mypy report (all src) 243.
 
-**S9.1a/b/c-1 done (PRs #105, #107, #108):** `research/`, `identification/` meet the bar (strict, 0 API baseline
-entries); `report/` is typed and strict (`LoadedCar`, `KeyedCars`, typed `Computed`/`ReportWording`; `JsonObject` in
-`shared/contracts/json.py` is the one sanctioned loose type, for UI blocks, event payloads and config sections — confirmed by the owner 2026-11-07).
-Patterns: graph-state shapes are TypedDicts in the service's `contracts.py`; closed sets read through typed maps
-(`FUELS`, `GEARBOXES`, `DRIVES`, `INTAKE_ITEMS`) or `Model.model_validate`; `Reference.makes` is the `MakeNames`
-Protocol. mypy report over src: 330 → 271.
+**The template (follow it for A3–A8; `reputation/` and `gates/` show it):**
+- `domain/` — plain records (frozen dataclasses: no ORM row reaches a rule) + pure functions; verdicts stay pure.
+- `application/` — services (class, ports in the constructor, public methods read as named steps), `ports.py`
+  (Protocols; one `<Area>StoreUnavailable`; split `measure_ports`-style when > 200 lines); every module docstring
+  names the errors and what happens on each.
+- `infrastructure/` — every SQL; stores map rows → records; `translate_errors(<Area>StoreUnavailable)` from
+  `shared/infrastructure/db/errors.py`; `wiring.py` builds the services (callers use `wiring.x()`).
+- A table is read by its owner (`scripts/table_owners.yaml`; rule `sql` catches it); a port joining areas the
+  contracts keep apart is wired in `delivery/` (e.g. `delivery/baselines.py`, worker handlers injected via
+  `entry.run(…, handlers)`). CLIs → `delivery/cli/`.
+- Private helpers of another package used from outside → make them public there (A2: `replay/run.load_variants`, …),
+  never `noqa: SLF001`.
+- Unit tests over fakes for every service: one failure path at least (store down, lost claim, budget, no measure).
+- Safety tests are never weakened (A2: `test_no_self_change` flagged `self.budgets` → renamed `agent_budgets`).
 
-**S9.1c-2 done (PR #110), T074b closed. S9.2 done (PR #111): the ports** — stores return records (`TurnRecord`,
-`JobRecord`, `MessageRecord`), never ORM rows; writes typed (`Unpack[TurnChanges|JobChanges|OutcomeFields]`);
-`StoreUnavailable` for every driver error (`persistence/errors.store_errors`); Protocols for every optional port.
+**Next: A3 `pipeline/` + `parsing/`** (= S11 T081–T084; 3564 lines, 121 entries — job 439, persist 420, plan 285,
+extract 274, parsing/spec 261, parsing/registry 240, locate 238). Too big for one PR — proposal, confirm with the
+owner first: **A3a** `pipeline` storage → `infrastructure/` (persist, merge, validate, relevance, locate, plan reads)
+with stores and records; **A3b** `job.run()` as named stages over ports (T082: plan → locate → fetch → parse →
+relevance → validate → merge → persist), `contracts.py`, `identity_readers/` (T082); **A3c** `parsing/` (T084:
+readers/, extraction/, normalise/; registry/store into infrastructure). Coverage first where T019 listed it
+(`pipeline/job.py` 61 % → characterise to ≥ 80 %, T081). Then A4 registry/gold/snapshots/drift/replay, A5 worker,
+A6 agents, A7 engine top level + `admin_api.py` (1049) → `admin/`, A8 `acquisition/domain` modules over 200 +
+`infrastructure/fetch.py`. Then S9d (chat: `confirm.py` nodes, `ask.py` → questions service, `ChallengeValue`,
+`report/stages/verdict.py` → `ResearchHistory`), S10, S12 rest, S13–S15. Deploy checkpoint after 2026-11-12.
 
-**S9c-1 done (PR #114, T075):** `services/interpretation/` — `InterpretationService.read()` (button / car edit /
-tapped option / model) and `.apply()` listing the stages (`stages/`: picked_option, make_to_choose, cars_safety_net,
-brand_explained, person_facts, stated_energy, understood); `contracts.py` (Interpretation, Preset, Reading, Applied,
-state TypedDicts, `ReplyWords` port implemented by `dialog/report_wording.DialogWording`); one `ports.IntakeLog`
-(report uses it too; `dialog.context.intake_log(c)` builds it); patterns → `chat/domain/understanding/{amounts,
-ownership}`; domain types narrowed (`HomeCharging`, `Body`, `CLIMATES`). `understand.py` 509 → 228 lines;
-structure 1448 → 1427; mypy report 271 → 261. `edit_delta` stays in `report/blocks/car_view.py` (with the "Change"
-choices it applies).
-
-**S9c-2 done (PR #115):** `services/assessment/` — `AssessmentService.cars()` (comparison level, every car
-checked again / looked up / auto-resolved; the node saves the case, then) `.plan()` (research plan from
-`PlanHistory`, cost, declined plan, feasibility, warnings); stages `car_checked`, `research_plan` (pure), `warnings`;
-port `ports.ResearchHistory` (`chat/infrastructure/research_history.py` over `acquisition.api`, `StoreUnavailable`);
-`intake.Limits.from_config`; `request_kind` typed `RequestKind` through the interpretation contracts and TurnState;
-plan warnings worded by `DialogWording.plan_warning` (still English only, as before). `understand.py` 228 → ~145
-lines, 0 `type: ignore`; structure 1427 → 1424; mypy report 261 → 259. Left: `report/stages/verdict.py` still calls
-`acquisition.unmet_areas` directly — move to `ResearchHistory` with S9d.
-
-**S9.3 done (PR #116, owner 2026-11-07):** the owner found SQL beside logic in `acquisition/reputation/baseline.py`
-and modules over 200 lines (`gates/evaluate.py` 286, …) under a green gate: the rules only looked at `application/`
-and `domain/` dirs and allowed 400 lines. Now rule `storage` (sqlalchemy / `shared.infrastructure.db` outside an
-`infrastructure/` package, any area) and module limit **200**; baseline 1424 → 1581 (109 storage, 73 size). The KPI
-baseline is the template: `reputation/{domain,application,infrastructure}/baseline*`, `turn_outcomes` read by
-observability (its owner), wired in `delivery/baselines.py`, worker handlers injected. **Owner's command changed**
-after the next deploy: `python -m automind.cli baseline close --name pre-autonomy` (the old module path is gone; the
-code running in production now still has it).
-
-**Next: acquisition A1–A8 before S9d** (tasks.md "S9.3"): one PR per package, each leaves 0 `storage` and 0 `size`
-in its package, in layers. **A1 done (PR #117)**: `reputation/` fully layered (0 entries) — the template for the
-rest: rules → `domain/` (records + pure functions), services with Protocol ports → `application/`, every SQL →
-`infrastructure/` (+ `wiring.py`), CLIs → `delivery/cli/`. **A2 done (PR #118)**: `gates/` layered (0 entries;
-callers use `gates.infrastructure.wiring.change_journal()/replay_gate()/shadow_gate()/watch()`). **Next A3 =
-`pipeline/` + `parsing/`** (job 439, persist 420, plan, locate, parse, merge, relevance, validate, extract; parsing
-registry/store/spec/migrate_v1; = S11 T081–T084). Then
-S9d — T078: `confirm.py` nodes ≤ 30 lines, `ask.py` out of interpretation into its own service (questions), `ChallengeValue`
-use case + port, purity contracts for chat.dialog and chat.application. Then T074c (2)-(5) re-review as listed in
-tasks.md. Deploy checkpoint after 2026-11-12.
-Coverage (characterisation is enough, no new pinning needed): `understand.py` 90 %, `confirm.py` 89 %,
-`interpretation/ask.py` 85 %, `interpretation/interpret.py` 95 %, `research.py` 94 %.
-Gate per step: check.sh, then (never in parallel) diff_behaviour, check_checkpoints; PR; merge; update this §0.
-Then S10 use cases, S11 acquisition pipeline + parsing package, S12 admin/persistence split + contracts, S13
-order/API + mypy scope, S14 docs, S15 acceptance.
-
-Known deferred inside 012: nodes still fat (`confirm.py` 465) — S9d; T019a flaky `test_catalog_merge` (host load) open.
+Gate per step: check.sh, then (never in parallel) diff_behaviour, check_checkpoints; PR (body = pr-self-check.md,
+answered); merge; update this §0. Never edit files while diff_behaviour runs (it checks out base/head in the tree).
 
 ### Workflow per step (what worked S3a–S7)
 
@@ -101,14 +73,14 @@ cd backend && uv run python ../scripts/check_checkpoints.py      # read-only pro
 
 ## 1. State when parked
 
-- main = S9b merged (PR #102). **Production still runs the pre-012 code** (`2b5eb92`, PRs #83–#85, `scripts/deploy.sh
-  up --monitoring`, app :8090). Deploy policy: none before the baseline closes on 2026-11-12; then S3a–S6 go
-  together as the first checkpoint (compose worker command is now `python -m automind.cli worker`), live replay of
-  chat ccd5f7d8 after it, then deploys only at S9, S12, S15.
-- Last gate (S9b): `check.sh` green — 1491 backend passed (2 skipped) + 161 frontend; 11 import contracts kept;
-  structure 799/799; mypy report 330 errors; behaviour diff vs previous main: differs 0 (racy 7: limit pause,
-  make_to_choose, persistent_thread — unstable between base runs too); check_checkpoints: 470 blobs, 0 paths,
-  11 threads. Lesson: never start pytest while diff_behaviour runs (same test DB) — it broke a golden once.
+- main = A2 merged (PR #118, `058bbc3`). **Production still runs the pre-012 code** (`2b5eb92`, PRs #83–#85,
+  `scripts/deploy.sh up --monitoring`, app :8090). Deploy policy: none before the baseline closes on 2026-11-12; then
+  the first 012 checkpoint (compose worker command is `python -m automind.cli worker`), live replay of chat ccd5f7d8
+  after it, then deploys only at S9, S12, S15.
+- Last gate (A2): `check.sh` green — 1541 backend passed (2 skipped) + 161 frontend; 11 import contracts kept;
+  structure 1470/1470 new 0; mypy report 243 errors; behaviour diff vs previous main: differs 0 (racy 7: limit pause,
+  make_to_choose, persistent_thread; `test_critique` grid-event order raced once in S9.3 — backlog §4.5);
+  check_checkpoints: 436 blobs, 0 paths, 11 threads. Never start pytest while diff_behaviour runs (same test DB).
 - Repo hygiene: no worktrees, no feature branches local or remote.
 - Last live check (pre-012): chat ccd5f7d8 (Deepal S09 vs Li L9) — S09 energy computed (EREV estimate), L9 "no data".
 - Backup before the last data repair: `backups/automind-20261106-100212.sql.gz`.
