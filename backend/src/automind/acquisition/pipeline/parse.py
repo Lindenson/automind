@@ -1,6 +1,6 @@
 """S4 parse (spec 011 strangler, research R5): the deterministic site readers on the job's pages (the running parser
 spec version of each site, `parsing/registry.py`); ambiguous or unknown layouts go to the extraction role
-(`pipeline/extract.py`). Moved from `application/research.py`.
+(`parsing/extraction/`). Moved from `application/research.py`.
 """
 
 from __future__ import annotations

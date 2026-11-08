@@ -27,7 +27,7 @@ HUMAN_ONLY_WRITERS = {
     "registry/application/seed.py",  # the seed from the owner's config/sources.yaml and survey
     "admin_api.py",  # the owner's own actions from the admin page (freeze, block, rollback), behind ADMIN_TOKEN
     "registry/infrastructure/repo.py",  # (same seed, persisted)
-    "parsing/migrate_v1.py",  # the parser seed inserts new parsers unfrozen (`frozen=False`, never an update)
+    "parsing/infrastructure/v1_specs.py",  # the parser seed inserts new parsers unfrozen (`frozen=False`, no update)
 }
 SQL_SET = re.compile(r"\bSET\b[^;]*\b(access|access_evidence|frozen|denylist|budgets)\s*=", re.I | re.S)
 DYNAMIC_CALLS = {"exec", "eval", "compile", "__import__"}

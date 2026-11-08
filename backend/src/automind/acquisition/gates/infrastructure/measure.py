@@ -21,7 +21,7 @@ from automind.acquisition.gates.infrastructure import page_reading as pages
 from automind.acquisition.gates.infrastructure.measure_extractor import Pair, extractor_pair
 from automind.acquisition.infrastructure import config as acq_config
 from automind.acquisition.infrastructure import overrides
-from automind.acquisition.parsing import interpreter
+from automind.acquisition.parsing.readers import interpreter
 from automind.acquisition.snapshots.store import SnapshotRef
 from automind.shared.contracts.llm import LLM
 from automind.shared.evidence import sense

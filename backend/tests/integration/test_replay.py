@@ -11,7 +11,7 @@ from sqlalchemy import delete, func, select
 
 from automind.acquisition.gold import repo
 from automind.acquisition.gold.domain.match import GoldValue
-from automind.acquisition.parsing import migrate_v1
+from automind.acquisition.parsing.infrastructure import v1_specs
 from automind.acquisition.replay import command as cli
 from automind.acquisition.replay.run import NoPages, ReplayRequest, run
 from automind.acquisition.snapshots import store
@@ -101,7 +101,7 @@ async def test_v1_vs_broken_v2(seeded, capsys):
 async def test_stored_version_from_the_database(seeded, capsys):
     """Spec 011 T090: `--reader km77@vN` replays a version stored in parser_versions."""
     since, _, _ = seeded
-    await migrate_v1.seed()
+    await v1_specs.seed()
     body = json.loads((FIX / "broken_v2.json").read_text(encoding="utf-8"))
     key = f"km77@v{TEST_VERSION}"
     body["version"] = TEST_VERSION

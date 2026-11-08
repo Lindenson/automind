@@ -26,7 +26,7 @@ from sqlalchemy.dialects.postgresql import insert
 from automind.acquisition.domain import replay as scoring
 from automind.acquisition.gold import repo as gold_repo
 from automind.acquisition.infrastructure import config as acq_config
-from automind.acquisition.parsing.spec import ParserSpec
+from automind.acquisition.parsing.readers.spec import ParserSpec
 from automind.acquisition.pipeline.domain.target import target_of
 from automind.acquisition.replay.offline import NetworkForbidden, no_network
 from automind.acquisition.snapshots import store
@@ -107,9 +107,9 @@ PageFn = Callable[[list[SnapshotRef], dict[str, bytes], dict[str, Variant]], Awa
 
 async def resolve_reader(req: ReplayRequest) -> tuple[str, ParserSpec]:
     """(version key, spec): a stored version, its YAML v1 before the seed, or a validated candidate file."""
-    from automind.acquisition.parsing import spec as ps  # noqa: PLC0415
-    from automind.acquisition.parsing import store  # noqa: PLC0415
-    from automind.acquisition.parsing.migrate_v1 import denylist, yaml_specs  # noqa: PLC0415
+    from automind.acquisition.parsing.infrastructure.parser_store import ParserStore  # noqa: PLC0415
+    from automind.acquisition.parsing.infrastructure.v1_specs import denylist, yaml_specs  # noqa: PLC0415
+    from automind.acquisition.parsing.readers import spec as ps  # noqa: PLC0415
 
     if req.reader_spec:
         try:
@@ -125,7 +125,7 @@ async def resolve_reader(req: ReplayRequest) -> tuple[str, ParserSpec]:
     assert req.reader is not None
     try:
         rid, version = parse_key(req.reader)
-        stored = await store.version(req.reader)
+        stored = await ParserStore().version(req.reader)
     except ValueError as e:
         raise InvalidSpec(str(e)) from e
     if stored is not None:
@@ -155,7 +155,7 @@ def read_page(
 ) -> scoring.PageResult:  # fmt: skip
     """One stored page through the parser spec and the live checks (pure apart from the research rule imports)."""
     from automind.acquisition.infrastructure.fetch import decode_body  # noqa: PLC0415
-    from automind.acquisition.parsing import interpreter  # noqa: PLC0415
+    from automind.acquisition.parsing.readers import interpreter  # noqa: PLC0415
     from automind.acquisition.pipeline import validate as rs  # noqa: PLC0415
 
     url = ref.final_url or ref.url
@@ -198,10 +198,11 @@ async def gold_values(variant_ids: set[str]) -> dict[tuple[str, str], scoring.Go
 
 async def extract_cached(doc: WebDoc, sha: str, name: str, text: str, area: str, model: str, target: str,
                           llm: Any = None) -> Any:  # fmt: skip
-    from automind.acquisition.pipeline import extract as extraction  # noqa: PLC0415
+    from automind.acquisition.parsing.extraction import areas
+    from automind.acquisition.parsing.extraction import extract as extraction  # noqa: PLC0415
     from automind.chat.infrastructure.adapters import LiveLLM  # noqa: PLC0415
 
-    schema = extraction.schema_for(area)
+    schema = areas.schema_for(area)
     phash = hashlib.sha256(text.encode("utf-8")).hexdigest()[:12]
     async with sessionmaker()() as s:
         hit = await s.get(ExtractionCache, (phash, model, sha, area))
@@ -306,7 +307,7 @@ async def _reader_pages(req: ReplayRequest) -> tuple[str, list[scoring.PageResul
 
 def _prompt(key: str) -> tuple[str, str, str]:
     """(prompt name, prompt text, area) of an extraction prompt version; only the file's version before US5."""
-    from automind.acquisition.pipeline.extract import PROMPT_FOR_AREA  # noqa: PLC0415
+    from automind.acquisition.parsing.extraction.areas import PROMPT_FOR_AREA  # noqa: PLC0415
 
     try:
         name, _ = parse_key(key)

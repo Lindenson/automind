@@ -11,8 +11,8 @@ from pathlib import Path
 import pytest
 from sqlalchemy import delete, select, text, update
 
-from automind.acquisition.parsing import migrate_v1
-from automind.acquisition.parsing.registry import ParserRegistry
+from automind.acquisition.parsing.infrastructure import v1_specs
+from automind.acquisition.parsing.infrastructure import wiring as parsing_wiring
 from automind.acquisition.snapshots import store
 from automind.acquisition.worker import exporter
 from automind.acquisition.worker.config import worker_config
@@ -48,7 +48,7 @@ async def _reset_version() -> None:
 @pytest.fixture
 async def world():
     await db.init_db()
-    await migrate_v1.seed()
+    await v1_specs.seed()
     await _reset_version()
     started = datetime.now(UTC)
     sids: list[str] = []
@@ -132,7 +132,7 @@ async def test_redesign_is_detected_by_the_daily_drift_task(world, capsys):
 
 async def test_five_empty_pages_in_a_row_degrade_at_once(world, capsys):
     started = datetime.now(UTC)
-    reg = ParserRegistry(live=True)
+    reg = parsing_wiring.parser_registry(live=True)
     await reg.refresh()
     assert reg.from_db and reg.version_for("https://www.km77.com/x") is not None
     good = Page(url="https://www.km77.com/coches/a/datos", title="t", text="", html=OLD[0].decode("utf-8"))

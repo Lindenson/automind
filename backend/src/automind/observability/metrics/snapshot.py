@@ -184,7 +184,7 @@ async def _engine(snap: prom.Snapshot) -> None:
 async def _readers(snap: prom.Snapshot) -> None:
     """Zero streaks of the running parser versions (spec 011 US4: kept in parser_versions, so every process's
     pages count), and this process's own count for readers not stored yet (the YAML fallback)."""
-    from automind.acquisition.parsing.registry import STREAKS  # noqa: PLC0415
+    from automind.acquisition.parsing.readers.tally import STREAKS  # noqa: PLC0415
 
     streaks = dict(STREAKS)
     for reader, n in await _rows(

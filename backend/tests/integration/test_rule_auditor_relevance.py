@@ -24,7 +24,7 @@ from automind.acquisition.gates.infrastructure.wiring import change_journal, rep
 from automind.acquisition.gold import repo
 from automind.acquisition.gold.domain.match import GoldValue
 from automind.acquisition.infrastructure import overrides
-from automind.acquisition.parsing import migrate_v1
+from automind.acquisition.parsing.infrastructure import v1_specs
 from automind.acquisition.snapshots import store
 from automind.shared.infrastructure import db
 
@@ -97,7 +97,7 @@ async def world():
     """Automatic 520d/530d/520i (G30) with gold; 2 days ago: 4 pages "… manual del vehículo" rejected (their values
     later confirmed by 2 families) and 3 junk pages "520d manual 6 velocidades" carrying 520i values, rejected."""
     await db.init_db()
-    await migrate_v1.seed()
+    await v1_specs.seed()
     overrides.clear()
     started = datetime.now(UTC)
     w = Corpus()

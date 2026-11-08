@@ -18,7 +18,7 @@ from automind.acquisition.infrastructure.search.cache import CachedSearcher
 from automind.acquisition.infrastructure.search.serpapi import SerpApiProvider
 from automind.acquisition.infrastructure.search.serper import SerperProvider
 from automind.acquisition.infrastructure.search.tavily import TavilyProvider
-from automind.acquisition.parsing.registry import live_readers
+from automind.acquisition.parsing.infrastructure.wiring import live_readers
 from automind.acquisition.pipeline.infrastructure.wiring import stores as pipeline_stores
 from automind.acquisition.ports import AcqPorts
 from automind.acquisition.registry.application.service import RegistryService

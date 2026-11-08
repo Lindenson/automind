@@ -220,7 +220,7 @@ Acquisition, one PR per package, each leaves its package with **0 `storage`, 0 `
   lever_state, page_reading, measure, measure_extractor, relevance_pages, relevance_measure, engine_ports, wiring.
   `replay/run` helpers made public (`load_variants`, `gold_values`, `extract_cached`, `accepted_values`) instead of
   callers reaching into privates. gates: 79 baseline entries → 0; structure 1551 → 1470.
-- [ ] A3 `pipeline/` + `parsing/` (= S11, T081–T084): job (439), persist (420), plan, locate, parse, merge, relevance,
+- [x] A3 `pipeline/` + `parsing/` (= S11, T081–T084): job (439), persist (420), plan, locate, parse, merge, relevance,
   validate, extract; parsing registry/store/spec/migrate_v1
   - [x] A3a pipeline storage (PR #120): `domain/` variant (`VariantFacts` Protocol — stored rows fit it — and
     `CarVariant`), rows (evidence, claims, area items as records), items + used_prices (non-spec area checks),
@@ -240,10 +240,17 @@ Acquisition, one PR per package, each leaves its package with **0 `storage`, 0 `
     T084 (schemas → `parsing/extraction/contracts.py`, patterns → `normalise/`, so they move once); `identity.py` +
     `gold/versions.py` → `identity_readers/` → A4 (with gold).
   - [ ] A3b-f1 type the search counts and hits the stages pass (`Found.stats`, `JobResult.hits`, `book.*` take
-    `dict[str, Any]` from `locate.collect`): `SearchStats` / `SourceHit` records (with A3c or A4)
-  - [ ] A3c `parsing/` (T084) + `extract.py` under 200 + pipeline's last regex/table/order/ignore entries → pipeline 0
+    `dict[str, Any]` from `locate.collect`): `SearchStats` / `SourceHit` records (moved to A4)
+  - [x] A3c `parsing/` (T084): `readers/` (spec split into spec / spec_check / regex_safety; interpreter, fingerprint,
+    legacy reordered; `ParserRegistry` over `ports` — `ParserBook`, `ReadingLog`, `ReadShadow`, one
+    `ParserStoreUnavailable` — with `tally` and `versions`; `migrate_v1` pure), `infrastructure/` (parser_store
+    `ParserStore`, reading_log, v1_specs: YAML + seed, wiring: `live_readers`/`parser_registry`/`yaml_registry`),
+    `extraction/` (contracts ← the schemas of `pipeline/extract.py`, areas, extract: calls only; no `type: ignore`),
+    `normalise/` (cell_value, labels, text, fuel, gearbox, numbers ← validate's and extract's patterns and table);
+    `LiveShadowFeed.notify_read`; pure contract + 11 modules; parsing joins mypy strict. pipeline and parsing: 0
+    entries; structure 1418 → 1348; mypy report 214 → 200.
 - [ ] A4 `registry/` (admission, review, repo), `gold/` (load, repo, versions, match, rdw), `snapshots/`, `drift/`,
-  `replay/` (run 367)
+  `replay/` (run 367); with it `pipeline/identity.py` + `gold/versions.py` → `identity_readers/` (T082 rest) and A3b-f1
 - [ ] A5 `worker/`: queue, process, heartbeat, budget, prefetch, handlers (256)
 - [ ] A6 `agents/` (= S12a agents): scout (608), parser_doctor (434), rule_auditor, levers, evaluator, extractor_tuner,
   blame_judge, budget
@@ -273,7 +280,7 @@ step that touches them.
 **Goal**: "page → fields → claims → validated values" in one package; no regex in functions anywhere.
 **Independent test**: "where is the pattern for X" answered from `acquisition/parsing/__init__` in < 2 minutes.
 
-- [ ] T084 [US4] (PR 14, with S11) `acquisition/parsing/`: `readers/` (spec, interpreter, registry, store, fingerprint, legacy, migrate_v1), `extraction/` (`contracts.py` ← schemas/DTOs of `pipeline/extract.py`; `extract.py` logic only), `normalise/` (units, test cycles, Chinese units, CLTC — from `shared/vehicle/units` callers in the pipeline, `sense_ev`, `validate.py` helpers), patterns by concept; package docstring draws the flow; remove empty `infrastructure/site_readers/`
+- [x] T084 [US4] (PR 14, with S11; A3c) `acquisition/parsing/`: `readers/` (spec, interpreter, registry, store, fingerprint, legacy, migrate_v1), `extraction/` (`contracts.py` ← schemas/DTOs of `pipeline/extract.py`; `extract.py` logic only), `normalise/` (units, test cycles, Chinese units, CLTC — from `shared/vehicle/units` callers in the pipeline, `sense_ev`, `validate.py` helpers), patterns by concept; package docstring draws the flow; remove empty `infrastructure/site_readers/`
 - [ ] T085 [P] [US4] Remaining regexes inside functions across `acquisition/**`, `observability/**`, `delivery/**` → named module constants or `normalise/` vocabulary (checker rule 4 baseline for these areas empty)
 - [ ] T086 [P] [US4] Reply phrases: `orchestration/phrases.py` (597) and phrase tables of `report_text.py` (590) → `chat/dialog/phrases/<lang>.py` + `chat/dialog/phrases/report_text/` by block; checker rule 4 baseline for `chat/**` empty
 

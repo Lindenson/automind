@@ -113,6 +113,6 @@ module = [
     "automind.acquisition.pipeline.domain.*", "automind.acquisition.pipeline.application.*",
     "automind.acquisition.pipeline.infrastructure.*", "automind.acquisition.pipeline.contracts",
     "automind.acquisition.pipeline.scope", "automind.acquisition.pipeline.stages.*", "automind.acquisition.pipeline.job",
-    "automind.acquisition.pipeline.home_market",
+    "automind.acquisition.pipeline.home_market", "automind.acquisition.parsing.*",
 ]
 strict = true

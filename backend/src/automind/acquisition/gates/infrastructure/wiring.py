@@ -3,6 +3,8 @@ config (`agents.yaml` gates). Built per task: the config is read when the task s
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 from automind.acquisition.domain import gates, relevance_audit
 from automind.acquisition.gates.application.journal import ChangeJournal
 from automind.acquisition.gates.application.replay_gate import ReplayGate
@@ -16,6 +18,7 @@ from automind.acquisition.gates.infrastructure.measure import PageMeasure
 from automind.acquisition.gates.infrastructure.objects import ObjectRepo
 from automind.acquisition.gates.infrastructure.relevance_measure import RelevancePages
 from automind.acquisition.infrastructure import config as acq_config
+from automind.acquisition.infrastructure import overrides
 
 
 def change_journal() -> ChangeJournal:
@@ -42,6 +45,12 @@ class LiveShadowFeed:
     async def notify_extracted(self, prompt_name: str | None, snapshot_ids: list[str]) -> int:
         """Queue the extracted pages for the prompt and extractor-model changes in shadow."""
         return await shadow_gate().notify_extracted(prompt_name, snapshot_ids)
+
+    async def notify_read(self, read: Mapping[str, str]) -> None:
+        """Queue the snapshots the site readers read (id → version key) for the parser and rule changes in shadow;
+        the gate is built only while such a change is in shadow."""
+        if overrides.in_shadow("parser") or overrides.in_shadow("rule"):  # spec 011 T102
+            await shadow_gate().notify_read(read)
 
 
 def watch() -> Watch:

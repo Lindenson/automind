@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 from pydantic import BaseModel
 
-from automind.acquisition.pipeline.extract import IncentiveEntry, IncentiveFacts
+from automind.acquisition.parsing.extraction.contracts import IncentiveEntry, IncentiveFacts
 from automind.acquisition.pipeline.stages.market_pages import MARKET_TARGET, read_market_pages
 from automind.shared.contracts.web import Page
 from automind.shared.metering.usage import BudgetExceeded

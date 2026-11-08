@@ -26,7 +26,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from automind.acquisition.parsing.spec import ParserSpec, regex_problem
+from automind.acquisition.parsing.readers.regex_safety import regex_problem
+from automind.acquisition.parsing.readers.spec import ParserSpec
 from automind.shared.provenance.versions import parse_key, spec_hash
 
 MAX_PROMPT_CHARS = 20_000

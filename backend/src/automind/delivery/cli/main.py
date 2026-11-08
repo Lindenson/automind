@@ -49,10 +49,10 @@ def gold_load(argv: list[str]) -> int:
 
 def parsers_migrate_v1(argv: list[str]) -> int:
     """Today's site readers become version 1 of their parser specs (idempotent)."""
-    from automind.acquisition.parsing import migrate_v1  # noqa: PLC0415
+    from automind.acquisition.parsing.infrastructure import v1_specs  # noqa: PLC0415
 
     _configure()
-    print(json.dumps(asyncio.run(migrate_v1.seed()), ensure_ascii=False))
+    print(json.dumps(asyncio.run(v1_specs.seed()), ensure_ascii=False))
     return 0
 
 

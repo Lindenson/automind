@@ -12,7 +12,7 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any
 
-from automind.acquisition.pipeline import extract as ex
+from automind.acquisition.parsing.extraction import extract as ex
 from automind.acquisition.pipeline import market
 from automind.acquisition.pipeline.domain.variant import VariantFacts
 from automind.acquisition.pipeline.persist import evidence_in

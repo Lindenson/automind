@@ -7,11 +7,13 @@ them).
 from __future__ import annotations
 
 import dataclasses
-import re
 from dataclasses import dataclass
 from typing import Any
 
 from automind.acquisition.domain import plausibility, sense_ev
+from automind.acquisition.parsing.normalise.fuel import fuel_of
+from automind.acquisition.parsing.normalise.gearbox import gearbox_in_name
+from automind.acquisition.parsing.normalise.numbers import litres
 from automind.acquisition.pipeline.domain.selection import MONEY_ATTRS
 from automind.acquisition.pipeline.domain.variant import VariantFacts
 from automind.shared import evidence as ev
@@ -22,25 +24,10 @@ from automind.shared.vehicle import specs
 VERSION = "validate@2"  # 2: CLTC ranges and kWh/100 km never filed as WLTP (chat 2026-11-06)
 
 
-def fuel_of(variant_name: str, powertrain: str | None) -> str | None:
-    if (powertrain or "").upper() == "BEV":
-        return "electric"
-    n = f" {variant_name.lower()} "
-    diesel = (" d ", "tdi", "dci", "cdi", "d-4d", "hdi", "crdi", "diesel", "jtd", "multijet", "tdci", "bluehdi",
-              "skyactiv-d", "i-dtec", "ecoblue")  # fmt: skip
-    if any(k in n for k in diesel) or re_diesel_suffix(n):
-        return "diesel"
-    return "petrol"
-
-
-def re_diesel_suffix(n: str) -> bool:
-    return re.search(r"\b\d{3}d\b|\b\d\.\dd\b|\b\d{3} d\b", n) is not None  # 520d, 2.0d, E 220 d
-
-
 def plausibility_ctx(v: VariantFacts, known: dict[str, float]) -> plausibility.Context:
     return plausibility.Context(
         powertrain=v.powertrain, fuel=fuel_of(v.variant_name, v.powertrain), known=known,
-        transmission=v.transmission or _variant_gearbox(v), drive=v.drive,
+        transmission=v.transmission or gearbox_in_name(v.variant_name), drive=v.drive,
     )  # fmt: skip
 
 
@@ -83,7 +70,7 @@ def sense_before(
     volume with the seats folded, or of another body style, is not the boot volume."""
     if c.attribute == "boot_volume" and not (b := sense.boot_seats_up(c.raw_value, c.excerpt)).ok:
         return c, ("REJECTED_IMPLAUSIBLE", None, None, b.rule_id or "sense.boot")
-    if c.attribute == "boot_volume" and not (b := sense.boot_fits_body(_litres(c.raw_value), v.body_class, url)).ok:
+    if c.attribute == "boot_volume" and not (b := sense.boot_fits_body(litres(c.raw_value), v.body_class, url)).ok:
         return c, ("REJECTED_IMPLAUSIBLE", None, None, b.rule_id or "sense.boot")
     if (v.powertrain or "").upper() in sense_ev.PLUG_IN or c.attribute in _EV_CLAIMS:
         return _sense_ev_before(c, v, url)
@@ -107,30 +94,6 @@ class ReaderClaim:
     raw_value: str
     unit: str | None
     excerpt: str
-
-
-def _variant_gearbox(v: VariantFacts) -> str | None:
-    """The gearbox named in the variant name ("… 6AT", "… manual", "… e-CVT"), when the column is empty."""
-    name = f" {v.variant_name} ".lower()
-    if re.search(r"\b\d\s?(at|a/t)\b|automatic|automático|automatica", name):
-        return "automatic"
-    if re.search(r"\b\d\s?(mt|m/t)\b", name) or sense.says_manual(name):
-        return "manual"
-    return sense.gearbox_family(name)
-
-
-def _litres(raw: str) -> float | None:
-    """ "611", "1.642" (Spanish thousands) or "611 l" as litres; None when there is no number."""
-    m = re.search(r"\d[\d.,\u202f ]*", raw or "")
-    if not m:
-        return None
-    digits = (
-        re.sub(r"[.,\u202f ]", "", m.group(0)) if re.fullmatch(r"\d{1,2}[.,]\d{3}", m.group(0).strip()) else m.group(0)
-    )
-    try:
-        return float(digits.strip().replace(",", "."))
-    except ValueError:
-        return None
 
 
 def _refile(c: Any, attribute: str | None, raw_value: Any) -> Any:

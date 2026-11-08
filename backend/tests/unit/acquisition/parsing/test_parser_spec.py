@@ -7,8 +7,9 @@ import json
 
 import pytest
 
-from automind.acquisition.parsing import spec as ps
-from automind.acquisition.parsing.migrate_v1 import migrate_v1
+from automind.acquisition.parsing.readers import spec as ps
+from automind.acquisition.parsing.readers.migrate_v1 import migrate_v1
+from automind.acquisition.parsing.readers.regex_safety import regex_problem
 from automind.shared.infrastructure.config.loader import load_yaml
 
 READERS = {k: v for k, v in load_yaml("site_readers.yaml").items() if k != "version"}
@@ -144,4 +145,4 @@ def test_json_text_is_accepted_and_bad_json_is_an_error():
     ],
 )
 def test_regex_safety(pattern, safe):
-    assert (ps.regex_problem(pattern) is None) is safe
+    assert (regex_problem(pattern) is None) is safe

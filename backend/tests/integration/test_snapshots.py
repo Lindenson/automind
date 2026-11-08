@@ -13,7 +13,7 @@ from tests.graph.conftest import engine, make_ports, open_web_reference
 
 from automind.acquisition.infrastructure.fetch import Fetcher, FetchPolicy
 from automind.acquisition.infrastructure.pages import DbPageStore
-from automind.acquisition.parsing.registry import ParserRegistry
+from automind.acquisition.parsing.infrastructure import wiring as parsing_wiring
 from automind.acquisition.pipeline.contracts import JobSpec
 from automind.acquisition.pipeline.job import ResearchJob
 from automind.acquisition.registry.application.service import RegistryService
@@ -142,7 +142,7 @@ async def test_research_job_names_producer_version_model_and_snapshot():
     ports.ref = open_web_reference(
         favourites=[KM77], favourite_queries={"specs": "{make} {model} {generation} {variant} {sites}"}
     )
-    ports.readers = ParserRegistry.from_yaml([KM77])
+    ports.readers = parsing_wiring.yaml_registry([KM77])
     cfg = {**load_yaml("registry.yaml"), "autonomy": False}
     ports.registry = RegistryService(RegistryRepo(cfg), cfg)
 

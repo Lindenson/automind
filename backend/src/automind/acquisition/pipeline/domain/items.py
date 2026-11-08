@@ -7,17 +7,16 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, cast
 
 from automind.acquisition.domain import sense_ev
+from automind.acquisition.parsing.extraction.extract import excerpt_in_doc
 from automind.acquisition.pipeline.domain import rows as r
 from automind.acquisition.pipeline.domain.used_prices import used_prices
 from automind.acquisition.pipeline.domain.written import iso_date, number, whole
-from automind.acquisition.pipeline.extract import excerpt_in_doc
 from automind.shared.evidence import sense
 
 if TYPE_CHECKING:
     from pydantic import BaseModel
 
-    from automind.acquisition.pipeline.domain.variant import VariantFacts
-    from automind.acquisition.pipeline.extract import (
+    from automind.acquisition.parsing.extraction.contracts import (
         DepreciationItems,
         IssueItems,
         MaintenanceItems,
@@ -26,6 +25,7 @@ if TYPE_CHECKING:
         ReviewItems,
         UsedPriceItems,
     )
+    from automind.acquisition.pipeline.domain.variant import VariantFacts
 
 
 class ExcerptCounter:

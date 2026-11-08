@@ -12,7 +12,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any
 
-from automind.acquisition.pipeline import extract as ex
+from automind.acquisition.parsing.extraction import extract as ex
 from automind.shared.contracts.web import WebDoc
 
 VERSION = "market@1"

@@ -14,7 +14,7 @@ from sqlalchemy import delete, select, update
 from automind.acquisition.agents import parser_doctor
 from automind.acquisition.gold import repo
 from automind.acquisition.gold.domain.match import GoldValue
-from automind.acquisition.parsing import migrate_v1
+from automind.acquisition.parsing.infrastructure import v1_specs
 from automind.acquisition.snapshots import store
 from automind.acquisition.worker.budget import BudgetExceeded
 from automind.shared.infrastructure import db
@@ -31,7 +31,7 @@ GOLD = [(140.0, 400.0, 1615.0, 1995.0), (195.0, 620.0, 1735.0, 2993.0), (135.0, 
 @pytest.fixture
 async def site():
     await db.init_db()
-    await migrate_v1.seed()
+    await v1_specs.seed()
     started = datetime.now(UTC)
     async with db.sessionmaker()() as s:
         src = await s.get(db.SourceRow, "km77.com")

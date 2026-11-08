@@ -12,8 +12,8 @@ from sqlalchemy import select
 from automind.acquisition.domain import gates
 from automind.acquisition.domain import replay as scoring
 from automind.acquisition.infrastructure import config as acq_config
-from automind.acquisition.parsing import store as parsers
-from automind.acquisition.parsing.spec import ParserSpec
+from automind.acquisition.parsing.infrastructure.parser_store import ParserStore
+from automind.acquisition.parsing.readers.spec import ParserSpec
 from automind.acquisition.replay import run as replay
 from automind.acquisition.replay.offline import no_network
 from automind.acquisition.snapshots import store as snapshots
@@ -59,7 +59,7 @@ async def spec_of(key: str | None) -> ParserSpec | None:
 
 async def running_specs() -> list[ParserSpec]:
     """The specs of the readers running now."""
-    return [v.spec for v in await parsers.running()]
+    return [v.spec for v in await ParserStore().running()]
 
 
 def spec_for(specs: list[ParserSpec], domain: str) -> ParserSpec | None:

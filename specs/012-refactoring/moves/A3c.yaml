@@ -1,0 +1,11 @@
+# spec 012 A3c (T084): parsing/ by concept — readers (specs, interpreter, registry), the parser store in
+# infrastructure, the extraction schemas and calls (from pipeline/extract.py)
+moves:
+  automind.acquisition.parsing.spec: automind.acquisition.parsing.readers.spec
+  automind.acquisition.parsing.interpreter: automind.acquisition.parsing.readers.interpreter
+  automind.acquisition.parsing.fingerprint: automind.acquisition.parsing.readers.fingerprint
+  automind.acquisition.parsing.legacy: automind.acquisition.parsing.readers.legacy
+  automind.acquisition.parsing.migrate_v1: automind.acquisition.parsing.readers.migrate_v1
+  automind.acquisition.parsing.registry: automind.acquisition.parsing.readers.registry
+  automind.acquisition.parsing.store: automind.acquisition.parsing.infrastructure.parser_store
+  automind.acquisition.pipeline.extract: automind.acquisition.parsing.extraction.extract

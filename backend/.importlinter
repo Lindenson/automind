@@ -187,9 +187,19 @@ source_modules =
     automind.acquisition.pipeline.domain
     automind.acquisition.gold.domain
     automind.acquisition.snapshots.codec
-    automind.acquisition.parsing.spec
-    automind.acquisition.parsing.interpreter
-    automind.acquisition.parsing.fingerprint
+    automind.acquisition.parsing.readers.spec
+    automind.acquisition.parsing.readers.interpreter
+    automind.acquisition.parsing.readers.fingerprint
+    automind.acquisition.parsing.readers.spec_check
+    automind.acquisition.parsing.readers.regex_safety
+    automind.acquisition.parsing.readers.versions
+    automind.acquisition.parsing.readers.ports
+    automind.acquisition.parsing.readers.tally
+    automind.acquisition.parsing.readers.registry
+    automind.acquisition.parsing.readers.migrate_v1
+    automind.acquisition.parsing.normalise
+    automind.acquisition.parsing.extraction.contracts
+    automind.acquisition.parsing.extraction.areas
 forbidden_modules =
     langgraph
     langchain

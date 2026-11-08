@@ -16,7 +16,7 @@ from tests.fakes.fake_llm import FakeLLM
 from tests.fakes.fixture_search import FixtureSearch
 from tests.graph.conftest import engine, make_ports, open_web_reference
 
-from automind.acquisition.parsing.registry import ParserRegistry
+from automind.acquisition.parsing.infrastructure import wiring as parsing_wiring
 from automind.acquisition.registry.application.service import RegistryService
 from automind.acquisition.registry.infrastructure.repo import RegistryRepo
 from automind.acquisition.worker import exporter, prefetch, queue
@@ -45,7 +45,7 @@ def _ports(fx: FixtureSearch):  # noqa: ANN202
     ports.ref = open_web_reference(
         favourites=[KM77], favourite_queries={"specs": "{make} {model} {generation} {variant} {sites}"}
     )
-    ports.readers = ParserRegistry.from_yaml([KM77])
+    ports.readers = parsing_wiring.yaml_registry([KM77])
     cfg = {**load_yaml("registry.yaml"), "autonomy": False}
     ports.registry = RegistryService(RegistryRepo(cfg), cfg)
     return ports

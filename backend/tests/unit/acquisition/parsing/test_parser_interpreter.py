@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from automind.acquisition.parsing import interpreter
-from automind.acquisition.parsing.spec import ParserSpec
+from automind.acquisition.parsing.readers import interpreter
+from automind.acquisition.parsing.readers.spec import ParserSpec
 
 FIX = Path(__file__).resolve().parents[3] / "fixtures" / "html"
 FIELDS = [

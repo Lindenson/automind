@@ -14,7 +14,8 @@ from typing import Any
 from pydantic import BaseModel
 
 from automind.acquisition.domain import relevance as rel
-from automind.acquisition.pipeline import extract as ex
+from automind.acquisition.parsing.extraction import areas
+from automind.acquisition.parsing.extraction import extract as ex
 from automind.acquisition.pipeline.contracts import JobSpec, PageTally
 from automind.acquisition.pipeline.domain.variant import VariantFacts
 from automind.acquisition.pipeline.parse import read_tables
@@ -36,7 +37,7 @@ async def read_car_pages(ports: AcqPorts, v: VariantFacts, job: JobSpec, pages: 
     tgt, gens = job_relevance_target(v, ports)
     judge = PageJudge(ports, v, tgt, gens, target, job.area)
     known = await ports.stores.values.known_values(v.id)
-    tables = await read_tables(ports, v, pages) if job.area in ex.SPEC_AREAS else {}
+    tables = await read_tables(ports, v, pages) if job.area in areas.SPEC_AREAS else {}
     reader = _CarPages(ports, v, job, target, judge, known, tables)
     await asyncio.gather(*(reader.read(p) for p in pages))
     return reader.tally

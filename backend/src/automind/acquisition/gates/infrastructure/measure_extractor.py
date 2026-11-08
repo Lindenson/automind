@@ -13,7 +13,7 @@ from automind.acquisition.gates.infrastructure import page_reading as pages
 from automind.acquisition.infrastructure import config as acq_config
 from automind.acquisition.infrastructure.fetch import decode_body
 from automind.acquisition.infrastructure.pages import main_content
-from automind.acquisition.pipeline import extract as extraction
+from automind.acquisition.parsing.extraction import areas
 from automind.acquisition.pipeline.domain.target import target_of
 from automind.acquisition.replay import run as replay
 from automind.acquisition.snapshots.store import SnapshotRef
@@ -34,7 +34,7 @@ async def extractor_pair(c: Change, refs: list[SnapshotRef], *, llm: LLM | None 
     """(old, new) page results of the extractor. Raises `NoMeasure` when the prompt is not an extraction prompt or
     its versions are gone."""
     name, old_text, new_text, models = await _versions(c)
-    area = next((a for a, p in extraction.PROMPT_FOR_AREA.items() if p == name), None)
+    area = next((a for a, p in areas.PROMPT_FOR_AREA.items() if p == name), None)
     if area is None:
         raise NoMeasure(f"{name} is not an extraction prompt")
     bodies, variants = await pages.bodies_and_variants(refs)

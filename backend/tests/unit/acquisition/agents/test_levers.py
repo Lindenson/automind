@@ -17,7 +17,7 @@ from automind.acquisition.agents.levers import (
     SourceProposal,
     validate,
 )
-from automind.acquisition.parsing.spec import ParserSpec
+from automind.acquisition.parsing.readers.spec import ParserSpec
 
 AGENTS_CFG = {
     "levers": {
