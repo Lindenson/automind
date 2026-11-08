@@ -12,7 +12,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from automind.acquisition.pipeline import extract as ex
+from automind.acquisition.parsing.extraction import areas
+from automind.acquisition.parsing.extraction import extract as ex
 from automind.acquisition.pipeline import stamp
 from automind.acquisition.pipeline.domain import items
 from automind.acquisition.pipeline.domain.rows import ClaimRow, EvidenceIn, PageRow
@@ -46,7 +47,7 @@ async def persist_extraction(ports: AcqPorts, v: VariantFacts, area: str, d: Web
     """Store what the extraction role read on a page; returns (accepted, rejected)."""
     evidence = evidence_in(v, d, page, favourite_priority(ports, v, d.url))
     rows: Sequence[PageRow]
-    if area in ex.SPEC_AREAS:
+    if area in areas.SPEC_AREAS:
         rejected_by = values_rejected if values_rejected is not None else defaultdict(int)
         claims = await _spec_claims(ports, v, area, d, evidence, out, target, uncertain, known or {})
         accepted, rejected = _count(claims, rejected_by)

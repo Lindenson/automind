@@ -3,7 +3,7 @@ an estate's boot is not the hatchback's."""
 
 import pytest
 
-from automind.acquisition.pipeline.validate import _litres
+from automind.acquisition.parsing.normalise.numbers import litres
 from automind.shared.evidence import sense
 from automind.shared.vehicle import identity
 
@@ -72,7 +72,7 @@ def test_estate_boot(value, body, url, ok):
 
 
 @pytest.mark.parametrize(
-    ("raw", "litres"), [("611", 611), ("611 l", 611), ("1.642", 1642), ("380,5", 380.5), ("", None)]
+    ("raw", "expected"), [("611", 611), ("611 l", 611), ("1.642", 1642), ("380,5", 380.5), ("", None)]
 )
-def test_litres(raw, litres):
-    assert _litres(raw) == litres
+def test_litres(raw, expected):
+    assert litres(raw) == expected

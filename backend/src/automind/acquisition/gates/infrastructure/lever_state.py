@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from automind.acquisition.agents import levers
 from automind.acquisition.gates.application.ports import GateStoreUnavailable
 from automind.acquisition.infrastructure import config as acq_config
-from automind.acquisition.parsing.migrate_v1 import denylist
+from automind.acquisition.parsing.infrastructure.v1_specs import denylist
 from automind.shared.infrastructure.db.errors import translate_errors
 from automind.shared.infrastructure.db.models import OPEN_CHANGE_STATUSES, AcqChange, ChangeBlock, Parser, PromptVersion
 from automind.shared.infrastructure.db.session import sessionmaker

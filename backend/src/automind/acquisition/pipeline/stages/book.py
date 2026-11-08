@@ -11,7 +11,7 @@ import contextlib
 from typing import Any
 
 from automind.acquisition.infrastructure import overrides
-from automind.acquisition.pipeline import extract as ex
+from automind.acquisition.parsing.extraction import areas
 from automind.acquisition.pipeline.application.ports import AreaRun, JobBook, JobMetrics, ValueStore
 from automind.acquisition.pipeline.contracts import NO_VALUES, JobSpec, PageOutcome, PageTally
 from automind.acquisition.pipeline.domain.hits import hits_of, source_kind
@@ -49,7 +49,7 @@ async def feed_shadow(ports: AcqPorts, area: str, pages: list[Page]) -> None:
     ids = [p.snapshot_id for p in pages if p.snapshot_id]
     if ids:
         with contextlib.suppress(Exception):  # bookkeeping never fails the job
-            await ports.shadow.notify_extracted(ex.PROMPT_FOR_AREA.get(area), ids)
+            await ports.shadow.notify_extracted(areas.PROMPT_FOR_AREA.get(area), ids)
 
 
 def fold_tally(stats: dict[str, Any], tally: PageTally) -> None:
@@ -63,7 +63,7 @@ def fold_tally(stats: dict[str, Any], tally: PageTally) -> None:
 async def area_hits(book: JobBook, v: VariantFacts, area: str) -> list[dict[str, Any]]:
     """Accepted evidence per source domain for an area (input to the section minimum); `unverified` marks a
     registry candidate's evidence (counts half, spec 011 FR-022). KeyError: an area with no store of its own."""
-    return hits_of(await book.area_sources(v.id, v.make, area, source_kind(area, ex.SPEC_AREAS)))
+    return hits_of(await book.area_sources(v.id, v.make, area, source_kind(area, areas.SPEC_AREAS)))
 
 
 async def area_met(values: ValueStore, v: VariantFacts, area: str, hits: list[dict[str, Any]]) -> bool:

@@ -24,6 +24,7 @@ from sqlalchemy import select
 from automind.acquisition.gold import repo
 from automind.acquisition.gold.domain.match import GoldValue, MatchCfg, VariantKey, match, norm_text, tokens
 from automind.acquisition.infrastructure import config as acq_config
+from automind.acquisition.parsing.normalise.fuel import fuel_of
 from automind.shared.infrastructure.config import loader as config
 from automind.shared.infrastructure.db import ResearchJob, Variant, sessionmaker
 
@@ -38,8 +39,6 @@ def fuel_of_variant(v: Any) -> str | None:
     pt = (v.powertrain or "").upper()
     if pt in _FUEL_BY_POWERTRAIN:
         return _FUEL_BY_POWERTRAIN[pt]
-    from automind.acquisition.pipeline.validate import fuel_of  # noqa: PLC0415 - the research-time rule
-
     return fuel_of(v.variant_name, v.powertrain)
 
 

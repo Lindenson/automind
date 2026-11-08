@@ -8,12 +8,13 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 
 from automind.acquisition.domain import relevance as rel
-from automind.acquisition.pipeline import extract as ex
+from automind.acquisition.parsing.extraction import extract as ex
+from automind.acquisition.parsing.normalise.fuel import fuel_of
+from automind.acquisition.parsing.normalise.gearbox import gearbox_in_name
 from automind.acquisition.pipeline import stamp
 from automind.acquisition.pipeline.application.ports import PageVerdict
 from automind.acquisition.pipeline.domain.variant import VariantFacts
 from automind.acquisition.pipeline.plan import known_makes
-from automind.acquisition.pipeline.validate import _variant_gearbox, fuel_of
 from automind.acquisition.ports import AcqPorts
 from automind.shared.contracts.web import Page
 from automind.shared.metering.usage import BudgetExceeded
@@ -50,7 +51,7 @@ def relevance_target(v: VariantFacts, generations: Mapping[str, Sequence[tuple[s
         gens.append(rel.GenerationInfo(v.generation, v.generation_years_from, v.generation_years_to))
     tgt = rel.Target(v.make, v.model, v.generation, v.generation_years_from, v.generation_years_to,
                      v.variant_name, fuel_of(v.variant_name, v.powertrain), v.body_class,
-                     v.transmission or _variant_gearbox(v), v.drive, tuple(names))  # fmt: skip
+                     v.transmission or gearbox_in_name(v.variant_name), v.drive, tuple(names))  # fmt: skip
     return tgt, gens
 
 

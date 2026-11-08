@@ -23,9 +23,9 @@ from sqlalchemy.dialects.postgresql import insert
 
 from automind.acquisition.domain import drift
 from automind.acquisition.infrastructure import config as acq_config
-from automind.acquisition.parsing import fingerprint, interpreter
-from automind.acquisition.parsing import store as parsers
-from automind.acquisition.parsing.spec import ParserSpec
+from automind.acquisition.parsing.infrastructure.parser_store import ParserStore
+from automind.acquisition.parsing.readers import fingerprint, interpreter
+from automind.acquisition.parsing.readers.spec import ParserSpec
 from automind.acquisition.snapshots import store as snapshots
 from automind.shared.infrastructure.db import ParserDaily, sessionmaker
 
@@ -51,7 +51,7 @@ async def _rows(sql: str, **params: Any) -> list[Any]:
 async def _spec(key: str, cache: dict[str, ParserSpec | None]) -> ParserSpec | None:
     if key not in cache:
         try:
-            v = await parsers.version(key)
+            v = await ParserStore().version(key)
         except ValueError:
             v = None
         cache[key] = v.spec if v is not None else None
@@ -191,7 +191,7 @@ async def detect(day: date) -> dict[str, Any]:
     """Run the detectors on every running version; degrade the active ones that drifted."""
     cfg = _cfg()
     out: dict[str, Any] = {"day": day.isoformat(), "checked": 0, "degraded": {}}
-    for v in await parsers.running():
+    for v in await ParserStore().running():
         days = await _days(v.key, day)
         out["checked"] += 1
         verdict = drift.verdict(days, day, cfg)
@@ -201,7 +201,7 @@ async def detect(day: date) -> dict[str, Any]:
         if v.status == "active":
             w7, w30, _ = drift.windows(days, day)
             evidence = {"day": day.isoformat(), "window_7d": w7.__dict__, "baseline_30d": w30.__dict__}
-            if await parsers.degrade(v.key, verdict, evidence=evidence):
+            if await ParserStore().degrade(v.key, verdict, evidence=evidence):
                 out["degraded"][v.key] = verdict.reason
     await publish_gauges(day)
     return out
@@ -216,7 +216,7 @@ async def publish_gauges(day: date | None = None) -> None:
     fpp: dict[tuple[str, str], float] = {}
     rate: dict[tuple[str, str], float] = {}
     drifting: dict[str, float] = {}
-    for v in await parsers.running():
+    for v in await ParserStore().running():
         w7, _, _ = drift.windows(await _days(v.key, day), day)
         if w7.fields_per_page is not None:
             fpp[(v.spec.reader, v.key)] = w7.fields_per_page

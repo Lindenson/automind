@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from automind.acquisition.parsing import registry
-from automind.acquisition.parsing.registry import ParserRegistry
+from automind.acquisition.parsing.infrastructure import wiring as parsing_wiring
+from automind.acquisition.parsing.readers import tally
 from automind.acquisition.pipeline import stamp
 from automind.shared.contracts.web import Page
 
@@ -19,35 +19,35 @@ def _page(url: str, html: str | None, snapshot_id: str | None = None) -> Page:
 
 
 def test_reading_is_named_by_the_version_and_stamped_with_it():
-    reg = ParserRegistry.from_yaml()
+    reg = parsing_wiring.yaml_registry()
     got = reg.read(_page("https://www.km77.com/coches/x/datos", KM77), {})
     assert got is not None and got.reader == "km77@v1" and not got.ambiguous
     assert stamp.reader(got, None)["producer_version"] == "km77@v1"
 
 
 def test_deny_listed_reader_never_runs():
-    reg = ParserRegistry.from_yaml()
+    reg = parsing_wiring.yaml_registry()
     assert reg.version_for("https://www.auto-data.net/en/bmw") is None
     assert reg.read(_page("https://www.auto-data.net/en/bmw", AUTO_DATA), {}) is None
 
 
 def test_snapshot_gets_the_fingerprint_and_version():
-    reg = ParserRegistry.from_yaml()
+    reg = parsing_wiring.yaml_registry()
     reg.read(_page("https://www.km77.com/coches/x/datos", KM77, snapshot_id="s1"), {})
-    h, key = reg.snapshots["s1"]
+    h, key = reg.tally.snapshots["s1"]
     assert key == "km77@v1" and len(h) == 16
 
 
 def test_zero_streak_is_counted_and_reset():
-    reg = ParserRegistry.from_yaml()
+    reg = parsing_wiring.yaml_registry()
     empty = "<html><body><p>nothing</p></body></html>"
     for i in range(3):
         assert reg.read(_page(f"https://www.km77.com/{i}", empty), {}) is None
-    assert registry.STREAKS["km77"] == 3 and reg.streaks["km77@v1"].zeros == 3
+    assert tally.STREAKS["km77"] == 3 and reg.tally.streaks["km77@v1"].zeros == 3
     reg.read(_page("https://www.km77.com/ok", KM77), {})
-    st = reg.streaks["km77@v1"]
-    assert registry.STREAKS["km77"] == 0 and st.reset and st.zeros == 0
-    assert reg.stats  # site_reader_stats still counted
+    st = reg.tally.streaks["km77@v1"]
+    assert tally.STREAKS["km77"] == 0 and st.reset and st.zeros == 0
+    assert reg.tally.stats  # site_reader_stats still counted
 
 
 def test_legacy_reader_name_still_stamps_version_1():

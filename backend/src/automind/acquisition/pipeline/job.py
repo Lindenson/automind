@@ -16,7 +16,7 @@ Constitution I (evidence first), III (code normalizes numbers), VIII (untrusted 
 
 from __future__ import annotations
 
-from automind.acquisition.pipeline import extract as ex
+from automind.acquisition.parsing.extraction import areas
 from automind.acquisition.pipeline import fetch, locate, market, parse, persist, plan, relevance, validate
 from automind.acquisition.pipeline.application import selection
 from automind.acquisition.pipeline.application.selection import ValueSelection
@@ -81,7 +81,7 @@ class ResearchJob:
         if tally.off_topic:
             await emit("relevance", f"{job.area}: {sum(tally.off_topic.values())} of {len(found.pages)} pages "
                                     "rejected (other variant)")  # fmt: skip
-        if job.area in ex.SPEC_AREAS or job.area == "maintenance":
+        if job.area in areas.SPEC_AREAS or job.area == "maintenance":
             await ValueSelection(ports.stores.values).reselect(v.id)
         hits = await book.area_hits(ports.stores.book, v, job.area)
         met = await book.area_met(ports.stores.values, v, job.area, hits)

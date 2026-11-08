@@ -82,8 +82,8 @@ def rerun_reader(producer_version: str | None, raw: bytes, attribute: str, spec:
     try:
         rid, _ = parse_key(producer_version)
         from automind.acquisition.infrastructure.fetch import decode_body  # noqa: PLC0415
-        from automind.acquisition.parsing import interpreter  # noqa: PLC0415
-        from automind.acquisition.parsing.migrate_v1 import yaml_specs  # noqa: PLC0415
+        from automind.acquisition.parsing.infrastructure.v1_specs import yaml_specs  # noqa: PLC0415
+        from automind.acquisition.parsing.readers import interpreter  # noqa: PLC0415
 
         spec = spec or yaml_specs().get(rid)
         if spec is None:
@@ -96,10 +96,10 @@ def rerun_reader(producer_version: str | None, raw: bytes, attribute: str, spec:
 
 
 async def _stored_spec(producer_version: str | None) -> Any:
-    from automind.acquisition.parsing import store  # noqa: PLC0415
+    from automind.acquisition.parsing.infrastructure.parser_store import ParserStore  # noqa: PLC0415
 
     try:
-        v = await store.version(producer_version) if producer_version else None
+        v = await ParserStore().version(producer_version) if producer_version else None
     except Exception:  # noqa: BLE001 - a legacy key or no parser table: the YAML reader
         return None
     return v.spec if v is not None else None

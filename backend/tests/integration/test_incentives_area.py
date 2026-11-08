@@ -5,8 +5,8 @@ from datetime import date, timedelta
 
 from sqlalchemy import delete
 
+from automind.acquisition.parsing.extraction.contracts import IncentiveEntry, IncentiveFacts
 from automind.acquisition.pipeline import market as ir
-from automind.acquisition.pipeline.extract import IncentiveEntry, IncentiveFacts
 from automind.chat.domain.cost import incentives
 from automind.chat.infrastructure.persistence.repositories import MarketFactRepo
 from automind.shared.contracts.web import WebDoc

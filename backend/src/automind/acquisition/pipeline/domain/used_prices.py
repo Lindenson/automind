@@ -13,9 +13,9 @@ from automind.acquisition.pipeline.domain.written import iso_date
 from automind.chat.domain.identification import used
 
 if TYPE_CHECKING:
+    from automind.acquisition.parsing.extraction.contracts import UsedPriceItems
     from automind.acquisition.pipeline.domain.items import ExcerptCounter
     from automind.acquisition.pipeline.domain.variant import VariantFacts
-    from automind.acquisition.pipeline.extract import UsedPriceItems
 
 USED_RANGE_MAX_RATIO = 1.6  # a used-price range wider than this (max / min) is a whole-market spread, not a price
 LOWEST_EUR, HIGHEST_EUR = 500, 600_000

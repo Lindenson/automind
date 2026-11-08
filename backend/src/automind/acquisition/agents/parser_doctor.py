@@ -29,7 +29,8 @@ from pydantic import BaseModel, ValidationError
 
 from automind.acquisition.agents import budget as budgets
 from automind.acquisition.agents.levers import ParserProposal
-from automind.acquisition.parsing.spec import ParserSpec, norm_label
+from automind.acquisition.parsing.normalise.labels import norm_label
+from automind.acquisition.parsing.readers.spec import ParserSpec
 
 log = logging.getLogger(__name__)
 AGENT = ROLE = "parser_doctor"
@@ -252,7 +253,7 @@ class Doctor:
 
 def replay_samples(spec: ParserSpec, samples: list[Sample]) -> tuple[float, list[str]]:
     """(score, problems) of a draft on the sample pages: rows read and gold values reproduced (code only)."""
-    from automind.acquisition.parsing import interpreter  # noqa: PLC0415
+    from automind.acquisition.parsing.readers import interpreter  # noqa: PLC0415
 
     problems: list[str] = []
     score = 0.0
@@ -350,13 +351,13 @@ def trigger(reason: str, changed_on: date | None, as_of: date) -> str:
 async def collect(payload: dict[str, Any]) -> DoctorState:
     from automind.acquisition.gates.infrastructure import page_reading as evaluate  # noqa: PLC0415
     from automind.acquisition.infrastructure.fetch import decode_body  # noqa: PLC0415
-    from automind.acquisition.parsing import store  # noqa: PLC0415
+    from automind.acquisition.parsing.infrastructure.parser_store import ParserStore  # noqa: PLC0415
     from automind.acquisition.replay import run  # noqa: PLC0415
     from automind.acquisition.snapshots import store as snapshots  # noqa: PLC0415
 
     current = None
     if key := payload.get("version"):
-        v = await store.version(str(key))
+        v = await ParserStore().version(str(key))
         current = v.spec if v is not None else None
     if current is not None:
         reader, domains = current.reader, list(current.domains)

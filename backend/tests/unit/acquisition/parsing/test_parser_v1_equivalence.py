@@ -8,9 +8,9 @@ from pathlib import Path
 
 import pytest
 
-from automind.acquisition.parsing import interpreter
-from automind.acquisition.parsing.legacy import read_pairs
-from automind.acquisition.parsing.migrate_v1 import migrate_v1
+from automind.acquisition.parsing.readers import interpreter
+from automind.acquisition.parsing.readers.legacy import read_pairs
+from automind.acquisition.parsing.readers.migrate_v1 import migrate_v1
 from automind.shared.infrastructure.config.loader import load_yaml
 
 FIX = Path(__file__).resolve().parents[3] / "fixtures" / "html"

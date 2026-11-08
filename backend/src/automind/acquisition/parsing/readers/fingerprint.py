@@ -17,26 +17,54 @@ from dataclasses import dataclass
 
 from selectolax.lexbor import LexborHTMLParser, LexborNode
 
-from automind.acquisition.parsing.spec import ParserSpec, norm_label
+from automind.acquisition.parsing.normalise.labels import norm_label
+from automind.acquisition.parsing.readers.spec import ParserSpec
 
 MAX_DEPTH = 6
 MAX_SHINGLES = 200
-_BAD_CLASS = re.compile(r"\d|^[a-z]{0,3}-?[0-9a-f]{5,}$|^css-|^sc-|^jsx-")
+_BAD_CLASS = re.compile(r"\d|^[a-z]{0,3}-?[0-9a-f]{5,}$|^css-|^sc-|^jsx-")  # "col-3", "a1b2c3d", "css-x9"
+_DIGITS = re.compile(r"\d+")
 
 
 @dataclass(frozen=True)
 class Fingerprint:
+    """A page's structure: the hash of its shingles and the shingles themselves."""
+
     hash: str
     shingles: frozenset[str]
 
 
 def spec_labels(spec: ParserSpec) -> list[str]:
+    """The spec's labels, normalised as the fingerprint compares them."""
     return [norm_label(f.label) for f in spec.fields if f.label]
+
+
+def structure(html: str, labels: Iterable[str] | None = None) -> Fingerprint:
+    """The fingerprint of a page; `labels` (normalised spec labels) restricts it to the spec's own rows."""
+    tree = LexborHTMLParser(html)
+    wanted = [w for w in (_norm(x) for x in labels) if w] if labels is not None else None
+    shingles: set[str] = set()
+    for node in _label_nodes(tree):
+        label = _norm(node.text(strip=True))
+        if wanted is not None and not _matches(label, wanted):
+            continue
+        shingles.add(f"{_path(node)}|{label}")
+    kept = frozenset(sorted(shingles)[:MAX_SHINGLES])
+    digest = hashlib.sha256("\n".join(sorted(kept)).encode("utf-8")).hexdigest()[:16]
+    return Fingerprint(digest, kept)
+
+
+def similarity(a: Iterable[str], b: Iterable[str]) -> float:
+    """Jaccard index of two shingle sets; two empty sets are the same structure."""
+    sa, sb = set(a), set(b)
+    if not sa and not sb:
+        return 1.0
+    return len(sa & sb) / len(sa | sb)
 
 
 def _step(n: LexborNode) -> str:
     classes = sorted(c for c in (n.attributes.get("class") or "").split() if not _BAD_CLASS.search(c.lower()))
-    return n.tag + "".join("." + c for c in classes)
+    return str(n.tag) + "".join("." + c for c in classes)
 
 
 def _path(n: LexborNode) -> str:
@@ -64,31 +92,8 @@ def _label_nodes(tree: LexborHTMLParser) -> Iterator[LexborNode]:
 
 
 def _norm(text: str) -> str:
-    return " ".join(re.sub(r"\d+", " ", norm_label(text)).split())[:60]
+    return " ".join(_DIGITS.sub(" ", norm_label(text)).split())[:60]
 
 
 def _matches(label: str, labels: Sequence[str]) -> bool:
     return any(label == x or label.startswith(x) for x in labels)
-
-
-def structure(html: str, labels: Iterable[str] | None = None) -> Fingerprint:
-    """The fingerprint of a page; `labels` (normalised spec labels) restricts it to the spec's own rows."""
-    tree = LexborHTMLParser(html)
-    wanted = [w for w in (_norm(x) for x in labels) if w] if labels is not None else None
-    shingles: set[str] = set()
-    for node in _label_nodes(tree):
-        label = _norm(node.text(strip=True))
-        if wanted is not None and not _matches(label, wanted):
-            continue
-        shingles.add(f"{_path(node)}|{label}")
-    kept = frozenset(sorted(shingles)[:MAX_SHINGLES])
-    digest = hashlib.sha256("\n".join(sorted(kept)).encode("utf-8")).hexdigest()[:16]
-    return Fingerprint(digest, kept)
-
-
-def similarity(a: Iterable[str], b: Iterable[str]) -> float:
-    """Jaccard index of two shingle sets; two empty sets are the same structure."""
-    sa, sb = set(a), set(b)
-    if not sa and not sb:
-        return 1.0
-    return len(sa & sb) / len(sa | sb)

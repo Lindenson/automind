@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from automind.acquisition.parsing import fingerprint as fp
-from automind.acquisition.parsing.migrate_v1 import migrate_v1
+from automind.acquisition.parsing.readers import fingerprint as fp
+from automind.acquisition.parsing.readers.migrate_v1 import migrate_v1
 from automind.shared.infrastructure.config.loader import load_yaml
 
 FIX = Path(__file__).resolve().parents[3] / "fixtures" / "html"

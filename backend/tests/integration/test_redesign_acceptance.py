@@ -20,8 +20,8 @@ from automind.acquisition.agents import parser_doctor
 from automind.acquisition.gold import repo
 from automind.acquisition.gold.domain.match import GoldValue
 from automind.acquisition.infrastructure import overrides
-from automind.acquisition.parsing import migrate_v1
-from automind.acquisition.parsing.registry import ParserRegistry
+from automind.acquisition.parsing.infrastructure import v1_specs
+from automind.acquisition.parsing.infrastructure import wiring as parsing_wiring
 from automind.acquisition.snapshots import store
 from automind.acquisition.worker.config import worker_config
 from automind.acquisition.worker.process import Worker
@@ -76,7 +76,7 @@ async def _snapshot(raw: bytes, at: datetime, vid: str, n: int, version: str | N
 async def world():
     """50 km77 pages in the old markup over the 3 weeks before DAY and 20 in the new markup on DAY, with gold."""
     await db.init_db()
-    await migrate_v1.seed()
+    await v1_specs.seed()
     await _reset_parser()
     overrides.clear()
     started = datetime.now(UTC)
@@ -163,7 +163,7 @@ async def _drift_and_doctor(answer: dict, times: int = 1) -> None:
 async def _prefetch_pages(vids: list[str], sids: list[str], n: int = 20) -> None:
     """The next prefetch pages of km77 (new markup) read by the live registry: the old version serves them, and the
     parse stage queues the shadow gate."""
-    reg = ParserRegistry(live=True)
+    reg = parsing_wiring.parser_registry(live=True)
     await reg.refresh()
     for i in range(n):
         at = datetime.combine(DAY + timedelta(days=1), time(7), tzinfo=UTC) + timedelta(minutes=5 * i)

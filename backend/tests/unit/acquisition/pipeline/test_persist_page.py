@@ -8,11 +8,11 @@ from types import SimpleNamespace
 
 import pytest
 
+from automind.acquisition.parsing.extraction.contracts import ReviewEntry, ReviewItems
 from automind.acquisition.pipeline import persist
 from automind.acquisition.pipeline.application.ports import PipelineStoreUnavailable
 from automind.acquisition.pipeline.domain.rows import EvidenceIn, PageRow, ReviewRow
 from automind.acquisition.pipeline.domain.variant import CarVariant
-from automind.acquisition.pipeline.extract import ReviewEntry, ReviewItems
 from automind.shared.contracts.web import WebDoc
 
 CAR = CarVariant("v1", "Hyundai", "Tucson", "NX4", "1.6 T-GDI 150", "MHEV", "SUV", 2021, None, None, None, "ES")

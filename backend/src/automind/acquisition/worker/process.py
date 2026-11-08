@@ -69,7 +69,7 @@ class Worker:
     @staticmethod
     async def seed() -> None:
         """Spec 011 T086: today's site readers become parser spec version 1 (idempotent)."""
-        from automind.acquisition.parsing.migrate_v1 import seed  # noqa: PLC0415
+        from automind.acquisition.parsing.infrastructure.v1_specs import seed  # noqa: PLC0415
 
         try:
             got = await seed()
