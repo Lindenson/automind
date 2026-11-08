@@ -12,8 +12,9 @@ import pytest
 from sqlalchemy import delete, select, update
 
 from automind.acquisition.agents import parser_doctor
-from automind.acquisition.gold import repo
-from automind.acquisition.gold.domain.match import GoldValue
+from automind.acquisition.gold.domain.choice import REFERENCE_SET
+from automind.acquisition.gold.domain.records import DatasetInfo, GoldValue
+from automind.acquisition.gold.infrastructure.gold_store import GoldStore
 from automind.acquisition.parsing.infrastructure import v1_specs
 from automind.acquisition.snapshots import store
 from automind.acquisition.worker.budget import BudgetExceeded
@@ -42,7 +43,7 @@ async def site():
         else:
             src.access = "ok"
         await s.commit()
-    await repo.upsert_dataset(repo.DatasetInfo(repo.REFERENCE_SET, "Reference vehicles", "reference_set", "internal"))
+    await GoldStore().record_load(DatasetInfo(REFERENCE_SET, "Reference vehicles", "reference_set", "internal"))
     vids, sids = [], []
     for i, (kw, nm, kg, cc) in enumerate(GOLD):
         async with db.sessionmaker()() as s:
@@ -52,10 +53,10 @@ async def site():
             await s.commit()
         vals = {"max_power": (kw, "kW"), "max_torque": (nm, "N·m"), "curb_mass": (kg, "kg"),
                 "displacement": (cc, "cm3")}  # fmt: skip
-        await repo.replace(repo.REFERENCE_SET, v.id, [
+        await GoldStore().replace(REFERENCE_SET, v.id, [
             GoldValue(variant_id=v.id, attribute=a, value_num=x, unit=u, tolerance=0.03, tolerance_kind="rel",
                       origin="reference_set", match_rule="reference_set", confidence="HIGH",
-                      dataset_id=repo.REFERENCE_SET) for a, (x, u) in vals.items()])  # fmt: skip
+                      dataset_id=REFERENCE_SET) for a, (x, u) in vals.items()])  # fmt: skip
         vids.append(v.id)
     yield {"vids": vids, "sids": sids, "started": started}
     parser_doctor.LLM_OVERRIDE = None

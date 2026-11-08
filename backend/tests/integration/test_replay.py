@@ -9,8 +9,9 @@ from pathlib import Path
 import pytest
 from sqlalchemy import delete, func, select
 
-from automind.acquisition.gold import repo
-from automind.acquisition.gold.domain.match import GoldValue
+from automind.acquisition.gold.domain.choice import REFERENCE_SET
+from automind.acquisition.gold.domain.records import DatasetInfo, GoldValue
+from automind.acquisition.gold.infrastructure.gold_store import GoldStore
 from automind.acquisition.parsing.infrastructure import v1_specs
 from automind.acquisition.replay import command as cli
 from automind.acquisition.replay.run import NoPages, ReplayRequest, run
@@ -32,7 +33,7 @@ TOL = {"max_power": ("rel", 0.02), "max_torque": ("rel", 0.03), "curb_mass": ("r
 def _gold(vid: str, kw: float, nm: float, kg: float, cc: float) -> list[GoldValue]:
     vals = {"max_power": kw, "max_torque": nm, "curb_mass": kg, "displacement": cc}
     common = {"origin": "reference_set", "match_rule": "reference_set", "confidence": "HIGH",
-              "dataset_id": repo.REFERENCE_SET}  # fmt: skip
+              "dataset_id": REFERENCE_SET}  # fmt: skip
     return [
         GoldValue(variant_id=vid, attribute=a, value_num=x, unit=UNITS[a], tolerance=TOL[a][1],
                   tolerance_kind=TOL[a][0], **common)
@@ -44,7 +45,7 @@ def _gold(vid: str, kw: float, nm: float, kg: float, cc: float) -> list[GoldValu
 async def seeded():
     await db.init_db()
     since = datetime.now(UTC)  # only the pages this test stores
-    await repo.upsert_dataset(repo.DatasetInfo(repo.REFERENCE_SET, "Reference vehicles", "reference_set", "internal"))
+    await GoldStore().record_load(DatasetInfo(REFERENCE_SET, "Reference vehicles", "reference_set", "internal"))
     ids, sids = [], []
     for page, (name, kw, nm, kg, cc) in CARS.items():
         async with db.sessionmaker()() as s:
@@ -56,7 +57,7 @@ async def seeded():
         url = f"https://www.km77.com/coches/bmw/serie-5/2017/{page}-{db.uid()[:8]}"
         sid = await store.write(url, url, (FIX / f"{page}.html").read_bytes(), "text/html", 200, "OK", None)
         await store.mark(sid, 5, v.id)
-        await repo.replace(repo.REFERENCE_SET, v.id, _gold(v.id, kw, nm, kg, cc))
+        await GoldStore().replace(REFERENCE_SET, v.id, _gold(v.id, kw, nm, kg, cc))
         ids.append(v.id)
         sids.append(sid)
     yield since, ids, sids

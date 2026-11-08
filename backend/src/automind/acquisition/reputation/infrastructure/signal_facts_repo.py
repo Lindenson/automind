@@ -11,7 +11,8 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from automind.acquisition.gold import repo as gold_repo
+from automind.acquisition.gold.application.ports import GoldBook, GoldStoreUnavailable
+from automind.acquisition.gold.domain.records import StoredGold
 from automind.acquisition.registry.domain.families import family_of
 from automind.acquisition.reputation.application.errors import ReputationStoreUnavailable
 from automind.acquisition.reputation.domain.findings import FUSION_KEY
@@ -37,8 +38,9 @@ class SignalFactsRepo:
     """The facts of a version; `families` is `config/registry.yaml families` (a domain's family when the registry
     does not know the source)."""
 
-    def __init__(self, families: Mapping[str, Sequence[str]]) -> None:
+    def __init__(self, families: Mapping[str, Sequence[str]], gold: GoldBook) -> None:
         self.families = families
+        self.gold = gold
 
     @_store_errors
     async def facts(self, variant_id: str) -> VariantFacts | None:
@@ -54,7 +56,10 @@ class SignalFactsRepo:
                 select(PageRelevance).where(PageRelevance.variant_id == variant_id))).scalars()}  # fmt: skip
             siblings = await _siblings(s, v)
             done, agreed, fused = await _signalled(s, variant_id)
-        gold = {a: _gold(g) for a, g in gold_repo.best_by_attribute(await gold_repo.gold_for(variant_id)).items()}
+        try:
+            gold = {a: _gold(g) for a, g in (await self.gold.best(variant_id)).items()}
+        except GoldStoreUnavailable as e:
+            raise ReputationStoreUnavailable(f"gold of {variant_id}") from e
         return VariantFacts(v.id, v.fuel, v.powertrain, v.body_class, tuple(claims), selected, gold, siblings,
                             relevance, done, agreed, fused)  # fmt: skip
 
@@ -99,7 +104,7 @@ def _selected(sv: SpecValue) -> SelectedValue:
                          tuple(sv.claim_ids or ()))  # fmt: skip
 
 
-def _gold(g: GoldValueRow) -> GoldFact:
+def _gold(g: StoredGold) -> GoldFact:
     tol = (g.tolerance_kind, float(g.tolerance)) if g.tolerance is not None and g.tolerance_kind else None
     return GoldFact(g.id, g.value_num, tol, g.match_rule, g.confidence)
 

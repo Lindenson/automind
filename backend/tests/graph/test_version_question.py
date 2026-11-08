@@ -12,8 +12,8 @@ import uuid
 
 from sqlalchemy import delete
 
-from automind.acquisition.gold import versions as gv
-from automind.acquisition.gold.domain.match import DatasetRow
+from automind.acquisition.gold.domain.records import DatasetRow
+from automind.acquisition.identity_readers.infrastructure.version_store import cache_key
 from automind.chat.application.services.identification.catalogue import upsert_variant
 from automind.chat.application.services.identification.contracts import VariantIdentity
 from automind.chat.dialog.graph import build_graph
@@ -67,7 +67,7 @@ async def _catalog_row() -> None:
                                     certainty="exact")  # fmt: skip
     await upsert_variant(ident, reference({}))
     async with db.sessionmaker()() as s:  # the dataset rows are read live (faked) and cached for this test only
-        await s.execute(delete(db.SearchCache).where(db.SearchCache.key == gv._key("Kia")))
+        await s.execute(delete(db.SearchCache).where(db.SearchCache.key == cache_key("Kia")))
         await s.commit()
 
 

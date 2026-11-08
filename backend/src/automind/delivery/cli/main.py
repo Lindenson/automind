@@ -41,10 +41,10 @@ def replay(argv: list[str]) -> int:
 
 def gold_load(argv: list[str]) -> int:
     """Load gold values from the open datasets."""
-    from automind.acquisition.gold import load  # noqa: PLC0415
+    from automind.delivery.cli import gold as module  # noqa: PLC0415
 
     _configure()
-    return asyncio.run(load.main_async(load.parse(argv)))
+    return asyncio.run(module.main_async(argv))
 
 
 def parsers_migrate_v1(argv: list[str]) -> int:

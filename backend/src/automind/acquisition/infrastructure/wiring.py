@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from automind.acquisition.gates.infrastructure.wiring import LiveShadowFeed
-from automind.acquisition.gold.versions import live_rows
+from automind.acquisition.identity_readers.infrastructure.wiring import live_rows
 from automind.acquisition.infrastructure.config import fetch_policy
 from automind.acquisition.infrastructure.fetch import Fetcher, FetchPolicy
 from automind.acquisition.infrastructure.pages import DbPageStore

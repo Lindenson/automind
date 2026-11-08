@@ -7,7 +7,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from automind.acquisition.gold import repo as gold_repo
+from automind.acquisition.gold.infrastructure.wiring import gold_rules, gold_store
 from automind.acquisition.infrastructure.config import physics_config
 from automind.acquisition.registry.infrastructure.wiring import registry_service
 from automind.acquisition.reputation.application.rollup import DailyRollup
@@ -28,8 +28,9 @@ def signal_scan(cfg: Mapping[str, Any] | None = None, sink: SignalSink | None = 
     """The signal scan; `cfg` is `registry.yaml` (loaded when None), `sink` the registry (built from it when None)."""
     cfg = cfg if cfg is not None else load_yaml("registry.yaml")
     registry = sink if sink is not None else registry_service(dict(cfg))
-    return SignalScan(SignalFactsRepo(cfg.get("families") or {}), SnapshotPages(), GoldTolerances(), registry,
-                      QueueJudges(), SystemClock(), physics_config().get("checks") or {})  # fmt: skip
+    facts = SignalFactsRepo(cfg.get("families") or {}, gold_store())
+    return SignalScan(facts, SnapshotPages(), GoldTolerances(), registry, QueueJudges(), SystemClock(),
+                      physics_config().get("checks") or {})  # fmt: skip
 
 
 def daily_rollup() -> DailyRollup:
@@ -43,7 +44,7 @@ class GoldTolerances:
 
     def of(self, attribute: str) -> Tolerance:
         """The attribute's tolerance."""
-        return gold_repo.tolerance_of(attribute)
+        return gold_rules().tolerance_of(attribute)
 
 
 class QueueJudges:

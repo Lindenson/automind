@@ -24,7 +24,7 @@ from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 
 from automind.acquisition.domain import replay as scoring
-from automind.acquisition.gold import repo as gold_repo
+from automind.acquisition.gold.infrastructure.wiring import gold_store
 from automind.acquisition.infrastructure import config as acq_config
 from automind.acquisition.parsing.readers.spec import ParserSpec
 from automind.acquisition.pipeline.domain.target import target_of
@@ -190,7 +190,7 @@ async def gold_values(variant_ids: set[str]) -> dict[tuple[str, str], scoring.Go
     for vid in variant_ids:
         if not vid:
             continue
-        for attr, g in gold_repo.best_by_attribute(await gold_repo.gold_for(vid)).items():
+        for attr, g in (await gold_store().best(vid)).items():
             out[(vid, attr)] = scoring.Gold(vid, attr, g.value_num, g.value_text, g.unit, g.tolerance,
                                             g.tolerance_kind, g.match_rule, g.dataset_id)  # fmt: skip
     return out

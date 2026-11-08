@@ -8,7 +8,7 @@ Owns:
   `overrides` — runtime overrides accepted through the gates, layered over the YAML files.
   `retention` — removal of expired search results and pages (pages backing evidence are kept).
   `wiring` — the live engine ports (AcqPorts) of this process.
-Depends on: domain, parsing, ports, snapshots, gold.versions, registry, shared (infrastructure, contracts, evidence,
+Depends on: domain, parsing, ports, snapshots, identity_readers, registry, shared (infrastructure, contracts, evidence,
   research_order), observability.metrics, chat.infrastructure; sqlalchemy.
 Must not depend on: as acquisition/__init__ (registry-no-chat).
 Public API: the modules in __all__ (callers import from them).

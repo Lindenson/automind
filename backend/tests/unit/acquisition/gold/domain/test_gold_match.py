@@ -1,6 +1,10 @@
 """Gold matching: dataset rows -> gold values of one variant (spec 011 T013, research R3)."""
 
-from automind.acquisition.gold.domain.match import DatasetRow, MatchCfg, VariantKey, flag, match, weighted_median
+from automind.acquisition.gold.domain.choice import flag
+from automind.acquisition.gold.domain.config import MatchCfg
+from automind.acquisition.gold.domain.match import match
+from automind.acquisition.gold.domain.records import DatasetRow, VariantKey
+from automind.acquisition.gold.domain.text import weighted_median
 
 CFG = MatchCfg(
     aliases={"BMW": ["bmw", "bayerische motoren werke"], "Toyota": ["toyota"], "Kia": ["kia"]},

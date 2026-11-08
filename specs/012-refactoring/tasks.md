@@ -263,6 +263,22 @@ Acquisition, one PR per package, each leaves its package with **0 `storage`, 0 `
     `signal_store`, `site_admission`, `daily_review`, `registry_seed`); repo.py removed. `delivery/registry.py`
     (seed at startup) and `delivery/cli/registry.py` (`seed | review --once`); contract `registry-services-over-ports` (13);
     `api-uses-engine-facades` forbids `registry.application` whole. registry: 0 entries; structure 1348 → 1281; mypy report 200 → 199.
+  - [x] A4b `gold/` + `identity_readers/` (T082 rest): `gold/domain/` records (`DatasetRow`, `CandidateVariant`,
+    `VariantKey`, `GoldValue`, `StoredGold` — no ORM row leaves the store —, `DatasetInfo` replaces `DatasetMeta`),
+    text (normalisation, pattern at module level), config (`MatchCfg`, `GoldRules`: tolerance and unit of an
+    attribute), match (+ `variant_key`; < 200), reference (the reference-set rule), choice (`best_by_attribute`,
+    `flag`, `challenge_gold`); `application/` ports (`GoldBook`, `Candidates`, `DatasetReader`, `ReferenceSet`,
+    `GoldSource`; one `GoldStoreUnavailable`), `GoldLoad` with the strategies `DatasetGold` / `ReferenceGold`,
+    `ChallengeGold`; `infrastructure/` gold_store (`GoldStore.best`), candidate_store, loaders (public first; rdw split
+    → `rdw_rows`; `ApiDataset`, `ReferenceFile`; no importlib), wiring. CLI → `delivery/cli/gold.py`.
+    `identity_readers/`: `web` (was pipeline/identity.py), `domain/registered` (was gold/domain/versions.py, +
+    `VersionLimits`, `id_row`), `application/` `DatasetVersions` over `VersionBook` / `LiveRows`
+    (`IdentityStoreUnavailable`; never raises), `infrastructure/` version_store (gold keys, search_cache), wiring
+    (`dataset_versions(ports)`, `live_rows`, `source_url`); `AcqPorts.datasets: LiveRows | None`. Reputation and replay
+    read `gold_store().best(vid)`; `SignalFactsRepo` gets the gold book (its error → `ReputationStoreUnavailable`).
+    Unused `repo.flag` (DB write) removed. Contract `gold-services-over-ports` (14); identity_readers in the pure,
+    chat and web-api contracts; gold, identity_readers, delivery/cli/gold in mypy strict. gold: 0 entries; structure
+    1281 → 1225.
 - [ ] A5 `worker/`: queue, process, heartbeat, budget, prefetch, handlers (256)
 - [ ] A6 `agents/` (= S12a agents): scout (608), parser_doctor (434), rule_auditor, levers, evaluator, extractor_tuner,
   blame_judge, budget

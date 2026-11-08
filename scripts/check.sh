@@ -58,6 +58,7 @@ uv run mypy src/automind/chat/domain src/automind/chat/dialog/policy src/automin
   src/automind/acquisition/pipeline/domain src/automind/acquisition/pipeline/application src/automind/acquisition/pipeline/infrastructure \
   src/automind/acquisition/pipeline/contracts.py src/automind/acquisition/pipeline/scope.py src/automind/acquisition/pipeline/stages src/automind/acquisition/pipeline/job.py src/automind/acquisition/pipeline/home_market.py \
   src/automind/acquisition/parsing src/automind/acquisition/registry src/automind/delivery/registry.py src/automind/delivery/cli/registry.py \
+  src/automind/acquisition/gold src/automind/acquisition/identity_readers src/automind/delivery/cli/gold.py \
   src/automind/chat/application/services/interpretation/contracts.py src/automind/chat/application/services/interpretation/service.py src/automind/chat/application/services/interpretation/interpret.py src/automind/chat/application/services/interpretation/stages src/automind/chat/application/services/assessment src/automind/chat/infrastructure/research_history.py
 # spec 012: mypy over all of src in report mode (the strict scope grows step by step, research R16)
 echo "mypy report (all of src): $(uv run mypy src/automind 2>/dev/null | tail -1)"

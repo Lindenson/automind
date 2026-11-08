@@ -1,18 +1,19 @@
-"""Acquisition · acquisition.gold.loaders: loaders of open datasets for gold values (config/gold_datasets.yaml).
+"""Acquisition · acquisition.gold.infrastructure.loaders: readers of open datasets for gold (config/gold_datasets.yaml).
 
 Owns:
   `eea_co2` — EEA CO2 monitoring of new cars (Discodata SQL API).
   `eea_obfcm` — EEA real-world fuel/energy consumption (OBFCM CSV).
-  `rdw` — RDW Open Data, the Dutch vehicle register (Socrata SODA API).
-  `reference_set` — the hand-checked reference set eval/reference_vehicles.yaml.
-  This `__init__` — helpers the loaders share: SchemaChanged, DatasetMeta, meta, wanted_makes, quote, require,
-  num, pos, fuel_of, weighted_median, year_of.
+  `rdw` — RDW Open Data, the Dutch vehicle register (Socrata SODA API); `rdw_rows` turns its groups into rows.
+  `reference_set` — the hand-checked reference set eval/reference_vehicles.yaml (`ReferenceFile`).
+  `api_dataset` — `ApiDataset`, one loader as the services' `DatasetReader`.
+  This `__init__` — helpers the loaders share: SchemaChanged, meta, wanted_makes, quote, require, num, pos, fuel_of,
+  weighted_median, year_of.
 Flow: each loader exposes `async def fetch_rows(cfg, make=None, *, makes=None, transport=None) -> list[DatasetRow]`
-  (`cfg`: the dataset's mapping under `datasets:`; `transport`: an optional httpx transport, tests pass
-  `httpx.MockTransport`). Requests go straight to the official open-data APIs with a timeout, never through the web
-  fetch policy (datasets are not web pages). A pinned column missing from a response raises `SchemaChanged`: a new
-  release is checked by a person and pinned again, never guessed.
-Depends on: gold.domain, gold.repo, shared (infrastructure.config, vehicle); httpx.
+  and `version(cfg)` (`cfg`: the dataset's mapping under `datasets:`; `transport`: an optional httpx transport, tests
+  pass `httpx.MockTransport`). Requests go straight to the official open-data APIs with a timeout, never through the
+  web fetch policy (datasets are not web pages). A pinned column missing from a response raises `SchemaChanged`: a
+  new release is checked by a person and pinned again, never guessed.
+Depends on: gold.domain, shared (infrastructure.config, vehicle); httpx.
 Must not depend on: as acquisition/__init__ (registry-no-chat).
 Public API: the names in __all__ (shared helpers) and the loader modules (callers import from them).
 Note: the shared helpers are code in this `__init__`, not in a module of their own.
@@ -23,13 +24,13 @@ from __future__ import annotations
 import re
 import statistics
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from automind.acquisition.gold.domain.records import DatasetInfo
+
 __all__ = [
     "USER_AGENT",
-    "DatasetMeta",
     "SchemaChanged",
     "fuel_of",
     "meta",
@@ -51,23 +52,11 @@ class SchemaChanged(RuntimeError):
     """A dataset response lacks a column pinned in config/gold_datasets.yaml."""
 
 
-@dataclass(frozen=True)
-class DatasetMeta:
-    """What `gold_datasets` stores about a load (data-model 0019)."""
-
-    id: str
-    name: str
-    kind: str
-    version: str
-    licence: str
-    url: str
-    next_refresh_at: datetime
-
-
-def meta(cfg: Mapping[str, Any], version: str, now: datetime | None = None) -> DatasetMeta:
+def meta(cfg: Mapping[str, Any], version: str, now: datetime | None = None) -> DatasetInfo:
+    """The load of a dataset as `gold_datasets` records it: id `<kind>_<version>` (or the kind), next refresh."""
     now = now or datetime.now(UTC)
     kind = str(cfg["kind"])
-    return DatasetMeta(
+    return DatasetInfo(
         id=f"{kind}_{version}" if version else kind,  # eea_co2_2024, eea_obfcm_2024, rdw
         name=str(cfg["name"]),
         kind=kind,

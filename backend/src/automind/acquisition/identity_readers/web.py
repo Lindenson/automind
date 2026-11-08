@@ -1,7 +1,9 @@
-"""S8 identity readers (spec 011 strangler, research R5): the searches, pages and web readers that identify a car —
-a make's line-up in Spain (`lineup` role), the versions of a model generation (`versions` role) and the search
-results the resolver reads. The chat keeps its caches, the checks of what the readers return and its decisions
-(`application/lineup.py`, `versions.py`, `resolve.py`). Moved from those modules with the bodies unchanged.
+"""The web identity readers (spec 011 strangler S8, research R5): the searches, pages and model roles that identify
+a car — a make's line-up (`lineup` role), the versions of a model generation (`versions` role) and the search
+results the resolver reads (`generation_hints`). Pages are read through the page store (robots respected, the
+deny-list never read). The chat keeps its caches, the checks of what the readers return and its decisions.
+Errors: the search, page store and model ports' errors pass through; the registry's sources are optional
+(`market_sites` gives none when the registry fails).
 """
 
 from __future__ import annotations
