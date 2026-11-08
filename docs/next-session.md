@@ -13,6 +13,39 @@ fallbacks = strategies behind a Protocol), then `tasks.md` from S7 on.
 What the system is: `README.md` ("Acquisition engine"), `docs/adr/ADR-032-acquisition-engine.md`,
 `docs/history/next-session-2026-11-06-engine.md` §1, specs 001–009: `docs/baseline.md`.
 
+## 0a. Pre-prod bugs (owner, 2026-11-08) — FIRST, before A4c
+
+Chat `4bb83866` (Mazda MX-30 R-EV vs Hyundai i10; the owner gave the mazda.es R-EV page) — identification never found
+the car, and a complaint was taken for an answer. Owner: "my link must be the priority"; "R-EV / EREV is its own
+family". Causes found (case_files change log, turn_outcomes, feedback, code):
+
+1. **The user's URL is read last.** `IdentificationService` fallbacks run SourcedVersions → CatalogueRows → OpenWorld;
+   only OpenWorld's resolver passes `user_url` to `generation_hints`. SourcedVersions always answered (one dataset
+   version), so the page was never opened. Fix: a page the person sent is read first and the version must match it.
+2. **No EREV.** `shared/vehicle/engine.Fuel` has no erev, the interpreter prompt says nothing of range extenders: the
+   model wrote `fuel: bev` for "R-EV". Decision proposed: EREV a powertrain of its own (fuel vocabulary, interpreter,
+   identification, energy; the Deepal/Li EREV-as-PHEV problem is the same), Mazda R-EV its family (rotary generator).
+3. **An LLM hint is a hard filter.** `versions.lookup(fuel=…)` → `registered_generation` kept only BEV rows (the EEA
+   registers the R-EV as petrol/electric), one version left → settled without asking, although `family: R-EV`
+   contradicted it. Fix: the hint ranks, a contradiction asks.
+4. **A named version does not rebuild the pool.** After "E-SKYACTIV R-EV 125 kW (170 CV) AT 2WD" the R-EV row was
+   created in the catalogue, yet the ladder asked "which engine of the R-EV: EV Prime-Line?" and offered a manual
+   gearbox (EV/EREV are automatic only).
+5. **Answers routed to the wrong car and language switched**: the Mazda string was taken as the answer to the open
+   Hyundai i10 gearbox question ("I did not understand … for Hyundai i10"), reply in English.
+6. **A complaint during identification is "not understood"**: "Очень плохо! Ты ничего не нашел" was read as an answer
+   to the open engine question; `request_kind=critique` was recognised, but the policy's intake rules run before the
+   critique rule, and that rule only reworks an existing report. Fix: acknowledge, never parse a complaint as an
+   answer, change tactic (the user's page, the name they gave).
+7. **No repeat guard**: the same impossible question asked three times. A repeated question = a dead end: leave it and
+   flag the turn.
+8. **i10 settled as "manual"** on the complaint turn without an answer — find where the choice came from.
+9. **Self-diagnosis would not have seen it**: feedback rows exist (correction, complaint) and scores are low, but no
+   signal for "user URL not read" or "user corrected the identified car" (`wrong_car` only on replace_cars/car_edit),
+   insight thresholds need 3 per 7 days, and `config/insight.yaml files:` points to paths the refactoring removed
+   (identification/identify.py, application/research.py …). Fix: the two signals, a complaint opens an issue at once,
+   update the paths and add a gate check that every path there exists.
+
 ## 0. Resume acquisition A3 (next action)
 
 **Where we are (2026-11-08, main = A4b merged, PR #124).** Chat services S7–S9c-2 are done. Since S9.3 (PR #116):
