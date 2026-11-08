@@ -6,7 +6,8 @@ blocks the merge or is written down as a named follow-up task in tasks.md, never
 ## Machine (the gate)
 
 - [ ] `scripts/check.sh` green; `check_structure.py`: **no NEW entry, and the baseline shrank in every package the PR
-      touched** (a touched module leaves with fewer `any`/`doc`/`public`/`ignore`/`lazy` entries, never more)
+      touched** (a touched module leaves with fewer `any`/`doc`/`public`/`ignore`/`lazy`/`word`/`errtext`/`duck`
+      entries, never more)
 - [ ] `lint-imports` 11+ kept; no new `ignore_imports` line (rule `exempt`)
 - [ ] every package the PR creates or finishes passes `mypy --strict` and joins the strict list in `scripts/check.sh`
       and `pyproject.toml`
@@ -18,6 +19,9 @@ blocks the merge or is written down as a named follow-up task in tasks.md, never
       (Protocols), results are DTOs, closed value sets are `Literal`/`StrEnum`
 - [ ] **Storage and errors**: no DB access outside infrastructure; every port call that can fail has its failure named
       in the docstring and handled (propagate / retry / notice), and a test drives one failure path
+- [ ] **States**: no state, kind or verdict compared with a word, no error recognised by its text, no getattr/hasattr
+      capability (rules `word`, `errtext`, `duck`: 0 in every package the PR touches); a lifecycle is a transition
+      table with one `move()`, the decision per (state, input) a pure function with tests
 - [ ] **Shape**: public callables ≤ 40 lines reading as named steps; the decision is a pure domain function with tests
 - [ ] **Docs**: each public module, class and callable says what it is and promises (params, result, errors, side
       effects); a reader new to the code can follow the flow from the package docstring

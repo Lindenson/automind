@@ -48,6 +48,33 @@ Rules for every public callable in `*/application/**` and `*/domain/**` (checked
 6. **No escape hatches** without a written reason on the same line: `# type: ignore[code]  # why` (rule `ignore`), an
    import inside a function only to break a real cycle or for an optional heavy dependency (rule `lazy`).
 
+## States, not words (owner, 2026-11-08; antipattern: `chat/dialog/runner.py`)
+
+The antipattern, so it is recognised: the turn runner compared turn statuses as strings (`active.status ==
+"WAITING_CONFIRMATION"`), told a button by `kind in ("rescore", "report_saved", "car_edit")`, recognised an
+overloaded provider by substrings of the exception's text (`"503"`, `"overloaded"` — and `retry.py` kept a second,
+different list for the same question), found a store method with `getattr(self.ports.turns, "spent_today", None)`,
+and spread the turn's lifecycle over six `turns.update(status=…)` calls nobody checked against a transition table.
+
+Rules for every module (checked: scripts/structure_states.py):
+
+1. **A state is a named member** (rule `word`). A closed set of states, kinds, roles, verdicts, outcomes is a
+   `StrEnum` owned by its area (domain or contracts) and compared by member: `turn.status is TurnStatus.WAITING`.
+   A `StrEnum` equals its string, so stored rows, checkpoints, events and JSON keep their values — the change is in
+   the code only. A value from outside (a WebSocket message, an HTTP body) is parsed into the enum once, at the edge.
+2. **A lifecycle is a transition table**, not a sequence of status writes: `TRANSITIONS: dict[State, set[State]]`,
+   one `move(from, to)` that refuses an illegal step with a named error, every status write going through it. The
+   decision of what to do with an input in a state is a pure function of (state, input) → a named action, with its
+   own tests; the class that does the I/O executes the action.
+3. **An error is recognised by its type** (rule `errtext`): the SDK's exception classes, a port's named error. Where a
+   provider gives nothing but text, the text fallback lives in one named table of one classifier that every caller
+   uses — never a second list.
+4. **A capability is declared** (rule `duck`): no `getattr(x, "name", default)` / `hasattr`; an optional collaborator
+   is an Optional member of the port or record, a variant is a Protocol.
+5. **Exceptions become outcomes through a table**: a turn's endings (limit, timeout, loop, provider down, failure)
+   are one mapping exception type → ending (phrase, limit tag, follow-up), not one `except` branch each building its
+   own reply.
+
 ## Use case (chat/application/usecases/<action>.py)
 
 ```python

@@ -209,3 +209,65 @@ def test_storage_outside_infrastructure_in_any_package(tmp_path: Path) -> None:
         "storage|acquisition/reputation/baseline.py|sqlalchemy",
         "storage|acquisition/reputation/baseline.py|automind.shared.infrastructure.db",
     }
+
+
+STATE_WORDS_SRC = """
+from enum import StrEnum
+
+
+class TurnStatus(StrEnum):
+    RUNNING = "RUNNING"
+
+
+def by_word(turn, msg, kind, e):
+    if turn.status == "RUNNING" or kind in ("rescore", "car_edit") or msg.get("type") == "hello":
+        return 1
+    match kind:
+        case "find":
+            return 2
+    return 0
+
+
+def by_member(turn, name):
+    return turn.status == TurnStatus.RUNNING or name == "Kia"  # a member; a name that is not a state
+"""
+
+ERROR_TEXT_SRC = """
+def by_text(e: BaseException) -> bool:
+    raw = f"{type(e).__name__}: {e}"
+    return any(k in raw for k in ("503", "overloaded"))
+
+
+def by_type(e: BaseException) -> bool:
+    return isinstance(e, TimeoutError) or type(e).__name__ in ("RateLimitError",)
+
+
+def caught():
+    try:
+        pass
+    except OSError as err:
+        return str(err).startswith("[Errno")
+"""
+
+
+def test_state_compared_with_a_word_is_reported_per_name(tmp_path: Path) -> None:
+    rules = _rules(_tree(tmp_path, {"chat/dialog/m.py": STATE_WORDS_SRC}))
+    words = {k for k in rules if k.startswith("word|")}
+    assert words == {"word|chat/dialog/m.py|by_word:status", "word|chat/dialog/m.py|by_word:kind",
+                     "word|chat/dialog/m.py|by_word:type"}  # fmt: skip
+
+
+def test_exception_recognised_by_its_text_but_not_by_its_type(tmp_path: Path) -> None:
+    rules = _rules(_tree(tmp_path, {"chat/dialog/retry.py": ERROR_TEXT_SRC}))
+    assert {k for k in rules if k.startswith("errtext|")} == {
+        "errtext|chat/dialog/retry.py|by_text", "errtext|chat/dialog/retry.py|caught"}  # fmt: skip
+
+
+def test_getattr_with_default_and_hasattr_hide_a_capability(tmp_path: Path) -> None:
+    src = (
+        "def f(ports, x):\n    g = getattr(ports, 'spent_today', None)\n"
+        "    return hasattr(x, 'owns'), getattr(x, 'a')\n"
+    )
+    rules = _rules(_tree(tmp_path, {"chat/dialog/m.py": src}))
+    assert {k for k in rules if k.startswith("duck|")} == {"duck|chat/dialog/m.py|f:spent_today",
+                                                           "duck|chat/dialog/m.py|f:owns"}  # fmt: skip
