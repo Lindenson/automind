@@ -1,4 +1,4 @@
-# Next session: start here (2026-11-08 after S9.4b; next: A4c snapshots/drift/replay)
+# Next session: start here (2026-11-08 after S9.4b + pre-prod on main; next: A4c snapshots/drift/replay)
 
 **First task: refactoring — spec 012, executed by `specs/012-refactoring/tasks.md` (one phase = one PR).**
 No new features until it is done (owner, 2026-11-06). All functional work in §4 is parked, still valid, and
@@ -80,7 +80,7 @@ instead of five word lists; structure 1534. **S9.4b done** (PR #127): finished a
 them. Then A5 worker, A6 agents, A7 engine top level + `admin_api.py` (1049) → `admin/`, A8
 `acquisition/domain` modules over 200 + `infrastructure/fetch.py`. Then S9d (chat: `confirm.py` nodes, `ask.py` →
 questions service, `ChallengeValue`, `report/stages/verdict.py` → `ResearchHistory`), S10, S12 rest, S13–S15.
-Deploy checkpoint after 2026-11-12.
+Pre-prod follows main (redeploy after each merged step).
 
 Gate per step: check.sh, then (never in parallel) diff_behaviour, check_checkpoints; PR (body = pr-self-check.md,
 answered); merge; update this §0. Never edit files while diff_behaviour runs (it checks out base/head in the tree).
@@ -105,10 +105,16 @@ cd backend && uv run python ../scripts/check_checkpoints.py      # read-only pro
 
 ## 1. State when parked
 
-- main = A4b merged (PR #124). **Production still runs the pre-012 code** (`2b5eb92`, PRs #83–#85,
-  `scripts/deploy.sh up --monitoring`, app :8090). Deploy policy: none before the baseline closes on 2026-11-12; then
-  the first 012 checkpoint (compose worker command is `python -m automind.cli worker`), live replay of chat ccd5f7d8
-  after it, then deploys only at S9, S12, S15.
+- **Pre-production = main** (owner 2026-11-08: "this is not prod but pre-prod; live on the new code that reflects
+  the current refactoring"). The old pre-012 stack (`2b5eb92`) is gone; `scripts/deploy.sh up --monitoring` runs main
+  (`3373ca0`, PR #127) as project `automind`: app on **0.0.0.0:8090** (`AUTOMIND_BIND=0.0.0.0` in .env.docker; LAN:
+  http://192.168.1.142:8090), worker `python -m automind.cli worker`, Prometheus/Alertmanager on localhost. Backup
+  before the switch: `backups/automind-20261108-200433.sql.gz`. The owner tests it in parallel and collects bugs;
+  **redeploy after every merged refactoring step** (`scripts/deploy.sh up --monitoring`, then a live replay).
+- Live check after the switch (2026-11-08): "Deepal S09 vs Lixiang L9" → DONE/REPORT, 26 blocks, €0.0095 from cache
+  (first run on a copy of the DB: 42 s, €0.039, L9 now with EREV energy ≈327 km electric — check §3.4 generation).
+- Baseline `pre-autonomy` (closes 2026-11-12) ran on pre-012 code until 2026-11-08 19:05 UTC and on 012 code after:
+  read its KPIs with that cut in mind before the autonomy decision (§3.1).
 - Last gate (A4b): `check.sh` green — 1579 backend passed (2 skipped) + 161 frontend; 14 import contracts kept
   (+`gold-services-over-ports`); structure 1225/1225 new 0; mypy report 195 (gold, identity_readers in strict).
   Behaviour diff vs previous main: differs 0 (same 58, unstable 24, racy 7). check_checkpoints: 529 blobs, 0 paths, 12 threads. Never start pytest while
@@ -184,7 +190,7 @@ branches too, or local only; (c) `# fmt: skip` ×843 — leave as is (proposal) 
 ## 3. Owner decisions pending (unchanged)
 
 1. **Autonomy (011 T078)**: baseline `pre-autonomy` runs since 2026-11-05 18:11 UTC. On/after **2026-11-12**:
-   `docker compose exec app python -m automind.acquisition.reputation.baseline close --name pre-autonomy` (pre-012 code in production; after the 012 deploy: `python -m automind.cli baseline close --name pre-autonomy`), review
+   `docker compose exec app python -m automind.cli baseline close --name pre-autonomy` (012 code runs since 2026-11-08), review
    `/admin` Accuracy + Changes, then the owner decides `registry.autonomy: true` (backend/config/registry.yaml).
 2. **Physics check**: review the `fit_physics` envelope before enabling power–mass–acceleration (`config/physics.yaml`).
 3. **Used prices in Europe**: no open source allows robots; candidate = user-pasted listing (009 FR-033).
