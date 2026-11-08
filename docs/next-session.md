@@ -1,4 +1,4 @@
-# Next session: start here (2026-11-08 after A4a registry/; next: A4b gold/ + identity_readers/)
+# Next session: start here (2026-11-08 after A4b gold/ + identity_readers/; next: A4c snapshots/drift/replay)
 
 **First task: refactoring — spec 012, executed by `specs/012-refactoring/tasks.md` (one phase = one PR).**
 No new features until it is done (owner, 2026-11-06). All functional work in §4 is parked, still valid, and
@@ -15,7 +15,7 @@ What the system is: `README.md` ("Acquisition engine"), `docs/adr/ADR-032-acquis
 
 ## 0. Resume acquisition A3 (next action)
 
-**Where we are (2026-11-08, main = A4a merged, PR #123).** Chat services S7–S9c-2 are done. Since S9.3 (PR #116):
+**Where we are (2026-11-08, main = A4b merged, PR #124).** Chat services S7–S9c-2 are done. Since S9.3 (PR #116):
 rule `storage` (sqlalchemy / `shared.infrastructure.db` outside an `infrastructure/` package, **any** directory) and
 module limit **200**, both in the ratchet. Owner's decision: acquisition A1–A8 **before** S9d (tasks.md "S9.3"), one
 PR per package, each leaving **0 `storage`, 0 `size`, 0 entries** in its package.
@@ -37,7 +37,14 @@ text, fuel, gearbox, numbers). **pipeline and parsing: 0 entries.**
 `site_admission`, `daily_review`, `registry_seed`), repo.py gone; `delivery/registry.py` (startup seed),
 `delivery/cli/registry.py` (`python -m automind.delivery.cli.registry seed | review --once`); contract
 `registry-services-over-ports`). **registry: 0 entries.**
-Structure baseline 1281, mypy report (all src) 199, 13 import contracts. Owner confirmed the A3 split (a → b → c) on
+**A4b `gold/` + `identity_readers/`** (PR #124, −56: gold `domain/` records (`StoredGold`: no ORM row leaves the
+store), text, config (`MatchCfg`, `GoldRules`), match, reference, choice; `application/` `GoldLoad` with the strategies
+`DatasetGold` / `ReferenceGold`, `ChallengeGold`, ports (one `GoldStoreUnavailable`); `infrastructure/` gold_store
+(`GoldStore.best`), candidate_store, loaders (rdw split, `ApiDataset`, `ReferenceFile`), wiring; CLI
+`delivery/cli/gold.py`. `identity_readers/`: `web` (was pipeline/identity.py), `domain/registered`,
+`DatasetVersions` over `VersionBook`/`LiveRows`, version_store, wiring; `AcqPorts.datasets: LiveRows | None`; contract
+`gold-services-over-ports`). **gold, identity_readers: 0 entries.**
+Structure baseline 1225, mypy report (all src) 195, 14 import contracts. Owner confirmed the A3 split (a → b → c) on
 2026-11-08; A4 is split the same way (one PR per package): A4a registry → A4b gold → A4c snapshots/drift/replay.
 
 **The template (follow it for A3–A8; `reputation/` and `gates/` show it):**
@@ -55,9 +62,8 @@ Structure baseline 1281, mypy report (all src) 199, 13 import contracts. Owner c
 - Unit tests over fakes for every service: one failure path at least (store down, lost claim, budget, no measure).
 - Safety tests are never weakened (A2: `test_no_self_change` flagged `self.budgets` → renamed `agent_budgets`).
 
-**Next: A4b** — `gold/` (load, repo, versions, match, loaders/rdw; 56 entries) with `pipeline/identity.py` +
-`gold/versions.py` → `acquisition/identity_readers/` (T082 rest). Then **A4c** — `snapshots/`, `drift/`, `replay/`
-(run 359; 33 entries) and A3b-f1 (type `Found.stats` / hits: `SearchStats` / `SourceHit`). Registry callers now use
+**Next: A4c** — `snapshots/`, `drift/`, `replay/`
+(run 359; 33 entries) and A3b-f1 (type `Found.stats` / hits: `SearchStats` / `SourceHit`). Gold readers use `gold/infrastructure/wiring` (`gold_store().best(vid)`, `gold_rules()`); registry callers use
 `registry/infrastructure/wiring` (scout gets a `SiteAdmission`, blame judge `signal_store()`). Callers of the parser store use
 `ParserStore()` (drift/daily, gates/page_reading) or the lazy imports still listed for agents/replay — A4/A6 remove
 them. Then A5 worker, A6 agents, A7 engine top level + `admin_api.py` (1049) → `admin/`, A8
@@ -79,7 +85,7 @@ cd backend && uv run python ../scripts/check_checkpoints.py      # read-only pro
 ```
 - Moves: `scripts/refactor/move.py <map.yaml>` (maps in `specs/012-refactoring/moves/`; whole packages first);
   after moves `scripts/check_structure.py --write-baseline` only if the count did not grow.
-- Structure ratchet baseline `scripts/structure_baseline.txt` (1281 now: +storage, size 200; A1 −30, A2 −81, A3a −29, A3b −23, A3c −70, A4a −67); new violations fail
+- Structure ratchet baseline `scripts/structure_baseline.txt` (1225 now: +storage, size 200; A1 −30, A2 −81, A3a −29, A3b −23, A3c −70, A4a −67, A4b −56); new violations fail
   the gate; a PR shrinks the entries of every package it touches (pr-self-check.md).
 - Migration tests fail with "tables can have at most 1600 columns" → the scratch DB `automind_mig` is worn out by
   roundtrips (dropped columns count): `docker compose exec -T postgres dropdb -U automind automind_mig && … createdb …`.
@@ -88,13 +94,13 @@ cd backend && uv run python ../scripts/check_checkpoints.py      # read-only pro
 
 ## 1. State when parked
 
-- main = A4a merged (PR #123). **Production still runs the pre-012 code** (`2b5eb92`, PRs #83–#85,
+- main = A4b merged (PR #124). **Production still runs the pre-012 code** (`2b5eb92`, PRs #83–#85,
   `scripts/deploy.sh up --monitoring`, app :8090). Deploy policy: none before the baseline closes on 2026-11-12; then
   the first 012 checkpoint (compose worker command is `python -m automind.cli worker`), live replay of chat ccd5f7d8
   after it, then deploys only at S9, S12, S15.
-- Last gate (A4a): `check.sh` green — 1570 backend passed (2 skipped) + 161 frontend; 13 import contracts kept
-  (+`registry-services-over-ports`); structure 1281/1281 new 0; mypy report 199 (registry in strict). Behaviour diff
-  vs previous main: differs 0 (same 61, unstable 21, racy 7). check_checkpoints: 529 blobs, 0 paths, 12 threads. Never start pytest while
+- Last gate (A4b): `check.sh` green — 1579 backend passed (2 skipped) + 161 frontend; 14 import contracts kept
+  (+`gold-services-over-ports`); structure 1225/1225 new 0; mypy report 195 (gold, identity_readers in strict).
+  Behaviour diff vs previous main: differs 0 (same 58, unstable 24, racy 7). check_checkpoints: 529 blobs, 0 paths, 12 threads. Never start pytest while
   diff_behaviour runs (same test DB). If a session dies during diff_behaviour:
   `git worktree remove --force /tmp/behaviour-*/{base,head}`, `git worktree prune`.
 - Kept as it was (A3b), worth a look later: the shadow gate's feed of a job also gets the pages relevance dropped
@@ -178,7 +184,7 @@ branches too, or local only; (c) `# fmt: skip` ×843 — leave as is (proposal) 
 
 1. Live test set of 10–15 typical comparisons (new/used, ICE/HEV/PHEV/BEV, EU and China brands) to fill the
    baseline before the autonomy decision and measure quality (≈ €1–3; estimate first, owner's yes).
-2. OBFCM real-world consumption: the loader exists (`acquisition/gold/loaders/eea_obfcm.py`,
+2. OBFCM real-world consumption: the loader exists (`acquisition/gold/infrastructure/loaders/eea_obfcm.py`,
    `config/gold_datasets.yaml eea_obfcm`, 2024 collection ≈ 2.1 GB CSV) but was never loaded (gold_values has only
    eea_co2 and rdw rows) and the energy model does not read it. Make it a yearly worker task, then use the fleet
    l/100 km (and PHEV grid kWh) as the car's `consumption_real` when a group matches (make, model, fuel, kW,
