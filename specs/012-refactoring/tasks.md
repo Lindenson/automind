@@ -261,8 +261,8 @@ Acquisition, one PR per package, each leaves its package with **0 `storage`, 0 `
     `DailyReview`, `RegistrySeed`; `infrastructure/` capability_store, signal_store, admission_store, review_store,
     seed_store, rows, pages (snapshot marks), seed_config, terms (`TermsFacts`), wiring (`registry_service`,
     `signal_store`, `site_admission`, `daily_review`, `registry_seed`); repo.py removed. `delivery/registry.py`
-    (seed at startup, CLI `registry seed | review --once`); contract `registry-services-over-ports` (13);
-    `api-uses-engine-facades` forbids `registry.application` whole. registry: 0 entries; structure 1348 → 1282.
+    (seed at startup) and `delivery/cli/registry.py` (`seed | review --once`); contract `registry-services-over-ports` (13);
+    `api-uses-engine-facades` forbids `registry.application` whole. registry: 0 entries; structure 1348 → 1281; mypy report 200 → 199.
 - [ ] A5 `worker/`: queue, process, heartbeat, budget, prefetch, handlers (256)
 - [ ] A6 `agents/` (= S12a agents): scout (608), parser_doctor (434), rule_auditor, levers, evaluator, extractor_tuner,
   blame_judge, budget

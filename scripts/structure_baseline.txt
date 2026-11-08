@@ -504,7 +504,6 @@ lazy|delivery/cli/main.py|gold_load
 lazy|delivery/cli/main.py|insight
 lazy|delivery/cli/main.py|migrate
 lazy|delivery/cli/main.py|parsers_migrate_v1
-lazy|delivery/cli/main.py|registry
 lazy|delivery/cli/main.py|replay
 lazy|delivery/cli/main.py|worker
 lazy|delivery/web/app.py|main

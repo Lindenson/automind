@@ -82,23 +82,6 @@ def fit_physics(argv: list[str]) -> int:
     return int(asyncio.run(module.main_async(argv)) or 0)
 
 
-def registry(argv: list[str]) -> int:
-    """The source registry: `seed` (favourites and the 009 survey, idempotent) | `review --once` (one review now,
-    only with `registry.autonomy: true`)."""
-    from automind.delivery import registry as module  # noqa: PLC0415
-
-    if argv[:1] == ["seed"]:
-        _configure()
-        print(json.dumps(asyncio.run(module.seed()), ensure_ascii=False))
-        return 0
-    if argv[:1] == ["review"] and "--once" in argv:
-        _configure()
-        print(json.dumps(asyncio.run(module.review_now()), ensure_ascii=False))
-        return 0
-    print(registry.__doc__)
-    return 0
-
-
 def migrate(argv: list[str]) -> int:
     """Database migrations to head."""
     from automind.shared.infrastructure.db import migrate as module  # noqa: PLC0415
@@ -115,7 +98,6 @@ COMMANDS: dict[str, Callable[[list[str]], int]] = {
     "insight": insight,
     "baseline": baseline,
     "fit-physics": fit_physics,
-    "registry": registry,
     "migrate": migrate,
 }
 
