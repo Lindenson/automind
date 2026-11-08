@@ -3,6 +3,7 @@ versions from the open datasets.
 
 Owns:
   `web` — lineup, versions, generation_hints: searches, pages and the `lineup` / `versions` model roles.
+  `searching` — `search_hits()`: a search that gives no hits instead of failing when no provider can answer.
   `domain` — `registered`: dataset groups → the distinct engines a model was registered with (pure).
   `application` — DatasetVersions (stored gold, then the cache, then one live query; never raises); its ports.
   `infrastructure` — VersionStore (gold_values keys, search_cache), wiring (`dataset_versions(ports)`, `live_rows`,
@@ -14,4 +15,4 @@ Must not depend on: as acquisition/__init__ (registry-no-chat).
 Public API: the modules and packages in __all__ (callers import from them).
 """
 
-__all__: list[str] = ["application", "domain", "infrastructure", "web"]
+__all__: list[str] = ["application", "domain", "infrastructure", "searching", "web"]

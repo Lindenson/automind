@@ -15,9 +15,6 @@ Note: search usage is recorded through the chat's UsageRepo (chat.infrastructure
 
 from __future__ import annotations
 
-
-class SearchUnavailable(RuntimeError):
-    """The provider cannot answer (no key, no credit, rate limit, server error)."""
-
+from automind.shared.contracts.web import SearchUnavailable
 
 __all__ = ["SearchUnavailable"]

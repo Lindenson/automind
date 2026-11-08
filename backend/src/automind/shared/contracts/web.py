@@ -26,8 +26,12 @@ class SearchHit:
     rank: int
 
 
+class SearchUnavailable(RuntimeError):
+    """No search provider can answer (no key, no credit, rate limit, a refused request, server error)."""
+
+
 class SearchProvider(Protocol):
-    """One external search API (Serper, SerpApi, Tavily …). Raises SearchUnavailable-like errors."""
+    """One external search API (Serper, SerpApi, Tavily …). Raises `SearchUnavailable` when it cannot answer."""
 
     name: str
 
