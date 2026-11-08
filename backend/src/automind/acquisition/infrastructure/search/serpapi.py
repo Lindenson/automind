@@ -42,9 +42,8 @@ class SerpApiProvider:
                 r = await c.get(URL, params=params)
             except httpx.HTTPError as e:
                 raise SearchUnavailable(f"serpapi: {type(e).__name__}") from e
-        if r.status_code in (401, 402, 403, 429) or r.status_code >= 500:
+        if not r.is_success:  # 400 "not enough credits", 401/403 key, 429 rate, 5xx: the provider cannot answer
             raise SearchUnavailable(f"serpapi: HTTP {r.status_code}")
-        r.raise_for_status()
         data = r.json()
         if data.get("error") and not data.get("organic_results"):
             if "hasn't returned any results" in str(data["error"]):

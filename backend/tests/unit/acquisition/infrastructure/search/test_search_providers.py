@@ -42,9 +42,9 @@ async def test_serpapi_parses_organic_results():
     assert seen[0].url.params["engine"] == "google" and seen[0].url.params["gl"] == "gb"
 
 
-@pytest.mark.parametrize("status", [401, 402, 429, 500])
+@pytest.mark.parametrize("status", [400, 401, 402, 429, 500])  # 400: Serper's "Not enough credits" (2026-11-08)
 async def test_errors_mean_unavailable(status):
-    p = SerperProvider(api_key="k", transport=_transport(status, {}, []))
+    p = SerperProvider(api_key="k", transport=_transport(status, {"message": "Not enough credits"}, []))
     with pytest.raises(SearchUnavailable):
         await p.search("q", gl="es", hl="es")
 

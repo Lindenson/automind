@@ -12,6 +12,7 @@ import re
 from typing import Any
 
 from automind.acquisition.api import LineupOut, LineupRead, VersionsOut, VersionsRead, WebHint
+from automind.acquisition.identity_readers.searching import search_hits
 from automind.acquisition.ports import AcqPorts
 from automind.shared import evidence
 from automind.shared.metering.usage import current_budget
@@ -52,11 +53,11 @@ async def lineup(ports: AcqPorts, make: str, *, official: str | None, max_pages:
     Spanish search; another market (a car not sold in Spain): that market's query and locale (search.yaml
     `abroad`)."""
     if market == "ES":
-        hits = await ports.search.search(f"{make} gama modelos precios España", market="ES", area="price")
+        hits = await search_hits(ports, f"{make} gama modelos precios España", market="ES", area="price")
     else:
         cfg = abroad(ports, market)
         query = str(cfg.get("lineup") or "{make} model lineup").format(make=make)
-        hits = await ports.search.search(query, market=str(cfg.get("search") or "ANY"), area="specs")
+        hits = await search_hits(ports, query, market=str(cfg.get("search") or "ANY"), area="specs")
     urls = [f"https://www.{official}" if official else None] + [h.url for h in hits[:4]]
     docs: dict[str, tuple[str, str]] = {}
     for u in [x for x in urls if x and not evidence.is_denied(x)]:
@@ -114,14 +115,14 @@ async def generation_hints(ports: AcqPorts, query: str, *, lineup_url: str | Non
         page = await store.get(user_url, area="specs")
         if page:
             docs.append(WebHint(url=page.url, title=page.title, text=page.text))
-    hits = await ports.search.search(f"{query} generation years engines specifications", market="EN", area="specs")
+    hits = await search_hits(ports, f"{query} generation years engines specifications", market="EN", area="specs")
     if market != "ES":  # where the car is sold first: that market's search, then its registry spec sources
         cfg = abroad(ports, market)
         local = str(cfg.get("search") or "ANY")
-        there = await ports.search.search(str(cfg.get("hints") or "{query}").format(query=query), market=local,
+        there = await search_hits(ports, str(cfg.get("hints") or "{query}").format(query=query), market=local,
                                           area="specs")  # fmt: skip
         sites = await market_sites(ports, market)
-        on_sites = (await ports.search.search(f"{query} " + " OR ".join(f"site:{d}" for d in sites), market=local,
+        on_sites = (await search_hits(ports, f"{query} " + " OR ".join(f"site:{d}" for d in sites), market=local,
                                               area="specs") if sites else [])  # fmt: skip
         merged = [*there[:3], *on_sites[:2], *hits]
         hits = [h for i, h in enumerate(merged) if all(h.url != x.url for x in merged[:i])]
@@ -132,7 +133,7 @@ async def generation_hints(ports: AcqPorts, query: str, *, lineup_url: str | Non
         if page:
             docs.append(WebHint(url=page.url, title=page.title, text=page.text))
     if prices:  # versions and official prices, for the equal-level comparison (FR-029)
-        found = await ports.search.search(f"{query} precio versiones acabados España", market="ES", area="price")
+        found = await search_hits(ports, f"{query} precio versiones acabados España", market="ES", area="price")
         docs += [WebHint(url=h.url, title=h.title, text=h.snippet) for h in found[:3]]
     return docs
 
@@ -172,7 +173,7 @@ async def _read(ports: AcqPorts, make: str, queries: list[str], lim: dict[str, A
     try:
         urls: list[str] = []
         for q in queries:
-            for h in await ports.search.search(q, market=market, area="specs"):
+            for h in await search_hits(ports, q, market=market, area="specs"):
                 if h.url not in urls and h.url not in done and not evidence.is_denied(h.url):
                     urls.append(h.url)
         urls.sort(key=lambda u: -_rank(u, make))  # stable: the search order within a rank
