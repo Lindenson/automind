@@ -52,7 +52,9 @@ async def test_no_data_lists_the_tried_sources():
     vid = await _setup()
     ports, search = ports_for("unverified")
     ports.llm.responders["extractor"] = lambda s, u: {"is_about_variant": True, "ranges": []}
-    ports.registry = _PlanWithUnreached(ports.registry.store, ports.registry.cfg)
+    ports.registry = _PlanWithUnreached(
+        ports.registry.capabilities, ports.registry.signals, ports.registry.pages, ports.registry.cfg
+    )
     req = acquisition.AcquireRequest(job_id=str(uuid.uuid4()), variant_id=vid, kinds=["used_price"], car_year=2020)
     res = await acquisition.acquire(req, None, ports=ports)
     (k,) = res.kinds

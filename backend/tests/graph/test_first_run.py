@@ -14,8 +14,7 @@ from datetime import UTC, datetime
 
 from sqlalchemy import delete, select, update
 
-from automind.acquisition.registry.application.service import RegistryService
-from automind.acquisition.registry.infrastructure.repo import RegistryRepo
+from automind.acquisition.registry.infrastructure.wiring import registry_service
 from automind.shared.infrastructure.config.loader import favourite_queries, load_yaml
 from automind.shared.infrastructure.db import models as m
 from automind.shared.infrastructure.db.session import sessionmaker
@@ -43,7 +42,7 @@ async def _registry_candidate() -> None:
 
 def _with_registry(rn) -> None:  # noqa: ANN001
     cfg = {**load_yaml("registry.yaml"), "autonomy": False}
-    share(rn.ports, registry=RegistryService(RegistryRepo(cfg), cfg), ref=open_web_reference(
+    share(rn.ports, registry=registry_service(cfg), ref=open_web_reference(
         favourite_queries={k: v for k, v in favourite_queries().items() if k.startswith("registry")}
     ))  # fmt: skip
 

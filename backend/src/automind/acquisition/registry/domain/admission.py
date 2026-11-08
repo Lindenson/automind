@@ -17,6 +17,8 @@ MIN_CONTENT_CHARS = 800
 
 @dataclass(frozen=True)
 class AdmissionFacts:
+    """What was gathered about a site: robots, the terms of use, readable content, the title."""
+
     domain: str
     robots_allows: bool | None  # None: not checked (network error)
     terms_forbid: bool | None  # None: no terms page found or not judged
@@ -28,12 +30,15 @@ class AdmissionFacts:
 
 @dataclass(frozen=True)
 class Admission:
+    """The verdict: the access, why, and the evidence kept with it."""
+
     access: str  # ok | classifieds | robots_blocked | terms_forbid | js_only | unknown
     reason: str
     evidence: dict[str, str]
 
 
 def admit(f: AdmissionFacts, deny: Sequence[str]) -> Admission:
+    """The access of a site from its facts, in the order of the module docstring."""
     if denied(f.domain, deny) or any(w in f.title.lower() for w in CLASSIFIEDS_WORDS):
         return Admission("classifieds", "classifieds or deny-listed site", {"rule": "deny-list / classifieds"})
     if f.robots_allows is False:

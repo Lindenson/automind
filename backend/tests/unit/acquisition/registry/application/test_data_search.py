@@ -5,11 +5,13 @@ whole-generation used-price ranges rejected for a car with a year."""
 from __future__ import annotations
 
 from types import SimpleNamespace
-from typing import Any
 
 from automind.acquisition.pipeline.domain.items import ExcerptCounter
 from automind.acquisition.pipeline.domain.used_prices import used_prices
-from automind.acquisition.registry.application.service import RegistryService, rank_queryable
+from automind.acquisition.registry.application.service import RegistryService
+from automind.acquisition.registry.domain.config import RegistryConfig
+from automind.acquisition.registry.domain.planning import rank_queryable
+from automind.acquisition.registry.domain.records import CapabilityView
 from automind.chat.domain.identification import used
 from automind.shared.infrastructure.config import loader as config
 from automind.shared.research_order import plan as research_plan
@@ -84,18 +86,30 @@ def test_unmet_area_gets_a_follow_up_round_within_the_depth() -> None:
 
 
 class _Store:
-    def __init__(self, rows: list[dict[str, Any]]) -> None:
+    def __init__(self, rows: list[CapabilityView]) -> None:
         self.rows = rows
         self.asked: list[tuple[str, list[str]]] = []
 
-    async def queryable(self, area: str, markets: list[str]) -> list[dict[str, Any]]:
+    async def queryable(self, area: str, markets: list[str]) -> list[CapabilityView]:
         self.asked.append((area, markets))
-        return [r for r in self.rows if r["market"] in markets]
+        return [r for r in self.rows if r.market in markets]
 
 
-def _row(domain: str, status: str, market: str = "ES", score: float = 0.0, access: str = "ok") -> dict[str, Any]:
-    return {"domain": domain, "status": status, "market": market, "score": score, "priority_seed": None,
-            "access": access}  # fmt: skip
+class _NoSignals:
+    async def signal(self, s: object, weight: float) -> str:
+        raise AssertionError("not used")
+
+    async def resolve(self, signal_id: str, vector: dict[str, float], components: dict[str, str], note: str) -> bool:
+        raise AssertionError("not used")
+
+
+class _NoPages:
+    async def mark(self, snapshot_id: str, accepted_values: int, variant_id: str | None) -> None:
+        raise AssertionError("not used")
+
+
+def _row(domain: str, status: str, market: str = "ES", score: float = 0.0, access: str = "ok") -> CapabilityView:
+    return CapabilityView(domain=domain, area="price", market=market, status=status, score=score, access=access)
 
 
 async def test_sources_for_active_by_score_then_candidates_whatever_the_autonomy() -> None:
@@ -107,7 +121,8 @@ async def test_sources_for_active_by_score_then_candidates_whatever_the_autonomy
         _row("unknown.example", "candidate", access="unknown"),  # never surveyed: not queried
         _row("de.example", "candidate", market="DE"),
     ]
-    svc = RegistryService(_Store(rows), {"autonomy": False})
+    store = _Store(rows)
+    svc = RegistryService(store, _NoSignals(), _NoPages(), RegistryConfig(autonomy=False))
     got = await svc.sources_for("price", ["ES", "DE"], 10)
     assert [s.domain for s in got] == ["high.example", "low.example", "cand.example", "de.example"]
     assert [s.unverified for s in got] == [False, False, True, True]

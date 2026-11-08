@@ -5,6 +5,8 @@ Owns:
   `lifecycle` — discovered → candidate → active → … transitions; `limits` — hard limits no change may cross.
   `admission` — the admission check of a new site; `families` — mirror families counted as one.
   `seed_rules` — how the registry starts; `blame` — who was wrong (kept for callers).
+  `config` — RegistryConfig (registry.yaml typed); `records` — what the rules read of stored rows.
+  `planning` — which sources a job uses; `review` — the decisions of the daily review.
 Depends on: acquisition.domain.
 Must not depend on: registry.application, registry.infrastructure,
   I/O and frameworks (sqlalchemy, httpx, fastapi, langchain, langgraph, prometheus_client), shared.infrastructure,
@@ -14,4 +16,5 @@ Public API: the modules in __all__ (callers import from them).
 Note: `blame` is superseded by acquisition.domain.blame (vector blame) and kept only for its callers.
 """
 
-__all__: list[str] = ["admission", "blame", "families", "lifecycle", "limits", "model", "score", "seed_rules"]
+__all__: list[str] = ["admission", "blame", "config", "families", "lifecycle", "limits", "model", "planning", "records",
+                      "review", "score", "seed_rules"]  # fmt: skip

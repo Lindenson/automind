@@ -16,9 +16,8 @@ from sqlalchemy import delete, select
 
 from automind.acquisition.agents import scout
 from automind.acquisition.infrastructure.fetch import FetchRefused
-from automind.acquisition.registry.application.service import RegistryService
 from automind.acquisition.registry.infrastructure import terms
-from automind.acquisition.registry.infrastructure.repo import RegistryRepo
+from automind.acquisition.registry.infrastructure.wiring import registry_service
 from automind.shared.contracts.web import SearchHit
 from automind.shared.infrastructure import db
 from automind.shared.infrastructure.config.loader import load_yaml
@@ -208,7 +207,7 @@ async def test_scout_discovers_admits_blocks_and_journals(world) -> None:
     assert loc.domain == "km77.com" and loc.after == {"url_patterns": ["/fichas/"]}
     assert "3 of 4 accepted pages" in loc.reason
     cfg = load_yaml("registry.yaml")
-    (src,) = [x for x in await RegistryService(RegistryRepo(cfg), cfg).sources_for("specs", ["ES"], 10)
+    (src,) = [x for x in await registry_service(cfg).sources_for("specs", ["ES"], 10)
               if x.domain == "km77.com"]  # fmt: skip
     assert src.site == "km77.com/fichas"
     car = search_plan.Identity("SEAT", "León", "Mk4", "1.5 TSI 150")

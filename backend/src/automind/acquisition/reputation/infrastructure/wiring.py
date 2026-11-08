@@ -9,8 +9,7 @@ from typing import Any
 
 from automind.acquisition.gold import repo as gold_repo
 from automind.acquisition.infrastructure.config import physics_config
-from automind.acquisition.registry.application.service import RegistryService
-from automind.acquisition.registry.infrastructure.repo import RegistryRepo
+from automind.acquisition.registry.infrastructure.wiring import registry_service
 from automind.acquisition.reputation.application.rollup import DailyRollup
 from automind.acquisition.reputation.application.signals import SignalScan, SignalSink
 from automind.acquisition.reputation.domain.signal_facts import Tolerance
@@ -28,7 +27,7 @@ JUDGE_PRIORITY = 7
 def signal_scan(cfg: Mapping[str, Any] | None = None, sink: SignalSink | None = None) -> SignalScan:
     """The signal scan; `cfg` is `registry.yaml` (loaded when None), `sink` the registry (built from it when None)."""
     cfg = cfg if cfg is not None else load_yaml("registry.yaml")
-    registry = sink if sink is not None else RegistryService(RegistryRepo(cfg), cfg)
+    registry = sink if sink is not None else registry_service(dict(cfg))
     return SignalScan(SignalFactsRepo(cfg.get("families") or {}), SnapshotPages(), GoldTolerances(), registry,
                       QueueJudges(), SystemClock(), physics_config().get("checks") or {})  # fmt: skip
 

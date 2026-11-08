@@ -1,48 +1,45 @@
-"""Seed the registry (spec 010 US8, T050): favourites and the 009 survey. Idempotent. (Spec 007's learned domains
-were seeded once; the rule is gone since spec 011 T124 and the `learned_sources` table is no longer read.)
+"""Seed the registry (spec 010 US8, T050): the favourites of `config/sources.yaml` and the 009 survey. Idempotent.
+(Spec 007's learned domains were seeded once; the rule is gone since spec 011 T124.)
 
-python -m automind.acquisition.registry.application.seed
-"""
+Errors: `RegistryStoreUnavailable` propagates; each part (favourites, survey) is one transaction, so a failed survey
+leaves the favourites seeded and the next start completes it."""
 
 from __future__ import annotations
 
-import asyncio
-from typing import Any
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 
-from automind.acquisition.registry.domain.seed_rules import from_favourite, from_survey
-from automind.acquisition.registry.infrastructure.repo import RegistryRepo
-from automind.shared.infrastructure.config.loader import load_yaml
-
-
-async def seed() -> dict[str, int]:
-    sources = load_yaml("sources.yaml")
-    deny = tuple(str(x).lower() for x in sources.get("denylist") or [])
-    reg = load_yaml("registry.yaml")
-    fam = reg.get("families") or {}
-    repo = RegistryRepo()
-    out = {
-        "favourites": await repo.seed(
-            (from_favourite(f, deny, fam) for f in sources.get("favourites") or []),
-            "seed: config/sources.yaml favourite",
-        )
-    }
-    survey = _survey_list()  # a YAML list, not a mapping: read directly
-    out["survey"] = await repo.seed((from_survey(e, deny, fam) for e in survey), "seed: 009 survey (robots and terms)")
-    return out
+from automind.acquisition.registry.application.ports import SeedBook
+from automind.acquisition.registry.domain.seed_rules import Favourite, SurveyEntry, from_favourite, from_survey
 
 
-def _survey_list() -> list[dict[str, Any]]:
-    import yaml  # noqa: PLC0415
+@dataclass(frozen=True)
+class SeedSources:
+    """What the seed starts from: the owner's favourites, the survey, the deny-list and the mirror families."""
 
-    from automind.shared.infrastructure.config.loader import config_dir  # noqa: PLC0415
-
-    data = yaml.safe_load((config_dir() / "registry_seed_survey.yaml").read_text(encoding="utf-8"))
-    return list(data or [])
-
-
-async def seed_if_empty() -> dict[str, int] | None:
-    return await seed() if await RegistryRepo().is_empty() else None
+    favourites: Sequence[Favourite]
+    survey: Sequence[SurveyEntry]
+    deny: Sequence[str]
+    families: Mapping[str, Sequence[str]]
 
 
-if __name__ == "__main__":
-    print(asyncio.run(seed()))
+class RegistrySeed:
+    """The registry's first content over its book."""
+
+    def __init__(self, book: SeedBook, sources: SeedSources) -> None:
+        self.book = book
+        self.sources = sources
+
+    async def run(self) -> dict[str, int]:
+        """Seed what is missing; how many capabilities each part added."""
+        s = self.sources
+        favourites = [from_favourite(f, s.deny, s.families) for f in s.favourites]
+        survey = [from_survey(e, s.deny, s.families) for e in s.survey]
+        return {
+            "favourites": await self.book.seed(favourites, "seed: config/sources.yaml favourite"),
+            "survey": await self.book.seed(survey, "seed: 009 survey (robots and terms)"),
+        }
+
+    async def run_if_empty(self) -> dict[str, int] | None:
+        """Seed an empty registry; None when it already has sources."""
+        return await self.run() if await self.book.is_empty() else None

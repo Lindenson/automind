@@ -6,7 +6,7 @@ role (no tools; the page only inside <untrusted_document>) answers a closed `{co
 accepted only when the quote occurs in the stored page (`evidence.occurs`) and holds the number the component
 implies (the reference value for parser/extractor/units/fusion, the stored value for source); for a reader's claim
 the current reader version is re-run on the snapshot and its reading is journalled. Otherwise, or without budget,
-the code's vector stands. Either way the signal is then applied (`RegistryRepo.resolve`).
+the code's vector stands. Either way the signal is then applied (`SignalStore.resolve`).
 """
 
 from __future__ import annotations
@@ -150,15 +150,14 @@ async def _load(signal_id: str) -> _Case | None:
 
 async def judge(signal_id: str, llm: LLM | None = None, charge: Any = None) -> dict[str, Any]:
     """Settle one disputed signal. `charge(eur)` raises when the day's budget is spent."""
-    from automind.acquisition.registry.infrastructure.repo import RegistryRepo  # noqa: PLC0415
+    from automind.acquisition.registry.infrastructure.wiring import signal_store  # noqa: PLC0415
     from automind.acquisition.worker.budget import BudgetExceeded  # noqa: PLC0415
-    from automind.shared.infrastructure.config.loader import load_yaml  # noqa: PLC0415
 
     case = await _load(signal_id)
     if case is None:
         return {"skipped": "settled"}
     sig, claim, truth, url, page, raw = case.sig, case.claim, case.truth, case.url, case.page, case.raw
-    repo = RegistryRepo(load_yaml("registry.yaml"))
+    repo = signal_store()
     code_vector = dict(sig.blame_vector or {"source": 1.0})
     comps = dict((sig.details or {}).get("components") or {})
     ours = claim.value_num if claim is not None else None

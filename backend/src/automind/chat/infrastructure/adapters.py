@@ -10,8 +10,7 @@ from pydantic import BaseModel
 
 from automind.acquisition.engine import Engine
 from automind.acquisition.infrastructure.wiring import engine_ports
-from automind.acquisition.registry.application.service import RegistryService
-from automind.acquisition.registry.infrastructure.repo import RegistryRepo
+from automind.acquisition.registry.infrastructure.wiring import registry_service
 from automind.chat.application.ports import Ports
 from automind.chat.application.services.identification.lineup import get_lineup
 from automind.chat.domain.cost.turn_cost import AreaAverage, CostPrices, estimate
@@ -58,7 +57,7 @@ class SystemClock:
 def live_ports(events: EventBus, prompts: dict[str, str]) -> Ports:
     ref = reference(prompts)
     llm = LiveLLM()
-    registry = RegistryService(RegistryRepo(ref.registry), ref.registry)
+    registry = registry_service(ref.registry)
     return Ports(
         llm=llm,
         acquisition=Engine(engine_ports(llm, ref, registry)),

@@ -16,8 +16,7 @@ from automind.acquisition.infrastructure.pages import DbPageStore
 from automind.acquisition.parsing.infrastructure import wiring as parsing_wiring
 from automind.acquisition.pipeline.contracts import JobSpec
 from automind.acquisition.pipeline.job import ResearchJob
-from automind.acquisition.registry.application.service import RegistryService
-from automind.acquisition.registry.infrastructure.repo import RegistryRepo
+from automind.acquisition.registry.infrastructure.wiring import registry_service
 from automind.acquisition.snapshots import codec, store
 from automind.acquisition.snapshots.retention import run_snapshot_retention
 from automind.shared.infrastructure import db
@@ -144,7 +143,7 @@ async def test_research_job_names_producer_version_model_and_snapshot():
     )
     ports.readers = parsing_wiring.yaml_registry([KM77])
     cfg = {**load_yaml("registry.yaml"), "autonomy": False}
-    ports.registry = RegistryService(RegistryRepo(cfg), cfg)
+    ports.registry = registry_service(cfg)
 
     async def emit(stage: str, text: str) -> None:
         return None

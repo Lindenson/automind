@@ -11,16 +11,20 @@ blocked    never changes here (hard limit, see limits.py)
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any
 
+from automind.acquisition.registry.domain.config import Lifecycle
 from automind.acquisition.registry.domain.model import ACCESS_BLOCKING
+
+DAY_SECONDS = 86400
 
 
 @dataclass(frozen=True)
 class CapState:
+    """What the lifecycle reads of a capability: its status and since when, counts, access and recent outcomes."""
+
     status: str
     attempts: float
     acc_lb: float
@@ -33,21 +37,35 @@ class CapState:
 
 @dataclass(frozen=True)
 class Move:
+    """A proposed status and why."""
+
     to: str
     reason: str
+
+
+def transition(c: CapState, lc: Lifecycle, now: datetime) -> Move | None:
+    """The move the lifecycle proposes for a capability now, None when it stays. A blocked capability never moves
+    here; an access-blocked source's capability moves to blocked whatever its status."""
+    if c.status == "blocked":
+        return None
+    if c.access in ACCESS_BLOCKING:
+        return Move("blocked", f"access check: {c.access.replace('_', ' ')}")
+    rule = _RULES.get(c.status)
+    days = (now - c.status_since).total_seconds() / DAY_SECONDS
+    return rule(c, lc, days) if rule else None
 
 
 def _f(x: float) -> str:
     return f"{x:.2f}"
 
 
-def _candidate(c: CapState, lc: Mapping[str, Any], days: float) -> Move | None:
-    pro = lc.get("promote") or {}
+def _candidate(c: CapState, lc: Lifecycle, days: float) -> Move | None:
+    pro = lc.promote
     if (
-        c.attempts >= float(pro.get("min_attempts", 8))
-        and c.acc_lb >= float(pro.get("min_acc_lb", 0.6))
-        and c.yield_ >= float(pro.get("min_yield", 0.2))
-        and c.signals_w >= float(pro.get("min_signals", 5))
+        c.attempts >= pro.min_attempts
+        and c.acc_lb >= pro.min_acc_lb
+        and c.yield_ >= pro.min_yield
+        and c.signals_w >= pro.min_signals
     ):
         return Move(
             "active",
@@ -57,56 +75,46 @@ def _candidate(c: CapState, lc: Mapping[str, Any], days: float) -> Move | None:
     return None
 
 
-def _zero(c: CapState, lc: Mapping[str, Any]) -> tuple[bool, int]:
-    n = int((lc.get("degrade") or {}).get("zero_in_last", 10))
+def _zero(c: CapState, lc: Lifecycle) -> tuple[bool, int]:
+    n = lc.degrade.zero_in_last
     return len(c.recent) >= n and not any(c.recent[-n:]), n
 
 
-def _active(c: CapState, lc: Mapping[str, Any], days: float) -> Move | None:
-    deg = lc.get("degrade") or {}
+def _active(c: CapState, lc: Lifecycle, days: float) -> Move | None:
+    deg = lc.degrade
     zero, n = _zero(c, lc)
     if zero:
         return Move("degraded", f"no accepted value in the last {n} attempts")
-    low = c.acc_lb < float(deg.get("max_acc_lb", 0.45)) or c.yield_ < float(deg.get("max_yield", 0.05))
-    if c.attempts >= float(deg.get("min_attempts", 10)) and low:
+    low = c.acc_lb < deg.max_acc_lb or c.yield_ < deg.max_yield
+    if c.attempts >= deg.min_attempts and low:
         return Move("degraded", f"accuracy lower bound {_f(c.acc_lb)} or yield {_f(c.yield_)} below the floor")
     return None
 
 
-def _degraded(c: CapState, lc: Mapping[str, Any], days: float) -> Move | None:
-    rec = lc.get("recover") or {}
+def _degraded(c: CapState, lc: Lifecycle, days: float) -> Move | None:
+    rec = lc.recover
     zero, _ = _zero(c, lc)
-    if not zero and c.acc_lb >= float(rec.get("min_acc_lb", 0.55)) and c.yield_ >= float(rec.get("min_yield", 0.15)):
+    if not zero and c.acc_lb >= rec.min_acc_lb and c.yield_ >= rec.min_yield:
         return Move("active", f"recovered: accuracy lower bound {_f(c.acc_lb)}, yield {_f(c.yield_)}")
-    if days >= float(lc.get("retire_after_days", 21)):
+    if days >= lc.retire_after_days:
         return Move("retired", f"degraded for {days:.0f} days without recovery")
     return None
 
 
-def _retired(c: CapState, lc: Mapping[str, Any], days: float) -> Move | None:
-    if days >= float(lc.get("retired_retry_days", 30)):
+def _retired(c: CapState, lc: Lifecycle, days: float) -> Move | None:
+    if days >= lc.retired_retry_days:
         return Move("candidate", f"retired {days:.0f} days ago: one more try")
     return None
 
 
-def _discovered(c: CapState, lc: Mapping[str, Any], days: float) -> Move | None:
+def _discovered(c: CapState, lc: Lifecycle, days: float) -> Move | None:
     return Move("candidate", "admitted: robots and terms allow automated reading") if c.access == "ok" else None
 
 
-_RULES = {
+_RULES: dict[str, Callable[[CapState, Lifecycle, float], Move | None]] = {
     "discovered": _discovered,
     "candidate": _candidate,
     "active": _active,
     "degraded": _degraded,
     "retired": _retired,
 }
-
-
-def transition(c: CapState, cfg: Mapping[str, Any], now: datetime) -> Move | None:
-    if c.status == "blocked":
-        return None
-    if c.access in ACCESS_BLOCKING:
-        return Move("blocked", f"access check: {c.access.replace('_', ' ')}")
-    rule = _RULES.get(c.status)
-    days = (now - c.status_since).total_seconds() / 86400
-    return rule(c, cfg.get("lifecycle") or {}, days) if rule else None

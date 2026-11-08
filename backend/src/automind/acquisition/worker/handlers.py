@@ -52,10 +52,10 @@ async def metrics_snapshot(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any]:
 
 
 async def registry_review(task: queue.Task, ctx: WorkerCtx) -> dict[str, Any]:
-    from automind.acquisition.registry.application.review import review  # noqa: PLC0415
+    from automind.acquisition.registry.infrastructure.wiring import daily_review  # noqa: PLC0415
 
     cfg = load_yaml("registry.yaml")
-    stats = await review(cfg, kind=str(task.payload.get("kind") or "daily"))
+    stats = await daily_review(cfg).run(kind=str(task.payload.get("kind") or "daily"))
     return {"autonomy": bool(cfg.get("autonomy")), **stats}
 
 

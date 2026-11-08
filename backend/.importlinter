@@ -275,14 +275,24 @@ forbidden_modules =
     automind.acquisition.worker
     automind.delivery
 
+[importlinter:contract:registry-services-over-ports]
+name = The registry's services reach storage only through their ports (spec 012 A4a)
+type = forbidden
+source_modules =
+    automind.acquisition.registry.application
+forbidden_modules =
+    automind.acquisition.registry.infrastructure
+    automind.shared.infrastructure
+    sqlalchemy
+
 [importlinter:contract:api-uses-engine-facades]
 name = The web API reaches the acquisition engine only through its facades (spec 011 T113)
 type = forbidden
 source_modules =
     automind.delivery.web
 # allowed: automind.acquisition.api (the chat's order), automind.acquisition.admin_api (the admin page) and the 010
-# registry modules the API already uses: registry.api (ws), registry.application.seed (app), registry.domain.model
-# and registry.domain.seed_rules (admin)
+# registry modules the API already uses: registry.api (ws), registry.domain.model and registry.domain.seed_rules
+# (admin); the registry's seed is composed in delivery.registry
 forbidden_modules =
     automind.acquisition.agents
     automind.acquisition.domain
@@ -301,14 +311,16 @@ forbidden_modules =
     automind.acquisition.reputation
     automind.acquisition.snapshots
     automind.acquisition.worker
-    automind.acquisition.registry.application.admission
-    automind.acquisition.registry.application.review
-    automind.acquisition.registry.application.service
+    automind.acquisition.registry.application
     automind.acquisition.registry.domain.admission
     automind.acquisition.registry.domain.blame
+    automind.acquisition.registry.domain.config
     automind.acquisition.registry.domain.families
     automind.acquisition.registry.domain.lifecycle
     automind.acquisition.registry.domain.limits
+    automind.acquisition.registry.domain.planning
+    automind.acquisition.registry.domain.records
+    automind.acquisition.registry.domain.review
     automind.acquisition.registry.domain.score
     automind.acquisition.registry.infrastructure
 # the composition root starts the search/page cache retention loop (it was infrastructure/retention.py before

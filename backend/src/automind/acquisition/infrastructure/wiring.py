@@ -21,8 +21,7 @@ from automind.acquisition.infrastructure.search.tavily import TavilyProvider
 from automind.acquisition.parsing.infrastructure.wiring import live_readers
 from automind.acquisition.pipeline.infrastructure.wiring import stores as pipeline_stores
 from automind.acquisition.ports import AcqPorts
-from automind.acquisition.registry.application.service import RegistryService
-from automind.acquisition.registry.infrastructure.repo import RegistryRepo
+from automind.acquisition.registry.infrastructure.wiring import registry_service
 from automind.chat.infrastructure.persistence.repositories import MarketFactRepo
 from automind.shared.contracts.config import Reference
 from automind.shared.infrastructure.config.loader import search_config
@@ -54,7 +53,7 @@ def engine_ports(llm: Any, ref: Reference, registry: Any = None) -> AcqPorts:
         stores=pipeline_stores(),
         pages=live_pages(),
         readers=live_readers(),
-        registry=registry if registry is not None else RegistryService(RegistryRepo(ref.registry), ref.registry),
+        registry=registry if registry is not None else registry_service(ref.registry),
         metrics=prom.inc,
         market_facts=MarketFactRepo(),
         datasets=live_rows,

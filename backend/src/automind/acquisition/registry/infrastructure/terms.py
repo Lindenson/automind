@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Protocol
 
 from pydantic import BaseModel
 
@@ -49,27 +49,34 @@ LEGAL_WORDS = (
 
 
 class TermsVerdict(BaseModel):
+    """The terms reader's answer: whether the terms forbid automated access, and the clause that says so."""
+
     forbids_automated: bool
     clause: str = ""
 
 
-def _fetcher() -> Fetcher:
-    return Fetcher(FetchPolicy.from_config(fetch_policy()))
+class StructuredLLM(Protocol):
+    """A model call that returns a validated answer (the gateway, or a fake in tests)."""
+
+    async def structured(self, role: str, schema: type[TermsVerdict], system: str, user: str) -> TermsVerdict:
+        """The answer of `role` to `user` under `system`, as `schema`."""
+        ...
 
 
-async def _get(f: Fetcher, url: str) -> tuple[str, str] | None:
-    try:
-        d = await f.fetch(url)
-        return d.title or "", d.text or ""
-    except FetchRefused as e:
-        if "robots" in str(e):
-            raise
-        return None
-    except Exception:  # noqa: BLE001 - a missing page is not a verdict
-        return None
+class TermsFacts:
+    """`SiteFacts` over the fetcher and the `terms_reader` model role (the gateway when `llm` is None)."""
+
+    def __init__(self, llm: StructuredLLM | None = None) -> None:
+        self.llm = llm
+
+    async def gather(self, domain: str, sample_url: str | None) -> AdmissionFacts:
+        """Robots for the sample page (or the home page), its readable content, and a terms clause verified on the
+        terms page. Network errors other than a robots refusal leave a fact unknown."""
+        return await facts(domain, sample_url, self.llm)
 
 
-async def facts(domain: str, sample_url: str | None = None, llm: Any = None) -> AdmissionFacts:
+async def facts(domain: str, sample_url: str | None = None, llm: StructuredLLM | None = None) -> AdmissionFacts:
+    """The admission facts of a site (see `TermsFacts.gather`)."""
     f = _fetcher()
     robots: bool | None = None
     title, chars = "", None
@@ -109,3 +116,19 @@ async def facts(domain: str, sample_url: str | None = None, llm: Any = None) -> 
     if f.client is not None:
         await f.aclose()
     return AdmissionFacts(domain, robots, terms_forbid, clause, terms_url, chars, title)
+
+
+def _fetcher() -> Fetcher:
+    return Fetcher(FetchPolicy.from_config(fetch_policy()))
+
+
+async def _get(f: Fetcher, url: str) -> tuple[str, str] | None:
+    try:
+        d = await f.fetch(url)
+        return d.title or "", d.text or ""
+    except FetchRefused as e:
+        if "robots" in str(e):
+            raise
+        return None
+    except Exception:  # noqa: BLE001 - a missing page is not a verdict
+        return None

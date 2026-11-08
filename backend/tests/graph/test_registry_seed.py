@@ -6,9 +6,8 @@ from __future__ import annotations
 from sqlalchemy import delete, select
 
 from automind.acquisition.registry.api import Attempt
-from automind.acquisition.registry.application.seed import seed, seed_if_empty
-from automind.acquisition.registry.application.service import RegistryService
-from automind.acquisition.registry.infrastructure.repo import RegistryRepo
+from automind.acquisition.registry.infrastructure.wiring import registry_service
+from automind.delivery.registry import seed, seed_if_empty
 from automind.shared.infrastructure.db import models as m
 from automind.shared.infrastructure.db.session import sessionmaker
 
@@ -45,7 +44,7 @@ async def test_seed_is_idempotent_and_keeps_evidence():
 async def test_autonomy_off_plans_only_the_skip_list_and_records_attempts():
     await _clear()
     await seed()
-    svc = RegistryService(RegistryRepo(), {"autonomy": False})
+    svc = registry_service({"autonomy": False})
     plan = await svc.plan("used_price", ["ES", "EN", "IT"], "Toyota")
     assert plan.autonomy is False and plan.sources == [] and "alvolante.it" in plan.skip
     await svc.record(

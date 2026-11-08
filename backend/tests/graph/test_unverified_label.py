@@ -11,8 +11,7 @@ from sqlalchemy import delete, select
 
 from automind.acquisition.pipeline.contracts import JobSpec
 from automind.acquisition.pipeline.job import ResearchJob
-from automind.acquisition.registry.application.service import RegistryService
-from automind.acquisition.registry.infrastructure.repo import RegistryRepo
+from automind.acquisition.registry.infrastructure.wiring import registry_service
 from automind.chat.application.services.report.blocks.sources import sources_block
 from automind.chat.application.services.report.blocks.spec_table import spec_table
 from automind.chat.application.services.report.facts.car import load_car
@@ -70,7 +69,7 @@ def ports_for(scenario: str):  # noqa: ANN201
     search = FixtureSearch(scenario)
     ports = engine(make_ports(llm=llm, search=search))
     cfg = {**load_yaml("registry.yaml"), "autonomy": False}
-    ports.registry = RegistryService(RegistryRepo(cfg), cfg)
+    ports.registry = registry_service(cfg)
     ref = open_web_reference(
         favourite_queries={k: v for k, v in favourite_queries().items() if k.startswith("registry")}
     )

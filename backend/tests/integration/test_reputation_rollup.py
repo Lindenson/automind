@@ -10,8 +10,7 @@ from sqlalchemy import delete, select
 from tests.fakes.reputation_world import World
 
 from automind.acquisition.registry.api import Attempt, TruthSignalIn
-from automind.acquisition.registry.application.service import RegistryService
-from automind.acquisition.registry.infrastructure.repo import RegistryRepo
+from automind.acquisition.registry.infrastructure.wiring import registry_service
 from automind.acquisition.reputation.application.baseline import BaselineError
 from automind.acquisition.reputation.infrastructure.wiring import daily_rollup
 from automind.acquisition.worker import budget, exporter
@@ -49,7 +48,7 @@ def _gauge(g, **labels: str) -> float | None:
 
 async def test_rollup_counts_searches_per_value_and_resets_exploration(world: World) -> None:
     cfg = load_yaml("registry.yaml")
-    svc = RegistryService(RegistryRepo(cfg), cfg)
+    svc = registry_service(cfg)
     await world.source(DOM, "PUBLICATION", area=AREA)
     await svc.record([Attempt(domain=DOM, area=AREA, market="ES", url=f"https://{DOM}/{i}", outcome="accepted",
                               values=4, cost_eur=0.01) for i in range(5)])  # fmt: skip

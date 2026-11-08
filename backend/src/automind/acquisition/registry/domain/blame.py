@@ -11,6 +11,7 @@ from automind.acquisition.domain.blame import LABEL_010, BlameCase, blame_vector
 
 
 def blame(corrected: str | None, excerpt: str | None, extracted_by: str | None) -> str:
+    """ "source", "parser" or "extractor": the page's excerpt holds the corrected value → our reading was wrong."""
     if not corrected or not excerpt:
         return "source"
     want = tuple(sorted(numbers(corrected)))

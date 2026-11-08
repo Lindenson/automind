@@ -1,62 +1,43 @@
-"""Registry use cases behind the port (spec 010 US6-US8). Never raises into research."""
+"""The registry port's use cases (spec 010 US6-US8): the plan of an area, the sources worth a `site:` query, the
+attempts and the truth signals a job reports.
+
+Errors: research works without the registry, so nothing here raises into a job. When a store raises
+`RegistryStoreUnavailable` the plan is empty (research keeps its configured order), no source is offered for
+`site:` queries, the attempts are not counted, and a signal is not stored (None) — each logged."""
 
 from __future__ import annotations
 
 import logging
-import re
-from collections.abc import Mapping
-from typing import Any, Protocol
+from typing import Literal
 
 from automind.acquisition.domain import thompson
 from automind.acquisition.registry.api import Attempt, Plan, PlannedSource, TruthSignalIn
-from automind.acquisition.registry.domain.model import ACCESS_BLOCKING
+from automind.acquisition.registry.application.ports import (
+    Capabilities,
+    PageMarks,
+    RegistryStoreUnavailable,
+    Signals,
+)
+from automind.acquisition.registry.domain import planning
+from automind.acquisition.registry.domain.config import RegistryConfig
+from automind.acquisition.registry.domain.records import CapabilityView
 
 log = logging.getLogger(__name__)
 
 
-class Store(Protocol):
-    async def capabilities(self, area: str, markets: list[str]) -> list[dict[str, Any]]: ...
-    async def record(self, attempts: list[Attempt]) -> None: ...
-    async def queryable(self, area: str, markets: list[str]) -> list[dict[str, Any]]: ...
-    async def signal(self, s: TruthSignalIn, weight: float) -> str | None: ...
-
-
-_DOMAIN = re.compile(r"^[a-z0-9-]+(?:\.[a-z0-9-]+)+(?:/[\w./-]*)?$")
-
-
-def rank_queryable(rows: list[dict[str, Any]], markets: list[str], limit: int) -> list[PlannedSource]:
-    """Pure order of the sources for `site:` queries: active (by score) before candidates (by seed priority, then
-    score); within a status the markets keep the caller's order. One entry per domain."""
-    order = {m: i for i, m in enumerate(markets)}
-    usable = [
-        r
-        for r in rows
-        if _DOMAIN.match(str(r["domain"]))
-        and r.get("access") not in ACCESS_BLOCKING
-        and (r["status"] == "active" or (r["status"] == "candidate" and r.get("access", "ok") == "ok"))
-    ]
-    usable.sort(key=lambda r: (r["status"] != "active", order.get(r["market"], len(order)),
-                               -float(r.get("score") or 0.0), r.get("priority_seed") or 9, r["domain"]))  # fmt: skip
-    out: list[PlannedSource] = []
-    for r in usable:
-        if len(out) >= limit:
-            break
-        if any(p.domain == r["domain"] for p in out):
-            continue
-        out.append(PlannedSource(domain=r["domain"], market=r["market"], priority=len(out), status=r["status"],
-                                 unverified=r["status"] == "candidate",
-                                 path=str((r.get("url_patterns") or [""])[0])))  # fmt: skip
-    return out
-
-
 class RegistryService:
-    def __init__(self, store: Store, cfg: Mapping[str, Any]) -> None:
-        self.store = store
+    """The registry as research sees it (`registry.api.RegistryPort`)."""
+
+    def __init__(self, capabilities: Capabilities, signals: Signals, pages: PageMarks, cfg: RegistryConfig) -> None:
+        self.capabilities = capabilities
+        self.signals = signals
+        self.pages = pages
         self.cfg = cfg
 
     @property
     def autonomy(self) -> bool:
-        return bool(self.cfg.get("autonomy", False))
+        """The registry orders research's sources (`registry.autonomy`)."""
+        return self.cfg.autonomy
 
     async def plan(self, area: str, markets: list[str], make: str | None, seed: int | None = None) -> Plan:
         """Ordered sources for an area. With autonomy off research keeps its configured order (the plan is empty
@@ -64,67 +45,19 @@ class RegistryService:
         score and the candidates that get an exploration slot are drawn by Thompson sampling (spec 011 R7) while
         today's `explore.eur_per_day` lasts; `seed` (from the job id) makes the draw reproducible."""
         try:
-            rows = await self.store.capabilities(area, [*markets, "ANY"])
-        except Exception:  # noqa: BLE001 - research works without the registry
+            rows = await self.capabilities.capabilities(area, [*markets, "ANY"])
+        except RegistryStoreUnavailable:
             log.exception("registry.plan_failed area=%s", area)
             return Plan(area=area)
-        skip = sorted({r["domain"] for r in rows if r["status"] == "blocked"})
+        skip = planning.blocked_domains(rows)
         if not self.autonomy:
             return Plan(area=area, autonomy=False, skip=skip)
-        usable = [r for r in rows if r["status"] in ("active", "degraded")]
-        usable.sort(
-            key=lambda r: (r["status"] != "active", -float(r["score"]), r.get("priority_seed") or 9, r["domain"])
-        )
-        out: list[PlannedSource] = []
-        seen: set[str] = set()
-        for r in usable:
-            if r["domain"] in seen:
-                continue
-            seen.add(r["domain"])
-            out.append(PlannedSource(domain=r["domain"], market=r["market"], priority=len(out), status="active"))
-        for r in await self._explore(area, markets, rows, seen, seed):
-            seen.add(r["domain"])
-            out.append(PlannedSource(domain=r["domain"], market=r["market"], priority=len(out), status="candidate",
-                                     unverified=True))  # fmt: skip
-        return Plan(area=area, autonomy=True, sources=out, skip=skip)
-
-    async def _explore(
-        self, area: str, markets: list[str], rows: list[dict[str, Any]], seen: set[str], seed: int | None
-    ) -> list[dict[str, Any]]:
-        explore_cfg = self.cfg.get("explore") or {}
-        slots = min(int(self.cfg.get("candidate_slots", 1)), int(explore_cfg.get("max_candidates_per_job", 1)))
-        try:
-            spent = float(await self.store.explore_spent()) if hasattr(self.store, "explore_spent") else 0.0
-        except Exception:  # noqa: BLE001
-            log.exception("registry.explore_spent_failed")
-            return []
-        budget = float(explore_cfg.get("eur_per_day", 0.10)) - spent
-        priors = self.cfg.get("priors") or {}
-        by_key: dict[tuple[str, str], dict[str, Any]] = {}
-        arms: list[thompson.Arm] = []
-        for r in rows:
-            if r["status"] != "candidate" or r["domain"] in seen:
-                continue
-            pr, pw = priors.get(r.get("source_type") or "OTHER") or priors.get("OTHER") or [1.0, 1.0]
-            attempts = float(r.get("attempts") or 0.0)
-            arms.append(thompson.Arm(
-                domain=r["domain"], status=r["status"], right_w=float(r.get("right_w") or 0.0),
-                wrong_w=float(r.get("wrong_w") or 0.0), prior_r=float(pr), prior_w=float(pw),
-                accepted=float(r.get("accepted") or 0.0), attempts=attempts,
-                cost_per_attempt=float(r.get("cost_eur") or 0.0) / attempts if attempts > 0 else 0.0,
-                access=str(r.get("access") or "ok"), market=r["market"],
-            ))  # fmt: skip
-            by_key[(r["domain"], r["market"])] = r
-        if seed is None:
-            seed = thompson.seed_of(area, *markets)
-        picked: list[dict[str, Any]] = []
-        for a in thompson.explore(arms, seed, slots + 4, budget, float(self.cfg.get("cost_lambda", 2.0))):
-            if len(picked) >= slots:
-                break
-            if any(p["domain"] == a.domain for p in picked):
-                continue
-            picked.append(by_key[(a.domain, a.market)])
-        return picked
+        active = planning.ordered_active(rows)
+        seed = seed if seed is not None else thompson.seed_of(area, *markets)
+        explored = await self._explore(rows, {r.domain for r in active}, seed)
+        sources = [_planned(r, i, "active") for i, r in enumerate(active)]
+        sources += [_planned(r, len(active) + i, "candidate") for i, r in enumerate(explored)]
+        return Plan(area=area, autonomy=True, sources=sources, skip=skip)
 
     async def sources_for(self, area: str, markets: list[str], limit: int) -> list[PlannedSource]:
         """Active sources first (best score first), then candidates the survey found open (robots and terms);
@@ -133,25 +66,49 @@ class RegistryService:
         if limit <= 0:
             return []
         try:
-            rows = await self.store.queryable(area, markets)
-        except Exception:  # noqa: BLE001 - research works without the registry
+            rows = await self.capabilities.queryable(area, markets)
+        except RegistryStoreUnavailable:
             log.exception("registry.sources_failed area=%s", area)
             return []
-        return rank_queryable(rows, markets, limit)
+        return [_queryable(r, i) for i, r in enumerate(planning.rank_queryable(rows, markets, limit))]
 
     async def record(self, attempts: list[Attempt]) -> None:
+        """Count a job's attempts, then mark the pages they read (a page with accepted values is kept longer)."""
         if not attempts:
             return
         try:
-            await self.store.record(attempts)
-        except Exception:  # noqa: BLE001 - never fail a job over the registry
+            await self.capabilities.record(attempts)
+        except RegistryStoreUnavailable:
             log.exception("registry.record_failed")
+            return
+        for a in attempts:
+            if a.snapshot_id is not None:
+                await self.pages.mark(a.snapshot_id, a.values if a.outcome == "accepted" else 0, a.variant_id)
 
     async def signal(self, s: TruthSignalIn) -> str | None:
         """Record a truth signal with its configured weight; returns its id (None when it could not be stored)."""
         try:
-            weight = float((self.cfg.get("weights") or {}).get(s.kind, 1.0))
-            return await self.store.signal(s, weight)
-        except Exception:  # noqa: BLE001
+            return await self.signals.signal(s, self.cfg.weight_of(s.kind))
+        except RegistryStoreUnavailable:
             log.exception("registry.signal_failed")
             return None
+
+    async def _explore(self, rows: list[CapabilityView], taken: set[str], seed: int) -> list[CapabilityView]:
+        try:
+            spent = await self.capabilities.explore_spent()
+        except RegistryStoreUnavailable:
+            log.exception("registry.explore_spent_failed")
+            return []
+        return planning.pick_candidates(rows, taken, self.cfg, planning.exploration(self.cfg, spent, seed))
+
+
+def _planned(r: CapabilityView, priority: int, status: Literal["active", "candidate"]) -> PlannedSource:
+    return PlannedSource(domain=r.domain, market=r.market, priority=priority, status=status,
+                         unverified=status == "candidate")  # fmt: skip
+
+
+def _queryable(r: CapabilityView, priority: int) -> PlannedSource:
+    status: Literal["active", "candidate"] = "active" if r.status == "active" else "candidate"  # rank_queryable's two
+    path = r.url_patterns[0] if r.url_patterns else ""
+    return PlannedSource(domain=r.domain, market=r.market, priority=priority, status=status,
+                         unverified=status == "candidate", path=path)  # fmt: skip

@@ -6,6 +6,7 @@ from collections.abc import Mapping, Sequence
 
 
 def family_of(domain: str, families: Mapping[str, Sequence[str]]) -> str:
+    """The family a domain belongs to; the domain itself when it is in none."""
     d = domain.lower().removeprefix("www.")
     for name, members in families.items():
         if any(d == m or d.endswith("." + m) for m in members):
