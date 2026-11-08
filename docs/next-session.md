@@ -1,4 +1,4 @@
-# Next session: start here (2026-11-08 after A3b job stages; next: A3c parsing/)
+# Next session: start here (2026-11-08 after A3c parsing/; next: A4 registry/gold/snapshots/drift/replay)
 
 **First task: refactoring — spec 012, executed by `specs/012-refactoring/tasks.md` (one phase = one PR).**
 No new features until it is done (owner, 2026-11-06). All functional work in §4 is parked, still valid, and
@@ -15,7 +15,7 @@ What the system is: `README.md` ("Acquisition engine"), `docs/adr/ADR-032-acquis
 
 ## 0. Resume acquisition A3 (next action)
 
-**Where we are (2026-11-08, main = A3b merged, PR #121).** Chat services S7–S9c-2 are done. Since S9.3 (PR #116):
+**Where we are (2026-11-08, main = A3c merged, PR #122).** Chat services S7–S9c-2 are done. Since S9.3 (PR #116):
 rule `storage` (sqlalchemy / `shared.infrastructure.db` outside an `infrastructure/` package, **any** directory) and
 module limit **200**, both in the ratchet. Owner's decision: acquisition A1–A8 **before** S9d (tasks.md "S9.3"), one
 PR per package, each leaving **0 `storage`, 0 `size`, 0 entries** in its package.
@@ -24,8 +24,13 @@ Done: **A1 `reputation/`** (PR #117, −30), **A2 `gates/`** (PR #118, −81), *
 −29: every SQL behind `PipelineStores` in `pipeline/infrastructure/`, records/rules in `pipeline/domain/`,
 `ValueSelection` replaced `merge.py`, stages get stores via `AcqPorts.stores`), **A3b job as stages** (PR #121, −23:
 `ResearchJob.run()` = opening → search → `stages/car_pages` | `stages/market_pages` → `stages/book`; `contracts.py`,
-`scope.py`, `home_market.py`; `AcqPorts.shadow` replaced the lazy gates import, contract `pipeline-knows-no-gates`).
-Structure baseline 1418, mypy report (all src) 214, 12 import contracts. Owner confirmed the A3 split (a → b → c) on
+`scope.py`, `home_market.py`; `AcqPorts.shadow` replaced the lazy gates import, contract `pipeline-knows-no-gates`),
+**A3c `parsing/`** (PR #122, −70: `readers/` — spec / spec_check / regex_safety, interpreter, fingerprint,
+`ParserRegistry` over `ports` (`ParserBook`, `ReadingLog`, `ReadShadow`, `ParserStoreUnavailable`) + `tally`;
+`infrastructure/` — `ParserStore`, reading_log, v1_specs (YAML, deny-list, seed), `wiring.live_readers()` /
+`parser_registry()` / `yaml_registry()`; `extraction/` — contracts, areas, extract; `normalise/` — cell_value, labels,
+text, fuel, gearbox, numbers). **pipeline and parsing: 0 entries.**
+Structure baseline 1348, mypy report (all src) 200, 12 import contracts. Owner confirmed the A3 split (a → b → c) on
 2026-11-08.
 
 **The template (follow it for A3–A8; `reputation/` and `gates/` show it):**
@@ -43,12 +48,11 @@ Structure baseline 1418, mypy report (all src) 214, 12 import contracts. Owner c
 - Unit tests over fakes for every service: one failure path at least (store down, lost claim, budget, no measure).
 - Safety tests are never weakened (A2: `test_no_self_change` flagged `self.budgets` → renamed `agent_budgets`).
 
-**Next: A3c** — `parsing/` (T084): `readers/` (spec, interpreter, registry, store, fingerprint, legacy, migrate_v1;
-registry/store/migrate_v1 SQL into infrastructure), `extraction/` (`contracts.py` ← the schemas of
-`pipeline/extract.py`, 274 → logic only, < 200; its 24 `order`, `regex _norm`, `ignore spec_claims_schema`),
-`normalise/` (units, cycles, Chinese units, CLTC; validate's `_litres`, `_variant_gearbox`, `re_diesel_suffix`,
-`fuel_of` table). Leaves pipeline at 0 entries. Follow-up A3b-f1 (type `Found.stats` / hits) fits there or in A4.
-Then A4 registry/gold/ (+ `identity.py` and `gold/versions.py` → `acquisition/identity_readers/`, T082 rest)/
+**Next: A4** — `registry/` (admission, review, repo), `gold/` (load, repo, versions, match, rdw), `snapshots/`,
+`drift/`, `replay/` (run 367); with it `pipeline/identity.py` + `gold/versions.py` → `acquisition/identity_readers/`
+(T082 rest) and A3b-f1 (type `Found.stats` / hits: `SearchStats` / `SourceHit`). Callers of the parser store use
+`ParserStore()` (drift/daily, gates/page_reading) or the lazy imports still listed for agents/replay — A4/A6 remove
+them. A4 registry/gold/ (+ `identity.py` and `gold/versions.py` → `acquisition/identity_readers/`, T082 rest)/
 snapshots/drift/replay, A5 worker, A6 agents, A7 engine top level + `admin_api.py` (1049) → `admin/`, A8
 `acquisition/domain` modules over 200 + `infrastructure/fetch.py`. Then S9d (chat: `confirm.py` nodes, `ask.py` →
 questions service, `ChallengeValue`, `report/stages/verdict.py` → `ResearchHistory`), S10, S12 rest, S13–S15.
@@ -68,7 +72,7 @@ cd backend && uv run python ../scripts/check_checkpoints.py      # read-only pro
 ```
 - Moves: `scripts/refactor/move.py <map.yaml>` (maps in `specs/012-refactoring/moves/`; whole packages first);
   after moves `scripts/check_structure.py --write-baseline` only if the count did not grow.
-- Structure ratchet baseline `scripts/structure_baseline.txt` (1418 now: +storage, size 200; A1 −30, A2 −81, A3a −29, A3b −23); new violations fail
+- Structure ratchet baseline `scripts/structure_baseline.txt` (1348 now: +storage, size 200; A1 −30, A2 −81, A3a −29, A3b −23, A3c −70); new violations fail
   the gate; a PR shrinks the entries of every package it touches (pr-self-check.md).
 - Migration tests fail with "tables can have at most 1600 columns" → the scratch DB `automind_mig` is worn out by
   roundtrips (dropped columns count): `docker compose exec -T postgres dropdb -U automind automind_mig && … createdb …`.
@@ -77,13 +81,13 @@ cd backend && uv run python ../scripts/check_checkpoints.py      # read-only pro
 
 ## 1. State when parked
 
-- main = A3b merged (PR #121). **Production still runs the pre-012 code** (`2b5eb92`, PRs #83–#85,
+- main = A3c merged (PR #122). **Production still runs the pre-012 code** (`2b5eb92`, PRs #83–#85,
   `scripts/deploy.sh up --monitoring`, app :8090). Deploy policy: none before the baseline closes on 2026-11-12; then
   the first 012 checkpoint (compose worker command is `python -m automind.cli worker`), live replay of chat ccd5f7d8
   after it, then deploys only at S9, S12, S15.
-- Last gate (A3b): `check.sh` green — 1555 backend passed (2 skipped) + 161 frontend; 12 import contracts kept
-  (+ `pipeline-knows-no-gates`); structure 1418/1418 new 0; mypy report 214. Behaviour diff vs previous main: differs 0
-  (same 61, unstable 21, racy 7). check_checkpoints: 513 blobs, 0 paths, 12 threads. Never start pytest while
+- Last gate (A3c): `check.sh` green — 1558 backend passed (2 skipped) + 161 frontend; 12 import contracts kept
+  (pure contract +11 parsing modules); structure 1348/1348 new 0; mypy report 200 (parsing in strict). Behaviour diff
+  vs previous main: differs 0 (same 60, unstable 22, racy 7). check_checkpoints: 529 blobs, 0 paths, 12 threads. Never start pytest while
   diff_behaviour runs (same test DB). If a session dies during diff_behaviour:
   `git worktree remove --force /tmp/behaviour-*/{base,head}`, `git worktree prune`.
 - Kept as it was (A3b), worth a look later: the shadow gate's feed of a job also gets the pages relevance dropped
