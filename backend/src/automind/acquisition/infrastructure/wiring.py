@@ -18,6 +18,7 @@ from automind.acquisition.infrastructure.search.serpapi import SerpApiProvider
 from automind.acquisition.infrastructure.search.serper import SerperProvider
 from automind.acquisition.infrastructure.search.tavily import TavilyProvider
 from automind.acquisition.parsing.registry import live_readers
+from automind.acquisition.pipeline.infrastructure.wiring import stores as pipeline_stores
 from automind.acquisition.ports import AcqPorts
 from automind.acquisition.registry.application.service import RegistryService
 from automind.acquisition.registry.infrastructure.repo import RegistryRepo
@@ -49,6 +50,7 @@ def engine_ports(llm: Any, ref: Reference, registry: Any = None) -> AcqPorts:
         llm=llm,
         ref=ref,
         search=live_search(),
+        stores=pipeline_stores(),
         pages=live_pages(),
         readers=live_readers(),
         registry=registry if registry is not None else RegistryService(RegistryRepo(ref.registry), ref.registry),

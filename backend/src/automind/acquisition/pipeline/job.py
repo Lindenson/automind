@@ -17,35 +17,34 @@ import contextlib
 from collections import defaultdict
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from typing import Any
-
-from sqlalchemy import delete, func, select
 
 from automind.acquisition.domain import relevance as rel
 from automind.acquisition.infrastructure import overrides
 from automind.acquisition.pipeline import extract as ex
-from automind.acquisition.pipeline import fetch, locate, market, merge, parse, persist, plan, relevance, validate
-from automind.acquisition.pipeline.locate import pages_for
-from automind.acquisition.pipeline.merge import reselect
+from automind.acquisition.pipeline import fetch, locate, market, parse, persist, plan, relevance, validate
+from automind.acquisition.pipeline.application import selection
+from automind.acquisition.pipeline.application.ports import AreaRun, JobBook, JobMetrics
+from automind.acquisition.pipeline.application.selection import ValueSelection
+from automind.acquisition.pipeline.domain.hits import hits_of, source_kind
+from automind.acquisition.pipeline.domain.variant import VariantFacts
 from automind.acquisition.pipeline.parse import _read_tables
-from automind.acquisition.pipeline.persist import _evidence, _persist, _persist_reading
-from automind.acquisition.pipeline.plan import _plan, _variant, current_candidates, current_plan, known_makes
+from automind.acquisition.pipeline.persist import evidence_in, persist_extraction, persist_reading
+from automind.acquisition.pipeline.plan import _plan, current_candidates, current_plan, known_makes, variant
 from automind.acquisition.pipeline.relevance import _llm_per_job, _PageJudge, _relevance_target
-from automind.acquisition.pipeline.validate import known_values
+from automind.acquisition.pipeline.searches import pages_for
 from automind.acquisition.ports import AcqPorts
 from automind.acquisition.read import _have, missing_critical
 from automind.acquisition.registry.api import Attempt
 from automind.shared import evidence as ev
 from automind.shared.contracts.web import Page
-from automind.shared.infrastructure import db
 from automind.shared.metering.usage import BudgetExceeded, current_job
 from automind.shared.research_order import plan as research_plan
 from automind.shared.research_order import search_plan
 
 VERSION = "job@1"
 # spec 011 FR-002: the versions of the stages a job ran, on every attempt and on the area's research run
-_STAGES = (plan, locate, fetch, relevance, parse, validate, persist, merge, market)
+_STAGES = (plan, locate, fetch, relevance, parse, validate, persist, selection, market)
 STAGE_VERSIONS = {**{m.VERSION.split("@")[0]: m.VERSION for m in _STAGES}, "job": VERSION}
 
 
@@ -85,7 +84,7 @@ class JobResult:
     planned: list[str] = field(default_factory=list)  # the active sources of the registry's plan (not_reached input)
 
 
-def target_of(v: db.Variant, car_year: int | None = None, home: str | None = None) -> str:
+def target_of(v: VariantFacts, car_year: int | None = None, home: str | None = None) -> str:
     """The car for the extractor, the relevance role and the validator. `home`: what `plan.home_target` says about
     a car sold only outside Europe (its market, its local name, how its pages label the figures)."""
     years = f" ({v.generation_years_from}–{v.generation_years_to or 'now'})" if v.generation_years_from else ""
@@ -154,9 +153,9 @@ async def run_job(ports: AcqPorts, job: JobSpec, emit: Emit) -> JobResult:
 
 
 async def _run(ports: AcqPorts, job: JobSpec, emit: Emit) -> JobResult:
-    v = await _variant(job.variant_id)
+    v = await variant(ports, job.variant_id)
     missing = await missing_critical(v.id, v.powertrain) if job.area == "specs" else []
-    seen = await _used_urls(v.id, job.area)
+    seen = await ports.stores.book.used_urls(v.id)
     planned, pages, stats = await pages_for(ports, v, job, missing, seen, emit)
     target = target_of(v, job.car_year, plan.home_target(ports, v, plan.home_market(v, job)))
     # One pipeline per page (spec 004 FR-032): relevance → table reader or extraction → validation → storage.
@@ -166,7 +165,7 @@ async def _run(ports: AcqPorts, job: JobSpec, emit: Emit) -> JobResult:
     judge = _PageJudge(ports, v, tgt, gens, target, job.area)
     makes = known_makes(ports)
     sem = asyncio.Semaphore(_llm_per_job(ports))
-    known = await known_values(v.id)
+    known = await ports.stores.values.known_values(v.id)
     readings = await _read_tables(ports, v, pages) if job.area in ex.SPEC_AREAS else {}
     gate: dict[str, int] = defaultdict(int)
     values_rejected: dict[str, int] = defaultdict(int)
@@ -184,7 +183,7 @@ async def _run(ports: AcqPorts, job: JobSpec, emit: Emit) -> JobResult:
         totals["docs"] += 1
         d = p.as_doc()
         if d.url in readings:
-            a, rj = await _persist_reading(ports, v, job.area, d, readings[d.url], known, values_rejected, p)
+            a, rj = await persist_reading(ports, v, job.area, d, readings[d.url], known, values_rejected, p)
             totals["reader"] += a
         else:
             try:
@@ -198,8 +197,8 @@ async def _run(ports: AcqPorts, job: JobSpec, emit: Emit) -> JobResult:
                 return
             uncertain = r.verdict in ("UNCERTAIN", "MULTI_VARIANT")
             async with sem:
-                a, rj = await _persist(ports, v, job.area, d, out, target, uncertain, p, known, values_rejected,
-                                       car_year=job.car_year)  # fmt: skip
+                a, rj = await persist_extraction(ports, v, job.area, d, out, target, uncertain, p, known,
+                                                 values_rejected, car_year=job.car_year)  # fmt: skip
         totals["accepted"] += a
         totals["rejected"] += rj
         outcome_by_url[p.url] = (
@@ -217,11 +216,11 @@ async def _run(ports: AcqPorts, job: JobSpec, emit: Emit) -> JobResult:
     stats["values_rejected"] = dict(values_rejected)
     stats["reader_values"] = reader_values
     if job.area in ex.SPEC_AREAS or job.area == "maintenance":
-        await reselect(v.id)
-    hits = await area_hits(v, job.area)
+        await ValueSelection(ports.stores.values).reselect(v.id)
+    hits = await area_hits(ports.stores.book, v, job.area)
     met = await _area_met(v, job.area, hits)
-    await _mark_run(v.id, job.area, totals["docs"], accepted, rejected, job.round, met, registry=job.escalated)
-    await _job_metrics(job.job_id, planned, stats)
+    await _mark_run(ports.stores.book, v.id, job, totals["docs"], accepted, rejected, met, registry=job.escalated)
+    await _job_metrics(ports.stores.book, job.job_id, planned, stats)
     await emit("validating", f"{job.area}: {accepted} accepted, {rejected} rejected by validation")
     return JobResult(
         job.job_id,
@@ -239,8 +238,8 @@ async def _run(ports: AcqPorts, job: JobSpec, emit: Emit) -> JobResult:
 async def _run_market(ports: AcqPorts, job: JobSpec, emit: Emit) -> JobResult:
     """A market-level area (spec 006 US5): pages are about the market, not the car, so no relevance gate;
     every fact needs a verbatim excerpt with its amount and is stored once per market and key."""
-    v = await _variant(job.variant_id)
-    seen = await _used_urls(v.id, job.area)
+    v = await variant(ports, job.variant_id)
+    seen = await ports.stores.book.used_urls(v.id)
     planned, pages, stats = await pages_for(ports, v, job, [], seen, emit)
     await emit("reading", f"{job.area}: reading {len(pages)} sources")
     sem = asyncio.Semaphore(_llm_per_job(ports))
@@ -262,10 +261,8 @@ async def _run_market(ports: AcqPorts, job: JobSpec, emit: Emit) -> JobResult:
         rows, rj = market.accept(out, d)
         a = 0
         if rows and ports.market_facts is not None:
-            async with db.sessionmaker()() as s:
-                e = await _evidence(s, v, d, p)
-                await s.commit()
-            a = await ports.market_facts.upsert(rows, e.id)
+            evidence_id = await ports.stores.evidence.save(evidence_in(v, d, p))
+            a = await ports.market_facts.upsert(rows, evidence_id)
         totals["accepted"] += a
         totals["rejected"] += rj
         if a:
@@ -274,165 +271,40 @@ async def _run_market(ports: AcqPorts, job: JobSpec, emit: Emit) -> JobResult:
     await asyncio.gather(*(one(p) for p in pages))
     hits = [{"domain": dm, "source_type": "PUBLICATION", "items": n} for dm, n in domains.items()]
     met = research_plan.minimum_met(job.area, [research_plan.SourceHit(**h) for h in hits])
-    await _mark_run(v.id, job.area, totals["docs"], totals["accepted"], totals["rejected"], job.round, met)
-    await _job_metrics(job.job_id, planned, stats)
+    await _mark_run(ports.stores.book, v.id, job, totals["docs"], totals["accepted"], totals["rejected"], met)
+    await _job_metrics(ports.stores.book, job.job_id, planned, stats)
     await emit("validating", f"{job.area}: {totals['accepted']} accepted, {totals['rejected']} rejected")
     return JobResult(job.job_id, v.id, job.area, job.round, docs=totals["docs"], accepted=totals["accepted"],
                      rejected=totals["rejected"], minimum_met=met, hits=hits)  # fmt: skip
 
 
-async def _job_metrics(job_id: str, planned: list[search_plan.PlannedQuery], stats: dict[str, Any]) -> None:
-    async with db.sessionmaker()() as s:
-        cost = (
-            await s.execute(
-                select(func.coalesce(func.sum(db.SearchCall.cost_eur), 0)).where(db.SearchCall.job_id == job_id)
-            )
-        ).scalar_one()
-        job = await s.get(db.ResearchJob, job_id)
-        if job is None:
-            return
-        empty = {(q.text, q.market) for q in stats.get("empty_queries", [])}
-        job.queries = [{"text": q.text, "kind": q.kind, "market": q.market, "empty": (q.text, q.market) in empty}
-                       for q in planned]  # fmt: skip
-        job.pages_found = stats["pages_found"]
-        job.pages_cached = stats["pages_cached"]
-        job.pages_rejected = {**(job.pages_rejected or {}), **stats["pages_rejected"]}
-        job.search_cost_eur = float(cost)
-        job.values_rejected = stats.get("values_rejected") or None
-        job.reader_values = int(stats.get("reader_values") or 0)
-        await s.commit()
+async def _job_metrics(book: JobBook, job_id: str, planned: list[search_plan.PlannedQuery],
+                       stats: dict[str, Any]) -> None:  # fmt: skip
+    empty = {(q.text, q.market) for q in stats.get("empty_queries", [])}
+    queries = [{"text": q.text, "kind": q.kind, "market": q.market, "empty": (q.text, q.market) in empty}
+               for q in planned]  # fmt: skip
+    await book.record_metrics(job_id, JobMetrics(queries=queries, pages_found=stats["pages_found"],
+                                                 pages_cached=stats["pages_cached"],
+                                                 pages_rejected=stats["pages_rejected"],
+                                                 values_rejected=stats.get("values_rejected") or None,
+                                                 reader_values=int(stats.get("reader_values") or 0)))  # fmt: skip
 
 
-async def _used_urls(variant_id: str, area: str) -> set[str]:
-    async with db.sessionmaker()() as s:
-        rows = await s.execute(
-            select(db.Evidence.url)
-            .join(db.Claim, db.Claim.evidence_id == db.Evidence.id, isouter=True)
-            .where(db.Evidence.variant_id == variant_id)
-        )
-        return {str(u) for u in rows.scalars()}
-
-
-Src = tuple[str, str, bool]  # (domain, source type, unverified: read from a registry candidate)
-
-
-async def _claim_sources(s: Any, v: db.Variant, area: str) -> list[Src]:
-    q = (
-        select(db.Evidence.domain, db.Evidence.source_type, db.Evidence.unverified)
-        .join(db.Claim, db.Claim.evidence_id == db.Evidence.id)
-        .where(db.Claim.variant_id == v.id, db.Claim.area == area, db.Claim.status == "ACCEPTED")
-    )
-    return [(str(a), str(b), bool(u)) for a, b, u in (await s.execute(q)).all()]
-
-
-async def _maintenance_sources(s: Any, v: db.Variant) -> list[Src]:
-    out: list[Src] = []
-    rows = await s.execute(select(db.MaintenanceItem.evidence_ids).where(db.MaintenanceItem.variant_id == v.id))
-    for (ids,) in rows.all():
-        for eid in ids or []:
-            e = await s.get(db.Evidence, eid)
-            if e:
-                out.append((e.domain, e.source_type, bool(e.unverified)))
-    return out
-
-
-async def _table_sources(s: Any, v: db.Variant, area: str) -> list[Src]:
-    table: Any = {"reviews": db.ReviewItem, "reliability": db.Issue, "used_issues": db.Issue,
-                  "used_price": db.UsedPriceRange, "depreciation": db.ValueRetention}[area]  # fmt: skip
-    q = select(db.Evidence.domain, db.Evidence.source_type, db.Evidence.unverified)
-    q = q.join(table, table.evidence_id == db.Evidence.id)
-    q = q.where(table.variant_id == v.id)
-    if table is db.UsedPriceRange:
-        q = q.where(db.UsedPriceRange.status == "ACCEPTED")
-    if table is db.Issue:
-        q = q.where(db.Issue.area == area)
-    out = [(str(a), str(b), bool(u)) for a, b, u in (await s.execute(q)).all()]
-    if area == "reliability":
-        q2 = (
-            select(db.Evidence.domain, db.Evidence.source_type, db.Evidence.unverified)
-            .join(db.ReliabilityStat, db.ReliabilityStat.evidence_id == db.Evidence.id)
-            .where(db.ReliabilityStat.variant_id == v.id)
-        )
-        out += [(str(a), str(b), bool(u)) for a, b, u in (await s.execute(q2)).all()]
-    return out
-
-
-async def _manufacturer_sources(s: Any, v: db.Variant) -> list[Src]:
-    rows = await s.execute(select(db.ManufacturerFact.url).where(db.ManufacturerFact.make == v.make))
-    return [(ev.domain_of(u), ev.classify_source(u), False) for (u,) in rows.all()]
-
-
-async def area_hits(v: db.Variant, area: str) -> list[dict[str, Any]]:
+async def area_hits(book: JobBook, v: VariantFacts, area: str) -> list[dict[str, Any]]:
     """Accepted evidence per source domain for an area (input to the section minimum); `unverified` marks a
-    registry candidate's evidence (counts half, spec 011 FR-022)."""
-    async with db.sessionmaker()() as s:
-        if area in ex.SPEC_AREAS:
-            pairs = await _claim_sources(s, v, area)
-        elif area == "maintenance":
-            pairs = await _claim_sources(s, v, area) + await _maintenance_sources(s, v)
-        elif area == "manufacturer":
-            pairs = await _manufacturer_sources(s, v)
-        else:
-            pairs = await _table_sources(s, v, area)
-    counts: dict[Src, int] = defaultdict(int)
-    for p in pairs:
-        counts[p] += 1
-    return [{"domain": d, "source_type": t, "items": n, **({"unverified": True} if u else {})}
-            for (d, t, u), n in counts.items()]  # fmt: skip
+    registry candidate's evidence (counts half, spec 011 FR-022). KeyError: an area with no store of its own."""
+    return hits_of(await book.area_sources(v.id, v.make, area, source_kind(area, ex.SPEC_AREAS)))
 
 
-async def _mark_run(variant_id: str, area: str, docs: int, acc: int, rej: int, round_: int, met: bool,
-                    *, registry: bool = False) -> None:  # fmt: skip
+async def _mark_run(book: JobBook, variant_id: str, job: JobSpec, docs: int, acc: int, rej: int, met: bool, *,
+                    registry: bool = False) -> None:  # fmt: skip
     """`registry`: the job tried the registry's sources with the escalation to the other markets (kept otherwise)."""
-    async with db.sessionmaker()() as s:
-        old = await s.execute(
-            select(db.ResearchRun.registry_at).where(db.ResearchRun.variant_id == variant_id,
-                                                     db.ResearchRun.area == area)
-        )  # fmt: skip
-        tried = datetime.now(UTC) if registry else old.scalars().first()
-        await s.execute(
-            delete(db.ResearchRun).where(db.ResearchRun.variant_id == variant_id, db.ResearchRun.area == area)
-        )
-        s.add(
-            db.ResearchRun(
-                variant_id=variant_id,
-                area=area,
-                docs_used=docs,
-                claims_accepted=acc,
-                claims_rejected=rej,
-                rounds_used=round_,
-                minimum_met=met,
-                registry_at=tried,
-                stage_versions=STAGE_VERSIONS,
-            )
-        )
-        if area == "manufacturer":
-            await _brand_positioning(s, variant_id)
-        await s.commit()
+    run = AreaRun(variant_id=variant_id, area=job.area, docs=docs, accepted=acc, rejected=rej, rounds=job.round,
+                  minimum_met=met, registry=registry, stage_versions=STAGE_VERSIONS)  # fmt: skip
+    await book.mark_run(run, brand_positioning=job.area == "manufacturer")
 
 
-async def _brand_positioning(s: Any, variant_id: str) -> None:
-    """Status indicator (FR-028): brand positioning only from sourced MARKET_POSITION facts."""
-    v = await s.get(db.Variant, variant_id)
-    if v is None:
-        return
-    rows = (
-        await s.execute(
-            select(db.ManufacturerFact.positioning).where(
-                db.ManufacturerFact.make == v.make, db.ManufacturerFact.positioning.is_not(None)
-            )
-        )
-    ).scalars()
-    votes: dict[str, int] = defaultdict(int)
-    for p in rows:
-        votes[str(p)] += 1
-    if votes:
-        best = max(sorted(votes), key=lambda k: votes[k])
-        for other in (await s.execute(select(db.Variant).where(db.Variant.make == v.make))).scalars():
-            other.brand_positioning = best
-
-
-async def _area_met(v: db.Variant, area: str, hits: list[dict[str, Any]]) -> bool:
+async def _area_met(v: VariantFacts, area: str, hits: list[dict[str, Any]]) -> bool:
     met = research_plan.minimum_met(area, [research_plan.SourceHit(**h) for h in hits])
     if met and area == "specs" and research_plan.energy_inputs_missing(v.powertrain, await _have(v.id)):
         return False  # spec 006 FR-009: look deeper for the energy inputs before "cannot be computed"

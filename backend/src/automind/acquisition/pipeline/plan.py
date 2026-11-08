@@ -11,9 +11,9 @@ from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
+from automind.acquisition.pipeline.domain.variant import CarVariant, VariantFacts
 from automind.acquisition.ports import AcqPorts
 from automind.acquisition.registry.api import Plan
-from automind.shared.infrastructure import db
 from automind.shared.metering.usage import BudgetExceeded
 from automind.shared.research_order import plan as research_plan
 from automind.shared.research_order import search_plan
@@ -31,12 +31,20 @@ def known_makes(ports: AcqPorts) -> list[str]:
     return list(getattr(makes, "makes", None) or [])
 
 
-def identity_of(v: db.Variant) -> search_plan.Identity:
+async def variant(ports: AcqPorts, variant_id: str) -> CarVariant:
+    """The job's variant. Raises ValueError for an unknown one (the job fails)."""
+    v = await ports.stores.variants.load(variant_id)
+    if v is None:
+        raise ValueError(f"unknown variant {variant_id}")
+    return v
+
+
+def identity_of(v: VariantFacts) -> search_plan.Identity:
     years = f"{v.generation_years_from}-{v.generation_years_to or ''}" if v.generation_years_from else ""
     return search_plan.Identity(v.make, v.model, v.generation, v.variant_name, years)
 
 
-def market_names(ports: AcqPorts, v: db.Variant) -> dict[str, str]:
+def market_names(ports: AcqPorts, v: VariantFacts) -> dict[str, str]:
     """The model's name per market (spec 009 FR-021; config/aliases.yaml market_names)."""
     return search_plan.market_names_of(getattr(getattr(ports.ref, "aliases", None), "market_names", None), v.make,
                                        v.model, v.generation)  # fmt: skip
@@ -49,7 +57,7 @@ def area_markets(ports: AcqPorts, area: str) -> list[str]:
 
 def queries_for(
     ports: AcqPorts,
-    v: db.Variant,
+    v: VariantFacts,
     area: str,
     round_: int,
     missing: list[str],
@@ -86,7 +94,7 @@ SITE_QUERY_DOMAINS = 3
 SITE_QUERY_PAGES = 3
 
 
-async def registry_queries(ports: AcqPorts, v: db.Variant, job: JobSpec,
+async def registry_queries(ports: AcqPorts, v: VariantFacts, job: JobSpec,
                            planned: list[search_plan.PlannedQuery]) -> list[search_plan.PlannedQuery]:  # fmt: skip
     """`site:` queries to the registry's sources of the area (spec 010; 009 FR-009), whatever the autonomy flag:
     round 0 on the area's own markets, a follow-up round (an area below its minimum) on the other European markets
@@ -131,7 +139,7 @@ async def registry_queries(ports: AcqPorts, v: db.Variant, job: JobSpec,
 # (config/search.yaml `abroad.<market>.research`); prices never (spec 009 FR-009).
 
 
-def home_market(v: db.Variant, job: JobSpec) -> str | None:
+def home_market(v: VariantFacts, job: JobSpec) -> str | None:
     """The market outside Europe the car is sold on (the case's, else the variant's), or None."""
     m = (getattr(job, "market", None) or getattr(v, "market", None) or "ES").upper()
     return None if markets.european(m) else m
@@ -142,13 +150,13 @@ def _home_cfg(ports: AcqPorts, market: str) -> dict[str, Any]:
     return dict((abroad.get(market) or {}).get("research") or {})
 
 
-def local_name(ports: AcqPorts, v: db.Variant, market: str) -> str:
+def local_name(ports: AcqPorts, v: VariantFacts, market: str) -> str:
     """The model's name on its market ("深蓝S09", "理想L9"; config/aliases.yaml local_names), else make + model."""
     names = getattr(getattr(ports.ref, "aliases", None), "local_names", None) or {}
     return str((names.get(f"{v.make}|{v.model}") or {}).get(market) or f"{v.make} {v.model}")
 
 
-def home_target(ports: AcqPorts, v: db.Variant, market: str | None) -> str | None:
+def home_target(ports: AcqPorts, v: VariantFacts, market: str | None) -> str | None:
     """What the extractor, the relevance role and the validator are told about a car sold only outside Europe: its
     market (its pages are the car's own sources, not "another market"), its local name, how those pages label the
     figures (config `research.target`)."""
@@ -163,7 +171,7 @@ def home_target(ports: AcqPorts, v: db.Variant, market: str | None) -> str | Non
             f"'another market'){(' ' + hint) if hint else ''}")  # fmt: skip
 
 
-def _fill(template: str, v: db.Variant, local: str, sites: tuple[str, ...] = ()) -> str:
+def _fill(template: str, v: VariantFacts, local: str, sites: tuple[str, ...] = ()) -> str:
     text = template.format(make=v.make, model=v.model, local=local,
                            sites=" OR ".join(f"site:{s}" for s in sites))  # fmt: skip
     return " ".join(text.split())
@@ -175,7 +183,7 @@ def _excluded(ports: AcqPorts, domain: str) -> bool:
     return any(d == x or d.endswith("." + x) for x in terms)
 
 
-async def home_queries(ports: AcqPorts, v: db.Variant, job: JobSpec) -> list[search_plan.PlannedQuery]:
+async def home_queries(ports: AcqPorts, v: VariantFacts, job: JobSpec) -> list[search_plan.PlannedQuery]:
     """Searches on the car's home market for an area other than prices: the market-language queries with its local
     name, `site:` queries to the registry's sources of that market (robots and terms allow them; pcauto and autohome
     are excluded by their terms) and to English sites that cover that market's cars."""
@@ -225,18 +233,10 @@ async def _plan(ports: AcqPorts, job: JobSpec) -> Plan | None:
     if ports.registry is None:
         return None
     try:
-        v = await _variant(job.variant_id) if job.area not in research_plan.MARKET_AREAS else None
-    except Exception:  # noqa: BLE001
+        v = await variant(ports, job.variant_id) if job.area not in research_plan.MARKET_AREAS else None
+    except Exception:  # noqa: BLE001 - a plan without the make: the registry's order for every make
         v = None
     return await ports.registry.plan(job.area, PLAN_MARKETS, v.make if v is not None else None)
-
-
-async def _variant(variant_id: str) -> db.Variant:
-    async with db.sessionmaker()() as s:
-        v = await s.get(db.Variant, variant_id)
-    if v is None:
-        raise ValueError(f"unknown variant {variant_id}")
-    return v
 
 
 class QueryProposals(BaseModel):
@@ -244,7 +244,7 @@ class QueryProposals(BaseModel):
 
 
 async def _ai_queries(
-    ports: AcqPorts, v: db.Variant, area: str, missing: list[str], tried: list[str]
+    ports: AcqPorts, v: VariantFacts, area: str, missing: list[str], tried: list[str]
 ) -> list[search_plan.PlannedQuery]:
     cfg = (ports.ref.search or {}).get("ai_followup") or {}
     limit = int(cfg.get("max_queries_per_area", 3))

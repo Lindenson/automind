@@ -11,7 +11,8 @@ from typing import Any
 from sqlalchemy import select
 
 from automind.acquisition.api import AcquireRequest, AcquireResult, Emit, KindResult, Need, Tried
-from automind.acquisition.pipeline import job, merge
+from automind.acquisition.pipeline import job
+from automind.acquisition.pipeline.infrastructure import wiring as pipeline_wiring
 from automind.shared.infrastructure import db
 
 TRIED = ("accepted", "rejected", "robots", "junk", "empty", "error")
@@ -53,7 +54,7 @@ async def cached(variant_id: str, kind: str) -> KindResult:
         ).scalar_one_or_none()
     if v is None:
         return KindResult(kind=kind, ok=False, error=f"unknown variant {variant_id}")
-    hits = await job.area_hits(v, kind)
+    hits = await job.area_hits(pipeline_wiring.stores().book, v, kind)
     if run is None:
         return KindResult(kind=kind, hits=hits)
     return KindResult(kind=kind, docs=run.docs_used, accepted=run.claims_accepted, rejected=run.claims_rejected,
@@ -117,8 +118,8 @@ async def tried_by_area(variant_id: str) -> dict[str, list[Tried]]:
 
 
 async def gearbox_families_mixed(variant_id: str) -> bool:
-    return merge.mixed_families(await merge.accepted_gearboxes(variant_id))
+    return await pipeline_wiring.value_selection().gearboxes_mixed(variant_id)
 
 
 async def reselect(variant_id: str) -> None:
-    await merge.reselect(variant_id)
+    await pipeline_wiring.value_selection().reselect(variant_id)

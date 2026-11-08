@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from automind.acquisition.pipeline import merge
+from automind.acquisition.pipeline.infrastructure.wiring import value_selection
 from automind.chat.application.services.identification import catalogue as catalog
 from automind.chat.application.services.identification.contracts import VariantIdentity
 from automind.chat.application.services.report.blocks.criteria import criteria_block
@@ -83,7 +83,7 @@ async def _seed():
                 )
             )
         await s.commit()
-    await merge.reselect(v.id)
+    await value_selection().reselect(v.id)
     return v
 
 

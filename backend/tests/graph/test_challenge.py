@@ -3,7 +3,7 @@
 import pytest
 from sqlalchemy import select
 
-from automind.acquisition.pipeline import merge
+from automind.acquisition.pipeline.infrastructure.wiring import value_selection
 from automind.chat.application.usecases import challenge
 from automind.shared.infrastructure.db import models as m
 from automind.shared.infrastructure.db.session import sessionmaker
@@ -31,7 +31,7 @@ async def _claims(*rows: tuple[str, str, str]) -> str:
                           raw_unit="L", value_num=float(raw), excerpt=excerpt, provenance="SOURCED_FACT",
                           status="ACCEPTED"))  # fmt: skip
         await s.commit()
-        await merge.reselect(v.id)
+        await value_selection().reselect(v.id)
         return v.id
 
 

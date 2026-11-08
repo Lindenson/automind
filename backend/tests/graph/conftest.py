@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 import pytest
 
 from automind.acquisition.engine import Engine
+from automind.acquisition.pipeline.infrastructure.wiring import stores as pipeline_stores
 from automind.acquisition.ports import AcqPorts
 from automind.chat.application.ports import Ports
 from automind.chat.dialog.prompts import load_all
@@ -59,7 +60,7 @@ def make_ports(llm=None, search=None, events=None) -> Ports:
     llm = llm or FakeLLM()
     ref = open_web_reference()
     facts = MarketFactRepo()
-    acq = AcqPorts(llm=llm, ref=ref, search=search, market_facts=facts)
+    acq = AcqPorts(llm=llm, ref=ref, search=search, stores=pipeline_stores(), market_facts=facts)
     return Ports(
         llm=llm,
         acquisition=Engine(acq),
