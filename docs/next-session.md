@@ -1,4 +1,4 @@
-# Next session: start here (2026-11-08 after A3c parsing/; next: A4 registry/gold/snapshots/drift/replay)
+# Next session: start here (2026-11-08 after A4a registry/; next: A4b gold/ + identity_readers/)
 
 **First task: refactoring — spec 012, executed by `specs/012-refactoring/tasks.md` (one phase = one PR).**
 No new features until it is done (owner, 2026-11-06). All functional work in §4 is parked, still valid, and
@@ -15,7 +15,7 @@ What the system is: `README.md` ("Acquisition engine"), `docs/adr/ADR-032-acquis
 
 ## 0. Resume acquisition A3 (next action)
 
-**Where we are (2026-11-08, main = A3c merged, PR #122).** Chat services S7–S9c-2 are done. Since S9.3 (PR #116):
+**Where we are (2026-11-08, main = A4a merged, PR #123).** Chat services S7–S9c-2 are done. Since S9.3 (PR #116):
 rule `storage` (sqlalchemy / `shared.infrastructure.db` outside an `infrastructure/` package, **any** directory) and
 module limit **200**, both in the ratchet. Owner's decision: acquisition A1–A8 **before** S9d (tasks.md "S9.3"), one
 PR per package, each leaving **0 `storage`, 0 `size`, 0 entries** in its package.
@@ -30,8 +30,15 @@ Done: **A1 `reputation/`** (PR #117, −30), **A2 `gates/`** (PR #118, −81), *
 `infrastructure/` — `ParserStore`, reading_log, v1_specs (YAML, deny-list, seed), `wiring.live_readers()` /
 `parser_registry()` / `yaml_registry()`; `extraction/` — contracts, areas, extract; `normalise/` — cell_value, labels,
 text, fuel, gearbox, numbers). **pipeline and parsing: 0 entries.**
-Structure baseline 1348, mypy report (all src) 200, 12 import contracts. Owner confirmed the A3 split (a → b → c) on
-2026-11-08.
+**A4a `registry/`** (PR #123, −67: `domain/` config (`RegistryConfig`), records (`CapabilityView`, `ReviewedCapability`,
+…), planning (rank_queryable / ordered_active / pick_candidates), review (`plan_review`), seed_rules over
+`SurveyEntry`/`Favourite`; `application/` ports (one `RegistryStoreUnavailable`), `RegistryService`, `SiteAdmission`,
+`DailyReview`, `RegistrySeed`; `infrastructure/` one store per port + `wiring` (`registry_service`, `signal_store`,
+`site_admission`, `daily_review`, `registry_seed`), repo.py gone; `delivery/registry.py` (startup seed),
+`delivery/cli/registry.py` (`python -m automind.delivery.cli.registry seed | review --once`); contract
+`registry-services-over-ports`). **registry: 0 entries.**
+Structure baseline 1281, mypy report (all src) 199, 13 import contracts. Owner confirmed the A3 split (a → b → c) on
+2026-11-08; A4 is split the same way (one PR per package): A4a registry → A4b gold → A4c snapshots/drift/replay.
 
 **The template (follow it for A3–A8; `reputation/` and `gates/` show it):**
 - `domain/` — plain records (frozen dataclasses: no ORM row reaches a rule) + pure functions; verdicts stay pure.
@@ -48,9 +55,10 @@ Structure baseline 1348, mypy report (all src) 200, 12 import contracts. Owner c
 - Unit tests over fakes for every service: one failure path at least (store down, lost claim, budget, no measure).
 - Safety tests are never weakened (A2: `test_no_self_change` flagged `self.budgets` → renamed `agent_budgets`).
 
-**Next: A4** — `registry/` (admission, review, repo), `gold/` (load, repo, versions, match, rdw), `snapshots/`,
-`drift/`, `replay/` (run 367); with it `pipeline/identity.py` + `gold/versions.py` → `acquisition/identity_readers/`
-(T082 rest) and A3b-f1 (type `Found.stats` / hits: `SearchStats` / `SourceHit`). Callers of the parser store use
+**Next: A4b** — `gold/` (load, repo, versions, match, loaders/rdw; 56 entries) with `pipeline/identity.py` +
+`gold/versions.py` → `acquisition/identity_readers/` (T082 rest). Then **A4c** — `snapshots/`, `drift/`, `replay/`
+(run 359; 33 entries) and A3b-f1 (type `Found.stats` / hits: `SearchStats` / `SourceHit`). Registry callers now use
+`registry/infrastructure/wiring` (scout gets a `SiteAdmission`, blame judge `signal_store()`). Callers of the parser store use
 `ParserStore()` (drift/daily, gates/page_reading) or the lazy imports still listed for agents/replay — A4/A6 remove
 them. Then A5 worker, A6 agents, A7 engine top level + `admin_api.py` (1049) → `admin/`, A8
 `acquisition/domain` modules over 200 + `infrastructure/fetch.py`. Then S9d (chat: `confirm.py` nodes, `ask.py` →
@@ -65,13 +73,13 @@ answered); merge; update this §0. Never edit files while diff_behaviour runs (i
 ```bash
 set -a; . ./.env.docker; set +a   # POSTGRES_PASSWORD; .env.docker has no TEST_DATABASE_URL, so for a bare pytest:
 export TEST_DATABASE_URL="postgresql+asyncpg://automind:${POSTGRES_PASSWORD}@127.0.0.1:5433/automind_test"
-scripts/check.sh > $SCRATCH/check.log 2>&1        # ruff, format, mypy strict scope, lint-imports (11), structure ratchet, pytest, vitest
+scripts/check.sh > $SCRATCH/check.log 2>&1        # ruff, format, mypy strict scope, lint-imports (13), structure ratchet, pytest, vitest
 python3 scripts/refactor/diff_behaviour.py --base origin/main --head HEAD   # (not executable) base→head→base, PYTHONHASHSEED=0; must end "differs 0"
 cd backend && uv run python ../scripts/check_checkpoints.py      # read-only prod: 0 module paths in blobs, threads load
 ```
 - Moves: `scripts/refactor/move.py <map.yaml>` (maps in `specs/012-refactoring/moves/`; whole packages first);
   after moves `scripts/check_structure.py --write-baseline` only if the count did not grow.
-- Structure ratchet baseline `scripts/structure_baseline.txt` (1348 now: +storage, size 200; A1 −30, A2 −81, A3a −29, A3b −23, A3c −70); new violations fail
+- Structure ratchet baseline `scripts/structure_baseline.txt` (1281 now: +storage, size 200; A1 −30, A2 −81, A3a −29, A3b −23, A3c −70, A4a −67); new violations fail
   the gate; a PR shrinks the entries of every package it touches (pr-self-check.md).
 - Migration tests fail with "tables can have at most 1600 columns" → the scratch DB `automind_mig` is worn out by
   roundtrips (dropped columns count): `docker compose exec -T postgres dropdb -U automind automind_mig && … createdb …`.
@@ -80,13 +88,13 @@ cd backend && uv run python ../scripts/check_checkpoints.py      # read-only pro
 
 ## 1. State when parked
 
-- main = A3c merged (PR #122). **Production still runs the pre-012 code** (`2b5eb92`, PRs #83–#85,
+- main = A4a merged (PR #123). **Production still runs the pre-012 code** (`2b5eb92`, PRs #83–#85,
   `scripts/deploy.sh up --monitoring`, app :8090). Deploy policy: none before the baseline closes on 2026-11-12; then
   the first 012 checkpoint (compose worker command is `python -m automind.cli worker`), live replay of chat ccd5f7d8
   after it, then deploys only at S9, S12, S15.
-- Last gate (A3c): `check.sh` green — 1558 backend passed (2 skipped) + 161 frontend; 12 import contracts kept
-  (pure contract +11 parsing modules); structure 1348/1348 new 0; mypy report 200 (parsing in strict). Behaviour diff
-  vs previous main: differs 0 (same 60, unstable 22, racy 7). check_checkpoints: 529 blobs, 0 paths, 12 threads. Never start pytest while
+- Last gate (A4a): `check.sh` green — 1570 backend passed (2 skipped) + 161 frontend; 13 import contracts kept
+  (+`registry-services-over-ports`); structure 1281/1281 new 0; mypy report 199 (registry in strict). Behaviour diff
+  vs previous main: differs 0 (same 61, unstable 21, racy 7). check_checkpoints: 529 blobs, 0 paths, 12 threads. Never start pytest while
   diff_behaviour runs (same test DB). If a session dies during diff_behaviour:
   `git worktree remove --force /tmp/behaviour-*/{base,head}`, `git worktree prune`.
 - Kept as it was (A3b), worth a look later: the shadow gate's feed of a job also gets the pages relevance dropped
@@ -187,6 +195,8 @@ branches too, or local only; (c) `# fmt: skip` ×843 — leave as is (proposal) 
    Same diff: the order of engine options offered for a model (Kia Sorento "288/265/215 CV" vs "215/265/288 CV") and
    of sources in a block varies between runs (DB reads without ORDER BY / job completion order). Fix: explicit order.
    And `tests/graph/test_limit_pause.py` is timing-dependent (scripts/refactor/racy_tests.txt): make it deterministic.
+   `tests/integration/test_catalog_merge.py` failed once in a full run (A4a), 6/6 alone: which duplicate is kept
+   depends on row order — give `repair.merge_duplicates` an explicit tie-break.
 
 ## 5. Rules that stay in force
 

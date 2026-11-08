@@ -252,7 +252,7 @@ Acquisition, one PR per package, each leaves its package with **0 `storage`, 0 `
 - [ ] A4 `registry/` (admission, review, repo), `gold/` (load, repo, versions, match, rdw), `snapshots/`, `drift/`,
   `replay/` (run 367); with it `pipeline/identity.py` + `gold/versions.py` → `identity_readers/` (T082 rest) and A3b-f1.
   One PR per package: A4a registry → A4b gold + `identity_readers/` → A4c snapshots, drift, replay + A3b-f1.
-  - [x] A4a `registry/`: `domain/` config (`RegistryConfig` — registry.yaml typed once), records (`CapabilityView`,
+  - [x] A4a `registry/` (PR #123): `domain/` config (`RegistryConfig` — registry.yaml typed once), records (`CapabilityView`,
     `ReviewedCapability`, `SourceState`, `JournalEntry`, `StatusMove`), planning (rank_queryable, ordered_active,
     pick_candidates — Thompson), review (`plan_review`: lifecycle → limits → journal, re-orders), seed_rules over
     `SurveyEntry` / `Favourite`; `application/` ports (`Capabilities`, `Signals`, `PageMarks`, `AdmissionBook`,
