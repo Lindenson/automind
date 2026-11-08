@@ -12,6 +12,8 @@ from automind.acquisition.registry.domain.seed_rules import denied
 
 @dataclass(frozen=True)
 class Guard:
+    """What the hard limits read of a capability and its source."""
+
     domain: str
     access: str
     frozen: bool

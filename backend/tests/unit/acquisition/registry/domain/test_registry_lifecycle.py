@@ -5,19 +5,22 @@ from __future__ import annotations
 import random
 from datetime import UTC, datetime, timedelta
 
+from automind.acquisition.registry.domain.config import RegistryConfig
 from automind.acquisition.registry.domain.lifecycle import CapState, transition
 from automind.acquisition.registry.domain.limits import Guard, check
 
 NOW = datetime(2026, 11, 5, tzinfo=UTC)
-CFG = {
-    "lifecycle": {
-        "promote": {"min_attempts": 8, "min_acc_lb": 0.6, "min_yield": 0.2, "min_signals": 5},
-        "degrade": {"min_attempts": 10, "max_acc_lb": 0.45, "max_yield": 0.05, "zero_in_last": 10},
-        "recover": {"min_acc_lb": 0.55, "min_yield": 0.15},
-        "retire_after_days": 21,
-        "retired_retry_days": 30,
+CFG = RegistryConfig.from_mapping(
+    {
+        "lifecycle": {
+            "promote": {"min_attempts": 8, "min_acc_lb": 0.6, "min_yield": 0.2, "min_signals": 5},
+            "degrade": {"min_attempts": 10, "max_acc_lb": 0.45, "max_yield": 0.05, "zero_in_last": 10},
+            "recover": {"min_acc_lb": 0.55, "min_yield": 0.15},
+            "retire_after_days": 21,
+            "retired_retry_days": 30,
+        }
     }
-}
+).lifecycle
 DENY = ("coches.net",)
 
 
@@ -57,8 +60,9 @@ def test_no_promotion_on_yield_alone():
     assert transition(st("candidate", yield_=0.95, attempts=200, signals_w=0.0), CFG, NOW) is None
     mv = transition(st("candidate", signals_w=5.0), CFG, NOW)
     assert mv.to == "active" and "5.0 accuracy signals" in mv.reason
-    no_cfg = {"lifecycle": {**CFG["lifecycle"], "promote": {"min_attempts": 8, "min_acc_lb": 0.6, "min_yield": 0.2}}}
-    assert transition(st("candidate", signals_w=4.0), no_cfg, NOW) is None  # the default minimum is 5
+    raw = {"lifecycle": {"promote": {"min_attempts": 8, "min_acc_lb": 0.6, "min_yield": 0.2}}}
+    no_min = RegistryConfig.from_mapping(raw).lifecycle
+    assert transition(st("candidate", signals_w=4.0), no_min, NOW) is None  # the default minimum is 5
 
 
 def test_limits():

@@ -11,8 +11,7 @@ from sqlalchemy import delete, select
 
 from automind.acquisition.pipeline.contracts import JobSpec
 from automind.acquisition.pipeline.job import ResearchJob
-from automind.acquisition.registry.application.service import RegistryService
-from automind.acquisition.registry.infrastructure.repo import RegistryRepo
+from automind.acquisition.registry.infrastructure.wiring import registry_service
 from automind.shared.infrastructure.config.loader import favourite_queries, load_yaml
 from automind.shared.infrastructure.db import models as m
 from automind.shared.infrastructure.db.session import sessionmaker
@@ -64,7 +63,7 @@ async def test_follow_up_round_queries_registry_candidates_of_other_european_mar
     search = FixtureSearch("registry")
     ports = engine(make_ports(llm=llm, search=search))
     cfg = {**load_yaml("registry.yaml"), "autonomy": False}  # querying does not need autonomy
-    ports.registry = RegistryService(RegistryRepo(cfg), cfg)
+    ports.registry = registry_service(cfg)
     ports.ref = open_web_reference(  # open web as in every fixture scenario, plus the registry query templates
         favourite_queries={k: v for k, v in favourite_queries().items() if k.startswith("registry")}
     )

@@ -22,7 +22,6 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_mcp_adapters.tools import load_mcp_tools
 
 from automind.acquisition.infrastructure.retention import retention_loop
-from automind.acquisition.registry.application.seed import seed_if_empty
 from automind.chat.dialog import graph as hub
 from automind.chat.dialog.prompts import load_all as load_prompts
 from automind.chat.dialog.runner import ChatRunner
@@ -31,6 +30,7 @@ from automind.chat.infrastructure.checkpoint import checkpointer
 from automind.chat.infrastructure.events import EventBus
 from automind.chat.infrastructure.persistence.repositories import CaseRepo, ChatRepo, EventRepo, MessageRepo, TurnRepo
 from automind.delivery.bootstrap import configure_domain
+from automind.delivery.registry import seed_if_empty
 from automind.delivery.web import access, rest
 from automind.delivery.web import admin as admin_api
 from automind.delivery.web import metrics as metrics_api

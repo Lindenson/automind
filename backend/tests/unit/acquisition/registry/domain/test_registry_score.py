@@ -5,10 +5,13 @@ from __future__ import annotations
 import math
 
 from automind.acquisition.registry.domain.blame import blame
+from automind.acquisition.registry.domain.config import RegistryConfig
 from automind.acquisition.registry.domain.score import Counts, decay, score_of, wilson_lb
 
-CFG = {"half_life_days": 90, "wilson_z": 1.96, "cost_lambda": 2.0,
-       "priors": {"MANUFACTURER": [4.0, 0.5], "PUBLICATION": [2.0, 1.0], "OTHER": [1.0, 1.0]}}  # fmt: skip
+CFG = RegistryConfig.from_mapping({
+    "half_life_days": 90, "wilson_z": 1.96, "cost_lambda": 2.0,
+    "priors": {"MANUFACTURER": [4.0, 0.5], "PUBLICATION": [2.0, 1.0], "OTHER": [1.0, 1.0]},
+}).score  # fmt: skip
 
 
 def test_wilson_lower_bound_grows_with_sample_size():

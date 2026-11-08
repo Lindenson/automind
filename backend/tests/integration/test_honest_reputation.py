@@ -19,9 +19,8 @@ from tests.fakes.reputation_world import World
 
 from automind.acquisition.domain.thompson import seed_of
 from automind.acquisition.registry.api import Attempt
-from automind.acquisition.registry.application.review import review
 from automind.acquisition.registry.application.service import RegistryService
-from automind.acquisition.registry.infrastructure.repo import RegistryRepo
+from automind.acquisition.registry.infrastructure.wiring import daily_review, registry_service
 from automind.acquisition.reputation.infrastructure.component_store import ComponentRepo
 from automind.acquisition.reputation.infrastructure.wiring import signal_scan
 from automind.shared.infrastructure import db
@@ -99,7 +98,7 @@ async def test_fastwrong_never_active_and_ranks_below_honest(world: World) -> No
     gold, pages = _scenario()
     cfg = {**load_yaml("registry.yaml"), "autonomy": True}  # this test only; config/registry.yaml stays false
     assert load_yaml("registry.yaml")["autonomy"] is False
-    svc = RegistryService(RegistryRepo(cfg), cfg)
+    svc = registry_service(cfg)
     await w.source(FAST, "SPEC_DATABASE")
     await w.source(HONEST, "PUBLICATION")
     for d in (MIRROR_A, MIRROR_B):
@@ -112,7 +111,7 @@ async def test_fastwrong_never_active_and_ranks_below_honest(world: World) -> No
         first_vid = first_vid or vid
         for k, n in stats.items():
             totals[k] = totals.get(k, 0) + n
-        await review(cfg, kind="test", admit_sites=False)
+        await daily_review(cfg).run(kind="test", admit_sites=False)
         fast, honest = await w.cap(FAST), await w.cap(HONEST)
         assert fast.status != "active", f"job {i}: fastwrong promoted (acc_lb {fast.acc_lb:.3f})"
         if honest.status == "active" and honest_active_at is None:
@@ -142,7 +141,7 @@ async def test_parser_blame_and_physics_outlier(world: World) -> None:
     w = world
     gold, _ = _scenario()
     cfg = {**load_yaml("registry.yaml"), "autonomy": True}
-    svc = RegistryService(RegistryRepo(cfg), cfg)
+    svc = registry_service(cfg)
     await w.source(FAST, "SPEC_DATABASE")
     await svc.record([Attempt(domain=FAST, area="specs", market="ES", url=f"https://{FAST}/x", outcome="accepted")])
     # a wrong value whose right number is on the page: the reader km77@v1 is blamed, not fastwrong

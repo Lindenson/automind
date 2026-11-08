@@ -6,8 +6,8 @@ accepted value (a no-data outcome) or fewer active sources than `discovery.min_a
 templates in `config/queries.yaml` for the popular variant with that gap, in the market's language (the `scout`
 model role only rewords the queries; it never sees a page, and code checks what it returns), and searches with the
 market's locale (`config/search.yaml: markets`). Domains it has never seen become `discovered` and go through the
-existing admission check (`registry/application/admission.check_domain`: deny-list and classifieds, robots for the
-page the search returned, a forbidding terms clause quoted and verified on the page, readable content); the result
+existing admission check (`registry/application/admission.py`: deny-list and classifieds, robots for the page
+the search returned, a forbidding terms clause quoted and verified on the page, readable content); the result
 moves the capability to `candidate` or `blocked` through `registry/domain/lifecycle` and `registry/domain/limits`.
 
 It also learns where a source keeps its data (the locator): the path prefix shared by at least three pages that
@@ -35,10 +35,13 @@ from urllib.parse import urlparse
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select, text
 
-from automind.acquisition.registry.application import admission
+from automind.acquisition.registry.application.admission import Checked, SiteAdmission
+from automind.acquisition.registry.application.ports import SiteFacts
 from automind.acquisition.registry.domain import limits
+from automind.acquisition.registry.domain.config import RegistryConfig
 from automind.acquisition.registry.domain.lifecycle import CapState, transition
 from automind.acquisition.registry.domain.seed_rules import denied
+from automind.acquisition.registry.infrastructure.wiring import site_admission
 from automind.acquisition.worker.budget import BudgetExceeded
 from automind.shared import evidence as ev
 from automind.shared.infrastructure.config.loader import load_yaml
@@ -278,7 +281,7 @@ class Spend:
 class Run:
     search: Searcher
     llm: LLM
-    gather: Any
+    admission: SiteAdmission
     spend: Spend
     reg: Mapping[str, Any]
     search_cfg: Mapping[str, Any]
@@ -374,7 +377,7 @@ async def _add(f: Found, gap: Gap, query: str, task_id: str | None) -> tuple[str
     return cap.id, ch.id
 
 
-async def _settle(cap_id: str, change_id: str, sample: str, checked: admission.Checked | None, r: Run) -> str:
+async def _settle(cap_id: str, change_id: str, sample: str, checked: Checked | None, r: Run) -> str:
     """discovered → candidate | blocked by the lifecycle after the admission check, within the hard limits."""
     async with sessionmaker()() as s:
         cap = await s.get(db.CapabilityRow, cap_id)
@@ -382,7 +385,7 @@ async def _settle(cap_id: str, change_id: str, sample: str, checked: admission.C
         if cap is None or src is None or cap.status != "discovered":
             return "gone"
         st = CapState(cap.status, cap.attempts, cap.acc_lb, cap.yield_, cap.status_since, src.access)
-        mv = transition(st, r.reg, db.now())
+        mv = transition(st, RegistryConfig.from_mapping(dict(r.reg)).lifecycle, db.now())
         if mv is None:
             return "unknown"  # not enough facts: stays discovered, re-checked by the admission later
         verdict = limits.check(limits.Guard(cap.domain, src.access, bool(src.frozen), cap.status), mv.to, r.deny)
@@ -549,7 +552,7 @@ async def _admit(r: Run, added: list[tuple[str, str, str]]) -> None:
     for cap_id, change_id, sample in added:
         await r.spend.take(EST_ADMISSION_EUR)
         domain = ev.domain_of(sample)
-        checked = await admission.check_domain(domain, sample, dict(r.reg), r.deny, r.llm, r.gather)
+        checked = await r.admission.check(domain, sample)
         out = await _settle(cap_id, change_id, sample, checked, r)
         key = out if out in ("candidate", "blocked") else "unknown"
         r.stats[key] += 1
@@ -567,7 +570,7 @@ async def run(
     search: Searcher,
     *,
     llm: LLM | None = None,
-    gather: Any = None,
+    gather: SiteFacts | None = None,
     charge: Charge | None = None,
     used: Mapping[str, int] | None = None,
     task_id: str | None = None,
@@ -578,10 +581,12 @@ async def run(
     disc = reg.get("discovery") or {}
     search_cfg = load_yaml("search.yaml")
     scout_spent = await _scout_spent_today()
+    llm = llm or GatewayLLM()
+    admission = site_admission(dict(reg), llm, gather)
     spend = Spend(float(load_yaml("agents.yaml")["budgets"]["scout"]),
                   float(disc.get("eur_per_day", 0.20)), scout_spent,
                   scout_spent + await admission.spent_today(), charge)  # fmt: skip
-    r = Run(search, llm or GatewayLLM(), gather, spend, reg, search_cfg, admission.denylist(), _query_eur(search_cfg),
+    r = Run(search, llm, admission, spend, reg, search_cfg, admission.deny, _query_eur(search_cfg),
             task_id, dict(used or {}))  # fmt: skip
     r.stats["patterns"] = await learn_patterns(r.deny, task_id)
     gaps = await gaps_now(reg, search_cfg, load_yaml("queries.yaml"))

@@ -8,7 +8,7 @@ from sqlalchemy import delete, select
 
 from automind.acquisition.registry.api import Attempt, TruthSignalIn
 from automind.acquisition.registry.application.service import RegistryService
-from automind.acquisition.registry.infrastructure.repo import RegistryRepo
+from automind.acquisition.registry.infrastructure.wiring import registry_service
 from automind.chat.application.usecases import challenge
 from automind.shared.infrastructure.config.loader import load_yaml
 from automind.shared.infrastructure.db import models as m
@@ -28,7 +28,7 @@ async def _clear() -> None:
 
 def _svc(autonomy: bool = True) -> RegistryService:
     cfg = {**load_yaml("registry.yaml"), "autonomy": autonomy}
-    return RegistryService(RegistryRepo(cfg), cfg)
+    return registry_service(cfg)
 
 
 async def test_confirmed_source_ranks_before_corrected_one_per_area():

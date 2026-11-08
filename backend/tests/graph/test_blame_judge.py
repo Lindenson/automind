@@ -8,7 +8,7 @@ from sqlalchemy import select
 
 from automind.acquisition.agents import blame_judge
 from automind.acquisition.registry.application.service import RegistryService
-from automind.acquisition.registry.infrastructure.repo import RegistryRepo
+from automind.acquisition.registry.infrastructure.wiring import registry_service
 from automind.acquisition.reputation.infrastructure.component_store import ComponentRepo
 from automind.acquisition.reputation.infrastructure.wiring import signal_scan
 from automind.shared.infrastructure import db
@@ -38,7 +38,7 @@ async def _disputed(w: World, svc: RegistryService, name: str) -> str:
     page = f"Ficha {name}. Peso 1450 kg. {INJECTION} Masa en orden de marcha 1615 kg. Maletero 400 l."
     await w.page(vid, SITE, "PUBLICATION", page, [("curb_mass", 1450, "Peso 1450 kg")])
     await w.select(vid)
-    out = await signal_scan(svc.cfg, svc).scan([vid])
+    out = await signal_scan(load_yaml("registry.yaml"), svc).scan([vid])
     assert out["gold_wrong"] == 1 and out["disputed"] == 1 and out["judge_tasks"] == 1
     (sig,) = await w.signals(kind="gold", variant_id=vid, verdict="wrong")
     assert sig.disputed and sig.blame_vector == {"extractor": 1.0}
@@ -48,7 +48,7 @@ async def _disputed(w: World, svc: RegistryService, name: str) -> str:
 async def test_judge_verifies_quotes_and_ignores_injected_instructions(world: World) -> None:
     w = world
     cfg = load_yaml("registry.yaml")
-    svc = RegistryService(RegistryRepo(cfg), cfg)
+    svc = registry_service(cfg)
     await w.source(SITE, "PUBLICATION")
     async with db.sessionmaker()() as s:
         queued = (await s.execute(select(m.AcqTask).where(m.AcqTask.kind == "blame_judge"))).scalars().all()

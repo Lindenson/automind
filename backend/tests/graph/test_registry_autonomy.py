@@ -9,7 +9,7 @@ import httpx
 from fastapi import FastAPI
 from sqlalchemy import delete, select
 
-from automind.acquisition.registry.application.review import review
+from automind.acquisition.registry.infrastructure.wiring import daily_review
 from automind.delivery.web import admin
 from automind.shared.infrastructure.config.loader import load_yaml
 from automind.shared.infrastructure.db import models as m
@@ -84,7 +84,7 @@ def _client(monkeypatch) -> httpx.AsyncClient:
 async def test_review_moves_journals_and_owner_reverts(monkeypatch):
     await _setup()
     cfg = {**load_yaml("registry.yaml"), "autonomy": True}
-    stats = await review(cfg, kind="test", admit_sites=False)
+    stats = await daily_review(cfg).run(kind="test", admit_sites=False)
     st = await _status()
     assert st["good.example"] == "active" and st["bad.example"] == "degraded"
     assert st["forbid.example"] == "blocked" and st["frozen.example"] == "active" and st["new.example"] == "candidate"
@@ -102,25 +102,27 @@ async def test_review_moves_journals_and_owner_reverts(monkeypatch):
     listing = (await c.get("/api/v1/admin/sources?area=specs")).json()
     assert listing["autonomy"] is False and listing["sources"][0]["rank"] == 1
     assert {x["domain"] for x in listing["sources"]} >= {"good.example", "bad.example", "forbid.example"}
-    await review(cfg, kind="test", admit_sites=False)  # the reverted demotion is not repeated without new evidence
+    await daily_review(cfg).run(
+        kind="test", admit_sites=False
+    )  # the reverted demotion is not repeated without new evidence
     assert (await _status())["bad.example"] == "active"
     card = (await c.get("/api/v1/admin/sources/forbid.example")).json()
     assert card["source"]["access_evidence"]["clause"] and card["changes"]
     assert (await c.post("/api/v1/admin/sources/good.example/freeze")).status_code == 200
-    await review(cfg, kind="test", admit_sites=False)
+    await daily_review(cfg).run(kind="test", admit_sites=False)
     async with sessionmaker()() as s:
         assert (await s.get(m.SourceRow, "good.example")).frozen is True
 
 
 async def test_review_does_nothing_without_autonomy():
     await _setup()
-    stats = await review({**load_yaml("registry.yaml"), "autonomy": False}, admit_sites=False)
+    stats = await daily_review({**load_yaml("registry.yaml"), "autonomy": False}).run(admit_sites=False)
     assert stats["changes"] == 0 and (await _status())["good.example"] == "candidate"
 
 
 async def test_admission_admits_or_blocks_discovered_sites_with_evidence():
-    from automind.acquisition.registry.application.admission import admit_pending
     from automind.acquisition.registry.domain.admission import AdmissionFacts
+    from automind.acquisition.registry.infrastructure.wiring import site_admission
 
     await _setup()
     async with sessionmaker()() as s:
@@ -134,19 +136,20 @@ async def test_admission_admits_or_blocks_discovered_sites_with_evidence():
             )
         await s.commit()
 
-    async def gather(domain: str, sample: object, llm: object) -> AdmissionFacts:
-        return {
-            "fine.example": AdmissionFacts(domain, True, False, None, None, 5000),
-            "nobots.example": AdmissionFacts(domain, False, None),
-            "legal.example": AdmissionFacts(
-                domain, True, True, "Automated extraction is prohibited.", "https://l/t", 5000
-            ),
-        }.get(domain, AdmissionFacts(domain, True, False, None, None, 5000))
+    class Facts:
+        async def gather(self, domain: str, sample: str | None) -> AdmissionFacts:
+            return {
+                "fine.example": AdmissionFacts(domain, True, False, None, None, 5000),
+                "nobots.example": AdmissionFacts(domain, False, None),
+                "legal.example": AdmissionFacts(
+                    domain, True, True, "Automated extraction is prohibited.", "https://l/t", 5000
+                ),
+            }.get(domain, AdmissionFacts(domain, True, False, None, None, 5000))
 
     cfg = {**load_yaml("registry.yaml"), "autonomy": True}
-    out = await admit_pending(cfg, gather=gather)
+    out = await site_admission(cfg, facts=Facts()).admit_pending()
     assert out["blocked"] == 2 and out["admitted"] >= 1
-    await review(cfg, kind="test", admit_sites=False)
+    await daily_review(cfg).run(kind="test", admit_sites=False)
     st = await _status()
     assert st["fine.example"] == "candidate" and st["nobots.example"] == "blocked" and st["legal.example"] == "blocked"
     async with sessionmaker()() as s:

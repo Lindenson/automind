@@ -4,12 +4,22 @@ from __future__ import annotations
 
 from automind.acquisition.registry.domain.seed_rules import (
     AREA_OF_KIND,
+    Favourite,
+    SurveyEntry,
     from_favourite,
     from_survey,
     market_of,
 )
 
 DENY = ("coches.net", "wallapop.com")
+
+
+def from_survey_map(e: dict, deny: tuple[str, ...]):
+    return from_survey(SurveyEntry.from_mapping(e), deny)
+
+
+def from_favourite_map(f: dict, deny: tuple[str, ...]):
+    return from_favourite(Favourite.from_mapping(f), deny)
 
 
 def test_survey_verdicts_map_to_status_with_evidence():
@@ -22,11 +32,11 @@ def test_survey_verdicts_map_to_status_with_evidence():
         "tos": "'Sono vietate…' (https://www.alvolante.it/condizioni_uso)",
         "checked": "2026-11-05",
     }
-    src, caps = from_survey(e, DENY)
+    src, caps = from_survey_map(e, DENY)
     assert src.access == "terms_forbid" and "vietate" in src.access_evidence["clause"]
     assert {c.status for c in caps} == {"blocked"} and {c.area for c in caps} == {"price", "used_price", "reviews"}
     assert {c.market for c in caps} == {"IT"}
-    ok, ok_caps = from_survey({**e, "domain": "motor.es", "country": "ES", "verdict": "candidate", "tos": ""}, DENY)
+    ok, ok_caps = from_survey_map({**e, "domain": "motor.es", "country": "ES", "verdict": "candidate", "tos": ""}, DENY)
     assert ok.access == "ok" and {c.status for c in ok_caps} == {"candidate"}
     for verdict, access, status in (
         ("classifieds", "classifieds", "blocked"),
@@ -35,16 +45,16 @@ def test_survey_verdicts_map_to_status_with_evidence():
         ("js_only", "js_only", "retired"),
         ("dead", "dead", "retired"),
     ):
-        s, cs = from_survey({**e, "verdict": verdict}, DENY)
+        s, cs = from_survey_map({**e, "verdict": verdict}, DENY)
         assert s.access == access and {c.status for c in cs} == {status}
 
 
 def test_deny_list_always_wins():
-    s, caps = from_survey(
+    s, caps = from_survey_map(
         {"domain": "coches.net", "country": "ES", "kinds": ["used_price"], "verdict": "candidate"}, DENY
     )
     assert s.access == "classifieds" and {c.status for c in caps} == {"blocked"}
-    f, fcaps = from_favourite(
+    f, fcaps = from_favourite_map(
         {"domain": "wallapop.com", "source_type": "PUBLICATION", "areas": ["specs"], "markets": ["ES"], "priority": 1},
         DENY,
     )
@@ -52,7 +62,7 @@ def test_deny_list_always_wins():
 
 
 def test_favourites_are_active_with_seed_priority():
-    s, caps = from_favourite(
+    s, caps = from_favourite_map(
         {
             "domain": "km77.com",
             "source_type": "SPEC_DATABASE",
@@ -72,6 +82,4 @@ def test_favourites_are_active_with_seed_priority():
 
 def test_kind_and_market_mapping():
     assert AREA_OF_KIND["residual_value"] == "depreciation" and AREA_OF_KIND["warranty"] == "manufacturer"
-    assert (
-        market_of("GB") == "EN" and market_of("AT") == "DE" and market_of("EU") == "ANY" and market_of(False) == "ANY"
-    )
+    assert market_of("GB") == "EN" and market_of("AT") == "DE" and market_of("EU") == "ANY" and market_of(None) == "ANY"

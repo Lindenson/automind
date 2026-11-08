@@ -11,13 +11,15 @@ Signals and counts fade with a half-life (applied by the caller through `decay`)
 from __future__ import annotations
 
 import math
-from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any
+
+from automind.acquisition.registry.domain.config import ScoreConfig
 
 
 @dataclass(frozen=True)
 class Counts:
+    """A capability's faded counts: attempts, accepted values, right and wrong signal weight, money spent."""
+
     attempts: float = 0.0
     accepted: float = 0.0
     right_w: float = 0.0
@@ -27,6 +29,8 @@ class Counts:
 
 @dataclass(frozen=True)
 class Quality:
+    """The score and its parts (rounded to 6 places as stored)."""
+
     score: float
     acc_mean: float
     acc_lb: float
@@ -34,12 +38,14 @@ class Quality:
 
 
 def decay(value: float, days: float, half_life_days: float) -> float:
+    """`value` faded over `days` with the half-life (unchanged for no time or no half-life)."""
     if days <= 0 or half_life_days <= 0:
         return value
     return float(value * 0.5 ** (days / half_life_days))
 
 
 def wilson_lb(right: float, wrong: float, z: float = 1.96) -> float:
+    """The Wilson lower bound of right / (right + wrong); 0 without signals."""
     n = right + wrong
     if n <= 0:
         return 0.0
@@ -49,13 +55,13 @@ def wilson_lb(right: float, wrong: float, z: float = 1.96) -> float:
     return max(0.0, (centre - margin) / (1 + z * z / n))
 
 
-def score_of(c: Counts, source_type: str, cfg: Mapping[str, Any]) -> Quality:
-    priors: Mapping[str, Any] = cfg.get("priors") or {}
-    pr, pw = priors.get(source_type) or priors.get("OTHER") or [1.0, 1.0]
-    right, wrong = c.right_w + float(pr), c.wrong_w + float(pw)
+def score_of(c: Counts, source_type: str, cfg: ScoreConfig) -> Quality:
+    """The quality of a capability whose source is of `source_type` (its prior is added to the signals)."""
+    pr, pw = cfg.prior(source_type)
+    right, wrong = c.right_w + pr, c.wrong_w + pw
     acc_mean = right / (right + wrong)
-    acc_lb = wilson_lb(right, wrong, float(cfg.get("wilson_z", 1.96)))
+    acc_lb = wilson_lb(right, wrong, cfg.wilson_z)
     yld = (c.accepted + 1) / (c.attempts + 2)
     per_attempt = c.cost_eur / c.attempts if c.attempts > 0 else 0.0
-    score = acc_lb * yld - float(cfg.get("cost_lambda", 2.0)) * per_attempt
+    score = acc_lb * yld - cfg.cost_lambda * per_attempt
     return Quality(round(score, 6), round(acc_mean, 6), round(acc_lb, 6), round(yld, 6))
