@@ -186,6 +186,7 @@ source_modules =
     automind.acquisition.reputation.domain
     automind.acquisition.pipeline.domain
     automind.acquisition.gold.domain
+    automind.acquisition.identity_readers.domain
     automind.acquisition.snapshots.codec
     automind.acquisition.parsing.readers.spec
     automind.acquisition.parsing.readers.interpreter
@@ -250,6 +251,7 @@ forbidden_modules =
     automind.acquisition.facade
     automind.acquisition.gates
     automind.acquisition.gold
+    automind.acquisition.identity_readers
     automind.acquisition.infrastructure
     automind.acquisition.parsing
     automind.acquisition.pipeline
@@ -285,6 +287,19 @@ forbidden_modules =
     automind.shared.infrastructure
     sqlalchemy
 
+[importlinter:contract:gold-services-over-ports]
+name = Gold's and the identity readers' services reach storage and HTTP only through their ports (spec 012 A4b)
+type = forbidden
+source_modules =
+    automind.acquisition.gold.application
+    automind.acquisition.identity_readers.application
+forbidden_modules =
+    automind.acquisition.gold.infrastructure
+    automind.acquisition.identity_readers.infrastructure
+    automind.shared.infrastructure
+    sqlalchemy
+    httpx
+
 [importlinter:contract:api-uses-engine-facades]
 name = The web API reaches the acquisition engine only through its facades (spec 011 T113)
 type = forbidden
@@ -301,6 +316,7 @@ forbidden_modules =
     automind.acquisition.facade
     automind.acquisition.gates
     automind.acquisition.gold
+    automind.acquisition.identity_readers
     automind.acquisition.infrastructure
     automind.acquisition.parsing
     automind.acquisition.pipeline

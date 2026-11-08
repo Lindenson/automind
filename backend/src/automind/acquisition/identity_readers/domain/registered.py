@@ -12,7 +12,11 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
-from automind.acquisition.gold.domain.match import ICE_FUELS, canonical_make, norm_fuel, norm_text, tokens
+from automind.acquisition.gold.domain.records import DatasetRow
+from automind.acquisition.gold.domain.text import ICE_FUELS, canonical_make, norm_fuel, norm_text, tokens
+from automind.shared.contracts.json import JsonObject
+
+_FUELS = frozenset({"petrol", "diesel", "lpg", "cng", "e85", "hybrid", "phev", "bev", "fcev", "other"})
 
 
 @dataclass(frozen=True)
@@ -32,6 +36,8 @@ class IdRow:
 
 @dataclass(frozen=True)
 class RegisteredVersion:
+    """One engine a model was registered with (fuel, kW, cm3) and the years it was registered in."""
+
     fuel: str
     engine_kw: int | None
     displacement_cc: int | None
@@ -43,14 +49,24 @@ class RegisteredVersion:
     names: tuple[str, ...]  # commercial names as published
 
 
-_FUELS = frozenset({"petrol", "diesel", "lpg", "cng", "e85", "hybrid", "phev", "bev", "fcev", "other"})
+@dataclass(frozen=True)
+class VersionLimits:
+    """How the registered versions are asked for (config/search.yaml `intake`)."""
+
+    timeout_s: float = 20.0  # the live dataset query
+    min_registrations: int = 10  # a group below this is noise (single imports)
+
+    @classmethod
+    def from_intake(cls, intake: JsonObject) -> VersionLimits:
+        """From the `intake` section (defaults for what it leaves out)."""
+        return cls(float(intake.get("dataset_versions_timeout_s", cls.timeout_s)),
+                   int(intake.get("dataset_versions_min_registrations", cls.min_registrations)))  # fmt: skip
 
 
-def _int(x: str) -> int | None:
-    try:
-        return int(float(x))
-    except ValueError:
-        return None
+def id_row(r: DatasetRow) -> IdRow:
+    """A dataset row reduced to what identifies a version."""
+    return IdRow(r.dataset, r.make, r.model, r.fuel, r.power_kw, r.displacement_cc, r.year_from, r.year_to,
+                 r.registrations)  # fmt: skip
 
 
 def rows_of_keys(keys: Iterable[str], dataset: str = "eea_co2") -> list[IdRow]:
@@ -68,15 +84,6 @@ def rows_of_keys(keys: Iterable[str], dataset: str = "eea_co2") -> list[IdRow]:
                 continue
             out.append(IdRow(dataset, make, model, fuel, _int(kw), _int(cc), year, year))
     return out
-
-
-def _model_ok(row: IdRow, make: str, model: str, strip: tuple[str, ...]) -> bool:
-    make_words = set(norm_text(row.make).split()) | set(norm_text(make).split())
-    have = tuple(t for t in tokens(row.model, strip) if t not in make_words)
-    want = tuple(t for t in tokens(model, strip) if t not in make_words)
-    if not want:
-        return False
-    return all(t in have for t in want) or (len(want) > 1 and "".join(want) in have)
 
 
 def group(
@@ -115,3 +122,19 @@ def group(
             datasets=tuple(sorted({r.dataset for r in rs})), names=tuple(sorted({r.model for r in rs}))[:4],
         ))  # fmt: skip
     return sorted(out, key=lambda v: (v.years_to is not None, -(v.years_from or 0), v.fuel, v.engine_kw or 0))
+
+
+def _int(x: str) -> int | None:
+    try:
+        return int(float(x))
+    except ValueError:
+        return None
+
+
+def _model_ok(row: IdRow, make: str, model: str, strip: tuple[str, ...]) -> bool:
+    make_words = set(norm_text(row.make).split()) | set(norm_text(make).split())
+    have = tuple(t for t in tokens(row.model, strip) if t not in make_words)
+    want = tuple(t for t in tokens(model, strip) if t not in make_words)
+    if not want:
+        return False
+    return all(t in have for t in want) or (len(want) > 1 and "".join(want) in have)

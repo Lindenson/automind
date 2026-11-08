@@ -17,8 +17,9 @@ from sqlalchemy import delete, func, select, text, update
 from tests.fakes.fake_llm import FakeLLM
 
 from automind.acquisition.agents import parser_doctor
-from automind.acquisition.gold import repo
-from automind.acquisition.gold.domain.match import GoldValue
+from automind.acquisition.gold.domain.choice import REFERENCE_SET
+from automind.acquisition.gold.domain.records import DatasetInfo, GoldValue
+from automind.acquisition.gold.infrastructure.gold_store import GoldStore
 from automind.acquisition.infrastructure import overrides
 from automind.acquisition.parsing.infrastructure import v1_specs
 from automind.acquisition.parsing.infrastructure import wiring as parsing_wiring
@@ -89,7 +90,7 @@ async def world():
         else:
             src.access = "ok"
         await s.commit()
-    await repo.upsert_dataset(repo.DatasetInfo(repo.REFERENCE_SET, "Reference vehicles", "reference_set", "internal"))
+    await GoldStore().record_load(DatasetInfo(REFERENCE_SET, "Reference vehicles", "reference_set", "internal"))
     vids: list[str] = []
     for name, kw, nm, kg, cc in CARS:
         async with db.sessionmaker()() as s:
@@ -99,10 +100,10 @@ async def world():
             s.add(v)
             await s.commit()
         vals = {"max_power": kw, "max_torque": nm, "curb_mass": kg, "displacement": cc}
-        await repo.replace(repo.REFERENCE_SET, v.id, [
+        await GoldStore().replace(REFERENCE_SET, v.id, [
             GoldValue(variant_id=v.id, attribute=a, value_num=x, unit=UNITS[a], tolerance=TOL[a][1],
                       tolerance_kind=TOL[a][0], origin="reference_set", match_rule="reference_set", confidence="HIGH",
-                      dataset_id=repo.REFERENCE_SET) for a, x in vals.items()])  # fmt: skip
+                      dataset_id=REFERENCE_SET) for a, x in vals.items()])  # fmt: skip
         vids.append(v.id)
     sids: list[str] = []
     start = datetime.combine(DAY - timedelta(days=21), time(8), tzinfo=UTC)

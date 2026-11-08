@@ -1,9 +1,9 @@
-"""Chat 6e001ee0: the registered versions of a model from the open datasets (acquisition.gold.domain.versions) and
-their option labels (domain.ladder.registered_label)."""
+"""Chat 6e001ee0: the registered versions of a model from the open datasets
+(acquisition.identity_readers.domain.registered) and their option labels (domain.ladder.registered_label)."""
 
 from __future__ import annotations
 
-from automind.acquisition.gold.domain.versions import IdRow, group, rows_of_keys
+from automind.acquisition.identity_readers.domain.registered import IdRow, group, rows_of_keys
 from automind.chat.domain.identification import ladder
 
 # the EEA group keys stored with the Kia Sorento MQ4 PHEV gold values (live database, 2026-11-05)

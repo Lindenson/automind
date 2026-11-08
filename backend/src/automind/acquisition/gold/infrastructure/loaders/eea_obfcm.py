@@ -25,8 +25,8 @@ from typing import Any
 
 import httpx
 
-from automind.acquisition.gold.domain.match import DatasetRow
-from automind.acquisition.gold.loaders import (
+from automind.acquisition.gold.domain.records import DatasetRow
+from automind.acquisition.gold.infrastructure.loaders import (
     USER_AGENT,
     fuel_of,
     num,
@@ -38,45 +38,6 @@ from automind.acquisition.gold.loaders import (
 
 _KEYS = ("make", "model", "fuel_type", "fuel_mode", "power_kw", "displacement_cc", "year")
 _SUMS = ("fuel_l", "distance_km", "cd_engine_off_km", "cd_engine_on_km", "grid_kwh")
-
-
-@dataclass
-class _Group:
-    n: int = 0
-    sums: dict[str, float] = field(default_factory=lambda: dict.fromkeys(_SUMS, 0.0))
-    mass: Counter[float] = field(default_factory=Counter)
-    wltp: Counter[float] = field(default_factory=Counter)
-
-    def add(self, rec: Mapping[str, float | None], mass: float | None, wltp: float | None) -> None:
-        self.n += 1
-        for k in _SUMS:
-            self.sums[k] += rec.get(k) or 0.0
-        if mass:
-            self.mass[mass] += 1
-        if wltp:
-            self.wltp[wltp] += 1
-
-
-async def _lines(cfg: Mapping[str, Any], transport: httpx.AsyncBaseTransport | None) -> AsyncIterator[str]:
-    timeout = httpx.Timeout(float(cfg.get("timeout_s", 1800)), connect=30.0)
-    auth = (str(cfg["share_token"]), "") if cfg.get("share_token") else None
-    async with (
-        httpx.AsyncClient(timeout=timeout, transport=transport, headers={"User-Agent": USER_AGENT}) as client,
-        client.stream("GET", str(cfg["url"]), auth=auth) as r,
-    ):
-        r.raise_for_status()
-        async for line in r.aiter_lines():
-            yield line
-
-
-def _index(header: list[str], cols: Mapping[str, str]) -> dict[str, int]:
-    header = [h.lstrip("﻿").strip() for h in header]
-    require(header, cols, "eea_obfcm")
-    return {k: header.index(v) for k, v in cols.items()}
-
-
-def _key(row: list[str], ix: Mapping[str, int]) -> tuple[str, ...]:
-    return tuple(" ".join(row[ix[k]].split()) for k in _KEYS)
 
 
 async def aggregate(
@@ -104,31 +65,6 @@ async def aggregate(
     if ix is None:
         raise RuntimeError("eea_obfcm: empty file")
     return groups
-
-
-def _values(fuel: str, g: _Group) -> dict[str, float]:
-    km = g.sums["distance_km"]
-    out: dict[str, float] = {}
-    if fuel != "bev" and g.sums["fuel_l"] > 0:
-        out["consumption_real"] = round(100 * g.sums["fuel_l"] / km, 2)
-    if fuel == "phev" and g.sums["grid_kwh"] > 0:
-        out["energy_real_kwh_100km"] = round(100 * g.sums["grid_kwh"] / km, 2)
-    return out
-
-
-def _details(fuel: str, g: _Group, mode: str, collection_year: int) -> dict[str, Any]:
-    km = g.sums["distance_km"]
-    d: dict[str, Any] = {
-        "fuel_mode": mode,
-        "vehicles": g.n,
-        "distance_km": round(km),
-        "collection_year": collection_year,
-        "wltp_consumption": weighted_median(g.wltp.items()),
-    }
-    if fuel == "phev":
-        d["cd_engine_off_share"] = round(g.sums["cd_engine_off_km"] / km, 3)
-        d["cd_share"] = round((g.sums["cd_engine_off_km"] + g.sums["cd_engine_on_km"]) / km, 3)
-    return d
 
 
 def to_row(cfg: Mapping[str, Any], key: tuple[str, ...], g: _Group) -> DatasetRow | None:
@@ -172,3 +108,67 @@ async def fetch_rows(
 def version(cfg: Mapping[str, Any]) -> str:
     """Dataset version: the collection year, e.g. "2024" → id eea_obfcm_2024."""
     return str(cfg["collection_year"])
+
+
+@dataclass
+class _Group:
+    n: int = 0
+    sums: dict[str, float] = field(default_factory=lambda: dict.fromkeys(_SUMS, 0.0))
+    mass: Counter[float] = field(default_factory=Counter)
+    wltp: Counter[float] = field(default_factory=Counter)
+
+    def add(self, rec: Mapping[str, float | None], mass: float | None, wltp: float | None) -> None:
+        self.n += 1
+        for k in _SUMS:
+            self.sums[k] += rec.get(k) or 0.0
+        if mass:
+            self.mass[mass] += 1
+        if wltp:
+            self.wltp[wltp] += 1
+
+
+async def _lines(cfg: Mapping[str, Any], transport: httpx.AsyncBaseTransport | None) -> AsyncIterator[str]:
+    timeout = httpx.Timeout(float(cfg.get("timeout_s", 1800)), connect=30.0)
+    auth = (str(cfg["share_token"]), "") if cfg.get("share_token") else None
+    async with (
+        httpx.AsyncClient(timeout=timeout, transport=transport, headers={"User-Agent": USER_AGENT}) as client,
+        client.stream("GET", str(cfg["url"]), auth=auth) as r,
+    ):
+        r.raise_for_status()
+        async for line in r.aiter_lines():
+            yield line
+
+
+def _index(header: list[str], cols: Mapping[str, str]) -> dict[str, int]:
+    header = [h.lstrip("﻿").strip() for h in header]
+    require(header, cols, "eea_obfcm")
+    return {k: header.index(v) for k, v in cols.items()}
+
+
+def _key(row: list[str], ix: Mapping[str, int]) -> tuple[str, ...]:
+    return tuple(" ".join(row[ix[k]].split()) for k in _KEYS)
+
+
+def _values(fuel: str, g: _Group) -> dict[str, float]:
+    km = g.sums["distance_km"]
+    out: dict[str, float] = {}
+    if fuel != "bev" and g.sums["fuel_l"] > 0:
+        out["consumption_real"] = round(100 * g.sums["fuel_l"] / km, 2)
+    if fuel == "phev" and g.sums["grid_kwh"] > 0:
+        out["energy_real_kwh_100km"] = round(100 * g.sums["grid_kwh"] / km, 2)
+    return out
+
+
+def _details(fuel: str, g: _Group, mode: str, collection_year: int) -> dict[str, Any]:
+    km = g.sums["distance_km"]
+    d: dict[str, Any] = {
+        "fuel_mode": mode,
+        "vehicles": g.n,
+        "distance_km": round(km),
+        "collection_year": collection_year,
+        "wltp_consumption": weighted_median(g.wltp.items()),
+    }
+    if fuel == "phev":
+        d["cd_engine_off_share"] = round(g.sums["cd_engine_off_km"] / km, 3)
+        d["cd_share"] = round((g.sums["cd_engine_off_km"] + g.sums["cd_engine_on_km"]) / km, 3)
+    return d

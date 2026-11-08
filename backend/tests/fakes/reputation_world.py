@@ -10,8 +10,10 @@ from typing import Any
 
 from sqlalchemy import delete, select
 
-from automind.acquisition.gold import repo as gold_repo
-from automind.acquisition.gold.domain.match import GoldValue
+from automind.acquisition.gold.domain.choice import REFERENCE_SET
+from automind.acquisition.gold.domain.records import DatasetInfo, GoldValue
+from automind.acquisition.gold.infrastructure.gold_store import GoldStore
+from automind.acquisition.gold.infrastructure.wiring import gold_rules
 from automind.shared import evidence as ev
 from automind.shared.infrastructure import db
 from automind.shared.infrastructure.db import models as m
@@ -63,16 +65,15 @@ class World:
             return v.id
 
     async def gold(self, variant_id: str, values: dict[str, float]) -> None:
-        await gold_repo.upsert_dataset(gold_repo.DatasetInfo(gold_repo.REFERENCE_SET, "Reference vehicles",
-                                                             "reference_set", "internal"))  # fmt: skip
+        await GoldStore().record_load(DatasetInfo(REFERENCE_SET, "Reference vehicles", "reference_set", "internal"))
         rows = []
         for a, x in values.items():
-            kind, tol = gold_repo.tolerance_of(a)
+            kind, tol = gold_rules().tolerance_of(a)
             rows.append(GoldValue(variant_id=variant_id, attribute=a, value_num=float(x), unit=UNITS.get(a, ""),
                                   tolerance=tol, tolerance_kind=kind, origin="reference_set",
                                   match_rule="reference_set", confidence="HIGH",
-                                  dataset_id=gold_repo.REFERENCE_SET))  # fmt: skip
-        await gold_repo.replace(gold_repo.REFERENCE_SET, variant_id, rows)
+                                  dataset_id=REFERENCE_SET))  # fmt: skip
+        await GoldStore().replace(REFERENCE_SET, variant_id, rows)
 
     async def page(self, variant_id: str, domain: str, source_type: str, text: str,
                    claims: Iterable[tuple[str, float, str]], producer: str = "extractor",

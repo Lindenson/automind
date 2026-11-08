@@ -1,15 +1,14 @@
 """Acquisition · acquisition.gold: gold (reference) values from open datasets, the reference set and user challenges.
 
 Owns:
-  `loaders` — dataset readers (EEA CO2, EEA OBFCM, RDW, reference set) → DatasetRow.
-  `domain` — pure matching of dataset rows to a catalogue variant, and registered versions of a model.
-  `load` — CLI `python -m automind.cli gold-load`: load a dataset into gold values.
-  `repo` — gold persistence (datasets, values, challenge gold); `versions` — registered versions (offline first).
-Flow: load → loaders.fetch_rows → domain.match → repo.replace.
-Depends on: infrastructure.config, shared (infrastructure.db, config, vehicle); sqlalchemy.
+  `domain` — records, matching of dataset rows to a catalogue variant, the reference-set rule, which gold counts.
+  `application` — GoldLoad (a source's gold replaces its previous load), ChallengeGold; their ports.
+  `infrastructure` — the gold and candidate stores, the open-data loaders, the reference file, wiring.
+Flow: delivery.cli.gold → wiring.gold_load() → GoldLoad.run: source.harvest (loader rows → domain.match) → GoldStore.
+  Readers of gold (reputation, replay) use `wiring.gold_store().best(variant_id)`; tolerances `wiring.gold_rules()`.
+Depends on: parsing.normalise (fuel), infrastructure.config, shared (contracts, infrastructure, vehicle).
 Must not depend on: as acquisition/__init__ (registry-no-chat).
-Public API: the modules in __all__ (callers import from them).
-Note: load.py uses the research-time `fuel_of` (parsing.normalise.fuel).
+Public API: the packages in __all__ (callers import from their modules).
 """
 
-__all__: list[str] = ["domain", "load", "loaders", "repo", "versions"]
+__all__: list[str] = ["application", "domain", "infrastructure"]

@@ -19,8 +19,8 @@ from typing import Any
 
 import httpx
 
-from automind.acquisition.gold.domain.match import DatasetRow
-from automind.acquisition.gold.loaders import (
+from automind.acquisition.gold.domain.records import DatasetRow
+from automind.acquisition.gold.infrastructure.loaders import (
     USER_AGENT,
     SchemaChanged,
     fuel_of,
@@ -50,10 +50,6 @@ _ALIASES = {
 _ICE = frozenset({"petrol", "diesel", "lpg", "cng", "e85"})
 
 
-def _col(name: str) -> str:
-    return f"[{name}]"
-
-
 def build_query(cfg: Mapping[str, Any], table: str, makes: list[str] | None) -> str:
     cols = cfg["columns"]
     keys = [_col(cols[k]) for k in _ALIASES.values()]
@@ -63,31 +59,6 @@ def build_query(cfg: Mapping[str, Any], table: str, makes: list[str] | None) -> 
         f"SELECT {select}, SUM({_col(cols['registrations'])}) AS reg "
         f"FROM {cfg['database']}.[{table}]{where} GROUP BY {', '.join(keys)}"
     )
-
-
-async def _query(client: httpx.AsyncClient, url: str, sql: str) -> list[dict[str, Any]]:
-    r = await client.post(url, data={"query": sql})
-    r.raise_for_status()
-    body = r.json()
-    if errors := body.get("errors"):
-        if any("column" in str(e.get("error", "")).lower() for e in errors):
-            raise SchemaChanged(f"eea_co2: {errors} (config/gold_datasets.yaml pins the columns)")
-        raise RuntimeError(f"discodata: {errors}")
-    return list(body.get("results") or [])
-
-
-def _values(fuel: str, rec: Mapping[str, Any]) -> dict[str, float]:
-    vals = {
-        # a hybrid's engine power is not the car's max power and a BEV's is often a continuous rating: for them
-        # the reported kW is only a matching key, never a gold value
-        "max_power": pos(rec.get("kw")) if fuel in _ICE else None,
-        "displacement": pos(rec.get("cc")),
-        "curb_mass": pos(rec.get("m")),
-        "co2_wltp": num(rec.get("co2")),
-        "consumption_wltp": pos(rec.get("fc")) if fuel != "bev" else None,
-        "energy_wh_km": pos(rec.get("z")) if fuel in ("bev", "phev") else None,
-    }
-    return {k: v for k, v in vals.items() if v is not None}
 
 
 def to_row(cfg: Mapping[str, Any], rec: Mapping[str, Any], year: int) -> DatasetRow | None:
@@ -124,11 +95,6 @@ def to_row(cfg: Mapping[str, Any], rec: Mapping[str, Any], year: int) -> Dataset
     )
 
 
-def _check(recs: list[dict[str, Any]], table: str) -> None:
-    if recs:
-        require(recs[0], {**{a: a for a in _ALIASES}, "reg": "reg"}, f"eea_co2 {table}")
-
-
 async def fetch_rows(
     cfg: Mapping[str, Any],
     make: str | None = None,
@@ -156,3 +122,37 @@ async def fetch_rows(
 def version(cfg: Mapping[str, Any]) -> str:
     """Dataset version for gold_datasets: the newest final year, e.g. "2024" → id eea_co2_2024."""
     return str(max(int(t["year"]) for t in cfg["tables"]))
+
+
+def _col(name: str) -> str:
+    return f"[{name}]"
+
+
+async def _query(client: httpx.AsyncClient, url: str, sql: str) -> list[dict[str, Any]]:
+    r = await client.post(url, data={"query": sql})
+    r.raise_for_status()
+    body = r.json()
+    if errors := body.get("errors"):
+        if any("column" in str(e.get("error", "")).lower() for e in errors):
+            raise SchemaChanged(f"eea_co2: {errors} (config/gold_datasets.yaml pins the columns)")
+        raise RuntimeError(f"discodata: {errors}")
+    return list(body.get("results") or [])
+
+
+def _values(fuel: str, rec: Mapping[str, Any]) -> dict[str, float]:
+    vals = {
+        # a hybrid's engine power is not the car's max power and a BEV's is often a continuous rating: for them
+        # the reported kW is only a matching key, never a gold value
+        "max_power": pos(rec.get("kw")) if fuel in _ICE else None,
+        "displacement": pos(rec.get("cc")),
+        "curb_mass": pos(rec.get("m")),
+        "co2_wltp": num(rec.get("co2")),
+        "consumption_wltp": pos(rec.get("fc")) if fuel != "bev" else None,
+        "energy_wh_km": pos(rec.get("z")) if fuel in ("bev", "phev") else None,
+    }
+    return {k: v for k, v in vals.items() if v is not None}
+
+
+def _check(recs: list[dict[str, Any]], table: str) -> None:
+    if recs:
+        require(recs[0], {**{a: a for a in _ALIASES}, "reg": "reg"}, f"eea_co2 {table}")

@@ -11,9 +11,9 @@ from typing import Any
 from sqlalchemy import delete
 
 from automind.acquisition import api
-from automind.acquisition.gold import repo
-from automind.acquisition.gold import versions as gv
-from automind.acquisition.gold.domain.match import DatasetRow, GoldValue
+from automind.acquisition.gold.domain.records import DatasetInfo, DatasetRow, GoldValue
+from automind.acquisition.gold.infrastructure.gold_store import GoldStore
+from automind.acquisition.identity_readers.infrastructure.version_store import cache_key
 from automind.chat.application.services.identification.catalogue import upsert_variant
 from automind.chat.application.services.identification.contracts import VariantIdentity
 from automind.delivery.bootstrap import reference
@@ -33,7 +33,7 @@ def _ports(live: Any = None, timeout: float = 5.0) -> SimpleNamespace:
 
 async def _forget_cache(make: str) -> None:
     async with db.sessionmaker()() as s:
-        await s.execute(delete(db.SearchCache).where(db.SearchCache.key == gv._key(make)))
+        await s.execute(delete(db.SearchCache).where(db.SearchCache.key == cache_key(make)))
         await s.commit()
 
 
@@ -45,10 +45,10 @@ async def test_stored_gold_keys_are_read_offline_without_a_live_query() -> None:
                                     generation_years_to=None, engine_cc=1598, power_kw=195, fuel="phev",
                                     certainty="exact")  # fmt: skip
     v = await upsert_variant(ident, reference({}))
-    await repo.upsert_dataset(repo.DatasetInfo("eea_co2_2024", "EEA CO2", "eea_co2", "CC-BY-4.0"))
+    await GoldStore().record_load(DatasetInfo("eea_co2_2024", "EEA CO2", "eea_co2", "CC-BY-4.0"))
     up = make.upper()
     keys = f"{up}|SORENTO|phev|132|1598|2021 ; {up}|SORENTO|phev|132|1598|2023 ; {up}|SORENTO|phev|118|1598|2024"
-    await repo.replace("eea_co2_2024", v.id, [GoldValue(variant_id=v.id, attribute="co2_wltp", value_num=38,
+    await GoldStore().replace("eea_co2_2024", v.id, [GoldValue(variant_id=v.id, attribute="co2_wltp", value_num=38,
                                                         unit="g/km", tolerance=0.05, tolerance_kind="rel",
                                                         origin="dataset", match_rule="by_power", confidence="MEDIUM",
                                                         dataset_id="eea_co2_2024", record_key=keys)])  # fmt: skip

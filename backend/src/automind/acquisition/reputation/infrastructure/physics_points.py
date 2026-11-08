@@ -11,8 +11,9 @@ import yaml
 from sqlalchemy import select
 
 from automind.acquisition.domain.physics import Point
-from automind.acquisition.gold import repo as gold_repo
-from automind.shared.infrastructure.db.models import GoldValueRow, SpecValue, Variant
+from automind.acquisition.gold.domain.records import StoredGold
+from automind.acquisition.gold.infrastructure.wiring import gold_store
+from automind.shared.infrastructure.db.models import SpecValue, Variant
 from automind.shared.infrastructure.db.session import sessionmaker
 
 REFERENCE = Path(__file__).resolve().parents[5] / "eval" / "reference_vehicles.yaml"
@@ -46,7 +47,7 @@ async def catalogue_points() -> list[Point]:
             p, m, t = vals.get("max_power"), vals.get("curb_mass"), vals.get("claimed_0_100")
             if not (p and m and t):
                 continue
-            gold = gold_repo.best_by_attribute(await gold_repo.gold_for(vid))
+            gold = await gold_store().best(vid)
             if not (_agrees(gold, vals, "max_power") and _agrees(gold, vals, "curb_mass")):
                 continue
             v = await s.get(Variant, vid)
@@ -59,6 +60,6 @@ def _group(powertrain: str | None, drivetrain: str | None) -> str:
     return f"{powertrain or 'ICE'}|{drivetrain}" if drivetrain else str(powertrain or "ICE")
 
 
-def _agrees(gold: dict[str, GoldValueRow], vals: dict[str, Any], attr: str) -> bool:
+def _agrees(gold: dict[str, StoredGold], vals: dict[str, Any], attr: str) -> bool:
     g = gold.get(attr)
     return g is not None and g.value_num is not None and abs(g.value_num - float(vals[attr])) <= GOLD_REL * g.value_num

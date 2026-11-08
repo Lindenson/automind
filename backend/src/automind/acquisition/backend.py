@@ -27,10 +27,10 @@ from automind.acquisition.api.contracts import (
     VersionsRead,
     WebHint,
 )
-from automind.acquisition.gold import repo as gold_repo
-from automind.acquisition.gold import versions as gold_versions
+from automind.acquisition.gold.infrastructure import wiring as gold
+from automind.acquisition.identity_readers import web as identity
+from automind.acquisition.identity_readers.infrastructure import wiring as identity_wiring
 from automind.acquisition.infrastructure.wiring import live_acq_ports
-from automind.acquisition.pipeline import identity
 
 
 class EngineBackend:
@@ -96,8 +96,8 @@ class EngineBackend:
 
     async def dataset_versions(self, ports: Any, make: str, model: str, generation: str | None, fuel: str | None,
                                year_from: int | None) -> list[DatasetVersion]:  # fmt: skip
-        found = await gold_versions.registered_versions(ports, make, model, generation, fuel, year_from)
-        url = gold_versions.source_url()
+        found = await identity_wiring.dataset_versions(ports).run(make, model, fuel, year_from)
+        url = identity_wiring.source_url()
         return [DatasetVersion(fuel=v.fuel, engine_kw=v.engine_kw, displacement_cc=v.displacement_cc,
                                years_from=v.years_from, years_to=v.years_to, registrations=v.registrations,
                                power_is_max=v.power_is_max, datasets=list(v.datasets), names=list(v.names),
@@ -105,7 +105,7 @@ class EngineBackend:
 
     async def record_challenge_gold(self, variant_id: str, attribute: str, outcome: str, value: str | float | None,
                                     unit: str | None, challenge_id: str | None) -> bool:  # fmt: skip
-        return await gold_repo.record_challenge(variant_id, attribute, outcome, value, challenge_id, unit)
+        return await gold.challenge_gold().record(variant_id, attribute, outcome, value, challenge_id, unit)
 
     async def catalogue_models(self, make: str) -> set[str]:
         return await catalogue.catalogue_models(make)

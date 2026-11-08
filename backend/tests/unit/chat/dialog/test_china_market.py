@@ -5,7 +5,7 @@ then on their home market, and no euro price taken from outside Europe (spec 009
 from dataclasses import dataclass
 
 from automind.acquisition.api import LineupEntry, WebHint
-from automind.acquisition.pipeline import identity as readers
+from automind.acquisition.identity_readers import web as readers
 from automind.acquisition.registry.api import PlannedSource
 from automind.chat.application.services.identification import lineup
 from automind.chat.dialog.phrases import PHRASES, market_name, t

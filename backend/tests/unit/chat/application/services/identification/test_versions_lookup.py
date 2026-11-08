@@ -140,7 +140,7 @@ async def test_a_list_of_one_or_two_versions_is_not_the_range() -> None:
 
 
 def test_range_pages_first_one_version_pages_last() -> None:
-    from automind.acquisition.pipeline.identity import _rank
+    from automind.acquisition.identity_readers.web import _rank
 
     one = "https://www.auto-data.net/es/skoda-octavia-iv-combi-rs-2.0-tsi-245hp-10693"
     data = "https://www.km77.com/coches/audi/a4/2016/4-puertas/estandar/a4-20-tdi-clean-diesel-150-cv/datos"

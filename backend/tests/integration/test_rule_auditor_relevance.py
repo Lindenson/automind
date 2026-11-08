@@ -21,8 +21,9 @@ from automind.acquisition.agents import rule_auditor
 from automind.acquisition.agents.levers import RuleProposal
 from automind.acquisition.domain import relevance as rel
 from automind.acquisition.gates.infrastructure.wiring import change_journal, replay_gate, shadow_gate
-from automind.acquisition.gold import repo
-from automind.acquisition.gold.domain.match import GoldValue
+from automind.acquisition.gold.domain.choice import REFERENCE_SET
+from automind.acquisition.gold.domain.records import DatasetInfo, GoldValue
+from automind.acquisition.gold.infrastructure.gold_store import GoldStore
 from automind.acquisition.infrastructure import overrides
 from automind.acquisition.parsing.infrastructure import v1_specs
 from automind.acquisition.snapshots import store
@@ -101,7 +102,7 @@ async def world():
     overrides.clear()
     started = datetime.now(UTC)
     w = Corpus()
-    await repo.upsert_dataset(repo.DatasetInfo(repo.REFERENCE_SET, "Reference vehicles", "reference_set", "internal"))
+    await GoldStore().record_load(DatasetInfo(REFERENCE_SET, "Reference vehicles", "reference_set", "internal"))
     for name, (_, kw, nm, kg, cc) in CARS.items():
         async with db.sessionmaker()() as s:
             v = db.Variant(canonical_key=f"{TAG}|bmw|{name}|{db.uid()}", make="BMW", model="Serie 5", generation="G30",
@@ -111,10 +112,10 @@ async def world():
             await s.commit()
         w.vids[name] = v.id
         vals = {"max_power": kw, "max_torque": nm, "curb_mass": kg, "displacement": cc}
-        await repo.replace(repo.REFERENCE_SET, v.id, [
+        await GoldStore().replace(REFERENCE_SET, v.id, [
             GoldValue(variant_id=v.id, attribute=a, value_num=x, unit=UNITS[a], tolerance=TOL[a][1],
                       tolerance_kind=TOL[a][0], origin="reference_set", match_rule="reference_set", confidence="HIGH",
-                      dataset_id=repo.REFERENCE_SET) for a, x in vals.items()])  # fmt: skip
+                      dataset_id=REFERENCE_SET) for a, x in vals.items()])  # fmt: skip
     judged = started - timedelta(days=2)
     for i, name in enumerate(("520d", "530d", "520i", "520d")):
         car = CARS[name][0]

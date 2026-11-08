@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
+from automind.acquisition.identity_readers.application.ports import LiveRows
 from automind.acquisition.pipeline.application.ports import PipelineStores
 from automind.shared.contracts.config import Reference
 from automind.shared.contracts.llm import LLM
@@ -36,7 +37,7 @@ class AcqPorts:
     registry: Any = None  # acquisition.registry.api.RegistryPort; None: config order only
     metrics: Any = None  # inc(name, **labels) for Prometheus counters; None: not counted
     market_facts: Any = None  # spec 006 US5: upsert(rows, evidence_id); None: market areas store nothing
-    datasets: Any = None  # async (make) -> [gold DatasetRow]: a live open-dataset query; None: stored/cached only
+    datasets: LiveRows | None = None  # a live open-dataset query of a make; None: stored/cached only
     shadow: ShadowFeed | None = None  # spec 011 T102: the shadow gate's feed; None: pages feed no shadow
 
     @property

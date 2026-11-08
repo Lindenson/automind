@@ -16,8 +16,8 @@ from urllib.parse import parse_qs
 import httpx
 import pytest
 
-from automind.acquisition.gold.domain.match import DatasetRow
-from automind.acquisition.gold.loaders import (
+from automind.acquisition.gold.domain.records import DatasetRow
+from automind.acquisition.gold.infrastructure.loaders import (
     SchemaChanged,
     eea_co2,
     eea_obfcm,
@@ -255,7 +255,7 @@ def test_dataset_meta_ids() -> None:
     assert meta(_cfg("eea_co2"), "2024").licence == "CC-BY-4.0"
 
 
-# --- loaders → match → gold_values (needs the US1 core: migration 0019, match.match, gold.repo) ---------------------
+# --- loaders → match → gold_values (GoldLoad over the live stores and the loaders on fixtures) ---------------------
 
 
 async def test_load_writes_gold() -> None:
@@ -311,14 +311,16 @@ async def test_load_writes_gold() -> None:
 async def _load_and_check(kia: Any, prado: Any, variants: list[Any]) -> None:
     from sqlalchemy import select
 
-    from automind.acquisition.gold.load import load_dataset
+    from automind.acquisition.gold.infrastructure import wiring
+    from automind.acquisition.gold.infrastructure.candidate_store import candidate
     from automind.shared.infrastructure import db
     from automind.shared.infrastructure.db.models import GoldValueRow
 
+    cands = [candidate(v) for v in variants]
     written = {
-        "eea_co2": await load_dataset("eea_co2", variants, transport=_discodata([])),
-        "rdw": await load_dataset("rdw", variants, transport=_soda([])),
-        "eea_obfcm": await load_dataset("eea_obfcm", variants, transport=_datashare()),
+        "eea_co2": await wiring.gold_load(_discodata([])).run("eea_co2", cands),
+        "rdw": await wiring.gold_load(_soda([])).run("rdw", cands),
+        "eea_obfcm": await wiring.gold_load(_datashare()).run("eea_obfcm", cands),
     }
     assert written["eea_co2"] and written["eea_obfcm"], {k: len(v) for k, v in written.items()}
     async with db.sessionmaker()() as s:
