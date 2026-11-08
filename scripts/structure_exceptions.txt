@@ -1,2 +1,3 @@
 # Justified exceptions to the structure rules (spec 012 R6): rule|path|reason (one line). Not a baseline:
 # an entry stays because the rule does not fit this module (data tables, generated code), never "to fix later".
+errtext|shared/contracts/provider_failure.py|the one text fallback of provider failures, used by every caller (code-shape "States, not words" rule 3)

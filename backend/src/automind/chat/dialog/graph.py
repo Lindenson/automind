@@ -21,9 +21,9 @@ from langgraph.graph import END, START, StateGraph
 from automind.chat.dialog.confirmation import Confirmation, Route, add_confirmation
 from automind.chat.dialog.nodes import confirm, feasibility, identify, report, research, understand
 from automind.chat.dialog.retry import LLM_RETRY
-from automind.chat.dialog.runner import TurnContext
 from automind.chat.dialog.state import TurnState
 from automind.chat.dialog.tracing import traced
+from automind.chat.dialog.turn.context import TurnContext
 
 MCP_TOOLS: list[Any] = []  # set by the API lifespan (persistent MCP stdio session)
 

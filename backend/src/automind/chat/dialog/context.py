@@ -6,7 +6,7 @@ from langgraph.runtime import Runtime
 
 from automind.chat.application.ports import IntakeLog
 from automind.chat.application.services.report.blocks import car_view
-from automind.chat.dialog.runner import TurnContext
+from automind.chat.dialog.turn.context import TurnContext
 from automind.chat.domain.case import CaseFile
 
 

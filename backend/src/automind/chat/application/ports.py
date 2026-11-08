@@ -16,7 +16,7 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Literal, Protocol, TypedDict, Unpack
+from typing import TYPE_CHECKING, Protocol, TypedDict, Unpack
 
 from automind.acquisition.api import (
     AcquireRequest,
@@ -28,6 +28,7 @@ from automind.acquisition.api import (
 )
 from automind.chat.domain.identification.ladder import Generation
 from automind.chat.domain.intake import LineupModel
+from automind.chat.domain.turn import JobStatus, Role, TurnStatus
 from automind.shared.contracts.config import Reference
 from automind.shared.contracts.json import JsonObject
 from automind.shared.contracts.llm import LLM
@@ -35,10 +36,6 @@ from automind.shared.contracts.llm import LLM
 if TYPE_CHECKING:
     from automind.chat.application.services.feasibility.feasibility import FeasibilityStore
     from automind.chat.application.services.identification.contracts import LineupLookup
-
-TurnStatus = Literal["RUNNING", "WAITING_CONFIRMATION", "DONE", "CANCELLED", "FAILED"]
-JobStatus = Literal["PENDING", "RUNNING", "DONE", "FAILED", "SKIPPED"]
-Role = Literal["user", "assistant", "edit"]  # "edit": a panel edit, kept apart from the person's words
 
 
 class StoreUnavailable(RuntimeError):
@@ -64,7 +61,7 @@ class TurnRecord:
     id: str
     chat_id: str
     seq: int
-    status: str  # a TurnStatus
+    status: TurnStatus
     usage: JsonObject  # the budget snapshot (calls, cost, time), {} before the first one
 
 
@@ -77,7 +74,7 @@ class JobRecord:
     variant_id: str
     area: str
     round: int
-    status: str  # a JobStatus
+    status: JobStatus
     attempts: int
     error: str | None
 
@@ -89,16 +86,15 @@ class MessageRecord:
     id: str
     chat_id: str
     turn_id: str | None
-    role: str  # a Role
+    role: Role
     text: str
     blocks: list[JsonObject]
     created_at: datetime
 
 
-class TurnChanges(TypedDict, total=False):
-    """What a turn update may set; a key not given is left as it is."""
+class TurnFacts(TypedDict, total=False):
+    """What a turn's status change records with it; a key not given is left as it is."""
 
-    status: TurnStatus
     usage: JsonObject
     action: str | None
     fingerprint: str | None
@@ -106,6 +102,12 @@ class TurnChanges(TypedDict, total=False):
     duration_ms: int
     case_version_after: int | None
     request_kind: str | None
+
+
+class TurnChanges(TurnFacts, total=False):
+    """What a turn update may set: its status and the facts recorded with it."""
+
+    status: TurnStatus
 
 
 class JobChanges(TypedDict, total=False):
@@ -154,6 +156,10 @@ class TurnRepo(Protocol):
 
     async def running(self) -> list[TurnRecord]:
         """Every RUNNING turn (resumed after a restart)."""
+        ...
+
+    async def spent_today(self, exclude_turn: str | None = None) -> float:
+        """€ spent since local midnight across all chats, without the given turn (the daily cap)."""
         ...
 
 

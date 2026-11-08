@@ -17,6 +17,7 @@ from uuid import UUID
 from langchain_core.callbacks import AsyncCallbackHandler
 from langchain_core.outputs import LLMResult
 
+from automind.shared.contracts.provider_failure import classify
 from automind.shared.infrastructure.db.usage import UsageRepo
 from automind.shared.infrastructure.metrics import prom
 from automind.shared.metering.usage import Prices, current_budget, current_job
@@ -32,15 +33,6 @@ def prompt_identity(role: str, system: str) -> tuple[str, str | None, str]:
     m = _HEADER.search(system[:300])
     name, version = (m.group(1), "v" + m.group(2)) if m else (role, None)
     return name[:40], version, hashlib.sha256(system.encode("utf-8")).hexdigest()[:12]
-
-
-def _error_kind(error: BaseException) -> str:
-    text = str(error)
-    if "RESOURCE_EXHAUSTED" in text or "insufficient_quota" in text:
-        return "quota"
-    if any(k in text for k in ("overloaded", "UNAVAILABLE", "503", "529")):
-        return "overload"
-    return "other"
 
 
 class UsageCallbackHandler(AsyncCallbackHandler):
@@ -120,7 +112,7 @@ class UsageCallbackHandler(AsyncCallbackHandler):
             area=job[1] if job else None,
             **self._identity(),
         )
-        prom.inc("llm_errors", role=self.role, kind=_error_kind(error))
+        prom.inc("llm_errors", role=self.role, kind=classify(error).value)
 
 
 def _tokens(response: LLMResult) -> tuple[int, int]:

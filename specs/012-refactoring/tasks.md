@@ -302,7 +302,7 @@ so it became rules (contracts/code-shape.md "States, not words") with a ratchet,
   finished packages 94 (pipeline 35, gates 30, registry 18, reputation 4, parsing 4, gold 2, identity_readers 1),
   acquisition rest 52 (top-level modules 15, agents 15, domain 11, infrastructure 4, worker 4, replay 3, drift 2,
   snapshots 1); delivery 29 (web 23, mcp 5, cli 1); shared 12; observability 5.
-- [ ] S9.4a The turn runner as a state machine (`chat/dialog/runner.py` 423 → `chat/dialog/turn/`):
+- [x] S9.4a (PR #126; structure 1557 → 1534, runner 423 → 160; behaviour diff differs 0) The turn runner as a state machine (`chat/dialog/runner.py` 423 → `chat/dialog/turn/`):
   `states.py` (`TurnStatus` StrEnum replacing the `Literal` of `chat/application/ports.py`, `TRANSITIONS`, `move()`,
   `Entry` = START | RESUME | SUPERSEDE_THEN_START | BUSY and the pure `route(active, preset)`), `presets.py`
   (`PresetKind`, `Preset.is_edit`; ws.py builds a `Preset`), `endings.py` (exception → `Ending`: one table instead of
@@ -312,6 +312,13 @@ so it became rules (contracts/code-shape.md "States, not words") with a ratchet,
   classifier (`retry.py` by exception type, one text table) used by the runner, the node retry policy and
   `shared/infrastructure/llm/gateway.py`; dead `thread_per_turn` / `prepare_input` removed; unit tests for
   `route`, `TRANSITIONS`, endings. chat/dialog runner/retry/context: 0 `word`/`errtext`/`duck`.
+  Done as: `chat/domain/turn.py` (TurnStatus, JobStatus, PresetKind, Role, TRANSITIONS, check_move) — ports' Literals
+  replaced, the repositories return enums; `chat/dialog/turn/{context, entry, endings, journal, execution, replies,
+  outcome}`; `shared/contracts/provider_failure.py` (`ProviderFailure`, `classify`, `quota_reset_s`,
+  `ProviderUnavailable`) used by the runner, retry, gateway and usage callback (the one `errtext` exception). Intended
+  minor change: the five word lists became one, so the `llm_errors{kind}` metric gains `rate_limit`/`network` and a
+  "529"/"500 INTERNAL" text counts as overload everywhere. Left for S9d: `tracing.py` (request_kind, block type,
+  relation), preset kind compared in `nodes/understand.py` and the interpretation service.
 - [ ] S9.4b The finished acquisition packages to 0 `word`/`errtext`/`duck` (pipeline, gates, registry, reputation,
   parsing, gold, identity_readers: 94 entries): statuses, verdicts and kinds as `StrEnum` in their `domain/`.
 - From A4c on, every package step leaves **0 `storage`, 0 `size`, 0 `word`, 0 `errtext`, 0 `duck`** in its package;

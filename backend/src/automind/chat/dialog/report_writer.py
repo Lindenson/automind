@@ -13,8 +13,8 @@ from automind.chat.dialog import agents
 from automind.chat.dialog import tracing as outcomes
 from automind.chat.dialog.guard import check_numbers, drop_sentences, numbers_in, report_violations, violations_prompt
 from automind.chat.dialog.phrases import t
-from automind.chat.dialog.runner import TurnContext
 from automind.chat.dialog.state import TurnState
+from automind.chat.dialog.turn.context import TurnContext
 from automind.chat.domain.case import CaseFile
 from automind.shared.metering.usage import BudgetExceeded
 

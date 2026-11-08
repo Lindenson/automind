@@ -10,8 +10,8 @@ from langgraph.runtime import Runtime
 from automind.chat.application.services.identification import IdentificationService
 from automind.chat.dialog.context import ctx, current_year, load_case, save_case
 from automind.chat.dialog.identification_notes import car_notices, still_not_understood
-from automind.chat.dialog.runner import TurnContext
 from automind.chat.dialog.state import TurnState
+from automind.chat.dialog.turn.context import TurnContext
 from automind.chat.domain.case import MAX_CARS
 
 

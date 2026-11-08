@@ -21,8 +21,8 @@ from automind.chat.dialog.nodes import feasibility as fz_nodes
 from automind.chat.dialog.phrases import t
 from automind.chat.dialog.policy import decide
 from automind.chat.dialog.report_wording import WORDING
-from automind.chat.dialog.runner import TurnContext
 from automind.chat.dialog.state import PER_TURN_RESET, DecisionState, TurnState
+from automind.chat.dialog.turn.context import TurnContext
 from automind.chat.domain import intake
 from automind.chat.domain.case import CaseFile
 from automind.chat.domain.decision import CarState

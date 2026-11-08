@@ -28,6 +28,7 @@ from automind.chat.application.services.research.contracts import (
 )
 from automind.chat.application.services.research.rounds import minimum_met, need_of
 from automind.chat.domain.case import CaseCar, CaseFile
+from automind.chat.domain.turn import JobStatus
 from automind.shared.metering.usage import BudgetExceeded, TurnBudget
 from automind.shared.research_order import plan as rp
 
@@ -61,19 +62,19 @@ class ResearchService:
         """One job: reused when already DONE, dropped when the car was corrected meanwhile, paused near a limit,
         else researched by the engine. Never raises for the job's own failure (see the module docstring)."""
         row = await self.ports.jobs.get(job["job_id"])
-        if row is not None and row.status == "DONE":  # resumed after a restart: never redo finished work
+        if row is not None and row.status == JobStatus.DONE:  # resumed after a restart: never redo finished work
             return _result(job, ok=True, reused=True, minimum_met=None)
         car = next((x for x in case.cars if x.key == job["car_key"]), None)
         if car is None or car.variant_id != job["variant_id"]:  # corrected meanwhile (spec 005): never the old one
-            await self.ports.jobs.mark(job["job_id"], "FAILED", error="superseded by a correction")
+            await self.ports.jobs.mark(job["job_id"], JobStatus.FAILED, error="superseded by a correction")
             return _result(job, ok=False, error=None, minimum_met=None)
         grid = _Grid(self.events, job, car.label or car.request_text)
         pause = self.budget.research_pause()
         if pause is not None:  # near a limit: do not start, ask the user whether to continue (never cancel)
             await grid.progress("paused")
-            await self.ports.jobs.mark(job["job_id"], "FAILED", error=f"paused at the {pause} limit")
+            await self.ports.jobs.mark(job["job_id"], JobStatus.FAILED, error=f"paused at the {pause} limit")
             return _result(job, ok=False, error=f"paused: {pause}", limit=pause)
-        await self.ports.jobs.mark(job["job_id"], "RUNNING")
+        await self.ports.jobs.mark(job["job_id"], JobStatus.RUNNING)
         await grid.progress("searching")
         return await self._acquire(job, car, grid)
 
@@ -111,17 +112,18 @@ class ResearchService:
                 res = got.kinds[0]
         except BudgetExceeded as e:
             await grid.progress("paused")
-            await self.ports.jobs.mark(job["job_id"], "FAILED", error=str(e))
+            await self.ports.jobs.mark(job["job_id"], JobStatus.FAILED, error=str(e))
             return _result(job, ok=False, error=str(e), limit=e.limit)
         except TimeoutError:
             await grid.progress("failed")
             if "job_timeout" not in self.budget.limits_reached:
                 self.budget.limits_reached.append("job_timeout")
-            await self.ports.jobs.mark(job["job_id"], "FAILED", error="timeout")
+            await self.ports.jobs.mark(job["job_id"], JobStatus.FAILED, error="timeout")
             return _result(job, ok=False, error="timeout", limit="time")
         await grid.progress(_cell_state(res), res.accepted)
-        await self.ports.jobs.mark(job["job_id"], "DONE" if res.ok else "FAILED", docs=res.docs, accepted=res.accepted,
-                                   rejected=res.rejected, error=res.error)  # fmt: skip
+        status = JobStatus.DONE if res.ok else JobStatus.FAILED
+        await self.ports.jobs.mark(job["job_id"], status, docs=res.docs, accepted=res.accepted, rejected=res.rejected,
+                                   error=res.error)  # fmt: skip
         return _result(job, ok=res.ok, minimum_met=res.minimum_met, error=res.error, accepted=res.accepted,
                 rejected=res.rejected)  # fmt: skip
 
