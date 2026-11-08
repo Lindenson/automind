@@ -10,11 +10,12 @@ from collections.abc import Mapping, Sequence
 from automind.acquisition.domain import relevance as rel
 from automind.acquisition.pipeline import extract as ex
 from automind.acquisition.pipeline import stamp
+from automind.acquisition.pipeline.application.ports import PageVerdict
+from automind.acquisition.pipeline.domain.variant import VariantFacts
 from automind.acquisition.pipeline.plan import known_makes
 from automind.acquisition.pipeline.validate import _variant_gearbox, fuel_of
 from automind.acquisition.ports import AcqPorts
 from automind.shared.contracts.web import Page
-from automind.shared.infrastructure import db
 from automind.shared.metering.usage import BudgetExceeded
 
 VERSION = "relevance@2"  # 2: a model named by its local (Chinese) names (chat 2026-11-06)
@@ -33,13 +34,13 @@ def _llm_per_job(ports: AcqPorts) -> int:
     return int(((ports.ref.search or {}).get("concurrency") or {}).get("llm_per_job", LLM_PER_JOB))
 
 
-def _relevance_target(v: db.Variant, ports: AcqPorts) -> tuple[rel.Target, list[rel.GenerationInfo]]:
+def _relevance_target(v: VariantFacts, ports: AcqPorts) -> tuple[rel.Target, list[rel.GenerationInfo]]:
     aliases = getattr(ports.ref, "aliases", None)
     names = aliases.names_of(v.make, v.model) if hasattr(aliases, "names_of") else []
     return relevance_target(v, ports.ref.generations, names)
 
 
-def relevance_target(v: db.Variant, generations: Mapping[str, Sequence[tuple[str, int | None, int | None]]],
+def relevance_target(v: VariantFacts, generations: Mapping[str, Sequence[tuple[str, int | None, int | None]]],
                      names: Sequence[str] = ()) -> tuple[rel.Target, list[rel.GenerationInfo]]:  # fmt: skip
     """The relevance rules' target and the model's known generations (live, and the offline relevance measure)."""
     gens = [rel.GenerationInfo(g, a, b) for g, a, b in generations.get(f"{v.make}|{v.model}", [])]
@@ -55,7 +56,7 @@ class _PageJudge:
     """Relevance of one page: rules first, the relevance role for uncertain pages (at most
     MAX_LLM_RELEVANCE_PER_JOB per job). Safe to call concurrently: the budget is taken before any await."""
 
-    def __init__(self, ports: AcqPorts, v: db.Variant, tgt: rel.Target, gens: list[rel.GenerationInfo], target: str,
+    def __init__(self, ports: AcqPorts, v: VariantFacts, tgt: rel.Target, gens: list[rel.GenerationInfo], target: str,
                  area: str | None = None):  # fmt: skip
         self.ports, self.v, self.tgt, self.gens, self.target = ports, v, tgt, gens, target
         self.service = area in SERVICE_AREAS
@@ -79,18 +80,13 @@ class _PageJudge:
                 raise
             except Exception:  # noqa: BLE001 - no answer: stays uncertain, the validator decides per claim
                 pass
-        await _store_relevance(p, self.v.id, r, method)
+        await self._record(p, r, method)
         return r
 
-
-async def _store_relevance(p: Page, variant_id: str, r: rel.Relevance, method: str) -> None:
-    if p.document_id is None:
-        return
-    from sqlalchemy.dialects.postgresql import insert  # noqa: PLC0415
-
-    values = {"document_id": p.document_id, "variant_id": variant_id, "verdict": r.verdict,
-              "other": (r.other or "")[:80] or None, "reason": r.reason, **stamp.relevance(method)}  # fmt: skip
-    async with db.sessionmaker()() as s:
-        stmt = insert(db.PageRelevance).values(**values)
-        await s.execute(stmt.on_conflict_do_update(index_elements=["document_id", "variant_id"], set_=values))
-        await s.commit()
+    async def _record(self, p: Page, r: rel.Relevance, method: str) -> None:
+        """The verdict on a stored page (a page without a document is not recorded)."""
+        if p.document_id is None:
+            return
+        await self.ports.stores.verdicts.record(PageVerdict(document_id=p.document_id, variant_id=self.v.id,
+                                                            verdict=r.verdict, other=(r.other or "")[:80] or None,
+                                                            reason=r.reason, **stamp.relevance(method)))  # fmt: skip

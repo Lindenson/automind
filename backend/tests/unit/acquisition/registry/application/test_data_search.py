@@ -7,7 +7,8 @@ from __future__ import annotations
 from types import SimpleNamespace
 from typing import Any
 
-from automind.acquisition.pipeline import persist
+from automind.acquisition.pipeline.domain.items import ExcerptCounter
+from automind.acquisition.pipeline.domain.used_prices import used_prices
 from automind.acquisition.registry.application.service import RegistryService, rank_queryable
 from automind.chat.domain.identification import used
 from automind.shared.infrastructure.config import loader as config
@@ -168,14 +169,6 @@ def test_whole_generation_range_is_not_the_price_of_one_year() -> None:
     assert used.used_price_for(rs[:1], 2016) is None
 
 
-class _Session:
-    def __init__(self) -> None:
-        self.added: list[Any] = []
-
-    def add(self, x: Any) -> None:
-        self.added.append(x)
-
-
 def test_used_prices_rejects_whole_generation_range_for_a_car_with_a_year() -> None:
     text = "Toyota Land Cruiser 2009-2023: de 12.000 a 18.000 euros. Un Land Cruiser de 2016 cuesta 30.000-34.000 €."
     out = SimpleNamespace(ranges=[
@@ -184,11 +177,9 @@ def test_used_prices_rejects_whole_generation_range_for_a_car_with_a_year() -> N
         SimpleNamespace(min=30000, max=34000, currency="EUR", model_year_from=2016, model_year_to=2016,
                         market="ES", quoted_on=None, excerpt="cuesta 30.000-34.000 €"),
     ])  # fmt: skip
-    s, k = _Session(), persist._Counter(text)
-    persist._used_prices(s, SimpleNamespace(id="v"), SimpleNamespace(id="e"), out, k, {"EUR": 1.0}, car_year=2016)
-    assert [r.status for r in s.added] == ["REJECTED_OTHER_YEAR", "ACCEPTED"]
+    k = ExcerptCounter(text)
+    rows = list(used_prices(SimpleNamespace(id="v"), out, k, {"EUR": 1.0}, car_year=2016))
+    assert [r.status for r in rows] == ["REJECTED_OTHER_YEAR", "ACCEPTED"]
     assert (k.accepted, k.rejected) == (1, 1)
-    s2 = _Session()
-    persist._used_prices(s2, SimpleNamespace(id="v"), SimpleNamespace(id="e"), out, persist._Counter(text),
-                          {"EUR": 1.0})  # fmt: skip
-    assert [r.status for r in s2.added] == ["ACCEPTED", "ACCEPTED"]  # no year: the generation range is kept
+    rows = list(used_prices(SimpleNamespace(id="v"), out, ExcerptCounter(text), {"EUR": 1.0}))
+    assert [r.status for r in rows] == ["ACCEPTED", "ACCEPTED"]  # no year: the generation range is kept

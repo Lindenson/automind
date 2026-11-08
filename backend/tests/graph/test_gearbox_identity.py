@@ -4,7 +4,7 @@ give a variant its gearbox."""
 import pytest
 from sqlalchemy import select
 
-from automind.acquisition.pipeline import merge
+from automind.acquisition.pipeline.infrastructure.wiring import value_selection
 from automind.chat.application.services.identification import assessment, catalogue, revalidation
 from automind.chat.domain.case import CaseCar, Constraints
 from automind.shared.infrastructure.db import models as m
@@ -47,7 +47,7 @@ async def test_mixed_gearboxes_are_asked_and_split():
 
 async def test_unanimous_claims_fill_the_gearbox():
     vid = await _variant_with("automatic 6-speed", "Skyactiv-Drive automatic")
-    await merge.reselect(vid)
+    await value_selection().reselect(vid)
     v = await catalogue.get_variant(vid)
     assert v is not None and v.transmission == "automatic"
     assert not await assessment.gearbox_mixed(vid)

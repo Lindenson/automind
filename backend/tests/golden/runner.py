@@ -440,6 +440,7 @@ async def _run_dialogue(d: Dialogue, saver: Any, *, live: bool, record: bool) ->
         budgets = budget_factory()
     events = EventBus(EventRepo())
     from automind.acquisition.engine import Engine
+    from automind.acquisition.pipeline.infrastructure.wiring import stores as pipeline_stores
     from automind.acquisition.ports import AcqPorts
     from automind.chat.dialog.prompts import load_all
     from automind.delivery.bootstrap import reference
@@ -447,7 +448,14 @@ async def _run_dialogue(d: Dialogue, saver: Any, *, live: bool, record: bool) ->
 
     ref = reference(load_all()) if live else open_web_reference()
     facts = MarketFactRepo()
-    acq = AcqPorts(llm=llm, ref=ref, search=search, pages=live_pages() if live else None, market_facts=facts)
+    acq = AcqPorts(
+        llm=llm,
+        ref=ref,
+        search=search,
+        stores=pipeline_stores(),
+        pages=live_pages() if live else None,
+        market_facts=facts,
+    )
     ports = Ports(
         llm=llm,
         acquisition=Engine(acq),

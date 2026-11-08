@@ -7,14 +7,14 @@ from __future__ import annotations
 
 from typing import Any
 
+from automind.acquisition.pipeline.domain.variant import VariantFacts
 from automind.acquisition.ports import AcqPorts
 from automind.shared.contracts.web import Page
-from automind.shared.infrastructure import db
 
 VERSION = "parse@1"
 
 
-async def _read_tables(ports: AcqPorts, v: db.Variant, pages: list[Page]) -> dict[str, Any]:
+async def _read_tables(ports: AcqPorts, v: VariantFacts, pages: list[Page]) -> dict[str, Any]:
     """Deterministic site readers for favourite spec sites; ambiguous or unknown layouts go to the LLM."""
     prepare = getattr(ports.readers, "prepare", None)
     if prepare is not None:

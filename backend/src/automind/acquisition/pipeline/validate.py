@@ -11,13 +11,12 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
-from sqlalchemy import select
-
 from automind.acquisition.domain import plausibility, sense_ev
+from automind.acquisition.pipeline.domain.selection import MONEY_ATTRS
+from automind.acquisition.pipeline.domain.variant import VariantFacts
 from automind.shared import evidence as ev
 from automind.shared.contracts.web import WebDoc
 from automind.shared.evidence import sense
-from automind.shared.infrastructure import db
 from automind.shared.vehicle import specs
 
 VERSION = "validate@2"  # 2: CLTC ranges and kWh/100 km never filed as WLTP (chat 2026-11-06)
@@ -38,7 +37,7 @@ def re_diesel_suffix(n: str) -> bool:
     return re.search(r"\b\d{3}d\b|\b\d\.\dd\b|\b\d{3} d\b", n) is not None  # 520d, 2.0d, E 220 d
 
 
-def _variant_gearbox(v: db.Variant) -> str | None:
+def _variant_gearbox(v: VariantFacts) -> str | None:
     """The gearbox named in the variant name ("… 6AT", "… manual", "… e-CVT"), when the column is empty."""
     name = f" {v.variant_name} ".lower()
     if re.search(r"\b\d\s?(at|a/t)\b|automatic|automático|automatica", name):
@@ -51,24 +50,11 @@ def _variant_gearbox(v: db.Variant) -> str | None:
 CRITICAL = ("max_power", "max_torque", "curb_mass", "drivetrain", "claimed_0_100", "top_speed")
 
 
-async def known_values(variant_id: str) -> dict[str, float]:
-    async with db.sessionmaker()() as s:
-        rows = await s.execute(
-            select(db.SpecValue.attribute, db.SpecValue.value_num).where(
-                db.SpecValue.variant_id == variant_id, db.SpecValue.available, db.SpecValue.value_num.is_not(None)
-            )
-        )
-        return {a: float(n) for a, n in rows.all()}
-
-
-def plausibility_ctx(v: db.Variant, known: dict[str, float]) -> plausibility.Context:
+def plausibility_ctx(v: VariantFacts, known: dict[str, float]) -> plausibility.Context:
     return plausibility.Context(
         powertrain=v.powertrain, fuel=fuel_of(v.variant_name, v.powertrain), known=known,
         transmission=v.transmission or _variant_gearbox(v), drive=v.drive,
     )  # fmt: skip
-
-
-MONEY_ATTRS = ("official_price_es",)
 
 
 def check(
@@ -118,7 +104,7 @@ def _litres(raw: str) -> float | None:
 
 
 def sense_before(
-    c: Any, v: db.Variant, source_type: str | None, url: str = ""
+    c: Any, v: VariantFacts, source_type: str | None, url: str = ""
 ) -> tuple[Any, tuple[str, None, None, str] | None]:
     """Re-file a claim under the attribute its value really is (WLTP / NEDC / real-world consumption); a boot
     volume with the seats folded, or of another body style, is not the boot volume."""
@@ -145,7 +131,7 @@ def _refile(c: Any, attribute: str | None, raw_value: Any) -> Any:
     return c.model_copy(update=update) if hasattr(c, "model_copy") else dataclasses.replace(c, **update)
 
 
-def _sense_ev_before(c: Any, v: db.Variant, url: str = "") -> tuple[Any, tuple[str, None, None, str] | None]:
+def _sense_ev_before(c: Any, v: VariantFacts, url: str = "") -> tuple[Any, tuple[str, None, None, str] | None]:
     """Electric values (spec 006 R4): a plug-in's consumption by its words; gross vs usable; kWh vs kW; the test
     cycle of a range or kWh/100 km (a Chinese page's CLTC figure is never filed as WLTP, chat 2026-11-06)."""
     plug_in = (v.powertrain or "").upper() in sense_ev.PLUG_IN

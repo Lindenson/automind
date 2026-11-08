@@ -48,6 +48,7 @@ source_modules =
     automind.shared.metering
     automind.shared.vehicle.makes
     automind.acquisition.reputation.application
+    automind.acquisition.pipeline.application
 forbidden_modules =
     automind.chat.dialog
     automind.delivery.web
@@ -183,6 +184,7 @@ type = forbidden
 source_modules =
     automind.acquisition.domain
     automind.acquisition.reputation.domain
+    automind.acquisition.pipeline.domain
     automind.acquisition.gold.domain
     automind.acquisition.snapshots.codec
     automind.acquisition.parsing.spec

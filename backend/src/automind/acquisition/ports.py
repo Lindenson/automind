@@ -1,8 +1,8 @@
 """The engine's ports (spec 011 contracts/acquire.md "Ports"): what the pipeline needs from outside — model access,
-reference data, search, the page store, site readers, the source registry, metrics and the market facts
-store. Built by `acquisition/infrastructure/wiring.py: live_acq_ports()`; tests pass fakes. The chat's
-`application/ports.py: Ports` has none of search, pages or readers: it reaches the engine through
-`Ports.acquisition` (strangler S8).
+reference data, search, the page store, site readers, the source registry, metrics, the market facts store and
+the pipeline's own stores (`stores`: variants, evidence, values, verdicts, the job book). Built by
+`acquisition/infrastructure/wiring.py: live_acq_ports()`; tests pass fakes. The chat's `application/ports.py: Ports`
+has none of search, pages or readers: it reaches the engine through `Ports.acquisition` (strangler S8).
 """
 
 from __future__ import annotations
@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from automind.acquisition.pipeline.application.ports import PipelineStores
 from automind.shared.contracts.config import Reference
 from automind.shared.contracts.llm import LLM
 from automind.shared.contracts.site_readers import NoReaders, SiteReaders
@@ -21,6 +22,7 @@ class AcqPorts:
     llm: LLM
     ref: Reference
     search: Searcher
+    stores: PipelineStores
     pages: PageStore | None = None  # None → `search` also implements PageStore (test fakes)
     readers: SiteReaders = field(default_factory=NoReaders)
     registry: Any = None  # acquisition.registry.api.RegistryPort; None: config order only

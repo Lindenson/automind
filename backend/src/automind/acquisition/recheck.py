@@ -13,7 +13,8 @@ from typing import Any
 from sqlalchemy import or_, select
 
 from automind.acquisition.api import Judged, RecheckResult, RevalidateResult
-from automind.acquisition.pipeline import job, merge, validate
+from automind.acquisition.pipeline import job, validate
+from automind.acquisition.pipeline.infrastructure import wiring as pipeline_wiring
 from automind.shared.contracts.web import WebDoc
 from automind.shared.evidence import sense
 from automind.shared.infrastructure import db
@@ -57,7 +58,7 @@ async def recheck_value(variant_id: str, attribute: str, *, rules: dict[str, Any
             out.judged.append(Judged(domain=e.domain, area=c.area or "specs", claim_id=c.id, excerpt=c.excerpt,
                                      by=by, ok=status == "ACCEPTED"))  # fmt: skip
         await s.commit()
-    await merge.reselect(variant_id)
+    await pipeline_wiring.value_selection().reselect(variant_id)
     return out
 
 
@@ -87,7 +88,7 @@ async def revalidate_claims(rules: dict[str, Any] | None) -> RevalidateResult:
                 e.url,
             )
             if v.id not in known:  # pair checks (battery vs range, usable vs gross) need the car's other values
-                known[v.id] = await validate.known_values(v.id)
+                known[v.id] = await pipeline_wiring.stores().values.known_values(v.id)
             ctx = validate.plausibility_ctx(v, known[v.id])
             status, num, txt, rule = bad or validate.check(claim, doc, ctx, rules)
             wrong_market = not sense.market_fits(e.url, "price").ok
@@ -115,7 +116,7 @@ async def recheck_minimums(variant_id: str) -> None:
         if r.area in research_plan.MARKET_AREAS:
             continue  # a market-level area (incentives) has no per-car evidence to count
         try:
-            hits = await job.area_hits(v, r.area)
+            hits = await job.area_hits(pipeline_wiring.stores().book, v, r.area)
             met = research_plan.minimum_met(r.area, [research_plan.SourceHit(**h) for h in hits])
         except ValueError:
             continue
