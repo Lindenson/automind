@@ -15,7 +15,7 @@ import pytest
 from sqlalchemy import delete, select
 
 from automind.acquisition.agents import scout
-from automind.acquisition.infrastructure.fetch import FetchRefused
+from automind.acquisition.infrastructure.fetch import FetchRefused, Refusal
 from automind.acquisition.registry.infrastructure import terms
 from automind.acquisition.registry.infrastructure.wiring import registry_service
 from automind.shared.contracts.web import SearchHit
@@ -53,7 +53,7 @@ class FixtureFetcher:
 
     async def fetch(self, url: str) -> Any:
         if url in ROBOTS_REFUSED:
-            raise FetchRefused("robots.txt disallows this path")
+            raise FetchRefused("robots.txt disallows this path", kind=Refusal.ROBOTS)
         if url not in PAGES:
             raise RuntimeError("404")
         title, body = PAGES[url]

@@ -10,6 +10,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from automind.acquisition.domain.tolerance import within
+
 
 @dataclass(frozen=True)
 class FamilyValue:
@@ -29,8 +31,7 @@ class Agreement:
 
 
 def _near(a: float, b: float, tol: tuple[str, float]) -> bool:
-    kind, t = tol
-    return abs(a - b) <= (t if kind == "abs" else t * abs(b)) + 1e-9
+    return within(a, b, tol)
 
 
 def agreements(values: Sequence[FamilyValue], tol: tuple[str, float]) -> list[Agreement]:

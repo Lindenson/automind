@@ -95,19 +95,20 @@ async def _signals(registry: Any, outcome: str, judged: list[tuple[str, str, str
     number but was misread blames our reader or extractor, not the source (FR-017)."""
     if registry is None or outcome == "UNRESOLVED":
         return
-    from automind.acquisition.registry.api import TruthSignalIn, blame_challenge  # noqa: PLC0415
+    from automind.acquisition.registry.api import TruthKind, TruthSignalIn, TruthVerdict, blame_challenge  # noqa: PLC0415
 
     async with db.sessionmaker()() as s:  # spec 011 R9: the producer version and model name the blamed reader
         made = {c.id: (c.producer_version, c.model) for c in (await s.execute(
             select(db.Claim).where(db.Claim.id.in_([j[2] for j in judged])))).scalars()}  # fmt: skip
     for domain, area, claim_id, excerpt, by, ok in judged:
         if outcome == "CONFIRMED" and ok:
-            verdict, b = "right", None
+            verdict, b = TruthVerdict.RIGHT, None
         elif not ok:  # spec 011 R9: vector blame; only the blamed component's reputation changes
-            verdict, b = "wrong", blame_challenge(corrected, excerpt, by, *made.get(claim_id, (None, None)), domain)
+            producer = made.get(claim_id, (None, None))
+            verdict, b = TruthVerdict.WRONG, blame_challenge(corrected, excerpt, by, *producer, domain)
         else:
             continue
-        await registry.signal(TruthSignalIn(kind="challenge", verdict=verdict, domain=domain, area=area,
+        await registry.signal(TruthSignalIn(kind=TruthKind.CHALLENGE, verdict=verdict, domain=domain, area=area,
                                             variant_id=variant_id, attribute=attribute, claim_id=claim_id,
                                             blame=b.label if b else "source", blame_vector=b.vector if b else None,
                                             components=b.components if b else {}))  # type: ignore[arg-type]  # fmt: skip

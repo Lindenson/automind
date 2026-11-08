@@ -13,6 +13,7 @@ from selectolax.lexbor import LexborHTMLParser  # the parser the interpreter use
 from automind.acquisition.parsing.normalise.labels import norm_label
 from automind.acquisition.parsing.readers.regex_safety import regex_problem
 from automind.shared.vehicle import specs, units
+from automind.shared.vehicle.specs.registry import TEXT
 
 if TYPE_CHECKING:
     from automind.acquisition.parsing.readers.spec import ParserSpec
@@ -60,7 +61,7 @@ def _field_errors(spec: ParserSpec) -> list[str]:
 
 def _attr_unit_ok(attribute: str, unit: str) -> bool:
     a = specs.ATTRS.get(attribute)
-    if a is None or a.kind == "text":
+    if a is None or a.kind == TEXT:
         return a is not None
     if a.convert is None:
         return True

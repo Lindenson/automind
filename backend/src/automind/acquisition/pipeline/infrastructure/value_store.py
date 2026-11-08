@@ -6,6 +6,7 @@ from __future__ import annotations
 from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from automind.acquisition.domain.claims import ClaimStatus
 from automind.acquisition.pipeline.application.ports import PipelineStoreUnavailable, SelectValues
 from automind.acquisition.pipeline.domain.selection import ScheduleItem
 from automind.shared import evidence as ev
@@ -46,7 +47,9 @@ class ValueRepo:
         async with sessionmaker()() as s:
             rows = await s.execute(
                 select(m.Claim.value_text).where(
-                    m.Claim.variant_id == variant_id, m.Claim.attribute == "transmission", m.Claim.status == "ACCEPTED"
+                    m.Claim.variant_id == variant_id,
+                    m.Claim.attribute == "transmission",
+                    m.Claim.status == ClaimStatus.ACCEPTED,
                 )
             )
             return [t for t in rows.scalars() if t is not None]
@@ -80,7 +83,7 @@ async def _accepted_claims(s: AsyncSession, variant_id: str) -> list[ev.ClaimIn]
     rows = await s.execute(
         select(m.Claim, m.Evidence)
         .join(m.Evidence, m.Claim.evidence_id == m.Evidence.id)
-        .where(m.Claim.variant_id == variant_id, m.Claim.status == "ACCEPTED")
+        .where(m.Claim.variant_id == variant_id, m.Claim.status == ClaimStatus.ACCEPTED)
     )
     return [ev.ClaimIn(c.id, c.attribute, c.value_num if c.value_num is not None else (c.value_text or ""),
                        e.source_type, e.domain, c.scope) for c, e in rows.all()]  # fmt: skip

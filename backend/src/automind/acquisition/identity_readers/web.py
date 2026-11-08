@@ -34,7 +34,7 @@ async def market_sites(ports: AcqPorts, market: str, area: str = "specs") -> lis
     cfg = abroad(ports, market)
     n = int(cfg.get("spec_sources") or 0)
     reg = ports.registry
-    if n <= 0 or reg is None or not hasattr(reg, "sources_for"):
+    if n <= 0 or reg is None:
         return []
     exclude = [str(d) for d in ((ports.ref.search or {}).get("abroad") or {}).get("terms_exclude") or []]
     try:

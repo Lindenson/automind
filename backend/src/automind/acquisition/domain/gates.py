@@ -16,9 +16,56 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field
-from typing import Any, Literal
+from enum import StrEnum
+from typing import Any
 
-VerdictKind = Literal["pass", "fail", "insufficient_evidence", "wait", "abandon", "keep", "rollback"]
+
+class GateVerdict(StrEnum):
+    """What a gate decides about a change."""
+
+    PASS = "pass"
+    FAIL = "fail"
+    INSUFFICIENT_EVIDENCE = "insufficient_evidence"  # too little gold yet: wait, then abandon
+    WAIT = "wait"  # shadow or watch still collecting
+    ABANDON = "abandon"
+    KEEP = "keep"  # watch over: the change stays
+    ROLLBACK = "rollback"
+
+
+CLOSING = frozenset({GateVerdict.PASS, GateVerdict.FAIL, GateVerdict.ABANDON})  # a gate's final word
+
+
+class ChangeStatus(StrEnum):
+    """Where a change (`acq_changes.status`) is on its way through the gates."""
+
+    PROPOSED = "proposed"
+    REPLAY = "replay"
+    SHADOW = "shadow"
+    ACCEPTED = "accepted"  # the rollback of a rolled-back change, applied at once
+    WATCH = "watch"
+    KEPT = "kept"
+    ROLLED_BACK = "rolled_back"
+    REVERTED = "reverted"
+    REJECTED = "rejected"
+    ABANDONED = "abandoned"
+
+
+AFTER_ACCEPTANCE = frozenset({ChangeStatus.WATCH, ChangeStatus.KEPT})  # the new version is live
+FAILED = frozenset({ChangeStatus.REJECTED, ChangeStatus.ABANDONED})
+UNDONE = frozenset({ChangeStatus.ROLLED_BACK, ChangeStatus.REVERTED})
+
+
+class ObjectKind(StrEnum):
+    """The engine object a change edits."""
+
+    PARSER = "parser"
+    PROMPT = "prompt"
+    ROLE_MODEL = "role_model"
+    RULE = "rule"
+    SOURCE = "source"
+
+
+VERSIONED = frozenset({ObjectKind.PARSER, ObjectKind.PROMPT})  # versions written `<key>@v<n>`
 
 
 def _get(m: Mapping[str, Any] | None, *path: str, default: Any = None) -> Any:
@@ -116,7 +163,7 @@ class Metrics:
 
 @dataclass(frozen=True)
 class Verdict:
-    verdict: VerdictKind
+    verdict: GateVerdict
     reasons: tuple[str, ...] = ()
     better: tuple[str, ...] = ()
     degraded: bool = False
@@ -182,7 +229,7 @@ def _criteria(old: Metrics, new: Metrics, cfg: GateConfig, degraded: bool, check
                        f"{new.pass_rate:.2f} vs {old.pass_rate:.2f}, accuracy {_f(new.accuracy)} vs "
                        f"{_f(old.accuracy)})")  # fmt: skip
     reasons += _guards(old, new, cfg)
-    return Verdict("fail" if reasons else "pass", tuple(reasons), better, degraded)
+    return Verdict(GateVerdict.FAIL if reasons else GateVerdict.PASS, tuple(reasons), better, degraded)
 
 
 def replay_verdict(old: Metrics, new: Metrics, cfg: GateConfig, *, degraded: bool = False,
@@ -192,8 +239,8 @@ def replay_verdict(old: Metrics, new: Metrics, cfg: GateConfig, *, degraded: boo
     if new.gold_covered < cfg.min_gold:
         why = f"{new.gold_covered} gold values covered < {cfg.min_gold}"
         if waited_days >= cfg.wait_days:
-            return Verdict("abandon", (f"{why} after {cfg.wait_days} days",), (), deg)
-        return Verdict("insufficient_evidence", (why,), (), deg)
+            return Verdict(GateVerdict.ABANDON, (f"{why} after {cfg.wait_days} days",), (), deg)
+        return Verdict(GateVerdict.INSUFFICIENT_EVIDENCE, (why,), (), deg)
     return _criteria(old, new, cfg, deg)
 
 
@@ -202,12 +249,12 @@ def shadow_verdict(old: Metrics, new: Metrics, cfg: GateConfig, *, days: float, 
     """The shadow gate: both versions on the same live/prefetch pages."""
     deg = is_degraded(old, cfg, degraded)
     if not budget_left:
-        return Verdict("abandon", ("the agent's budget ran out during shadow",), (), deg)
+        return Verdict(GateVerdict.ABANDON, ("the agent's budget ran out during shadow",), (), deg)
     enough = new.pages >= cfg.shadow_min_pages or (new.pages > 0 and days >= cfg.shadow_decide_days)
     if not enough:
         if days >= cfg.shadow_max_days:
-            return Verdict("abandon", (f"{new.pages} shadow pages in {cfg.shadow_max_days:g} days",), (), deg)
-        return Verdict("wait", (f"{new.pages}/{cfg.shadow_min_pages} shadow pages",), (), deg)
+            return Verdict(GateVerdict.ABANDON, (f"{new.pages} shadow pages in {cfg.shadow_max_days:g} days",), (), deg)
+        return Verdict(GateVerdict.WAIT, (f"{new.pages}/{cfg.shadow_min_pages} shadow pages",), (), deg)
     return _criteria(old, new, cfg, deg, check_kpi=new.gold_covered >= cfg.min_gold)
 
 
@@ -228,10 +275,10 @@ def watch_verdict(baseline: Metrics, current: Metrics, wrong_signals: int, days:
     if current.pages and baseline.yield_ > 0 and current.yield_ < baseline.yield_ * (1 - cfg.watch_yield_drop) - 1e-9:
         reasons.append(f"yield {current.yield_:.2f} vs {baseline.yield_:.2f} at acceptance")
     if reasons:
-        return Verdict("rollback", tuple(reasons))
+        return Verdict(GateVerdict.ROLLBACK, tuple(reasons))
     if days >= cfg.watch_days:
-        return Verdict("keep", (f"no degradation in {days:g} days",))
-    return Verdict("wait", (f"day {days:g} of {cfg.watch_days}",))
+        return Verdict(GateVerdict.KEEP, (f"no degradation in {days:g} days",))
+    return Verdict(GateVerdict.WAIT, (f"day {days:g} of {cfg.watch_days}",))
 
 
 # --- the one-sentence explanation ---------------------------------------------------------------------------------
@@ -249,7 +296,8 @@ class Facts:
     extra: dict[str, Any] = field(default_factory=dict)
 
 
-_NOUN = {"parser": "parser", "prompt": "prompt", "role_model": "model", "rule": "", "source": "source"}
+_NOUN: dict[str, str] = {ObjectKind.PARSER: "parser", ObjectKind.PROMPT: "prompt", ObjectKind.ROLE_MODEL: "model",
+                         ObjectKind.RULE: "", ObjectKind.SOURCE: "source"}  # fmt: skip
 
 
 def short(version: str | None) -> str:
@@ -260,9 +308,9 @@ def short(version: str | None) -> str:
 
 
 def _subject(f: Facts) -> str:
-    if f.kind == "rule":
+    if f.kind == ObjectKind.RULE:
         return f"rule {f.key} {f.from_version}→{f.to_version}"
-    a, b = (short(f.from_version), short(f.to_version)) if f.kind in ("parser", "prompt") else (
+    a, b = (short(f.from_version), short(f.to_version)) if f.kind in VERSIONED else (
         f.from_version or "none", f.to_version or "?")  # fmt: skip
     return f"{f.key} {_NOUN.get(f.kind, f.kind)} {a}→{b}"
 
@@ -284,8 +332,8 @@ def explain(f: Facts, *, replay: Metrics | None = None, shadow: tuple[Metrics, M
             verdict: Verdict | None = None, wrong_signals: int = 0, days: float | None = None) -> str:  # fmt: skip
     """One sentence with the numbers, e.g. "km77 parser v4→v5: table labels changed on 03.11; v5 reproduces 48/50
     gold values; shadow yield 0.91 vs 0.42"."""
-    if f.status == "rolled_back":
-        name = f"{f.key} {_NOUN.get(f.kind, f.kind)}".strip() if f.kind != "rule" else f"rule {f.key}"
+    if f.status == ChangeStatus.ROLLED_BACK:
+        name = f"{f.key} {_NOUN.get(f.kind, f.kind)}".strip() if f.kind != ObjectKind.RULE else f"rule {f.key}"
         to, prev = short(f.to_version), short(f.from_version)
         if wrong_signals and (verdict is None or any("wrong values" in r for r in verdict.reasons)):
             why = f"{wrong_signals} wrong values blamed to {to}{_days(days)}"
@@ -293,7 +341,7 @@ def explain(f: Facts, *, replay: Metrics | None = None, shadow: tuple[Metrics, M
             why = verdict.reason if verdict is not None else "degraded in watch"
         return f"{name} {to} rolled back: {why}; previous {prev} restored"
     parts: list[str] = []
-    if f.status in ("rejected", "abandoned"):
+    if f.status in FAILED:
         head = f"{_subject(f)} {f.status} at {f.gate or 'replay'}: {verdict.reason if verdict else 'no reason'}"
         parts.append(head)
     else:
@@ -302,9 +350,9 @@ def explain(f: Facts, *, replay: Metrics | None = None, shadow: tuple[Metrics, M
         parts.append(str(f.extra["measure"]))
     elif g := _gold(f, replay):
         parts.append(g)
-    if shadow is not None and f.status not in ("rejected", "abandoned"):
+    if shadow is not None and f.status not in FAILED:
         old, new = shadow
         parts.append(f"shadow yield {new.yield_:.2f} vs {old.yield_:.2f}")
-    if f.status == "kept":
+    if f.status == ChangeStatus.KEPT:
         parts.append("kept after the watch")
     return "; ".join(p for p in parts if p).replace("\n", " ")

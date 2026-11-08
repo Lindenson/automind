@@ -7,7 +7,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 from automind.acquisition.registry.domain.families import family_of
-from automind.acquisition.registry.domain.model import Capability, Source
+from automind.acquisition.registry.domain.model import Capability, CapabilityStatus, Source
 from automind.shared.contracts.json import JsonObject
 
 AREA_OF_KIND = {
@@ -41,13 +41,13 @@ MARKET_OF_COUNTRY = {
     "NL": "NL",
 }
 VERDICT = {  # survey verdict -> (access, capability status)
-    "candidate": ("ok", "candidate"),
-    "classifieds": ("classifieds", "blocked"),
-    "tos_forbids": ("terms_forbid", "blocked"),
-    "blocked_robots": ("robots_blocked", "blocked"),
-    "paywall": ("paywall", "retired"),
-    "js_only": ("js_only", "retired"),
-    "dead": ("dead", "retired"),
+    "candidate": ("ok", CapabilityStatus.CANDIDATE),
+    "classifieds": ("classifieds", CapabilityStatus.BLOCKED),
+    "tos_forbids": ("terms_forbid", CapabilityStatus.BLOCKED),
+    "blocked_robots": ("robots_blocked", CapabilityStatus.BLOCKED),
+    "paywall": ("paywall", CapabilityStatus.RETIRED),
+    "js_only": ("js_only", CapabilityStatus.RETIRED),
+    "dead": ("dead", CapabilityStatus.RETIRED),
 }
 COUNTRY = re.compile(r"[A-Z]{2}")
 CLAUSE_CHARS = 500
@@ -123,9 +123,9 @@ def from_survey(
     """The source and its capabilities from a survey entry: the verdict gives access and status, the deny-list and
     a classifieds flag block it; one capability per area of its kinds on its market."""
     domain = e.domain.lower().removeprefix("www.")
-    access, status = VERDICT.get(e.verdict, ("unknown", "candidate"))
+    access, status = VERDICT.get(e.verdict, ("unknown", CapabilityStatus.CANDIDATE))
     if denied(domain, deny) or e.classifieds:
-        access, status = "classifieds", "blocked"
+        access, status = "classifieds", CapabilityStatus.BLOCKED
     evidence = {
         k: v
         for k, v in {
@@ -169,7 +169,9 @@ def from_favourite(
         checked_at=f.tos_checked,
     )
     caps = [
-        Capability(domain, a, m, "blocked" if blocked else "active", f.priority) for a in f.areas for m in f.markets
+        Capability(domain, a, m, CapabilityStatus.BLOCKED if blocked else CapabilityStatus.ACTIVE, f.priority)
+        for a in f.areas
+        for m in f.markets
     ]
     return src, caps
 

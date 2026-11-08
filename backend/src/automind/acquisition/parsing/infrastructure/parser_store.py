@@ -16,6 +16,7 @@ from typing import Any
 from sqlalchemy import select, text, update
 
 from automind.acquisition.domain.drift import Drift
+from automind.acquisition.domain.versions import VersionStatus
 from automind.acquisition.parsing.readers.ports import ParserStoreUnavailable
 from automind.acquisition.parsing.readers.spec import ParserSpec
 from automind.acquisition.parsing.readers.versions import RUNNING, Version, explanation
@@ -94,8 +95,8 @@ class ParserStore:
             reader = (
                 await s.execute(
                     update(ParserVersion)
-                    .where(ParserVersion.key == key, ParserVersion.status == "active")
-                    .values(status="degraded", degraded_reason=drift.reason)
+                    .where(ParserVersion.key == key, ParserVersion.status == VersionStatus.ACTIVE)
+                    .values(status=VersionStatus.DEGRADED, degraded_reason=drift.reason)
                     .returning(ParserVersion.reader)
                 )
             ).scalar_one_or_none()

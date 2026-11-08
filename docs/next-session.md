@@ -1,4 +1,4 @@
-# Next session: start here (2026-11-08 after S9.4a turn runner; next: S9.4b, then A4c)
+# Next session: start here (2026-11-08 after S9.4b; next: A4c snapshots/drift/replay)
 
 **First task: refactoring — spec 012, executed by `specs/012-refactoring/tasks.md` (one phase = one PR).**
 No new features until it is done (owner, 2026-11-06). All functional work in §4 is parked, still valid, and
@@ -44,7 +44,7 @@ store), text, config (`MatchCfg`, `GoldRules`), match, reference, choice; `appli
 `delivery/cli/gold.py`. `identity_readers/`: `web` (was pipeline/identity.py), `domain/registered`,
 `DatasetVersions` over `VersionBook`/`LiveRows`, version_store, wiring; `AcqPorts.datasets: LiveRows | None`; contract
 `gold-services-over-ports`). **gold, identity_readers: 0 entries.**
-Structure baseline 1534 (after S9.4a), mypy report (all src) 195, 14 import contracts. Owner confirmed the A3 split (a → b → c) on
+Structure baseline 1433 (after S9.4b), mypy report (all src) 195, 14 import contracts. Owner confirmed the A3 split (a → b → c) on
 2026-11-08; A4 is split the same way (one PR per package): A4a registry → A4b gold → A4c snapshots/drift/replay.
 
 **The template (follow it for A3–A8; `reputation/` and `gates/` show it):**
@@ -68,11 +68,13 @@ in `scripts/structure_states.py`; contract code-shape.md "States, not words"; pr
 Baseline 1225 → 1557 (+332), PR #125. **S9.4a done** (PR #126): `chat/domain/turn.py` (TurnStatus, JobStatus,
 PresetKind, Role, TRANSITIONS, check_move), `chat/dialog/turn/` (entry `route()` table, endings table, journal,
 execution, replies, outcome), runner 423 → 160; one provider-failure classifier `shared/contracts/provider_failure.py`
-instead of five word lists; structure 1534. Next: **S9.4b** the finished acquisition packages (94 entries) → A4c. From A4c on each package step also leaves 0
+instead of five word lists; structure 1534. **S9.4b done** (PR #127): finished acquisition packages at 0
+`word`/`errtext`/`duck`; named states in `acquisition/domain/{gates,versions,claims,truth,tolerance}`, registry
+`CapabilityStatus`; structure 1433, mypy report 193. Next: A4c. From A4c on each package step also leaves 0
 `word`/`errtext`/`duck`.
 
 **Then A4c** — `snapshots/`, `drift/`, `replay/`
-(run 359; 33 entries) and A3b-f1 (type `Found.stats` / hits: `SearchStats` / `SourceHit`). Gold readers use `gold/infrastructure/wiring` (`gold_store().best(vid)`, `gold_rules()`); registry callers use
+(run 359; their entries incl. word/duck) and A3b-f1 (type `Found.stats` / hits: `SearchStats` / `SourceHit`). Gold readers use `gold/infrastructure/wiring` (`gold_store().best(vid)`, `gold_rules()`); registry callers use
 `registry/infrastructure/wiring` (scout gets a `SiteAdmission`, blame judge `signal_store()`). Callers of the parser store use
 `ParserStore()` (drift/daily, gates/page_reading) or the lazy imports still listed for agents/replay — A4/A6 remove
 them. Then A5 worker, A6 agents, A7 engine top level + `admin_api.py` (1049) → `admin/`, A8

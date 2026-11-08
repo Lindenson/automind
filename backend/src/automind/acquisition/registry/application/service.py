@@ -8,10 +8,9 @@ Errors: research works without the registry, so nothing here raises into a job. 
 from __future__ import annotations
 
 import logging
-from typing import Literal
 
 from automind.acquisition.domain import thompson
-from automind.acquisition.registry.api import Attempt, Plan, PlannedSource, TruthSignalIn
+from automind.acquisition.registry.api import Attempt, Outcome, Plan, PlannedSource, TruthSignalIn
 from automind.acquisition.registry.application.ports import (
     Capabilities,
     PageMarks,
@@ -20,6 +19,7 @@ from automind.acquisition.registry.application.ports import (
 )
 from automind.acquisition.registry.domain import planning
 from automind.acquisition.registry.domain.config import RegistryConfig
+from automind.acquisition.registry.domain.model import CapabilityStatus
 from automind.acquisition.registry.domain.records import CapabilityView
 
 log = logging.getLogger(__name__)
@@ -55,8 +55,8 @@ class RegistryService:
         active = planning.ordered_active(rows)
         seed = seed if seed is not None else thompson.seed_of(area, *markets)
         explored = await self._explore(rows, {r.domain for r in active}, seed)
-        sources = [_planned(r, i, "active") for i, r in enumerate(active)]
-        sources += [_planned(r, len(active) + i, "candidate") for i, r in enumerate(explored)]
+        sources = [_planned(r, i, CapabilityStatus.ACTIVE) for i, r in enumerate(active)]
+        sources += [_planned(r, len(active) + i, CapabilityStatus.CANDIDATE) for i, r in enumerate(explored)]
         return Plan(area=area, autonomy=True, sources=sources, skip=skip)
 
     async def sources_for(self, area: str, markets: list[str], limit: int) -> list[PlannedSource]:
@@ -83,7 +83,7 @@ class RegistryService:
             return
         for a in attempts:
             if a.snapshot_id is not None:
-                await self.pages.mark(a.snapshot_id, a.values if a.outcome == "accepted" else 0, a.variant_id)
+                await self.pages.mark(a.snapshot_id, a.values if a.outcome == Outcome.ACCEPTED else 0, a.variant_id)
 
     async def signal(self, s: TruthSignalIn) -> str | None:
         """Record a truth signal with its configured weight; returns its id (None when it could not be stored)."""
@@ -102,13 +102,14 @@ class RegistryService:
         return planning.pick_candidates(rows, taken, self.cfg, planning.exploration(self.cfg, spent, seed))
 
 
-def _planned(r: CapabilityView, priority: int, status: Literal["active", "candidate"]) -> PlannedSource:
+def _planned(r: CapabilityView, priority: int, status: CapabilityStatus) -> PlannedSource:
     return PlannedSource(domain=r.domain, market=r.market, priority=priority, status=status,
-                         unverified=status == "candidate")  # fmt: skip
+                         unverified=status == CapabilityStatus.CANDIDATE)  # fmt: skip
 
 
 def _queryable(r: CapabilityView, priority: int) -> PlannedSource:
-    status: Literal["active", "candidate"] = "active" if r.status == "active" else "candidate"  # rank_queryable's two
+    active = r.status == CapabilityStatus.ACTIVE  # rank_queryable gives active and candidate ones
+    status = CapabilityStatus.ACTIVE if active else CapabilityStatus.CANDIDATE
     path = r.url_patterns[0] if r.url_patterns else ""
     return PlannedSource(domain=r.domain, market=r.market, priority=priority, status=status,
-                         unverified=status == "candidate", path=path)  # fmt: skip
+                         unverified=not active, path=path)  # fmt: skip

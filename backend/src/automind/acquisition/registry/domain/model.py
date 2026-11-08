@@ -3,10 +3,23 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from enum import StrEnum
 
 from automind.shared.contracts.json import JsonObject
 
-STATUSES = ("discovered", "candidate", "active", "degraded", "retired", "blocked")
+
+class CapabilityStatus(StrEnum):
+    """Where a source's capability (domain × area × market) is in its life (`registry_capabilities.status`)."""
+
+    DISCOVERED = "discovered"  # met in an open search; admission not checked yet
+    CANDIDATE = "candidate"  # admitted: explored within a small budget
+    ACTIVE = "active"  # proven: planned first
+    DEGRADED = "degraded"  # was active, now failing
+    RETIRED = "retired"  # degraded too long (retried later as a candidate)
+    BLOCKED = "blocked"  # robots, terms, classifieds or the deny-list: never read
+
+
+STATUSES = tuple(CapabilityStatus)
 ACCESS_BLOCKING = ("classifieds", "terms_forbid", "robots_blocked")
 
 

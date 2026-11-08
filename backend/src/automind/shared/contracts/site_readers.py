@@ -28,7 +28,23 @@ class SiteReaders(Protocol):
 
     def read(self, page: Page, target: dict[str, Any]) -> SiteReading | None: ...
 
+    async def prepare(self) -> None:
+        """Before a job's pages: reload what may have changed (the live registry's running parser versions)."""
+        ...
+
+    async def flush_stats(self) -> None:
+        """After a job's pages: store the reading counts gathered meanwhile."""
+        ...
+
 
 class NoReaders:
+    """No site readers: every page goes to the extraction role."""
+
     def read(self, page: Page, target: dict[str, Any]) -> SiteReading | None:
+        return None
+
+    async def prepare(self) -> None:
+        return None
+
+    async def flush_stats(self) -> None:
         return None

@@ -13,11 +13,12 @@ import re
 import unicodedata
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
-from typing import Literal
+from typing import Final, Literal
 
 from automind.shared.evidence import sense, sibling_code
 
 Verdict = Literal["RELEVANT", "OTHER_VARIANT", "MULTI_VARIANT", "NOT_ABOUT_CAR", "UNCERTAIN"]
+UNCERTAIN: Final[Verdict] = "UNCERTAIN"  # the rules cannot tell: a model may judge the page
 
 HEAD_CHARS = 3000
 POWER_TOLERANCE = 0.05

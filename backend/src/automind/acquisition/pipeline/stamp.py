@@ -9,13 +9,14 @@ from __future__ import annotations
 
 from typing import Any
 
+from automind.shared.contracts.web import Page, WebDoc
 from automind.shared.provenance.served import served
 from automind.shared.provenance.versions import parse_key, reader_key
 
 LEGACY_READER_VERSION = 1
 
 
-def reader(reading: Any, page: Any) -> dict[str, Any]:
+def reader(reading: Any, page: Page | WebDoc | None) -> dict[str, Any]:
     """`reading` is a `SiteReading` named by its parser version (`reader="km77@v2"`, spec 011 US4) — or, from an old
     reader, `"site:km77"` (version 1) — and `page` the `Page` it was read from (or None)."""
     name = str(reading.reader)
@@ -28,11 +29,11 @@ def reader(reading: Any, page: Any) -> dict[str, Any]:
         "producer": "reader",
         "producer_version": version,
         "model": None,
-        "snapshot_id": getattr(page, "snapshot_id", None),
+        "snapshot_id": page.snapshot_id if page is not None else None,
     }
 
 
-def extractor(page: Any, role: str = "extractor") -> dict[str, Any]:
+def extractor(page: Page | WebDoc, role: str = "extractor") -> dict[str, Any]:
     """The extraction role's served call in this task: `extract_specs@v2` and the model that answered. `page` is the
     `Page` or the `WebDoc` made from it (both carry the snapshot id)."""
     call = served(role)
@@ -40,7 +41,7 @@ def extractor(page: Any, role: str = "extractor") -> dict[str, Any]:
         "producer": "extractor",
         "producer_version": call.prompt_key if call else "legacy",
         "model": call.model if call else None,
-        "snapshot_id": getattr(page, "snapshot_id", None),
+        "snapshot_id": page.snapshot_id,
     }
 
 

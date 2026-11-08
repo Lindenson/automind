@@ -10,7 +10,7 @@ from typing import Protocol
 from pydantic import BaseModel
 
 from automind.acquisition.infrastructure.config import fetch_policy
-from automind.acquisition.infrastructure.fetch import Fetcher, FetchPolicy, FetchRefused
+from automind.acquisition.infrastructure.fetch import Fetcher, FetchPolicy, FetchRefused, Refusal
 from automind.acquisition.registry.domain.admission import AdmissionFacts
 from automind.shared import evidence as ev
 from automind.shared.infrastructure.llm import gateway as llm_gateway
@@ -127,7 +127,7 @@ async def _get(f: Fetcher, url: str) -> tuple[str, str] | None:
         d = await f.fetch(url)
         return d.title or "", d.text or ""
     except FetchRefused as e:
-        if "robots" in str(e):
+        if e.kind is Refusal.ROBOTS:
             raise
         return None
     except Exception:  # noqa: BLE001 - a missing page is not a verdict

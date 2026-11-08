@@ -26,6 +26,7 @@ from automind.shared.contracts.json import JsonObject
 from automind.shared.contracts.llm import LLM
 
 log = logging.getLogger(__name__)
+_AWAITING_REPLAY = frozenset({gates.ChangeStatus.PROPOSED, gates.ChangeStatus.REPLAY})
 RETRY_AT = time(3, 0)  # an insufficient replay is tried again the next day at this time (UTC)
 Measured = tuple[gates.Metrics, gates.Metrics, gates.Verdict, list[str], JsonObject]
 
@@ -45,18 +46,18 @@ class ReplayGate:
         """Measure the change on its corpus and move it on (see the module docstring); returns what was decided."""
         now = now or self.clock.now()
         c = await self.journal.load(change_id)
-        if c is None or c.status not in ("proposed", "replay") or not c.open:
+        if c is None or c.status not in _AWAITING_REPLAY or not c.open:
             return {"skipped": "not waiting for replay"}
         budget = budget or self.agent_budgets.of(c.agent)
         measured = (await self._relevance(c, now, llm, budget) if relevance_change.applies(c)
                     else await self._pages(c, now, llm, budget))  # fmt: skip
         old, new, verdict, ids, extra = measured
-        if verdict.verdict == "pass":
+        if verdict.verdict == gates.GateVerdict.PASS:
             await self.journal.advance(change_id, "shadow", "replay", verdict, old, new, {"corpus": len(ids), **extra})
             await self.experiments.pin(change_id, "shadow", [], now)  # the shadow phase collects its own live pages
             await self.experiments.start_shadow(change_id, now, now + timedelta(days=self.cfg.shadow_max_days))
             await self.events.refresh_overrides()  # live readers of this process feed the shadow at once
-        elif verdict.verdict in ("fail", "abandon"):
+        elif verdict.verdict in (gates.GateVerdict.FAIL, gates.GateVerdict.ABANDON):
             await settle(self.journal, self.experiments, change_id, "replay", verdict, old, new, extra, now)
         else:  # insufficient evidence: wait for prefetch to gather pages, try again tomorrow
             await self.journal.advance(change_id, "replay", "replay", verdict, old, new, {"corpus": len(ids), **extra})
@@ -78,7 +79,10 @@ class ReplayGate:
                                            waited_days=waited)  # fmt: skip
         except NoMeasure as e:
             old = new = gates.Metrics()
-            verdict = gates.Verdict("abandon" if waited >= self.cfg.wait_days else "insufficient_evidence", (str(e),))
+            verdict = gates.Verdict(
+                gates.GateVerdict.ABANDON if waited >= self.cfg.wait_days else gates.GateVerdict.INSUFFICIENT_EVIDENCE,
+                (str(e),),
+            )
         return old, new, verdict, ids, {}
 
     async def _relevance(self, c: Change, now: datetime, llm: LLM | None, budget: Budget) -> Measured:

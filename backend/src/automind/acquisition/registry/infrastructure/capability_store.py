@@ -7,9 +7,10 @@ from __future__ import annotations
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from automind.acquisition.registry.api import Attempt
+from automind.acquisition.registry.api import Attempt, Outcome
 from automind.acquisition.registry.application.ports import RegistryStoreUnavailable
 from automind.acquisition.registry.domain.config import RegistryConfig
+from automind.acquisition.registry.domain.model import CapabilityStatus
 from automind.acquisition.registry.domain.records import CapabilityView
 from automind.acquisition.registry.infrastructure.rows import fade, rescore, view
 from automind.shared.infrastructure.db.errors import translate_errors
@@ -25,7 +26,7 @@ from automind.shared.infrastructure.db.session import sessionmaker
 from automind.shared.infrastructure.metrics import prom
 
 RECENT = 20  # last outcomes kept per capability
-QUERYABLE = ("active", "candidate")
+QUERYABLE = (CapabilityStatus.ACTIVE, CapabilityStatus.CANDIDATE)
 
 
 class CapabilityStore:
@@ -98,17 +99,17 @@ async def _source_type(s: AsyncSession, domain: str, cache: dict[str, str]) -> s
 
 def _count(cap: CapabilityRow, a: Attempt, half_life_days: float) -> None:
     fade(cap, half_life_days, now())
-    ok = a.outcome == "accepted"
+    ok = a.outcome == Outcome.ACCEPTED
     cap.attempts += 1
     cap.accepted += 1 if ok else 0
-    if a.outcome == "robots":
+    if a.outcome == Outcome.ROBOTS:
         cap.robots_refusals += 1
-    if a.outcome == "junk":
+    if a.outcome == Outcome.JUNK:
         cap.junk += 1
-    if a.outcome == "rejected" and a.reason:
+    if a.outcome == Outcome.REJECTED and a.reason:
         cap.rejected = {**(cap.rejected or {}), a.reason: float((cap.rejected or {}).get(a.reason, 0)) + 1}
     cap.cost_eur += a.cost_eur
-    if cap.status == "candidate":  # spec 011 R7: a candidate's attempt is exploration
+    if cap.status == CapabilityStatus.CANDIDATE:  # spec 011 R7: a candidate's attempt is exploration
         cap.explore_spent_eur = (cap.explore_spent_eur or 0.0) + a.cost_eur
     cap.recent = [*(cap.recent or []), ok][-RECENT:]
     cap.last_used = now()
@@ -124,11 +125,11 @@ async def _capability(s: AsyncSession, domain: str, area: str, market: str) -> C
     if await s.get(SourceRow, domain) is None:  # met in an open search: discovered (admission comes later)
         s.add(SourceRow(domain=domain, source_type="PUBLICATION", family=domain, markets=[market]))
         await s.flush()
-    cap = CapabilityRow(domain=domain, area=area, market=market, status="discovered")
+    cap = CapabilityRow(domain=domain, area=area, market=market, status=CapabilityStatus.DISCOVERED)
     s.add(cap)
     await s.flush()
     s.add(RegistryChange(author="system", capability_id=cap.id, domain=domain, change="added",
-                         after={"status": "discovered", "area": area, "market": market},
+                         after={"status": CapabilityStatus.DISCOVERED, "area": area, "market": market},
                          reason="met in a research search"))  # fmt: skip
     prom.inc("registry_changes", change="added", author="system")
     return cap

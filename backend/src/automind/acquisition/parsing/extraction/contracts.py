@@ -5,9 +5,16 @@ constitution VIII, XI): one pydantic schema per area and role. Every extracted i
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Final, Literal, Protocol, runtime_checkable
 
 from pydantic import BaseModel, Field
+
+
+@runtime_checkable
+class AboutVariant(Protocol):
+    """An extraction that says whether its page is about the target variant (the area schemas with the flag)."""
+
+    is_about_variant: bool
 
 
 class Excerpted(BaseModel):
@@ -63,11 +70,16 @@ class IssueItems(BaseModel):
     stats: list[StatEntry] = Field(default_factory=list)
 
 
+FactType = Literal["HISTORY", "KEY_MODEL", "MARKET_POSITION", "MARKET_SHARE", "FINANCIAL", "RELIABILITY_REPUTATION",
+                   "NETWORK_ES", "WARRANTY", "BATTERY_WARRANTY"]  # fmt: skip
+# the members the pipeline checks (the schema the model sees stays a plain list of words)
+NETWORK_ES: Final[FactType] = "NETWORK_ES"  # dealers and workshops in Spain: a count next to a network word
+WARRANTIES: Final[tuple[FactType, ...]] = ("WARRANTY", "BATTERY_WARRANTY")  # plausible years only
+MARKET_POSITION: Final[FactType] = "MARKET_POSITION"  # carries `positioning`
+
+
 class ManufacturerEntry(Excerpted):
-    fact_type: Literal[
-        "HISTORY", "KEY_MODEL", "MARKET_POSITION", "MARKET_SHARE", "FINANCIAL", "RELIABILITY_REPUTATION", "NETWORK_ES",
-        "WARRANTY", "BATTERY_WARRANTY",
-    ]  # fmt: skip
+    fact_type: FactType
     text: str
     positioning: Literal["PREMIUM", "MAINSTREAM", "BUDGET"] | None = None
     value_num: float | None = Field(default=None, description="The key number of the fact, e.g. 6.1 (% share)")
@@ -144,9 +156,13 @@ class RelevanceOut(BaseModel):
 # --- validator role (constitution XI) -----------------------------------------------------------
 
 
+ClaimValidity = Literal["SAME_VARIANT", "GENERATION_WIDE", "OTHER_VARIANT", "OTHER_MARKET", "OTHER_YEAR", "UNCLEAR"]
+GENERATION_WIDE: Final[ClaimValidity] = "GENERATION_WIDE"  # true of the whole generation: kept, LOW confidence
+
+
 class Verdict(BaseModel):
     index: int
-    verdict: Literal["SAME_VARIANT", "GENERATION_WIDE", "OTHER_VARIANT", "OTHER_MARKET", "OTHER_YEAR", "UNCLEAR"]
+    verdict: ClaimValidity
     reason: str = ""
 
 

@@ -10,6 +10,8 @@ import dataclasses
 from dataclasses import dataclass
 from typing import Any
 
+from pydantic import BaseModel
+
 from automind.acquisition.domain import plausibility, sense_ev
 from automind.acquisition.parsing.normalise.fuel import fuel_of
 from automind.acquisition.parsing.normalise.gearbox import gearbox_in_name
@@ -98,7 +100,7 @@ class ReaderClaim:
 
 def _refile(c: Any, attribute: str | None, raw_value: Any) -> Any:
     update = {"attribute": attribute, "raw_value": raw_value}
-    return c.model_copy(update=update) if hasattr(c, "model_copy") else dataclasses.replace(c, **update)
+    return c.model_copy(update=update) if isinstance(c, BaseModel) else dataclasses.replace(c, **update)
 
 
 def _sense_ev_before(c: Any, v: VariantFacts, url: str = "") -> tuple[Any, tuple[str, None, None, str] | None]:

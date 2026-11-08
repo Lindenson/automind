@@ -23,6 +23,7 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 
+from automind.acquisition.domain.tolerance import within
 from automind.acquisition.gold.domain.config import MASS_CONVERSION, MatchCfg
 from automind.acquisition.gold.domain.records import CandidateVariant, DatasetRow, GoldValue, VariantKey
 from automind.acquisition.gold.domain.text import (
@@ -32,7 +33,6 @@ from automind.acquisition.gold.domain.text import (
     norm_text,
     tokens,
     weighted_median,
-    within,
 )
 from automind.acquisition.parsing.normalise.fuel import fuel_of
 from automind.shared.contracts.json import JsonObject

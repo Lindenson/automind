@@ -14,9 +14,9 @@ from automind.delivery.bootstrap import reference
 
 GOLF = SimpleNamespace(make="Volkswagen", model="Golf", generation="Mk8.5",
                        variant_name="Golf Variant R 2.0 TSI 333 CV DSG 4MOTION",
-                       generation_years_from=2024, generation_years_to=None)  # fmt: skip
+                       generation_years_from=2024, generation_years_to=None, powertrain=None, market="ES")  # fmt: skip
 BMW = SimpleNamespace(make="BMW", model="3 Series", generation="G21", variant_name="320d Touring M Sport Steptronic",
-                      generation_years_from=2019, generation_years_to=None)  # fmt: skip
+                      generation_years_from=2019, generation_years_to=None, powertrain=None, market="ES")  # fmt: skip
 
 # what such pages write (titles and first lines of real test and data pages)
 PAGES = {
@@ -36,7 +36,7 @@ def _found(text: str) -> bool:
 
 @pytest.fixture(scope="module")
 def ports():
-    return SimpleNamespace(ref=reference({}))
+    return SimpleNamespace(ref=reference({}), registry=None)
 
 
 @pytest.mark.parametrize("car", [GOLF, BMW], ids=["golf", "bmw"])

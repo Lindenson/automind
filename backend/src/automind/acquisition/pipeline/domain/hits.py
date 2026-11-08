@@ -6,11 +6,18 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Literal
+from enum import StrEnum
 
 from automind.shared.contracts.json import JsonObject
 
-SourceKind = Literal["claims", "maintenance", "manufacturer", "items"]
+
+class SourceKind(StrEnum):
+    """Where an area's accepted values are stored."""
+
+    CLAIMS = "claims"  # spec claims
+    MAINTENANCE = "maintenance"  # claims and the service schedule
+    MANUFACTURER = "manufacturer"  # brand facts
+    ITEMS = "items"  # the area's own items (reviews, issues, used prices, value retention)
 
 
 @dataclass(frozen=True)
@@ -25,10 +32,10 @@ class SourceRef:
 def source_kind(area: str, spec_areas: Sequence[str]) -> SourceKind:
     """Where an area's accepted values are stored: spec claims, claims and schedule, brand facts, or area items."""
     if area in spec_areas:
-        return "claims"
-    if area == "maintenance":
-        return "maintenance"
-    return "manufacturer" if area == "manufacturer" else "items"
+        return SourceKind.CLAIMS
+    if area == SourceKind.MAINTENANCE:
+        return SourceKind.MAINTENANCE
+    return SourceKind.MANUFACTURER if area == SourceKind.MANUFACTURER else SourceKind.ITEMS
 
 
 def hits_of(sources: Sequence[SourceRef]) -> list[JsonObject]:

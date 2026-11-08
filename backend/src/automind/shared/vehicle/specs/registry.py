@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Literal
+from typing import Callable, Final, Literal
 
 from automind.shared.vehicle import units
 from automind.shared.vehicle.specs import converters
 
 Kind = Literal["number", "text"]
+TEXT: Final[Kind] = "text"  # a value kept as words (no unit, no conversion)
 
 
 Category = Literal["specs", "engineering", "measured", "price", "maintenance"]

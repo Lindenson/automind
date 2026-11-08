@@ -7,12 +7,12 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
+from automind.acquisition.domain.tolerance import Tolerance
 from automind.acquisition.gold.infrastructure.wiring import gold_rules, gold_store
 from automind.acquisition.infrastructure.config import physics_config
 from automind.acquisition.registry.infrastructure.wiring import registry_service
 from automind.acquisition.reputation.application.rollup import DailyRollup
 from automind.acquisition.reputation.application.signals import SignalScan, SignalSink
-from automind.acquisition.reputation.domain.signal_facts import Tolerance
 from automind.acquisition.reputation.infrastructure.baseline_store import BaselineRepo, SystemClock
 from automind.acquisition.reputation.infrastructure.component_store import ComponentRepo
 from automind.acquisition.reputation.infrastructure.page_texts import SnapshotPages

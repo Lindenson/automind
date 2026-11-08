@@ -107,10 +107,13 @@ def check(
     return spec.check(sources, denylist)
 
 
+_EXTRA_FORBIDDEN = "extra_forbidden"  # pydantic's error type for a key the model does not have
+
+
 def _pydantic_errors(e: ValidationError) -> list[str]:
     out = []
     for err in e.errors():
         loc = ".".join(str(x) for x in err["loc"])
-        msg = "extra key not allowed" if err["type"] == "extra_forbidden" else err["msg"]
+        msg = "extra key not allowed" if err["type"] == _EXTRA_FORBIDDEN else err["msg"]
         out.append(f"{loc or 'spec'}: {msg}")
     return out

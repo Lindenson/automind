@@ -10,12 +10,14 @@ from collections.abc import Mapping
 
 from automind.acquisition.domain import agreement, physics, replacement
 from automind.acquisition.domain.blame import BlameCase, blame_vector, component_keys, near
+from automind.acquisition.domain.tolerance import Tolerance
+from automind.acquisition.domain.truth import TruthKind as K
+from automind.acquisition.domain.truth import TruthVerdict as V
 from automind.acquisition.reputation.domain.signal_facts import (
     BlameAsk,
     ClaimFact,
     Finding,
     GoldFact,
-    Tolerance,
     VariantFacts,
 )
 from automind.shared.contracts.json import JsonObject
@@ -40,10 +42,10 @@ def gold_findings(f: VariantFacts, tolerances: Mapping[str, Tolerance]) -> list[
         tol = tolerance(c.attribute, tolerances, g)
         details: JsonObject = {"gold": g.value_num, "value": c.value_num, "rule": g.match_rule}
         if near(c.value_num, g.value_num, tol):
-            out.append(Finding("gold", "right", c.attribute, "gold_right", details, claim=c, gold_id=g.id))
+            out.append(Finding(K.GOLD, V.RIGHT, c.attribute, "gold_right", details, claim=c, gold_id=g.id))
         else:
             ask = BlameAsk(g.value_num, tol, g.confidence)
-            out.append(Finding("gold", "wrong", c.attribute, "gold_wrong", details, claim=c, gold_id=g.id, blame=ask))
+            out.append(Finding(K.GOLD, V.WRONG, c.attribute, "gold_wrong", details, claim=c, gold_id=g.id, blame=ask))
     return out
 
 
@@ -60,7 +62,7 @@ def fusion_findings(f: VariantFacts, tolerances: Mapping[str, Tolerance]) -> lis
         right = [c for c in f.claims if c.attribute == attr and c.value_num is not None
                  and near(c.value_num, g.value_num, tol)]  # fmt: skip
         if right:
-            out.append(Finding("gold", "wrong", attr, "fusion", {"selected": float(sv.value_num), "gold": g.value_num},
+            out.append(Finding(K.GOLD, V.WRONG, attr, "fusion", {"selected": float(sv.value_num), "gold": g.value_num},
                                domain=right[0].domain, area=right[0].area, gold_id=g.id,
                                fixed_blame=({"fusion": 1.0}, {"fusion": "merge@1"})))  # fmt: skip
     return out
@@ -82,7 +84,7 @@ def physics_findings(f: VariantFacts, tolerances: Mapping[str, Tolerance], check
     ask = BlameAsk(None, tolerances[o.attribute])
     ids = [cid for cid in f.selected[o.attribute].claim_ids if cid in by_id and (cid, "physics") not in f.done]
     claims = [by_id[cid] for cid in ids]
-    return [Finding("physics", "wrong", o.attribute, "physics", details, claim=c, blame=ask) for c in claims]
+    return [Finding(K.PHYSICS, V.WRONG, o.attribute, "physics", details, claim=c, blame=ask) for c in claims]
 
 
 def agreement_findings(f: VariantFacts, tolerances: Mapping[str, Tolerance]) -> list[Finding]:
@@ -99,7 +101,7 @@ def agreement_findings(f: VariantFacts, tolerances: Mapping[str, Tolerance]) -> 
             if (attr, a.family) in seen:
                 continue
             details: JsonObject = {"family": a.family, "families": a.families, "value": a.value}
-            out.append(Finding("agreement", "right", attr, "agreement", details, claim=by_id[a.claim_id]))
+            out.append(Finding(K.AGREEMENT, V.RIGHT, attr, "agreement", details, claim=by_id[a.claim_id]))
             seen.add((attr, a.family))
     return out
 
@@ -118,7 +120,7 @@ def replacement_findings(f: VariantFacts, tolerances: Mapping[str, Tolerance]) -
                 continue
             details: JsonObject = {"replaced_by": float(sv.value_num), "judge": "not needed"}
             ask = BlameAsk(float(sv.value_num), tolerances[attr], "MEDIUM", may_dispute=False)
-            out.append(Finding("replacement", "wrong", attr, "replacement", details, claim=by_id[old.claim_id],
+            out.append(Finding(K.REPLACEMENT, V.WRONG, attr, "replacement", details, claim=by_id[old.claim_id],
                                blame=ask))  # fmt: skip
     return out
 

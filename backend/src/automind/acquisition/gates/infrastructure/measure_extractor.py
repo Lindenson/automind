@@ -7,6 +7,8 @@ from __future__ import annotations
 from sqlalchemy import select
 
 from automind.acquisition.domain import replay as scoring
+from automind.acquisition.domain.gates import ObjectKind
+from automind.acquisition.domain.versions import VersionStatus
 from automind.acquisition.gates.application.measure_ports import Charge, NoMeasure
 from automind.acquisition.gates.domain.change import Change
 from automind.acquisition.gates.infrastructure import page_reading as pages
@@ -58,7 +60,7 @@ async def extractor_pair(c: Change, refs: list[SnapshotRef], *, llm: LLM | None 
                                                   llm_gateway.model_name("extractor"), target, llm=llm)  # fmt: skip
             finally:
                 llm_gateway.FORCED_MODELS.reset(token)
-            claims = list(getattr(got, "claims", []))
+            claims = list(got.claims) if got is not None else []
             into.append(scoring.PageResult(r.id, url, r.variant_ids, len(claims),
                                            replay.accepted_values(r, claims, variants, d, rules, False)))  # fmt: skip
     return old, new
@@ -67,12 +69,14 @@ async def extractor_pair(c: Change, refs: list[SnapshotRef], *, llm: LLM | None 
 async def _versions(c: Change) -> tuple[str, str, str, tuple[str | None, str | None]]:
     """(prompt name, old text, new text, (old model, new model)) of a prompt or model change."""
     async with sessionmaker()() as s:
-        if c.object_kind == "prompt":
+        if c.object_kind == ObjectKind.PROMPT:
             old = await s.get(PromptVersion, c.from_version) if c.from_version else None
             new = await s.get(PromptVersion, c.to_version)
             if old is None or new is None:
                 raise NoMeasure(f"prompt versions of {c.object_key} not found")
             return c.object_key, old.text, new.text, (None, None)
-        q = select(PromptVersion).where(PromptVersion.name == EXTRACT_SPECS, PromptVersion.status == "active")
+        q = select(PromptVersion).where(
+            PromptVersion.name == EXTRACT_SPECS, PromptVersion.status == VersionStatus.ACTIVE
+        )
         act = (await s.execute(q)).scalar_one()
     return EXTRACT_SPECS, act.text, act.text, (str(c.from_version), str(c.to_version))

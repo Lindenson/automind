@@ -11,6 +11,8 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from automind.acquisition.domain.claims import ClaimStatus
+from automind.acquisition.domain.truth import TruthKind
 from automind.acquisition.gold.application.ports import GoldBook, GoldStoreUnavailable
 from automind.acquisition.gold.domain.records import StoredGold
 from automind.acquisition.registry.domain.families import family_of
@@ -69,7 +71,7 @@ class SignalFactsRepo:
         async with sessionmaker()() as s:
             ids: set[str] = set()
             for q in (
-                select(Claim.variant_id).where(Claim.created_at >= since, Claim.status == "ACCEPTED"),
+                select(Claim.variant_id).where(Claim.created_at >= since, Claim.status == ClaimStatus.ACCEPTED),
                 select(SpecValue.variant_id).where(SpecValue.updated_at >= since),
                 select(GoldValueRow.variant_id).where(GoldValueRow.verified_at >= since),
             ):
@@ -81,7 +83,7 @@ class SignalFactsRepo:
             select(Claim, Evidence.domain, Evidence.document_id, Document.text)
             .join(Evidence, Claim.evidence_id == Evidence.id)
             .outerjoin(Document, Evidence.document_id == Document.id)
-            .where(Claim.variant_id == variant_id, Claim.status == "ACCEPTED")
+            .where(Claim.variant_id == variant_id, Claim.status == ClaimStatus.ACCEPTED)
             .order_by(Claim.created_at, Claim.id)
         )).all()  # fmt: skip
         domains = {d for _, d, _, _ in rows}
@@ -132,7 +134,7 @@ async def _signalled(s: AsyncSession, variant_id: str) -> tuple[
     for t in (await s.execute(select(TruthSignal).where(TruthSignal.variant_id == variant_id))).scalars():
         done.add((t.claim_id, t.kind))
         d = t.details or {}
-        if t.kind == "agreement" and t.attribute and d.get("family"):
+        if t.kind == TruthKind.AGREEMENT and t.attribute and d.get("family"):
             agreed.add((t.attribute, str(d["family"])))
         if t.component == FUSION_KEY and t.attribute and d.get("selected") is not None:
             fused.add((t.attribute, float(d["selected"])))

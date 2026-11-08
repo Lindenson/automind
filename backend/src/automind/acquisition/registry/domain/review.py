@@ -15,12 +15,18 @@ from datetime import datetime
 from automind.acquisition.registry.domain import limits
 from automind.acquisition.registry.domain.config import RegistryConfig
 from automind.acquisition.registry.domain.lifecycle import CapState, transition
+from automind.acquisition.registry.domain.model import CapabilityStatus
 from automind.acquisition.registry.domain.records import JournalEntry, ReviewedCapability, SourceState, StatusMove
 
 TOP_RANKS = 10  # re-ordering is journalled for the first ranks of each kind of data
 MIN_RANK_SHIFT = 2
-RANKED = ("active", "candidate", "degraded")
-CHANGE_OF_MOVE = {"active": "promoted", "degraded": "demoted", "retired": "retired", "blocked": "blocked"}
+RANKED = (CapabilityStatus.ACTIVE, CapabilityStatus.CANDIDATE, CapabilityStatus.DEGRADED)
+CHANGE_OF_MOVE: dict[str, str] = {
+    CapabilityStatus.ACTIVE: "promoted",
+    CapabilityStatus.DEGRADED: "demoted",
+    CapabilityStatus.RETIRED: "retired",
+    CapabilityStatus.BLOCKED: "blocked",
+}  # the journal's word
 
 
 @dataclass(frozen=True)
@@ -52,11 +58,11 @@ def plan_review(caps: Sequence[ReviewedCapability], facts: ReviewFacts, cfg: Reg
         if decided is None:
             continue
         verdict, entry = decided
-        if verdict == "refused":
+        if verdict == limits.GuardVerdict.REFUSED:
             stats["refused"] += 1
             continue
         journal.append(entry)
-        if verdict == "held":
+        if verdict == limits.GuardVerdict.HELD:
             stats["held"] += 1
             continue
         moves.append(StatusMove(c.id, str(entry.after["status"])))
@@ -76,7 +82,7 @@ def ranks(
             by_area[f"{c.area}|{c.market}"].append(c)
     out: dict[str, int] = {}
     for rows in by_area.values():
-        rows.sort(key=lambda r: (status[r.id] != "active", -score_of[r.id]))
+        rows.sort(key=lambda r: (status[r.id] != CapabilityStatus.ACTIVE, -score_of[r.id]))
         for i, r in enumerate(rows):
             out[r.id] = i + 1
     return out
@@ -94,12 +100,12 @@ def _decide(c: ReviewedCapability, facts: ReviewFacts, cfg: RegistryConfig,
     fresh = rev is None or (c.last_used is not None and c.last_used > rev)
     verdict = limits.check(limits.Guard(c.domain, access, bool(src and src.frozen), c.status, rev, fresh), mv.to,
                            facts.deny)  # fmt: skip
-    change = CHANGE_OF_MOVE.get(mv.to) or ("promoted" if mv.to == "candidate" and c.status == "discovered"
-                                           else "reordered")  # fmt: skip
+    admitted = mv.to == CapabilityStatus.CANDIDATE and c.status == CapabilityStatus.DISCOVERED
+    change = CHANGE_OF_MOVE.get(mv.to) or ("promoted" if admitted else "reordered")
     evidence = {"acc_lb": c.acc_lb, "yield": c.yield_, "attempts": round(c.attempts, 2),
                 "signals_w": round(c.signals_w, 2), "area": c.area, "market": c.market}  # fmt: skip
     return verdict, JournalEntry(c.domain, change, mv.reason, c.id, {"status": c.status}, {"status": mv.to},
-                                 evidence, held=verdict == "held")  # fmt: skip
+                                 evidence, held=verdict == limits.GuardVerdict.HELD)  # fmt: skip
 
 
 def _reorders(caps: Sequence[ReviewedCapability], moved: Mapping[str, str]) -> list[JournalEntry]:

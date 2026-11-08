@@ -12,6 +12,7 @@ from typing import Any, Protocol
 
 from automind.acquisition.identity_readers.application.ports import LiveRows
 from automind.acquisition.pipeline.application.ports import PipelineStores
+from automind.acquisition.registry.api import RegistryPort
 from automind.shared.contracts.config import Reference
 from automind.shared.contracts.llm import LLM
 from automind.shared.contracts.site_readers import NoReaders, SiteReaders
@@ -34,7 +35,7 @@ class AcqPorts:
     stores: PipelineStores
     pages: PageStore | None = None  # None → `search` also implements PageStore (test fakes)
     readers: SiteReaders = field(default_factory=NoReaders)
-    registry: Any = None  # acquisition.registry.api.RegistryPort; None: config order only
+    registry: RegistryPort | None = None  # None: config order only
     metrics: Any = None  # inc(name, **labels) for Prometheus counters; None: not counted
     market_facts: Any = None  # spec 006 US5: upsert(rows, evidence_id); None: market areas store nothing
     datasets: LiveRows | None = None  # a live open-dataset query of a make; None: stored/cached only

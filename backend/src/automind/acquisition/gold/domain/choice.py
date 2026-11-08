@@ -5,9 +5,9 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
+from automind.acquisition.domain.tolerance import Tolerance, within
 from automind.acquisition.gold.domain.config import GoldRules
 from automind.acquisition.gold.domain.records import GoldValue, StoredGold
-from automind.acquisition.gold.domain.text import Tolerance, within
 
 CHALLENGES = "challenges"  # gold_datasets.id of user challenges
 REFERENCE_SET = "reference_set"  # gold_datasets.id of the hand-checked reference set

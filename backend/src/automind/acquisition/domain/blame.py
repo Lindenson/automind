@@ -21,6 +21,8 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
+from automind.acquisition.domain.tolerance import within
+
 COMPONENTS = ("source", "relevance", "parser", "extractor", "units_sense", "fusion")
 # the single labels of spec 010 (truth_signals.blame)
 LABEL_010 = {"source": "source", "relevance": "relevance", "parser": "parser", "extractor": "extractor",
@@ -93,8 +95,7 @@ def numbers(text: str) -> set[float]:
 
 
 def near(a: float, b: float, tol: tuple[str, float]) -> bool:
-    kind, t = tol
-    return abs(a - b) <= (t if kind == "abs" else t * abs(b)) + 1e-9
+    return within(a, b, tol)
 
 
 def _tight(b: float) -> tuple[str, float]:

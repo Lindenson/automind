@@ -35,7 +35,7 @@ class Watch:
         """One day of the watch: keep, roll back, or go on watching."""
         now = now or self.clock.now()
         c = await self.journal.load(change_id)
-        if c is None or c.status != "watch" or not c.open:
+        if c is None or c.status != gates.ChangeStatus.WATCH or not c.open:
             return {"skipped": "not in watch"}
         at = accepted_at(c, now)
         days = max(0.0, (now - at).total_seconds() / 86400)
@@ -47,10 +47,10 @@ class Watch:
         await self.experiments.record_day(
             change_id, now.date().isoformat(), {**current.as_dict(), "wrong_signals": wrong}
         )
-        if verdict.verdict == "rollback":
+        if verdict.verdict == gates.GateVerdict.ROLLBACK:
             await self.journal.rollback(change_id, "system", verdict, current, wrong_signals=wrong, days=days)
             await self._doctor_again(c, now)
-        elif verdict.verdict == "keep":
+        elif verdict.verdict == gates.GateVerdict.KEEP:
             await self.journal.keep(change_id, verdict, current)
         log.info("gate.watch change=%s verdict=%s %s", change_id, verdict.verdict, verdict.reason)
         return {"change_id": change_id, "verdict": verdict.verdict, "reasons": list(verdict.reasons), "wrong": wrong,
@@ -73,7 +73,7 @@ class Watch:
     async def _doctor_again(self, c: Change, now: datetime) -> None:
         """A rolled-back repair leaves the parser degraded: the doctor tries again tomorrow (the reverted spec itself
         is refused without newer evidence, see agents/levers.py)."""
-        if c.object_kind != "parser" or not c.from_version or c.author != DOCTOR:
+        if c.object_kind != gates.ObjectKind.PARSER or not c.from_version or c.author != DOCTOR:
             return
         day = (now + timedelta(days=1)).date()
         payload: JsonObject = {"version": c.from_version, "change_id": c.evidence.get("drift_change"),

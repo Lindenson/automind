@@ -6,13 +6,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Literal
 
+from automind.acquisition.domain.tolerance import Tolerance
+from automind.acquisition.domain.truth import TruthKind, TruthVerdict
 from automind.shared.contracts.json import JsonObject
 
-Tolerance = tuple[str, float]  # ("rel" | "abs", amount)
-SignalKind = Literal["gold", "physics", "agreement", "replacement"]
-Verdict = Literal["right", "wrong"]
 HYBRID = ("HEV", "PHEV", "MHEV")
 HYBRID_FUELS = ("hybrid", "phev", "mhev")
 
@@ -106,8 +104,8 @@ class Finding:
     `blame` is set for a wrong signal whose blame vector is computed; `fixed_blame` (vector, components) when the
     rule names the component itself. `counter` is the name it is counted under."""
 
-    kind: SignalKind
-    verdict: Verdict
+    kind: TruthKind
+    verdict: TruthVerdict
     attribute: str
     counter: str
     details: JsonObject
