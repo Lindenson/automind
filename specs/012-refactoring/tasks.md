@@ -222,6 +222,16 @@ Acquisition, one PR per package, each leaves its package with **0 `storage`, 0 `
   callers reaching into privates. gates: 79 baseline entries → 0; structure 1551 → 1470.
 - [ ] A3 `pipeline/` + `parsing/` (= S11, T081–T084): job (439), persist (420), plan, locate, parse, merge, relevance,
   validate, extract; parsing registry/store/spec/migrate_v1
+  - [x] A3a pipeline storage (PR #120): `domain/` variant (`VariantFacts` Protocol — stored rows fit it — and
+    `CarVariant`), rows (evidence, claims, area items as records), items + used_prices (non-spec area checks),
+    written, selection (select_values, outliers, schedule interval, gearbox and positioning votes), hits;
+    `application/` ports (`PipelineStores`: variants, evidence, values, verdicts, job book;
+    `PipelineStoreUnavailable`), `ValueSelection` (was merge.py); `infrastructure/` variant_store, evidence_store
+    (a page = one transaction, after the validator call), value_store (reselect under the advisory lock in one
+    transaction), verdict_store, job_book, area_sources, wiring; `AcqPorts.stores`; locate split → `searches.py`.
+    pipeline: 0 `storage`; structure 1470 → 1441; mypy report 243 → 218.
+  - [ ] A3b `job.run()` as stages (T081 coverage first, T082), job/plan/extract under 200
+  - [ ] A3c `parsing/` (T084)
 - [ ] A4 `registry/` (admission, review, repo), `gold/` (load, repo, versions, match, rdw), `snapshots/`, `drift/`,
   `replay/` (run 367)
 - [ ] A5 `worker/`: queue, process, heartbeat, budget, prefetch, handlers (256)

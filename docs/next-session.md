@@ -1,4 +1,4 @@
-# Next session: start here (parked on 2026-11-07 after A2 gates; next: acquisition A3 pipeline + parsing)
+# Next session: start here (2026-11-08 after A3a pipeline storage; next: A3b job stages)
 
 **First task: refactoring — spec 012, executed by `specs/012-refactoring/tasks.md` (one phase = one PR).**
 No new features until it is done (owner, 2026-11-06). All functional work in §4 is parked, still valid, and
@@ -15,16 +15,15 @@ What the system is: `README.md` ("Acquisition engine"), `docs/adr/ADR-032-acquis
 
 ## 0. Resume acquisition A3 (next action)
 
-**Where we are (2026-11-07, main = `058bbc3`, PR #118).** Chat services S7–S9c-2 are done (identification, report,
-research, interpretation, assessment — each a service over ports, strict). On 2026-11-07 the owner found SQL beside
-logic and modules over 200 lines in **acquisition**, under a green gate: the rules only looked at dirs named
-`application/`/`domain/` and allowed 400 lines. Since S9.3 (PR #116): rule `storage` (sqlalchemy /
-`shared.infrastructure.db` outside an `infrastructure/` package, **any** directory) and module limit **200**, both in
-the ratchet. Owner's decision: acquisition A1–A8 **before** S9d (tasks.md "S9.3"), one PR per package, each leaving
-**0 `storage`, 0 `size`, 0 entries** in its package.
+**Where we are (2026-11-08, main = A3a merged, PR #120).** Chat services S7–S9c-2 are done. Since S9.3 (PR #116):
+rule `storage` (sqlalchemy / `shared.infrastructure.db` outside an `infrastructure/` package, **any** directory) and
+module limit **200**, both in the ratchet. Owner's decision: acquisition A1–A8 **before** S9d (tasks.md "S9.3"), one
+PR per package, each leaving **0 `storage`, 0 `size`, 0 entries** in its package.
 
-Done: **A1 `reputation/`** (PR #117, −30 entries) and **A2 `gates/`** (PR #118, −81). Structure baseline 1470,
-mypy report (all src) 243.
+Done: **A1 `reputation/`** (PR #117, −30), **A2 `gates/`** (PR #118, −81), **A3a `pipeline/` storage** (PR #120,
+−29: every SQL behind `PipelineStores` in `pipeline/infrastructure/`, records/rules in `pipeline/domain/`,
+`ValueSelection` replaced `merge.py`, stages get stores via `AcqPorts.stores`). Structure baseline 1441, mypy report
+(all src) 218. Owner confirmed the A3 split (a → b → c) on 2026-11-08.
 
 **The template (follow it for A3–A8; `reputation/` and `gates/` show it):**
 - `domain/` — plain records (frozen dataclasses: no ORM row reaches a rule) + pure functions; verdicts stay pure.
@@ -41,16 +40,16 @@ mypy report (all src) 243.
 - Unit tests over fakes for every service: one failure path at least (store down, lost claim, budget, no measure).
 - Safety tests are never weakened (A2: `test_no_self_change` flagged `self.budgets` → renamed `agent_budgets`).
 
-**Next: A3 `pipeline/` + `parsing/`** (= S11 T081–T084; 3564 lines, 121 entries — job 439, persist 420, plan 285,
-extract 274, parsing/spec 261, parsing/registry 240, locate 238). Too big for one PR — proposal, confirm with the
-owner first: **A3a** `pipeline` storage → `infrastructure/` (persist, merge, validate, relevance, locate, plan reads)
-with stores and records; **A3b** `job.run()` as named stages over ports (T082: plan → locate → fetch → parse →
-relevance → validate → merge → persist), `contracts.py`, `identity_readers/` (T082); **A3c** `parsing/` (T084:
-readers/, extraction/, normalise/; registry/store into infrastructure). Coverage first where T019 listed it
-(`pipeline/job.py` 61 % → characterise to ≥ 80 %, T081). Then A4 registry/gold/snapshots/drift/replay, A5 worker,
-A6 agents, A7 engine top level + `admin_api.py` (1049) → `admin/`, A8 `acquisition/domain` modules over 200 +
-`infrastructure/fetch.py`. Then S9d (chat: `confirm.py` nodes, `ask.py` → questions service, `ChallengeValue`,
-`report/stages/verdict.py` → `ResearchHistory`), S10, S12 rest, S13–S15. Deploy checkpoint after 2026-11-12.
+**Next: A3b** — `pipeline/job.py` (311) as named stages over ports: coverage first (T081: characterise `job.py` to
+≥ 80 %), then T082 (`contracts.py`; `run()` lists plan → searches → relevance → parse/extract → validate → persist →
+merge → book; stage modules under `pipeline/stages/`; `identity.py` + `gold/versions.py` → `identity_readers/`);
+`plan.py` (≈ 290) and `extract.py` (274) under 200; remaining pipeline entries: 41 `order`, 4 `regex`, 3 `lazy`, 2
+`ignore`, 1 `func`, 1 `table` (`validate.fuel_of`). Then **A3c** `parsing/` (T084: readers/, extraction/ — the
+schemas of `extract.py` —, normalise/; registry/store/migrate_v1 into infrastructure). Then A4 registry/gold/
+snapshots/drift/replay, A5 worker, A6 agents, A7 engine top level + `admin_api.py` (1049) → `admin/`, A8
+`acquisition/domain` modules over 200 + `infrastructure/fetch.py`. Then S9d (chat: `confirm.py` nodes, `ask.py` →
+questions service, `ChallengeValue`, `report/stages/verdict.py` → `ResearchHistory`), S10, S12 rest, S13–S15.
+Deploy checkpoint after 2026-11-12.
 
 Gate per step: check.sh, then (never in parallel) diff_behaviour, check_checkpoints; PR (body = pr-self-check.md,
 answered); merge; update this §0. Never edit files while diff_behaviour runs (it checks out base/head in the tree).
@@ -66,21 +65,24 @@ cd backend && uv run python ../scripts/check_checkpoints.py      # read-only pro
 ```
 - Moves: `scripts/refactor/move.py <map.yaml>` (maps in `specs/012-refactoring/moves/`; whole packages first);
   after moves `scripts/check_structure.py --write-baseline` only if the count did not grow.
-- Structure ratchet baseline `scripts/structure_baseline.txt` (1470 now: +storage, size 200; A1 −30, A2 −81); new violations fail
+- Structure ratchet baseline `scripts/structure_baseline.txt` (1441 now: +storage, size 200; A1 −30, A2 −81, A3a −29); new violations fail
   the gate; a PR shrinks the entries of every package it touches (pr-self-check.md).
 - Never run two test runs on one DB at once. Commit → push → `gh pr create` → `gh pr merge --merge` → delete
   local+remote branch; update this file's §0 at the end of each step.
 
 ## 1. State when parked
 
-- main = A2 merged (PR #118, `058bbc3`). **Production still runs the pre-012 code** (`2b5eb92`, PRs #83–#85,
+- main = A3a merged (PR #120). **Production still runs the pre-012 code** (`2b5eb92`, PRs #83–#85,
   `scripts/deploy.sh up --monitoring`, app :8090). Deploy policy: none before the baseline closes on 2026-11-12; then
   the first 012 checkpoint (compose worker command is `python -m automind.cli worker`), live replay of chat ccd5f7d8
   after it, then deploys only at S9, S12, S15.
-- Last gate (A2): `check.sh` green — 1541 backend passed (2 skipped) + 161 frontend; 11 import contracts kept;
-  structure 1470/1470 new 0; mypy report 243 errors; behaviour diff vs previous main: differs 0 (racy 7: limit pause,
-  make_to_choose, persistent_thread; `test_critique` grid-event order raced once in S9.3 — backlog §4.5);
-  check_checkpoints: 436 blobs, 0 paths, 11 threads. Never start pytest while diff_behaviour runs (same test DB).
+- Last gate (A3a): `check.sh` green — 1548 backend passed (2 skipped) + 161 frontend; 11 import contracts kept
+  (pipeline.domain / pipeline.application added to the pure / ports contracts); structure 1441/1441 new 0; mypy report
+  218. Behaviour diff vs previous main: differs 0 (2nd full run; the 1st showed one event-order flip in
+  `test_cancel_and_resume::test_restart_resumes_without_redoing_finished_jobs` — which parallel job finishes before the
+  "crash" is timing; alone 3× differs 0 → candidate for `racy_tests.txt`, backlog §4.5). check_checkpoints: 436
+  blobs, 0 paths, 11 threads. Never start pytest while diff_behaviour runs (same test DB). If a session dies during
+  diff_behaviour: `git worktree remove --force /tmp/behaviour-*/{base,head}`, `git worktree prune`.
 - Repo hygiene: no worktrees, no feature branches local or remote.
 - Last live check (pre-012): chat ccd5f7d8 (Deepal S09 vs Li L9) — S09 energy computed (EREV estimate), L9 "no data".
 - Backup before the last data repair: `backups/automind-20261106-100212.sql.gz`.
