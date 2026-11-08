@@ -319,8 +319,15 @@ so it became rules (contracts/code-shape.md "States, not words") with a ratchet,
   minor change: the five word lists became one, so the `llm_errors{kind}` metric gains `rate_limit`/`network` and a
   "529"/"500 INTERNAL" text counts as overload everywhere. Left for S9d: `tracing.py` (request_kind, block type,
   relation), preset kind compared in `nodes/understand.py` and the interpretation service.
-- [ ] S9.4b The finished acquisition packages to 0 `word`/`errtext`/`duck` (pipeline, gates, registry, reputation,
-  parsing, gold, identity_readers: 94 entries): statuses, verdicts and kinds as `StrEnum` in their `domain/`.
+- [x] S9.4b (PR #127; structure 1534 → 1433, mypy report 195 → 193; behaviour diff differs 0) The finished acquisition
+  packages to 0 `word`/`errtext`/`duck` (pipeline, gates, registry, reputation, parsing, gold, identity_readers: 94
+  entries). Done as: `acquisition/domain/` gates (`GateVerdict`, `ChangeStatus`, `ObjectKind`), versions
+  (`VersionStatus`), claims (`ClaimStatus`), truth (`TruthKind`, `TruthVerdict`), tolerance (one `within()` instead
+  of six copies); registry `CapabilityStatus`, `GuardVerdict`, `Outcome`; pipeline `SourceKind`. A `Literal` that is a
+  model's output schema keeps its schema and gets named constants (`FactType`, `ClaimValidity`, relevance
+  `UNCERTAIN`), so no prompt changes. `FetchRefused.kind` (`Refusal`) replaces "robots" in its text; `SiteReaders`
+  declares `prepare`/`flush_stats`; `AcqPorts.registry: RegistryPort | None` (its `signal` returns the id). Enum
+  members never enter the chat graph state (record fields stay `str` where they reach it).
 - From A4c on, every package step leaves **0 `storage`, 0 `size`, 0 `word`, 0 `errtext`, 0 `duck`** in its package;
   the chat entries go with S9d/S10 (ws.py and rest.py parse messages into enums at the edge), shared and
   observability with S12.
