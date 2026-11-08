@@ -36,6 +36,14 @@ def shadow_gate() -> ShadowGate:
                       relevance_config())  # fmt: skip
 
 
+class LiveShadowFeed:
+    """The live pipeline's feed of the shadow gate (`AcqPorts.shadow`): a gate built per call, like `shadow_gate()`."""
+
+    async def notify_extracted(self, prompt_name: str | None, snapshot_ids: list[str]) -> int:
+        """Queue the extracted pages for the prompt and extractor-model changes in shadow."""
+        return await shadow_gate().notify_extracted(prompt_name, snapshot_ids)
+
+
 def watch() -> Watch:
     """The watch after acceptance."""
     return Watch(change_journal(), ChangeRepo(), ExperimentRepo(), PageMeasure(), WorkerQueue(), SystemClock(),

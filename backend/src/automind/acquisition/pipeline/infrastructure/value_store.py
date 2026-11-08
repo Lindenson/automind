@@ -32,6 +32,15 @@ class ValueRepo:
             return {a: float(n) for a, n in rows.all() if n is not None}  # the query keeps numbers only
 
     @_store_errors
+    async def available(self, variant_id: str) -> set[str]:
+        """The attributes the variant has an available selected value for (numeric or not)."""
+        async with sessionmaker()() as s:
+            rows = await s.execute(
+                select(m.SpecValue.attribute).where(m.SpecValue.variant_id == variant_id, m.SpecValue.available)
+            )
+            return set(rows.scalars())
+
+    @_store_errors
     async def accepted_transmissions(self, variant_id: str) -> list[str]:
         """The texts of the variant's accepted transmission claims."""
         async with sessionmaker()() as s:

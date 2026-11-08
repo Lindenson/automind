@@ -14,7 +14,8 @@ from tests.graph.conftest import engine, make_ports, open_web_reference
 from automind.acquisition.infrastructure.fetch import Fetcher, FetchPolicy
 from automind.acquisition.infrastructure.pages import DbPageStore
 from automind.acquisition.parsing.registry import ParserRegistry
-from automind.acquisition.pipeline import job as research
+from automind.acquisition.pipeline.contracts import JobSpec
+from automind.acquisition.pipeline.job import ResearchJob
 from automind.acquisition.registry.application.service import RegistryService
 from automind.acquisition.registry.infrastructure.repo import RegistryRepo
 from automind.acquisition.snapshots import codec, store
@@ -155,7 +156,7 @@ async def test_research_job_names_producer_version_model_and_snapshot():
 
 
 async def _check_job(ports, vid, emit):  # noqa: ANN001
-    res = await research.run_job(ports, research.JobSpec(job_id=db.uid(), variant_id=vid, area="specs"), emit)
+    res = await ResearchJob(ports).run(JobSpec(job_id=db.uid(), variant_id=vid, area="specs"), emit)
     assert res.ok, res.error
     async with db.sessionmaker()() as s:
         claims = list((await s.execute(select(m.Claim).where(m.Claim.variant_id == vid))).scalars())

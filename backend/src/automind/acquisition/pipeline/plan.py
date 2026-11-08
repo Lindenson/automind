@@ -1,26 +1,23 @@
 """S1 plan (spec 011 strangler, research R5): what to search for one job — the area's markets and model names, the
-favourite / open-web / registry `site:` queries, the registry's plan for the job and the
-assistant's follow-up queries. Moved from `application/research.py` with the bodies unchanged.
+favourite / open-web / registry `site:` queries, the registry's plan for the job and the assistant's follow-up
+queries. The searches on a car's home market outside Europe are `home_market.py`.
 """
 
 from __future__ import annotations
 
 import dataclasses
-from contextvars import ContextVar
-from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel
 
+from automind.acquisition.pipeline.contracts import JobSpec
 from automind.acquisition.pipeline.domain.variant import CarVariant, VariantFacts
+from automind.acquisition.pipeline.scope import note_candidates
 from automind.acquisition.ports import AcqPorts
 from automind.acquisition.registry.api import Plan
 from automind.shared.metering.usage import BudgetExceeded
 from automind.shared.research_order import plan as research_plan
 from automind.shared.research_order import search_plan
-from automind.shared.vehicle import markets, specs
-
-if TYPE_CHECKING:
-    from automind.acquisition.pipeline.job import JobSpec
+from automind.shared.vehicle import specs
 
 VERSION = "plan@2"  # 2: home-market research of a car sold only outside Europe (chat 2026-11-06)
 
@@ -120,9 +117,7 @@ async def registry_queries(ports: AcqPorts, v: VariantFacts, job: JobSpec,
         sources = await reg.sources_for(job.area, markets, per_area * per_query + len(exclude))
     except Exception:  # noqa: BLE001 - research works without the registry
         return []
-    candidates = current_candidates.get()
-    if candidates is not None:
-        candidates.update(s.domain for s in sources if s.unverified)
+    note_candidates([s.domain for s in sources if s.unverified])
     ident = identity_of(v)
     if job.area == "used_price" and job.car_year:
         ident = dataclasses.replace(ident, years=str(job.car_year))
@@ -132,120 +127,33 @@ async def registry_queries(ports: AcqPorts, v: VariantFacts, job: JobSpec,
     )  # fmt: skip
 
 
-# --- a car sold only outside Europe (chat 2026-11-06, Deepal S09 vs Li Auto L9) ------------------------------------
-# Identified on its home market (CaseCar.market "CN"), it was researched on European sites only: no spec, no
-# consumption, "energy cost cannot be computed". Its specs, consumption, tests and reliability are read where it is
-# sold too — in that market's language, on the registry's sources there and on English sites that cover its cars
-# (config/search.yaml `abroad.<market>.research`); prices never (spec 009 FR-009).
-
-
-def home_market(v: VariantFacts, job: JobSpec) -> str | None:
-    """The market outside Europe the car is sold on (the case's, else the variant's), or None."""
-    m = (getattr(job, "market", None) or getattr(v, "market", None) or "ES").upper()
-    return None if markets.european(m) else m
-
-
-def _home_cfg(ports: AcqPorts, market: str) -> dict[str, Any]:
-    abroad = (ports.ref.search or {}).get("abroad") or {}
-    return dict((abroad.get(market) or {}).get("research") or {})
-
-
-def local_name(ports: AcqPorts, v: VariantFacts, market: str) -> str:
-    """The model's name on its market ("深蓝S09", "理想L9"; config/aliases.yaml local_names), else make + model."""
-    names = getattr(getattr(ports.ref, "aliases", None), "local_names", None) or {}
-    return str((names.get(f"{v.make}|{v.model}") or {}).get(market) or f"{v.make} {v.model}")
-
-
-def home_target(ports: AcqPorts, v: VariantFacts, market: str | None) -> str | None:
-    """What the extractor, the relevance role and the validator are told about a car sold only outside Europe: its
-    market (its pages are the car's own sources, not "another market"), its local name, how those pages label the
-    figures (config `research.target`)."""
-    if market is None:
-        return None
-    cfg = _home_cfg(ports, market)
-    local = local_name(ports, v, market)
-    named = f", sold there as {local}" if local != f"{v.make} {v.model}" else ""
-    where = str(cfg.get("name") or market)
-    hint = str(cfg.get("target") or "").strip()
-    return (f"market {market} ({where}; not sold in Europe{named}: pages of that market are about this car, never "
-            f"'another market'){(' ' + hint) if hint else ''}")  # fmt: skip
-
-
-def _fill(template: str, v: VariantFacts, local: str, sites: tuple[str, ...] = ()) -> str:
-    text = template.format(make=v.make, model=v.model, local=local,
-                           sites=" OR ".join(f"site:{s}" for s in sites))  # fmt: skip
-    return " ".join(text.split())
-
-
-def _excluded(ports: AcqPorts, domain: str) -> bool:
-    terms = ((ports.ref.search or {}).get("abroad") or {}).get("terms_exclude") or []
-    d = domain.lower().removeprefix("www.")
-    return any(d == x or d.endswith("." + x) for x in terms)
-
-
-async def home_queries(ports: AcqPorts, v: VariantFacts, job: JobSpec) -> list[search_plan.PlannedQuery]:
-    """Searches on the car's home market for an area other than prices: the market-language queries with its local
-    name, `site:` queries to the registry's sources of that market (robots and terms allow them; pcauto and autohome
-    are excluded by their terms) and to English sites that cover that market's cars."""
-    market = home_market(v, job)
-    if market is None or job.area in research_plan.PRICE_AREAS or job.area in research_plan.MARKET_AREAS:
-        return []
-    cfg = _home_cfg(ports, market)
-    templates = list((cfg.get("areas") or {}).get(job.area) or [])
-    english = (cfg.get("english") or {}).get(job.area)
-    if not templates and not english:
-        return []
-    local = local_name(ports, v, market)
-    out = [search_plan.PlannedQuery(_fill(t, v, local), "OPEN", job.area, market) for t in templates]
-    en_sites = tuple(str(d) for d in cfg.get("english_sites") or [] if not _excluded(ports, str(d)))
-    n = int(cfg.get("sites", 3))
-    reg = getattr(ports, "registry", None)
-    sources = []
-    if n > 0 and reg is not None and hasattr(reg, "sources_for"):
-        try:
-            sources = await reg.sources_for(job.area, [market], n + 8)
-        except Exception:  # noqa: BLE001 - research works without the registry
-            sources = []
-    local_sites = [s for s in sources if not _excluded(ports, s.domain) and s.domain not in en_sites
-                   and search_plan.plain_site(s.domain)][:n]  # fmt: skip
-    candidates = current_candidates.get()
-    if candidates is not None:
-        candidates.update(s.domain for s in local_sites if s.unverified)
-    if local_sites:
-        group = tuple(s.domain for s in local_sites)
-        out.append(search_plan.PlannedQuery(_fill(str(cfg.get("site_template") or "{local} {sites}"), v, local, group),
-                                            "REGISTRY", job.area, market, group))  # fmt: skip
-    if english and en_sites:
-        out.append(search_plan.PlannedQuery(_fill(f"{english} {{sites}}", v, local, en_sites), "REGISTRY", job.area,
-                                            market, en_sites))  # fmt: skip
-    return out
-
-
-def home_pages(ports: AcqPorts, market: str | None) -> int:
-    """Pages read from the home-market searches of one job (config `research.pages`)."""
-    return int(_home_cfg(ports, market).get("pages", 4)) if market else 0
-
-
 PLAN_MARKETS = ["ES", "EN", "DE", "FR", "IT", "PT", "NL"]
 
 
-async def _plan(ports: AcqPorts, job: JobSpec) -> Plan | None:
+async def registry_plan(ports: AcqPorts, job: JobSpec) -> Plan | None:
+    """The registry's plan for the job (source order, the domains never to read, its candidates), for the job's
+    make when the variant loads; None without the registry. A registry failure propagates (the job does not start)."""
     if ports.registry is None:
         return None
     try:
         v = await variant(ports, job.variant_id) if job.area not in research_plan.MARKET_AREAS else None
     except Exception:  # noqa: BLE001 - a plan without the make: the registry's order for every make
         v = None
-    return await ports.registry.plan(job.area, PLAN_MARKETS, v.make if v is not None else None)
+    the_plan: Plan = await ports.registry.plan(job.area, PLAN_MARKETS, v.make if v is not None else None)
+    return the_plan
 
 
 class QueryProposals(BaseModel):
+    """The query planner role's answer."""
+
     queries: list[str]
 
 
-async def _ai_queries(
+async def ai_queries(
     ports: AcqPorts, v: VariantFacts, area: str, missing: list[str], tried: list[str]
 ) -> list[search_plan.PlannedQuery]:
+    """Up to `ai_followup.max_queries_per_area` queries the query planner role proposes for a follow-up round that
+    found too few pages (FR-004), each new and plausible; none when the role fails. BudgetExceeded propagates."""
     cfg = (ports.ref.search or {}).get("ai_followup") or {}
     limit = int(cfg.get("max_queries_per_area", 3))
     if limit <= 0 or "query_planner" not in ports.ref.prompts:
@@ -267,19 +175,3 @@ async def _ai_queries(
         if len(accepted) < limit and search_plan.accept_ai_query(q, [*tried, *(a.text for a in accepted)]):
             accepted.append(search_plan.PlannedQuery(" ".join(q.split()), "AI", area, "ES"))
     return accepted
-
-
-# spec 010 US6-US8: the registry's plan for the running job (source order and the domains never to read)
-current_plan: ContextVar[Plan | None] = ContextVar("current_plan", default=None)
-# spec 011 FR-022 (010 T059): registry candidates the running job queried with `site:` (filled by registry_queries)
-current_candidates: ContextVar[set[str] | None] = ContextVar("current_candidates", default=None)
-
-
-def is_unverified(domain: str) -> bool:
-    """A page of a registry candidate, from the job's plan or one of its `site:` queries: its values are labelled
-    "unverified source" and its domain counts as half an independent source."""
-    d = domain.lower().removeprefix("www.")
-    plan = current_plan.get()
-    if plan is not None and plan.unverified(d):
-        return True
-    return any(d == c or d.endswith("." + c) for c in current_candidates.get() or ())

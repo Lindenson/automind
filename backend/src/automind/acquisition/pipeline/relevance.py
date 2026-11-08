@@ -30,11 +30,13 @@ SERVICE_AREAS = ("maintenance",)  # brand-wide service pages count (spec 009 FR-
 LLM_PER_JOB = 6  # default; config/search.yaml concurrency.llm_per_job
 
 
-def _llm_per_job(ports: AcqPorts) -> int:
+def llm_per_job(ports: AcqPorts) -> int:
+    """Model calls one job runs at once (config/search.yaml concurrency.llm_per_job)."""
     return int(((ports.ref.search or {}).get("concurrency") or {}).get("llm_per_job", LLM_PER_JOB))
 
 
-def _relevance_target(v: VariantFacts, ports: AcqPorts) -> tuple[rel.Target, list[rel.GenerationInfo]]:
+def job_relevance_target(v: VariantFacts, ports: AcqPorts) -> tuple[rel.Target, list[rel.GenerationInfo]]:
+    """`relevance_target` with the model's generations and names from the reference data."""
     aliases = getattr(ports.ref, "aliases", None)
     names = aliases.names_of(v.make, v.model) if hasattr(aliases, "names_of") else []
     return relevance_target(v, ports.ref.generations, names)
@@ -52,12 +54,12 @@ def relevance_target(v: VariantFacts, generations: Mapping[str, Sequence[tuple[s
     return tgt, gens
 
 
-class _PageJudge:
+class PageJudge:
     """Relevance of one page: rules first, the relevance role for uncertain pages (at most
     MAX_LLM_RELEVANCE_PER_JOB per job). Safe to call concurrently: the budget is taken before any await."""
 
     def __init__(self, ports: AcqPorts, v: VariantFacts, tgt: rel.Target, gens: list[rel.GenerationInfo], target: str,
-                 area: str | None = None):  # fmt: skip
+                 area: str | None = None) -> None:  # fmt: skip
         self.ports, self.v, self.tgt, self.gens, self.target = ports, v, tgt, gens, target
         self.service = area in SERVICE_AREAS
         self.llm_left = MAX_LLM_RELEVANCE_PER_JOB if "relevance" in ports.ref.prompts else 0

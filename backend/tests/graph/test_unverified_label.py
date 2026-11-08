@@ -9,8 +9,8 @@ import uuid
 import pytest
 from sqlalchemy import delete, select
 
-from automind.acquisition.pipeline import job as research
-from automind.acquisition.pipeline.job import JobSpec
+from automind.acquisition.pipeline.contracts import JobSpec
+from automind.acquisition.pipeline.job import ResearchJob
 from automind.acquisition.registry.application.service import RegistryService
 from automind.acquisition.registry.infrastructure.repo import RegistryRepo
 from automind.chat.application.services.report.blocks.sources import sources_block
@@ -86,7 +86,7 @@ async def _emit(stage: str, text: str) -> None:
 async def test_candidate_values_are_labelled_and_count_half(registry_rows):
     vid = await _setup()
     ports, search = ports_for("unverified")
-    res = await research.run_job(ports, JobSpec(str(uuid.uuid4()), vid, "specs", round=0), _emit)
+    res = await ResearchJob(ports).run(JobSpec(str(uuid.uuid4()), vid, "specs", round=0), _emit)
     assert res.ok, res.error
     assert sorted(q for q in search.queries if "site:" in q) == [
         "CandMake Roadster 2.0 190 site:cand-a.example",

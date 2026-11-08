@@ -405,7 +405,6 @@ exempt|.importlinter|application-ports:automind.chat.application.usecases.challe
 func|acquisition/admin_api.py|_parsers
 func|acquisition/admin_api.py|accuracy
 func|acquisition/admin_api.py|value
-func|acquisition/pipeline/job.py|_run
 func|acquisition/registry/application/review.py|review
 ignore|acquisition/facade.py|best_per_domain
 ignore|acquisition/infrastructure/overrides.py|LayeredPrompts.get
@@ -414,7 +413,6 @@ ignore|acquisition/infrastructure/overrides.py|LayeredPrompts.values
 ignore|acquisition/infrastructure/overrides.py|layer
 ignore|acquisition/parsing/migrate_v1.py|migrate_v1
 ignore|acquisition/pipeline/extract.py|spec_claims_schema
-ignore|acquisition/pipeline/job.py|_record_registry
 ignore|acquisition/ports.py|AcqPorts.page_store
 ignore|acquisition/replay/offline.py|no_network
 ignore|acquisition/snapshots/retention.py|run_snapshot_retention
@@ -510,9 +508,6 @@ lazy|acquisition/parsing/spec.py|_selector_problem
 lazy|acquisition/parsing/spec.py|_walk
 lazy|acquisition/parsing/spec.py|regex_problem
 lazy|acquisition/parsing/store.py|degrade
-lazy|acquisition/pipeline/fetch.py|pages
-lazy|acquisition/pipeline/job.py|_shadow_extracted
-lazy|acquisition/pipeline/locate.py|_rank_hits
 lazy|acquisition/registry/application/seed.py|_survey_list
 lazy|acquisition/registry/domain/seed_rules.py|from_favourite
 lazy|acquisition/registry/domain/seed_rules.py|from_survey
@@ -834,22 +829,6 @@ order|acquisition/pipeline/extract.py|schema_for
 order|acquisition/pipeline/extract.py|spec_claims_schema
 order|acquisition/pipeline/extract.py|user_prompt
 order|acquisition/pipeline/extract.py|validate_claims
-order|acquisition/pipeline/identity.py|generation_hints
-order|acquisition/pipeline/identity.py|versions
-order|acquisition/pipeline/job.py|area_hits
-order|acquisition/pipeline/job.py|run_job
-order|acquisition/pipeline/market.py|accept
-order|acquisition/pipeline/plan.py|QueryProposals
-order|acquisition/pipeline/plan.py|home_pages
-order|acquisition/pipeline/plan.py|home_queries
-order|acquisition/pipeline/plan.py|home_target
-order|acquisition/pipeline/plan.py|is_unverified
-order|acquisition/pipeline/plan.py|local_name
-order|acquisition/pipeline/relevance.py|relevance_target
-order|acquisition/pipeline/validate.py|ReaderClaim
-order|acquisition/pipeline/validate.py|check
-order|acquisition/pipeline/validate.py|plausibility_ctx
-order|acquisition/pipeline/validate.py|sense_before
 order|acquisition/read.py|ev_counts
 order|acquisition/read.py|last_done
 order|acquisition/read.py|missing_critical
@@ -1313,8 +1292,6 @@ size|acquisition/infrastructure/fetch.py|>200
 size|acquisition/parsing/registry.py|>200
 size|acquisition/parsing/spec.py|>200
 size|acquisition/pipeline/extract.py|>200
-size|acquisition/pipeline/job.py|>200
-size|acquisition/pipeline/plan.py|>200
 size|acquisition/registry/infrastructure/repo.py|>200
 size|acquisition/replay/run.py|>200
 size|acquisition/worker/handlers.py|>200

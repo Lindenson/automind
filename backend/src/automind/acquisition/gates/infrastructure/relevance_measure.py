@@ -23,7 +23,7 @@ from automind.acquisition.infrastructure import config as acq_config
 from automind.acquisition.infrastructure import overrides
 from automind.acquisition.infrastructure.fetch import decode_body
 from automind.acquisition.infrastructure.pages import main_content
-from automind.acquisition.pipeline import job as pipeline_job
+from automind.acquisition.pipeline.domain.target import target_of
 from automind.acquisition.pipeline.relevance import relevance_target
 from automind.acquisition.replay import run as replay
 from automind.acquisition.replay.offline import no_network
@@ -125,7 +125,7 @@ async def _extracted(ref: SnapshotRef, raw: bytes, vs: Mapping[str, Variant], ru
     title, body = main_content(decode_body(raw, None), url)
     d = WebDoc(url, title, body, False, snapshot_id=ref.id)
     v = vs.get(ref.variant_ids[0])
-    target = pipeline_job.target_of(v) if v is not None else ANY_VEHICLE
+    target = target_of(v) if v is not None else ANY_VEHICLE
     if charge is not None:
         await charge(EST_EXTRACT_EUR)
     got = await replay.extract_cached(d, ref.blob_sha256, EXTRACT_SPECS, prompt, "specs",

@@ -254,6 +254,17 @@ forbidden_modules =
 # application -> shared.infrastructure edges (application-ports exceptions) would otherwise reach the engine indirectly
 allow_indirect_imports = True
 
+[importlinter:contract:pipeline-knows-no-gates]
+name = The research pipeline feeds the gates through a port, never imports them (spec 012 A3b)
+type = forbidden
+source_modules =
+    automind.acquisition.pipeline
+forbidden_modules =
+    automind.acquisition.gates
+    automind.acquisition.agents
+    automind.acquisition.worker
+    automind.delivery
+
 [importlinter:contract:api-uses-engine-facades]
 name = The web API reaches the acquisition engine only through its facades (spec 011 T113)
 type = forbidden

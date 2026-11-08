@@ -27,6 +27,7 @@ from automind.acquisition.domain import replay as scoring
 from automind.acquisition.gold import repo as gold_repo
 from automind.acquisition.infrastructure import config as acq_config
 from automind.acquisition.parsing.spec import ParserSpec
+from automind.acquisition.pipeline.domain.target import target_of
 from automind.acquisition.replay.offline import NetworkForbidden, no_network
 from automind.acquisition.snapshots import store
 from automind.acquisition.snapshots.store import SnapshotRef
@@ -325,7 +326,6 @@ async def _extractor_pages(req: ReplayRequest) -> tuple[str, list[scoring.PageRe
     if not req.allow_llm:
         raise Refused("extractor replay calls models: run it in the worker or pass --allow-llm")
     from automind.acquisition.infrastructure.pages import main_content  # noqa: PLC0415
-    from automind.acquisition.pipeline import job as rs  # noqa: PLC0415
     from automind.shared.infrastructure.llm import gateway as llm_gateway  # noqa: PLC0415
 
     key = str(req.extractor)
@@ -347,7 +347,7 @@ async def _extractor_pages(req: ReplayRequest) -> tuple[str, list[scoring.PageRe
             title, body = main_content(decode_body(bodies[r.blob_sha256], None), url)
             d = WebDoc(url, title, body, False, snapshot_id=r.id)
             v = variants.get(r.variant_ids[0]) if r.variant_ids else None
-            target = rs.target_of(v) if v is not None else "the vehicle on this page"
+            target = target_of(v) if v is not None else "the vehicle on this page"
             got = await extract_cached(d, r.blob_sha256, name, text, area, model, target)
             claims = [c for c in getattr(got, "claims", []) if not req.attributes or c.attribute in req.attributes]
             out.append(scoring.PageResult(r.id, url, r.variant_ids, len(claims),

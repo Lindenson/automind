@@ -37,19 +37,6 @@ def re_diesel_suffix(n: str) -> bool:
     return re.search(r"\b\d{3}d\b|\b\d\.\dd\b|\b\d{3} d\b", n) is not None  # 520d, 2.0d, E 220 d
 
 
-def _variant_gearbox(v: VariantFacts) -> str | None:
-    """The gearbox named in the variant name ("… 6AT", "… manual", "… e-CVT"), when the column is empty."""
-    name = f" {v.variant_name} ".lower()
-    if re.search(r"\b\d\s?(at|a/t)\b|automatic|automático|automatica", name):
-        return "automatic"
-    if re.search(r"\b\d\s?(mt|m/t)\b", name) or sense.says_manual(name):
-        return "manual"
-    return sense.gearbox_family(name)
-
-
-CRITICAL = ("max_power", "max_torque", "curb_mass", "drivetrain", "claimed_0_100", "top_speed")
-
-
 def plausibility_ctx(v: VariantFacts, known: dict[str, float]) -> plausibility.Context:
     return plausibility.Context(
         powertrain=v.powertrain, fuel=fuel_of(v.variant_name, v.powertrain), known=known,
@@ -89,20 +76,6 @@ def check(
     return ("ACCEPTED", val, None, None) if isinstance(val, float) else ("ACCEPTED", None, str(val), None)
 
 
-def _litres(raw: str) -> float | None:
-    """ "611", "1.642" (Spanish thousands) or "611 l" as litres; None when there is no number."""
-    m = re.search(r"\d[\d.,\u202f ]*", raw or "")
-    if not m:
-        return None
-    digits = (
-        re.sub(r"[.,\u202f ]", "", m.group(0)) if re.fullmatch(r"\d{1,2}[.,]\d{3}", m.group(0).strip()) else m.group(0)
-    )
-    try:
-        return float(digits.strip().replace(",", "."))
-    except ValueError:
-        return None
-
-
 def sense_before(
     c: Any, v: VariantFacts, source_type: str | None, url: str = ""
 ) -> tuple[Any, tuple[str, None, None, str] | None]:
@@ -124,6 +97,40 @@ def sense_before(
 
 _EV_CLAIMS = ("battery_kwh", "battery_gross_kwh", "charge_ac_kw", "charge_dc_peak_kw", "charge_dc_10_80_min",
               *sense_ev.EV_ATTRS, "consumption_cs", "consumption_weighted", "range_wltp", "range_cltc")  # fmt: skip
+
+VALIDATOR_REJECTS = ("OTHER_VARIANT", "OTHER_MARKET", "OTHER_YEAR", "UNCLEAR")
+
+
+@dataclass
+class ReaderClaim:
+    attribute: str
+    raw_value: str
+    unit: str | None
+    excerpt: str
+
+
+def _variant_gearbox(v: VariantFacts) -> str | None:
+    """The gearbox named in the variant name ("… 6AT", "… manual", "… e-CVT"), when the column is empty."""
+    name = f" {v.variant_name} ".lower()
+    if re.search(r"\b\d\s?(at|a/t)\b|automatic|automático|automatica", name):
+        return "automatic"
+    if re.search(r"\b\d\s?(mt|m/t)\b", name) or sense.says_manual(name):
+        return "manual"
+    return sense.gearbox_family(name)
+
+
+def _litres(raw: str) -> float | None:
+    """ "611", "1.642" (Spanish thousands) or "611 l" as litres; None when there is no number."""
+    m = re.search(r"\d[\d.,\u202f ]*", raw or "")
+    if not m:
+        return None
+    digits = (
+        re.sub(r"[.,\u202f ]", "", m.group(0)) if re.fullmatch(r"\d{1,2}[.,]\d{3}", m.group(0).strip()) else m.group(0)
+    )
+    try:
+        return float(digits.strip().replace(",", "."))
+    except ValueError:
+        return None
 
 
 def _refile(c: Any, attribute: str | None, raw_value: Any) -> Any:
@@ -168,14 +175,3 @@ def _sense_after(attribute: str, val: Any, ctx: plausibility.Context) -> tuple[s
     if isinstance(val, float) and not (p := sense_ev.pair_check(attribute, val, ctx.known)).ok:
         return "REJECTED_IMPLAUSIBLE", None, None, p.rule_id or "sense.ev"
     return None
-
-
-VALIDATOR_REJECTS = ("OTHER_VARIANT", "OTHER_MARKET", "OTHER_YEAR", "UNCLEAR")
-
-
-@dataclass
-class ReaderClaim:
-    attribute: str
-    raw_value: str
-    unit: str | None
-    excerpt: str

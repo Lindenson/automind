@@ -19,6 +19,23 @@ VERSION = "market@1"
 MARKET = "ES"
 
 
+def accept(out: Any, d: WebDoc) -> tuple[list[dict[str, Any]], int]:
+    """The facts of one page worth storing (excerpt in the page, its amount or percent in the excerpt, a
+    plausible amount), as rows for the market-facts store; returns (rows, rejected)."""
+    rows, rej = [], 0
+    for f in getattr(out, "facts", []) or []:
+        amount_ok = f.amount_eur is None or 0 < f.amount_eur <= 20000
+        if not amount_ok or not _number_ok(f, d.text):
+            rej += 1
+            continue
+        value = {"label": f.label[:120], "text": f.excerpt, "amount_eur": f.amount_eur, "percent": f.percent,
+                 "scope": f.scope, "region_code": f.region_code, "powertrains": list(f.powertrains),
+                 "url": d.url, "source_name": d.title[:200]}  # fmt: skip
+        rows.append({"key": _key(f)[:60], "value": value, "valid_from": _date(f.valid_from),
+                     "valid_to": _date(f.valid_to)})  # fmt: skip
+    return rows, rej
+
+
 def _date(raw: str | None) -> date | None:
     try:
         return date.fromisoformat(raw[:10]) if raw else None
@@ -38,20 +55,3 @@ def _number_ok(f: Any, doc_text: str) -> bool:
             if not any(x in f.excerpt for x in forms):
                 return False
     return ex.excerpt_in_doc(f.excerpt, doc_text)
-
-
-def accept(out: Any, d: WebDoc) -> tuple[list[dict[str, Any]], int]:
-    """The facts of one page worth storing (excerpt in the page, its amount or percent in the excerpt, a
-    plausible amount), as rows for the market-facts store; returns (rows, rejected)."""
-    rows, rej = [], 0
-    for f in getattr(out, "facts", []) or []:
-        amount_ok = f.amount_eur is None or 0 < f.amount_eur <= 20000
-        if not amount_ok or not _number_ok(f, d.text):
-            rej += 1
-            continue
-        value = {"label": f.label[:120], "text": f.excerpt, "amount_eur": f.amount_eur, "percent": f.percent,
-                 "scope": f.scope, "region_code": f.region_code, "powertrains": list(f.powertrains),
-                 "url": d.url, "source_name": d.title[:200]}  # fmt: skip
-        rows.append({"key": _key(f)[:60], "value": value, "valid_from": _date(f.valid_from),
-                     "valid_to": _date(f.valid_to)})  # fmt: skip
-    return rows, rej

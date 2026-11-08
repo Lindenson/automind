@@ -111,6 +111,8 @@ module = [
     "automind.shared.infrastructure.db.errors", "automind.chat.infrastructure.persistence.errors",
     "automind.delivery.baselines", "automind.observability.infrastructure.outcome_facts", "automind.delivery.cli.fit_physics", "automind.acquisition.gates.*",
     "automind.acquisition.pipeline.domain.*", "automind.acquisition.pipeline.application.*",
-    "automind.acquisition.pipeline.infrastructure.*",
+    "automind.acquisition.pipeline.infrastructure.*", "automind.acquisition.pipeline.contracts",
+    "automind.acquisition.pipeline.scope", "automind.acquisition.pipeline.stages.*", "automind.acquisition.pipeline.job",
+    "automind.acquisition.pipeline.home_market",
 ]
 strict = true
