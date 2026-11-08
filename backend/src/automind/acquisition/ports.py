@@ -8,13 +8,21 @@ has none of search, pages or readers: it reaches the engine through `Ports.acqui
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Protocol
 
 from automind.acquisition.pipeline.application.ports import PipelineStores
 from automind.shared.contracts.config import Reference
 from automind.shared.contracts.llm import LLM
 from automind.shared.contracts.site_readers import NoReaders, SiteReaders
 from automind.shared.contracts.web import PageStore, Searcher
+
+
+class ShadowFeed(Protocol):
+    """The shadow gate's feed: pages the extractor read while a prompt or model change is in shadow."""
+
+    async def notify_extracted(self, prompt_name: str | None, snapshot_ids: list[str]) -> int:
+        """Queue the pages for the shadow comparison (no work in the turn); returns how many were queued."""
+        ...
 
 
 @dataclass
@@ -29,6 +37,7 @@ class AcqPorts:
     metrics: Any = None  # inc(name, **labels) for Prometheus counters; None: not counted
     market_facts: Any = None  # spec 006 US5: upsert(rows, evidence_id); None: market areas store nothing
     datasets: Any = None  # async (make) -> [gold DatasetRow]: a live open-dataset query; None: stored/cached only
+    shadow: ShadowFeed | None = None  # spec 011 T102: the shadow gate's feed; None: pages feed no shadow
 
     @property
     def page_store(self) -> PageStore:

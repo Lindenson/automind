@@ -10,14 +10,13 @@ from collections import defaultdict
 from typing import Any
 
 from automind.shared.contracts.web import Page
+from automind.shared.metering.usage import BudgetExceeded
 
 VERSION = "fetch@1"
 
 
 async def pages(store: Any, order: list[str], area: str, limit: int) -> tuple[list[Page], dict[str, int]]:
     """The ranked URLs through the page store, best first, until `limit` pages (R3, R4)."""
-    from automind.shared.metering.usage import BudgetExceeded as _BE  # noqa: PLC0415
-
     pages: list[Page] = []
     rejected: dict[str, int] = defaultdict(int)
     pos = 0
@@ -26,7 +25,7 @@ async def pages(store: Any, order: list[str], area: str, limit: int) -> tuple[li
         pos += len(batch)
         got = await asyncio.gather(*(store.get(u, area=area) for u in batch), return_exceptions=True)
         for u, g in zip(batch, got, strict=True):
-            if isinstance(g, _BE):
+            if isinstance(g, BudgetExceeded):
                 raise g
             if isinstance(g, Page):
                 pages.append(g)

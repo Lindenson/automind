@@ -11,7 +11,7 @@ from typing import Any
 from sqlalchemy import func, select
 
 from automind.acquisition.pipeline import plan
-from automind.acquisition.pipeline.validate import CRITICAL
+from automind.acquisition.pipeline.domain import critical
 from automind.shared.infrastructure import db
 from automind.shared.research_order import plan as research_plan
 
@@ -29,8 +29,7 @@ async def _have(variant_id: str) -> set[str]:
 
 
 async def missing_critical(variant_id: str, powertrain: str | None = None) -> list[str]:
-    have = await _have(variant_id)
-    return [k for k in CRITICAL if k not in have] + research_plan.energy_inputs_missing(powertrain, have)
+    return critical.missing_critical(await _have(variant_id), powertrain)
 
 
 async def last_done(variant_ids: list[str]) -> dict[str, dict[str, Any]]:

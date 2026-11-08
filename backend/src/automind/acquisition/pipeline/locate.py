@@ -12,10 +12,11 @@ from typing import Any
 
 from automind.acquisition.pipeline import fetch
 from automind.acquisition.pipeline.domain.variant import VariantFacts
-from automind.acquisition.pipeline.plan import current_plan
+from automind.acquisition.pipeline.scope import current_plan
 from automind.acquisition.ports import AcqPorts
 from automind.shared import evidence as ev
 from automind.shared.contracts.web import Page
+from automind.shared.metering.usage import BudgetExceeded
 from automind.shared.research_order import search_plan
 
 VERSION = "locate@2"  # 2: the home-market searches (chat 2026-11-06)
@@ -123,14 +124,12 @@ def _rank_hits(
     ports: AcqPorts, v: VariantFacts | None, planned: list[search_plan.PlannedQuery], results: list[Any], seen: set[str]
 ) -> tuple[dict[str, tuple[int, int, int]], dict[str, str], list[search_plan.PlannedQuery], int]:
     """Favourites first, then by authority and rank; also which market found a URL and which queries were empty."""
-    from automind.shared.metering.usage import BudgetExceeded as _BE  # noqa: PLC0415
-
     ranked: dict[str, tuple[int, int, int]] = {}
     url_market: dict[str, str] = {}
     empty: list[search_plan.PlannedQuery] = []
     failures = 0
     for q, r in zip(planned, results, strict=True):
-        if isinstance(r, _BE):
+        if isinstance(r, BudgetExceeded):
             raise r
         if isinstance(r, BaseException):
             failures += 1

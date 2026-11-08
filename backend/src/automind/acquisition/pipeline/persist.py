@@ -18,7 +18,7 @@ from automind.acquisition.pipeline.domain import items
 from automind.acquisition.pipeline.domain.rows import ClaimRow, EvidenceIn, PageRow
 from automind.acquisition.pipeline.domain.variant import VariantFacts
 from automind.acquisition.pipeline.locate import favourite_priority
-from automind.acquisition.pipeline.plan import is_unverified
+from automind.acquisition.pipeline.scope import is_unverified
 from automind.acquisition.pipeline.validate import VALIDATOR_REJECTS, ReaderClaim, check, plausibility_ctx, sense_before
 from automind.acquisition.ports import AcqPorts
 from automind.shared import evidence as ev

@@ -230,8 +230,18 @@ Acquisition, one PR per package, each leaves its package with **0 `storage`, 0 `
     (a page = one transaction, after the validator call), value_store (reselect under the advisory lock in one
     transaction), verdict_store, job_book, area_sources, wiring; `AcqPorts.stores`; locate split → `searches.py`.
     pipeline: 0 `storage`; structure 1470 → 1441; mypy report 243 → 218.
-  - [ ] A3b `job.run()` as stages (T081 coverage first, T082), job/plan/extract under 200
-  - [ ] A3c `parsing/` (T084)
+  - [x] A3b job as named stages (PR #121): T081 (job.py was 83 % before; now job 100 %, stages 83–100 %);
+    T082: `contracts.py` (JobSpec, JobResult, Emit, Found, PageOutcome, PageTally), `job.ResearchJob.run()` (opening →
+    search → car_pages | market_pages → book; `run_job` removed), `stages/` (opening, car_pages, market_pages, book),
+    `scope.py` (the job's registry plan and candidates), `home_market.py` (split from plan; plan 285 → 177),
+    `domain/target.py`, `domain/critical.py`, `ValueStore.available`; `AcqPorts.shadow` (gates' `LiveShadowFeed`):
+    no lazy gates import, contract `pipeline-knows-no-gates` (12 contracts). Structure 1441 → 1418; mypy report
+    218 → 214. Moved on: `extract.py` (size, 24 order, regex, ignore) and validate's regex/table entries → A3c with
+    T084 (schemas → `parsing/extraction/contracts.py`, patterns → `normalise/`, so they move once); `identity.py` +
+    `gold/versions.py` → `identity_readers/` → A4 (with gold).
+  - [ ] A3b-f1 type the search counts and hits the stages pass (`Found.stats`, `JobResult.hits`, `book.*` take
+    `dict[str, Any]` from `locate.collect`): `SearchStats` / `SourceHit` records (with A3c or A4)
+  - [ ] A3c `parsing/` (T084) + `extract.py` under 200 + pipeline's last regex/table/order/ignore entries → pipeline 0
 - [ ] A4 `registry/` (admission, review, repo), `gold/` (load, repo, versions, match, rdw), `snapshots/`, `drift/`,
   `replay/` (run 367)
 - [ ] A5 `worker/`: queue, process, heartbeat, budget, prefetch, handlers (256)
@@ -252,8 +262,8 @@ step that touches them.
 
 ### S11 Staged acquisition pipeline (PR 14)
 
-- [ ] T081 [US2] Characterisation tests to ≥ 80 % for `acquisition/pipeline/job.py`
-- [ ] T082 [US2] `acquisition/pipeline/contracts.py` (Job, StageResult, Page, …) and `job.py` whose `run()` lists plan → locate → fetch → parse → relevance → validate → merge → persist; stage modules under `acquisition/pipeline/stages/`; `identity.py` + `gold/versions.py` → `acquisition/identity_readers/`
+- [x] T081 [US2] Characterisation tests to ≥ 80 % for `acquisition/pipeline/job.py` (A3b: 83 % before, 100 % after)
+- [x] T082 [US2] (A3b, PR #121; the `identity_readers/` move went to A4 with gold) `acquisition/pipeline/contracts.py` (Job, StageResult, Page, …) and `job.py` whose `run()` lists plan → locate → fetch → parse → relevance → validate → merge → persist; stage modules under `acquisition/pipeline/stages/`; `identity.py` + `gold/versions.py` → `acquisition/identity_readers/`
 - [ ] T083 [US2] Contract `engine-knows-no-chat` in `backend/.importlinter`; gate
 
 ---

@@ -14,8 +14,9 @@ from automind.shared.contracts.web import Page
 VERSION = "parse@1"
 
 
-async def _read_tables(ports: AcqPorts, v: VariantFacts, pages: list[Page]) -> dict[str, Any]:
-    """Deterministic site readers for favourite spec sites; ambiguous or unknown layouts go to the LLM."""
+async def read_tables(ports: AcqPorts, v: VariantFacts, pages: list[Page]) -> dict[str, Any]:
+    """The site readers' tables of the pages, by URL (favourite spec sites); a page whose layout is ambiguous or
+    unknown is left out (the extraction role reads it)."""
     prepare = getattr(ports.readers, "prepare", None)
     if prepare is not None:
         await prepare()  # the live registry reloads the running parser versions every 60 s

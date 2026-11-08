@@ -6,17 +6,15 @@ group with its own page limit so the earlier ones cannot crowd it out. Split fro
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
+from automind.acquisition.pipeline.contracts import Emit, JobSpec
 from automind.acquisition.pipeline.domain.variant import VariantFacts
+from automind.acquisition.pipeline.home_market import home_market, home_pages, home_queries
 from automind.acquisition.pipeline.locate import collect
 from automind.acquisition.pipeline.plan import (
     SITE_QUERY_PAGES,
-    _ai_queries,
-    home_market,
-    home_pages,
-    home_queries,
+    ai_queries,
     identity_of,
     market_names,
     queries_for,
@@ -25,11 +23,6 @@ from automind.acquisition.pipeline.plan import (
 from automind.acquisition.ports import AcqPorts
 from automind.shared.contracts.web import Page
 from automind.shared.research_order import search_plan
-
-if TYPE_CHECKING:
-    from automind.acquisition.pipeline.job import JobSpec
-
-Emit = Callable[[str, str], Awaitable[None]]
 
 WARRANTY_PAGES = 3  # pages read for the brand's warranty terms in round 0 of the manufacturer area
 
@@ -79,7 +72,7 @@ async def pages_for(
         planned += site
         stats = _merge_stats(stats, more_stats)
     if job.round > 0 and len(pages) < 2:  # open web found too little: bounded AI-proposed queries (FR-004)
-        extra = await _ai_queries(ports, v, job.area, missing, [q.text for q in planned])
+        extra = await ai_queries(ports, v, job.area, missing, [q.text for q in planned])
         if extra:
             await emit("searching", f"{job.area}: {len(extra)} more searches suggested by the assistant")
             more, more_stats = await collect(ports, extra, seen | {p.url for p in pages}, job.area, v)

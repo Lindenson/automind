@@ -13,8 +13,9 @@ from typing import Any
 from sqlalchemy import or_, select
 
 from automind.acquisition.api import Judged, RecheckResult, RevalidateResult
-from automind.acquisition.pipeline import job, validate
+from automind.acquisition.pipeline import validate
 from automind.acquisition.pipeline.infrastructure import wiring as pipeline_wiring
+from automind.acquisition.pipeline.stages.book import area_hits
 from automind.shared.contracts.web import WebDoc
 from automind.shared.evidence import sense
 from automind.shared.infrastructure import db
@@ -116,7 +117,7 @@ async def recheck_minimums(variant_id: str) -> None:
         if r.area in research_plan.MARKET_AREAS:
             continue  # a market-level area (incentives) has no per-car evidence to count
         try:
-            hits = await job.area_hits(pipeline_wiring.stores().book, v, r.area)
+            hits = await area_hits(pipeline_wiring.stores().book, v, r.area)
             met = research_plan.minimum_met(r.area, [research_plan.SourceHit(**h) for h in hits])
         except ValueError:
             continue

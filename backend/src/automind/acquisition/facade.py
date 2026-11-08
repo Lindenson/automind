@@ -11,8 +11,10 @@ from typing import Any
 from sqlalchemy import select
 
 from automind.acquisition.api import AcquireRequest, AcquireResult, Emit, KindResult, Need, Tried
-from automind.acquisition.pipeline import job
+from automind.acquisition.pipeline.contracts import JobSpec
 from automind.acquisition.pipeline.infrastructure import wiring as pipeline_wiring
+from automind.acquisition.pipeline.job import STAGE_VERSIONS, ResearchJob
+from automind.acquisition.pipeline.stages.book import area_hits
 from automind.shared.infrastructure import db
 
 TRIED = ("accepted", "rejected", "robots", "junk", "empty", "error")
@@ -22,9 +24,9 @@ async def _quiet(stage: str, text: str) -> None:
     return None
 
 
-def job_spec(req: AcquireRequest, kind: str) -> job.JobSpec:
+def job_spec(req: AcquireRequest, kind: str) -> JobSpec:
     """`FRESH` is "find it" (past the cache, wider queries, the other markets); `ESCALATE` an area left short."""
-    return job.JobSpec(req.job_id, req.variant_id, kind, req.round, car_year=req.car_year,
+    return JobSpec(req.job_id, req.variant_id, kind, req.round, car_year=req.car_year,
                        fresh=req.need is Need.FRESH, escalate=req.need is Need.ESCALATE, market=req.market)  # fmt: skip
 
 
@@ -35,11 +37,11 @@ async def acquire(req: AcquireRequest, emit: Emit | None, *, ports: Any) -> Acqu
         if req.need is Need.CACHED:
             kinds.append(await cached(req.variant_id, kind))
             continue
-        res = await job.run_job(ports, job_spec(req, kind), say)
+        res = await ResearchJob(ports).run(job_spec(req, kind), say)
         kinds.append(KindResult(kind=kind, ok=res.ok, docs=res.docs, accepted=res.accepted, rejected=res.rejected,
                                 minimum_met=res.minimum_met, error=res.error, hits=res.hits,
                                 tried=await tried(req.job_id, req.variant_id, res.planned),
-                                stage_versions=job.STAGE_VERSIONS))  # fmt: skip
+                                stage_versions=STAGE_VERSIONS))  # fmt: skip
     return AcquireResult(job_id=req.job_id, variant_id=req.variant_id, round=req.round, kinds=kinds)
 
 
@@ -54,7 +56,7 @@ async def cached(variant_id: str, kind: str) -> KindResult:
         ).scalar_one_or_none()
     if v is None:
         return KindResult(kind=kind, ok=False, error=f"unknown variant {variant_id}")
-    hits = await job.area_hits(pipeline_wiring.stores().book, v, kind)
+    hits = await area_hits(pipeline_wiring.stores().book, v, kind)
     if run is None:
         return KindResult(kind=kind, hits=hits)
     return KindResult(kind=kind, docs=run.docs_used, accepted=run.claims_accepted, rejected=run.claims_rejected,

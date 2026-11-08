@@ -9,8 +9,8 @@ import uuid
 
 from sqlalchemy import delete, select
 
-from automind.acquisition.pipeline import job as research
-from automind.acquisition.pipeline.job import JobSpec
+from automind.acquisition.pipeline.contracts import JobSpec
+from automind.acquisition.pipeline.job import ResearchJob
 from automind.acquisition.registry.application.service import RegistryService
 from automind.acquisition.registry.infrastructure.repo import RegistryRepo
 from automind.shared.infrastructure.config.loader import favourite_queries, load_yaml
@@ -73,7 +73,7 @@ async def test_follow_up_round_queries_registry_candidates_of_other_european_mar
         return None
 
     job = JobSpec(str(uuid.uuid4()), vid, "used_price", round=1, car_year=2016)
-    res = await research.run_job(ports, job, emit)
+    res = await ResearchJob(ports).run(job, emit)
     assert res.ok, res.error
     site = [q for q in search.queries if "site:" in q]
     assert site == ["RegMake Cruiser 2016 site:valuer.example"], search.queries
@@ -101,5 +101,5 @@ async def test_follow_up_round_queries_registry_candidates_of_other_european_mar
     # round 0 of the same area: the area's own market's candidate, not the other markets'
     search0 = FixtureSearch("registry")
     ports.search = search0
-    await research.run_job(ports, JobSpec(str(uuid.uuid4()), vid, "used_price", round=0, car_year=2016), emit)
+    await ResearchJob(ports).run(JobSpec(str(uuid.uuid4()), vid, "used_price", round=0, car_year=2016), emit)
     assert [q for q in search0.queries if "site:" in q and "example" in q] == ["RegMake Cruiser 2016 site:home.example"]

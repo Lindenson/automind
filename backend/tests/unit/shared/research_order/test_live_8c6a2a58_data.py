@@ -75,8 +75,8 @@ class _Web:
 async def test_blocked_analyst_sites_never_crowd_out_the_warranty_page():
     from types import SimpleNamespace
 
-    from automind.acquisition.pipeline import job as research
     from automind.acquisition.pipeline import searches
+    from automind.acquisition.pipeline.contracts import JobSpec
     from automind.chat.dialog.prompts import load_all
     from automind.delivery.bootstrap import reference
 
@@ -84,7 +84,7 @@ async def test_blocked_analyst_sites_never_crowd_out_the_warranty_page():
     ports = SimpleNamespace(search=web, page_store=web, ref=reference(load_all()))
     v = SimpleNamespace(make="Audi", model="A4", generation="B9", variant_name="35 TFSI 150 CV",
                         generation_years_from=2015, generation_years_to=None, powertrain="MHEV")  # fmt: skip
-    job = research.JobSpec("j", "v", "manufacturer")
+    job = JobSpec("j", "v", "manufacturer")
 
     async def emit(*_):
         return None

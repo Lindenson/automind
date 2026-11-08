@@ -14,7 +14,7 @@ from automind.acquisition.infrastructure import config as acq_config
 from automind.acquisition.infrastructure.fetch import decode_body
 from automind.acquisition.infrastructure.pages import main_content
 from automind.acquisition.pipeline import extract as extraction
-from automind.acquisition.pipeline import job as pipeline_job
+from automind.acquisition.pipeline.domain.target import target_of
 from automind.acquisition.replay import run as replay
 from automind.acquisition.snapshots.store import SnapshotRef
 from automind.shared.contracts.llm import LLM
@@ -48,7 +48,7 @@ async def extractor_pair(c: Change, refs: list[SnapshotRef], *, llm: LLM | None 
         title, body = main_content(decode_body(bodies[r.blob_sha256], None), url)
         d = WebDoc(url, title, body, False, snapshot_id=r.id)
         v = variants.get(r.variant_ids[0]) if r.variant_ids else None
-        target = pipeline_job.target_of(v) if v is not None else ANY_VEHICLE
+        target = target_of(v) if v is not None else ANY_VEHICLE
         for text, model, into in ((old_text, models[0], old), (new_text, models[1], new)):
             if charge is not None:
                 await charge(EST_EXTRACT_EUR)

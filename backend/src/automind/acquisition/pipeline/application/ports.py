@@ -55,6 +55,10 @@ class ValueStore(Protocol):
         """The variant's available numeric selected values by attribute."""
         ...
 
+    async def available(self, variant_id: str) -> set[str]:
+        """The attributes the variant has an available selected value for (numeric or not)."""
+        ...
+
     async def accepted_transmissions(self, variant_id: str) -> list[str]:
         """The texts of the variant's accepted transmission claims."""
         ...
