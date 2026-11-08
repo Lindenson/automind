@@ -290,6 +290,34 @@ Then S9d (chat), S10, and the rest of S12 (observability, persistence split). Th
 entries (chat 3, observability 4, delivery 2) go with S9d/S10/S12; `size` entries of chat/shared/delivery with the
 step that touches them.
 
+### S9.4 States, not words (owner 2026-11-08) — before A4c
+
+Owner on `chat/dialog/runner.py`: "no state machine apart from the logic, no transparency of actions, an overloaded
+class, checks against words instead of constants and clear states — spaghetti". The same pattern lives everywhere,
+so it became rules (contracts/code-shape.md "States, not words") with a ratchet, not a one-file fix.
+
+- [x] T074e Rules `word`, `errtext`, `duck` in `scripts/structure_states.py`, wired into `check_structure.py`;
+  tests in `tests/unit/tools/test_check_structure.py`; baseline 1225 → 1557 (+233 `word`, +93 `duck`, +6
+  `errtext`). By area: chat/application 62, chat/dialog 46, chat/domain 21, chat/infrastructure 8; acquisition
+  finished packages 94 (pipeline 35, gates 30, registry 18, reputation 4, parsing 4, gold 2, identity_readers 1),
+  acquisition rest 52 (top-level modules 15, agents 15, domain 11, infrastructure 4, worker 4, replay 3, drift 2,
+  snapshots 1); delivery 29 (web 23, mcp 5, cli 1); shared 12; observability 5.
+- [ ] S9.4a The turn runner as a state machine (`chat/dialog/runner.py` 423 → `chat/dialog/turn/`):
+  `states.py` (`TurnStatus` StrEnum replacing the `Literal` of `chat/application/ports.py`, `TRANSITIONS`, `move()`,
+  `Entry` = START | RESUME | SUPERSEDE_THEN_START | BUSY and the pure `route(active, preset)`), `presets.py`
+  (`PresetKind`, `Preset.is_edit`; ws.py builds a `Preset`), `endings.py` (exception → `Ending`: one table instead of
+  five `except` branches), `context.py` (`TurnContext`: nodes stop importing the runner), `budget.py`
+  (`spent_today` declared on `TurnRepo`), `journal.py` (every status write through `move()`), `outcome.py`
+  (`OutcomeRecorder`, `FeedbackKind`); `runner.py` ≤ 120 lines, methods as named steps; one provider-failure
+  classifier (`retry.py` by exception type, one text table) used by the runner, the node retry policy and
+  `shared/infrastructure/llm/gateway.py`; dead `thread_per_turn` / `prepare_input` removed; unit tests for
+  `route`, `TRANSITIONS`, endings. chat/dialog runner/retry/context: 0 `word`/`errtext`/`duck`.
+- [ ] S9.4b The finished acquisition packages to 0 `word`/`errtext`/`duck` (pipeline, gates, registry, reputation,
+  parsing, gold, identity_readers: 94 entries): statuses, verdicts and kinds as `StrEnum` in their `domain/`.
+- From A4c on, every package step leaves **0 `storage`, 0 `size`, 0 `word`, 0 `errtext`, 0 `duck`** in its package;
+  the chat entries go with S9d/S10 (ws.py and rest.py parse messages into enums at the edge), shared and
+  observability with S12.
+
 ### S10 Use cases (PR 13)
 
 - [ ] T079 [US2] `chat/application/usecases/{send_message, confirm_answer, find_more, edit_car, rescore, open_chat, delete_chats, challenge_value}.py`: class per action, ports in constructor, `run()` ≤ 30 lines, command DTOs with their mappers (`ResearchPreset.from_command`, …) in `chat/application/usecases/contracts.py`; logic taken from `ChatRunner.run_turn` branches and `delivery/web/ws.py` `_resume_payload`/`_car_edit_preset`

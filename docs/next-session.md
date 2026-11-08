@@ -1,4 +1,4 @@
-# Next session: start here (2026-11-08 after A4b gold/ + identity_readers/; next: A4c snapshots/drift/replay)
+# Next session: start here (2026-11-08 after S9.4 state rules; next: S9.4a turn runner, S9.4b, then A4c)
 
 **First task: refactoring — spec 012, executed by `specs/012-refactoring/tasks.md` (one phase = one PR).**
 No new features until it is done (owner, 2026-11-06). All functional work in §4 is parked, still valid, and
@@ -44,7 +44,7 @@ store), text, config (`MatchCfg`, `GoldRules`), match, reference, choice; `appli
 `delivery/cli/gold.py`. `identity_readers/`: `web` (was pipeline/identity.py), `domain/registered`,
 `DatasetVersions` over `VersionBook`/`LiveRows`, version_store, wiring; `AcqPorts.datasets: LiveRows | None`; contract
 `gold-services-over-ports`). **gold, identity_readers: 0 entries.**
-Structure baseline 1225, mypy report (all src) 195, 14 import contracts. Owner confirmed the A3 split (a → b → c) on
+Structure baseline 1557 (after S9.4 rules), mypy report (all src) 195, 14 import contracts. Owner confirmed the A3 split (a → b → c) on
 2026-11-08; A4 is split the same way (one PR per package): A4a registry → A4b gold → A4c snapshots/drift/replay.
 
 **The template (follow it for A3–A8; `reputation/` and `gates/` show it):**
@@ -62,7 +62,16 @@ Structure baseline 1225, mypy report (all src) 195, 14 import contracts. Owner c
 - Unit tests over fakes for every service: one failure path at least (store down, lost claim, budget, no measure).
 - Safety tests are never weakened (A2: `test_no_self_change` flagged `self.budgets` → renamed `agent_budgets`).
 
-**Next: A4c** — `snapshots/`, `drift/`, `replay/`
+**S9.4 States, not words (owner 2026-11-08, on `chat/dialog/runner.py`).** Rules `word` (a state/kind/verdict
+compared with a string literal), `errtext` (an exception recognised by its text), `duck` (getattr/hasattr capability)
+in `scripts/structure_states.py`; contract code-shape.md "States, not words"; pr-self-check item **States**.
+Baseline 1225 → 1557 (+332). Next, one PR each: **S9.4a** the turn runner as a state machine
+(`chat/dialog/turn/`: TurnStatus + TRANSITIONS + `move()`, pure `route(active, preset) → Entry`, `PresetKind`,
+exception → `Ending` table, `TurnJournal`, `OutcomeRecorder`; one provider-failure classifier by type) →
+**S9.4b** the finished acquisition packages (94 entries) → A4c. From A4c on each package step also leaves 0
+`word`/`errtext`/`duck`.
+
+**Then A4c** — `snapshots/`, `drift/`, `replay/`
 (run 359; 33 entries) and A3b-f1 (type `Found.stats` / hits: `SearchStats` / `SourceHit`). Gold readers use `gold/infrastructure/wiring` (`gold_store().best(vid)`, `gold_rules()`); registry callers use
 `registry/infrastructure/wiring` (scout gets a `SiteAdmission`, blame judge `signal_store()`). Callers of the parser store use
 `ParserStore()` (drift/daily, gates/page_reading) or the lazy imports still listed for agents/replay — A4/A6 remove

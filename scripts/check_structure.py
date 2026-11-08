@@ -12,6 +12,9 @@ Rules (id: what fails):
   sql       raw SQL naming a table another area owns (scripts/table_owners.yaml), except listed reads
   any, untyped, doc, public, ignore, lazy, exempt
             the API rules of the application and domain layers and their escape hatches (scripts/structure_api.py)
+  word, errtext, duck
+            decisions on words instead of named states: a state compared with a string literal, an exception
+            recognised by its text, a capability found with getattr/hasattr (scripts/structure_states.py)
 
 Ratchet: `scripts/structure_baseline.txt` lists today's violations. A violation not in the baseline fails; a
 baseline entry that no longer occurs fails too (remove it in the same PR). Justified exceptions (data modules,
@@ -34,6 +37,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # the sibling rule module, also when loaded by path
 from structure_api import api_rules, exempt_rules  # noqa: E402
+from structure_states import state_rules  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
 SRC = Path("backend/src/automind")
@@ -82,6 +86,7 @@ def check(src_root: Path, owners_file: Path) -> list[Violation]:
         out += _functions(rel, tree)
         out += _sql(rel, tree, owners, reads)
         out += [Violation(rule, rel, detail) for rule, detail in api_rules(rel, text, tree)]
+        out += [Violation(rule, rel, detail) for rule, detail in state_rules(tree)]
     for pkg in sorted(p for p in src_root.rglob("*") if p.is_dir() and "__pycache__" not in p.parts):
         if any(pkg.glob("*.py")) and not (pkg / "__init__.py").exists():
             out.append(Violation("pkgdoc", pkg.relative_to(src_root).as_posix() + "/__init__.py", "missing"))
