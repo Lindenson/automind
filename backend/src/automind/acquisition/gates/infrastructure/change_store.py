@@ -14,6 +14,7 @@ from sqlalchemy import select, text, update
 from sqlalchemy.exc import IntegrityError
 
 from automind.acquisition.agents import levers
+from automind.acquisition.domain.gates import ChangeStatus
 from automind.acquisition.gates.application.ports import ChangeFields, GateStoreUnavailable
 from automind.acquisition.gates.domain.change import AGENT, Change, sentence
 from automind.acquisition.gates.infrastructure.candidates import candidate
@@ -106,7 +107,7 @@ class ChangeRepo:
     async def in_shadow(self, kinds: tuple[str, ...]) -> list[Change]:
         """The open changes of these kinds in shadow."""
         async with sessionmaker()() as s:
-            q = select(AcqChange).where(AcqChange.status == "shadow", AcqChange.closed_at.is_(None),
+            q = select(AcqChange).where(AcqChange.status == ChangeStatus.SHADOW, AcqChange.closed_at.is_(None),
                                         AcqChange.object_kind.in_(list(kinds)))  # fmt: skip
             return [change_of(r) for r in (await s.execute(q)).scalars()]
 

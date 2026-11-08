@@ -11,16 +11,18 @@ from dataclasses import dataclass
 from automind.acquisition.domain import gates
 from automind.acquisition.domain import relevance_audit as ra
 from automind.acquisition.domain import replay as scoring
+from automind.acquisition.domain.gates import AFTER_ACCEPTANCE, ObjectKind
+from automind.acquisition.domain.tolerance import Tolerance, ToleranceKind, within
 from automind.acquisition.gates.domain.change import Change
 
 PREFIX = "relevance.keywords."
-DEFAULT_TOL: scoring.Tolerance = ("rel", 0.03)
+DEFAULT_TOL: Tolerance = (ToleranceKind.REL, 0.03)
 KeywordLists = dict[str, list[str]]
 
 
 def applies(c: Change) -> bool:
     """A change of the relevance keyword lists."""
-    return c.object_kind == "rule" and c.object_key.startswith(PREFIX)
+    return c.object_kind == ObjectKind.RULE and c.object_key.startswith(PREFIX)
 
 
 def keyword_sets(c: Change, current: Mapping[str, Sequence[str]]) -> tuple[KeywordLists, KeywordLists]:
@@ -28,7 +30,7 @@ def keyword_sets(c: Change, current: Mapping[str, Sequence[str]]) -> tuple[Keywo
     name = c.object_key.removeprefix(PREFIX)
     now = {k: list(v) for k, v in current.items()}
     before = dict(now)
-    if c.status in ("watch", "kept"):
+    if c.status in AFTER_ACCEPTANCE:
         before[name] = list(c.diff.get("from") or [])
     return before, {**now, name: [str(w) for w in (c.diff.get("to") or [])]}
 
@@ -40,14 +42,14 @@ def changed_words(c: Change) -> list[str]:
     return sorted(old ^ new)
 
 
-def agreement(variant_id: str, attribute: str, rows: Sequence[tuple[float, str]], tol: scoring.Tolerance,
+def agreement(variant_id: str, attribute: str, rows: Sequence[tuple[float, str]], tol: Tolerance,
               min_families: int = 2) -> scoring.Gold | None:  # fmt: skip
     """The value ≥ `min_families` independent families agree on (within tolerance), as a gold; rows are
     (value, family)."""
     kind, t = tol
     best: tuple[int, float] | None = None
     for x, _ in rows:
-        near = [(y, f) for y, f in rows if abs(y - x) <= (t if kind == "abs" else t * abs(x)) + 1e-9]
+        near = [(y, f) for y, f in rows if within(y, x, tol)]
         fams = len({f for _, f in near})
         if fams >= min_families and (best is None or fams > best[0]):
             best = (fams, statistics.median(y for y, _ in near))
@@ -62,7 +64,7 @@ class References:
 
     gold: dict[tuple[str, str], scoring.Gold]
     claims: dict[tuple[str, str], list[tuple[float, str, str]]]  # (variant, attribute) -> (value, domain, family)
-    tolerances: dict[str, scoring.Tolerance]
+    tolerances: dict[str, Tolerance]
     min_families: int = 2
 
     def of(self, variant_id: str, attribute: str, domain: str) -> scoring.Gold | None:

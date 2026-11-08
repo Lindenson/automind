@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from automind.acquisition.registry.domain.config import Lifecycle
-from automind.acquisition.registry.domain.model import ACCESS_BLOCKING
+from automind.acquisition.registry.domain.model import ACCESS_BLOCKING, CapabilityStatus
 
 DAY_SECONDS = 86400
 
@@ -46,10 +46,10 @@ class Move:
 def transition(c: CapState, lc: Lifecycle, now: datetime) -> Move | None:
     """The move the lifecycle proposes for a capability now, None when it stays. A blocked capability never moves
     here; an access-blocked source's capability moves to blocked whatever its status."""
-    if c.status == "blocked":
+    if c.status == CapabilityStatus.BLOCKED:
         return None
     if c.access in ACCESS_BLOCKING:
-        return Move("blocked", f"access check: {c.access.replace('_', ' ')}")
+        return Move(CapabilityStatus.BLOCKED, f"access check: {c.access.replace('_', ' ')}")
     rule = _RULES.get(c.status)
     days = (now - c.status_since).total_seconds() / DAY_SECONDS
     return rule(c, lc, days) if rule else None
@@ -68,7 +68,7 @@ def _candidate(c: CapState, lc: Lifecycle, days: float) -> Move | None:
         and c.signals_w >= pro.min_signals
     ):
         return Move(
-            "active",
+            CapabilityStatus.ACTIVE,
             f"accuracy lower bound {_f(c.acc_lb)} and yield {_f(c.yield_)} over {c.attempts:.0f} attempts, "
             f"{c.signals_w:.1f} accuracy signals",
         )
@@ -84,10 +84,12 @@ def _active(c: CapState, lc: Lifecycle, days: float) -> Move | None:
     deg = lc.degrade
     zero, n = _zero(c, lc)
     if zero:
-        return Move("degraded", f"no accepted value in the last {n} attempts")
+        return Move(CapabilityStatus.DEGRADED, f"no accepted value in the last {n} attempts")
     low = c.acc_lb < deg.max_acc_lb or c.yield_ < deg.max_yield
     if c.attempts >= deg.min_attempts and low:
-        return Move("degraded", f"accuracy lower bound {_f(c.acc_lb)} or yield {_f(c.yield_)} below the floor")
+        return Move(
+            CapabilityStatus.DEGRADED, f"accuracy lower bound {_f(c.acc_lb)} or yield {_f(c.yield_)} below the floor"
+        )
     return None
 
 
@@ -95,26 +97,30 @@ def _degraded(c: CapState, lc: Lifecycle, days: float) -> Move | None:
     rec = lc.recover
     zero, _ = _zero(c, lc)
     if not zero and c.acc_lb >= rec.min_acc_lb and c.yield_ >= rec.min_yield:
-        return Move("active", f"recovered: accuracy lower bound {_f(c.acc_lb)}, yield {_f(c.yield_)}")
+        return Move(CapabilityStatus.ACTIVE, f"recovered: accuracy lower bound {_f(c.acc_lb)}, yield {_f(c.yield_)}")
     if days >= lc.retire_after_days:
-        return Move("retired", f"degraded for {days:.0f} days without recovery")
+        return Move(CapabilityStatus.RETIRED, f"degraded for {days:.0f} days without recovery")
     return None
 
 
 def _retired(c: CapState, lc: Lifecycle, days: float) -> Move | None:
     if days >= lc.retired_retry_days:
-        return Move("candidate", f"retired {days:.0f} days ago: one more try")
+        return Move(CapabilityStatus.CANDIDATE, f"retired {days:.0f} days ago: one more try")
     return None
 
 
 def _discovered(c: CapState, lc: Lifecycle, days: float) -> Move | None:
-    return Move("candidate", "admitted: robots and terms allow automated reading") if c.access == "ok" else None
+    return (
+        Move(CapabilityStatus.CANDIDATE, "admitted: robots and terms allow automated reading")
+        if c.access == "ok"
+        else None
+    )
 
 
 _RULES: dict[str, Callable[[CapState, Lifecycle, float], Move | None]] = {
-    "discovered": _discovered,
-    "candidate": _candidate,
-    "active": _active,
-    "degraded": _degraded,
-    "retired": _retired,
+    CapabilityStatus.DISCOVERED: _discovered,
+    CapabilityStatus.CANDIDATE: _candidate,
+    CapabilityStatus.ACTIVE: _active,
+    CapabilityStatus.DEGRADED: _degraded,
+    CapabilityStatus.RETIRED: _retired,
 }

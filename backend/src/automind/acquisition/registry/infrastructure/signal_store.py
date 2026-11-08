@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from automind.acquisition.domain.blame import LABEL_010, REPUTATION_KIND
+from automind.acquisition.domain.truth import TruthKind, TruthVerdict
 from automind.acquisition.registry.api import TruthSignalIn
 from automind.acquisition.registry.application.ports import RegistryStoreUnavailable
 from automind.acquisition.registry.domain.config import RegistryConfig
@@ -95,12 +96,12 @@ class SignalStore:
         if cap is None:
             return None
         fade(cap, self.cfg.half_life_days, now())
-        if sig.verdict == "right":
+        if sig.verdict == TruthVerdict.RIGHT:
             cap.right_w += w
         else:
             cap.wrong_w += w
         cap.signals_w = (cap.signals_w or 0.0) + w
-        if sig.kind == "agreement":
+        if sig.kind == TruthKind.AGREEMENT:
             cap.families_agree = (cap.families_agree or 0.0) + share
         rescore(cap, await source_type(s, cap.domain), self.cfg.score)
         return cap

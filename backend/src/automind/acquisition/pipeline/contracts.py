@@ -66,7 +66,7 @@ class PageOutcome:
     values: int = 0
 
 
-NO_VALUES = PageOutcome("empty")
+NO_VALUES = PageOutcome(Outcome.EMPTY)
 
 
 @dataclass
@@ -87,15 +87,15 @@ class PageTally:
     def rejected_page(self, url: str, verdict: str) -> None:
         """The relevance rules or role said the page is about another car (or no car)."""
         self.off_topic[verdict.lower()] += 1
-        self.outcomes[url] = PageOutcome("rejected", verdict.lower())
+        self.outcomes[url] = PageOutcome(Outcome.REJECTED, verdict.lower())
 
     def stored(self, url: str, accepted: int, rejected: int) -> None:
         """A page's checked values were stored."""
         self.accepted += accepted
         self.rejected += rejected
         self.outcomes[url] = (
-            PageOutcome("accepted", None, accepted) if accepted
-            else PageOutcome("rejected", "values_rejected") if rejected else NO_VALUES
+            PageOutcome(Outcome.ACCEPTED, None, accepted) if accepted
+            else PageOutcome(Outcome.REJECTED, "values_rejected") if rejected else NO_VALUES
         )  # fmt: skip
 
     def shadow_pages(self, pages: list[Page]) -> list[Page]:

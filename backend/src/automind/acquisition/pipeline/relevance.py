@@ -38,9 +38,7 @@ def llm_per_job(ports: AcqPorts) -> int:
 
 def job_relevance_target(v: VariantFacts, ports: AcqPorts) -> tuple[rel.Target, list[rel.GenerationInfo]]:
     """`relevance_target` with the model's generations and names from the reference data."""
-    aliases = getattr(ports.ref, "aliases", None)
-    names = aliases.names_of(v.make, v.model) if hasattr(aliases, "names_of") else []
-    return relevance_target(v, ports.ref.generations, names)
+    return relevance_target(v, ports.ref.generations, ports.ref.aliases.names_of(v.make, v.model))
 
 
 def relevance_target(v: VariantFacts, generations: Mapping[str, Sequence[tuple[str, int | None, int | None]]],
@@ -72,7 +70,7 @@ class PageJudge:
         else:
             r = rel.judge(facts, self.tgt, self.gens)
         method = "RULES"
-        if r.verdict == "UNCERTAIN" and self.llm_left > 0:
+        if r.verdict == rel.UNCERTAIN and self.llm_left > 0:
             self.llm_left -= 1
             try:
                 out = await ex.judge_relevance(

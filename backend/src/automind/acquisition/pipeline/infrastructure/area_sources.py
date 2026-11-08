@@ -8,6 +8,7 @@ from typing import Any
 from sqlalchemy import Select, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from automind.acquisition.domain.claims import ClaimStatus
 from automind.acquisition.pipeline.domain.hits import SourceKind, SourceRef
 from automind.shared import evidence as ev
 from automind.shared.infrastructure.db import models as m
@@ -19,11 +20,11 @@ _SOURCE = (m.Evidence.domain, m.Evidence.source_type, m.Evidence.unverified)
 
 async def of(s: AsyncSession, variant_id: str, make: str, area: str, kind: SourceKind) -> list[SourceRef]:
     """The sources in the order the queries return them (KeyError: an area with no store of its own)."""
-    if kind == "claims":
+    if kind == SourceKind.CLAIMS:
         return await _claims(s, variant_id, area)
-    if kind == "maintenance":
+    if kind == SourceKind.MAINTENANCE:
         return await _claims(s, variant_id, area) + await _schedule(s, variant_id)
-    if kind == "manufacturer":
+    if kind == SourceKind.MANUFACTURER:
         urls = (await s.execute(select(m.ManufacturerFact.url).where(m.ManufacturerFact.make == make))).scalars()
         return [SourceRef(ev.domain_of(u), ev.classify_source(u), False) for u in urls]
     return await _items(s, variant_id, area)
@@ -32,7 +33,7 @@ async def of(s: AsyncSession, variant_id: str, make: str, area: str, kind: Sourc
 async def _claims(s: AsyncSession, variant_id: str, area: str) -> list[SourceRef]:
     q = select(*_SOURCE).join(m.Claim, m.Claim.evidence_id == m.Evidence.id)
     return await _refs(s, q.where(m.Claim.variant_id == variant_id, m.Claim.area == area,
-                                  m.Claim.status == "ACCEPTED"))  # fmt: skip
+                                  m.Claim.status == ClaimStatus.ACCEPTED))  # fmt: skip
 
 
 async def _schedule(s: AsyncSession, variant_id: str) -> list[SourceRef]:
@@ -50,7 +51,7 @@ async def _items(s: AsyncSession, variant_id: str, area: str) -> list[SourceRef]
     table = _TABLES[area]
     q = select(*_SOURCE).join(table, table.evidence_id == m.Evidence.id).where(table.variant_id == variant_id)
     if table is m.UsedPriceRange:
-        q = q.where(m.UsedPriceRange.status == "ACCEPTED")
+        q = q.where(m.UsedPriceRange.status == ClaimStatus.ACCEPTED)
     if table is m.Issue:
         q = q.where(m.Issue.area == area)
     out = await _refs(s, q)

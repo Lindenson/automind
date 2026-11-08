@@ -130,4 +130,4 @@ async def _extracted(ref: SnapshotRef, raw: bytes, vs: Mapping[str, Variant], ru
         await charge(EST_EXTRACT_EUR)
     got = await replay.extract_cached(d, ref.blob_sha256, EXTRACT_SPECS, prompt, "specs",
                                       llm_gateway.model_name("extractor"), target, llm=llm)  # fmt: skip
-    return replay.accepted_values(ref, list(getattr(got, "claims", [])), dict(vs), d, rules, False)
+    return replay.accepted_values(ref, list(got.claims) if got is not None else [], dict(vs), d, rules, False)

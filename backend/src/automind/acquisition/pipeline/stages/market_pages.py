@@ -10,9 +10,10 @@ from __future__ import annotations
 import asyncio
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 from automind.acquisition.parsing.extraction import extract as ex
+from automind.acquisition.parsing.extraction.contracts import IncentiveFacts
 from automind.acquisition.pipeline import market
 from automind.acquisition.pipeline.domain.variant import VariantFacts
 from automind.acquisition.pipeline.persist import evidence_in
@@ -56,7 +57,7 @@ async def read_market_pages(ports: AcqPorts, v: VariantFacts, area: str, pages: 
         if out is None:
             return
         tally.docs += 1
-        rows, rj = market.accept(out, d)
+        rows, rj = market.accept(cast(IncentiveFacts, out), d)  # the market areas' schema (extract.schema_for)
         a = 0
         if rows and ports.market_facts is not None:
             evidence_id = await ports.stores.evidence.save(evidence_in(v, d, p))

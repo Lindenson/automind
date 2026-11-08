@@ -8,6 +8,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 
+from automind.acquisition.domain.truth import TruthVerdict
 from automind.acquisition.registry.domain.score import decay, wilson_lb
 
 
@@ -33,7 +34,7 @@ def faded(w: Weights, now: datetime, half_life_days: float) -> Weights:
 def credited(w: Weights, verdict: str, weight: float, now: datetime, half_life_days: float) -> Weights:
     """A share of a signal given to the component: faded to now first, then added on its side."""
     f = faded(w, now, half_life_days)
-    right, wrong = (f.right_w + weight, f.wrong_w) if verdict == "right" else (f.right_w, f.wrong_w + weight)
+    right, wrong = (f.right_w + weight, f.wrong_w) if verdict == TruthVerdict.RIGHT else (f.right_w, f.wrong_w + weight)
     return Weights(right, wrong, now, wilson_lb(right, wrong))
 
 

@@ -10,6 +10,8 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
+from automind.acquisition.domain.tolerance import within
+
 
 @dataclass(frozen=True)
 class Seen:
@@ -20,8 +22,7 @@ class Seen:
 
 
 def _near(a: float, b: float, tol: tuple[str, float]) -> bool:
-    kind, t = tol
-    return abs(a - b) <= (t if kind == "abs" else t * abs(b)) + 1e-9
+    return within(a, b, tol)
 
 
 def replaced(

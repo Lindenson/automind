@@ -10,6 +10,8 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from automind.acquisition.agents import levers
+from automind.acquisition.domain.gates import UNDONE
+from automind.acquisition.domain.versions import VersionStatus
 from automind.acquisition.gates.application.ports import GateStoreUnavailable
 from automind.acquisition.infrastructure import config as acq_config
 from automind.acquisition.parsing.infrastructure.v1_specs import denylist
@@ -41,7 +43,7 @@ class LeverStateRepo:
             src_rows = (await s.execute(_SOURCES)).all()
             reverted = await _reverted(s, now)
             newest = await _newest_evidence(s, reverted)
-            q = select(PromptVersion.name, PromptVersion.key).where(PromptVersion.status == "active")
+            q = select(PromptVersion.name, PromptVersion.key).where(PromptVersion.status == VersionStatus.ACTIVE)
             prompts = {n: k for n, k in (await s.execute(q)).all()}
         return levers.LeverState(
             agents_cfg=acq_config.agents_config(), open_objects=open_objects, blocks=blocks,
@@ -56,7 +58,7 @@ async def _reverted(s: AsyncSession, now: datetime) -> Reverted:
     """(kind, key) -> [(diff hash, when)] of the changes rolled back or reverted."""
     out: Reverted = {}
     q = select(AcqChange.object_kind, AcqChange.object_key, AcqChange.diff_hash, AcqChange.closed_at).where(
-        AcqChange.status.in_(("rolled_back", "reverted")))  # fmt: skip
+        AcqChange.status.in_(list(UNDONE)))  # fmt: skip
     for k, o, h, at in (await s.execute(q)).all():
         out.setdefault((k, o), []).append((h, at or now))
     return out

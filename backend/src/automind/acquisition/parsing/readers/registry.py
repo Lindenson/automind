@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from automind.acquisition.domain import drift
+from automind.acquisition.domain.versions import VersionStatus
 from automind.acquisition.parsing.readers import fingerprint, interpreter
 from automind.acquisition.parsing.readers.ports import ParserBook, ParserStoreUnavailable, ReadingLog, ReadShadow
 from automind.acquisition.parsing.readers.spec import ParserSpec
@@ -155,8 +156,8 @@ class ParserRegistry:
                 continue
             streak, status = got
             verdict = drift.zero_streak(streak, self.cfg)
-            if verdict is not None and status == "active":
+            if verdict is not None and status == VersionStatus.ACTIVE:
                 await self.book.degrade(key, verdict, since=since, evidence={"zero_streak": streak})
                 for run in self.by_domain.values():
                     if run.spec.key == key:
-                        run.status = "degraded"
+                        run.status = VersionStatus.DEGRADED

@@ -17,9 +17,10 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Protocol
 
+from automind.acquisition.domain.tolerance import Tolerance
 from automind.acquisition.registry.api import TruthSignalIn
 from automind.acquisition.reputation.domain import findings as rules
-from automind.acquisition.reputation.domain.signal_facts import ClaimFact, Finding, Tolerance, VariantFacts
+from automind.acquisition.reputation.domain.signal_facts import ClaimFact, Finding, VariantFacts
 from automind.shared.contracts.json import JsonObject
 
 log = logging.getLogger(__name__)

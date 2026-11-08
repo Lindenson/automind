@@ -15,6 +15,8 @@ from sqlalchemy import select
 
 from automind.acquisition.domain import gates
 from automind.acquisition.domain import replay as scoring
+from automind.acquisition.domain.gates import AFTER_ACCEPTANCE, ObjectKind
+from automind.acquisition.domain.versions import VersionStatus
 from automind.acquisition.gates.application.measure_ports import Charge, MetricsPair, NoMeasure
 from automind.acquisition.gates.domain.change import Change, corpus_window
 from automind.acquisition.gates.infrastructure import page_reading as pages
@@ -39,12 +41,12 @@ class PageMeasure:
         """The pages the replay gate compares on: the parser's sites (the pages its new spec applies to), every
         running reader's sites for a rule, else pages about a version (at most `replay.extractor_max_pages`)."""
         since, until = corpus_window(c, now)
-        if c.object_kind == "parser":
+        if c.object_kind == ObjectKind.PARSER:
             old, new = await pages.spec_of(c.from_version), await pages.spec_of(c.to_version)
             domains = sorted({d for sp in (old, new) if sp is not None for d in sp.domains})
             refs = await pages.corpus_refs(domains, since, until)
             return [r for r in refs if new is None or interpreter.applies(new, r.final_url or r.url)]
-        if c.object_kind == "rule":
+        if c.object_kind == ObjectKind.RULE:
             specs = await pages.running_specs()
             return await pages.corpus_refs(sorted({d for sp in specs for d in sp.domains}), since, until)
         cap = int((acq_config.acquisition_config().get("replay") or {}).get("extractor_max_pages", 60))
@@ -57,7 +59,7 @@ class PageMeasure:
 
     async def live_pages(self, c: Change, since: datetime) -> list[SnapshotRef]:
         """Pages the new parser version read since `since` (other kinds: none, they are judged on signals)."""
-        if c.object_kind != "parser":
+        if c.object_kind != ObjectKind.PARSER:
             return []
         async with sessionmaker()() as s:
             q = (select(PageSnapshot.id).where(PageSnapshot.parser_version == c.to_version,
@@ -69,11 +71,11 @@ class PageMeasure:
     async def measure(self, c: Change, refs: list[SnapshotRef], *, since: datetime | None = None,
                       llm: LLM | None = None, charge: Charge | None = None) -> MetricsPair:  # fmt: skip
         """(old, new) metrics; yield over the pages fetched `since` when given. Raises `NoMeasure`."""
-        if c.object_kind == "parser":
+        if c.object_kind == ObjectKind.PARSER:
             old, new = await _parser_pair(c, refs)
-        elif c.object_kind == "rule":
+        elif c.object_kind == ObjectKind.RULE:
             old, new = await _rule_pair(c, refs)
-        elif c.object_kind in ("prompt", "role_model"):
+        elif c.object_kind in (ObjectKind.PROMPT, ObjectKind.ROLE_MODEL):
             old, new = await extractor_pair(c, refs, llm=llm, charge=charge)
         else:
             raise NoMeasure(f"no offline measure for {c.object_kind} changes")
@@ -91,11 +93,11 @@ class PageMeasure:
         without a parser counts as degraded (nothing to compare with)."""
         if bool(c.evidence.get("degraded")):
             return True
-        if c.object_kind != "parser" or not c.from_version:
-            return c.object_kind == "parser"
+        if c.object_kind != ObjectKind.PARSER or not c.from_version:
+            return c.object_kind == ObjectKind.PARSER
         async with sessionmaker()() as s:
             old = await s.get(ParserVersion, c.from_version)
-        return old is not None and old.status == "degraded"
+        return old is not None and old.status == VersionStatus.DEGRADED
 
 
 def rule_sets(c: Change) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -109,7 +111,7 @@ def rule_sets(c: Change) -> tuple[dict[str, Any], dict[str, Any]]:
                "sense": overrides.layer("sense", config.load_yaml("sense.yaml"))}  # fmt: skip
     before = c.diff.get("from")
     after = {**current, section: overrides.set_path(current[section], path, c.diff.get("to"))}
-    if c.status in ("watch", "kept") and before is not None:
+    if c.status in AFTER_ACCEPTANCE and before is not None:
         current = {**current, section: overrides.set_path(current[section], path, before)}
     return current, after
 

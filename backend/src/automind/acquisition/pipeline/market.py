@@ -13,17 +13,18 @@ from datetime import date
 from typing import Any
 
 from automind.acquisition.parsing.extraction import extract as ex
+from automind.acquisition.parsing.extraction.contracts import IncentiveFacts
 from automind.shared.contracts.web import WebDoc
 
 VERSION = "market@1"
 MARKET = "ES"
 
 
-def accept(out: Any, d: WebDoc) -> tuple[list[dict[str, Any]], int]:
+def accept(out: IncentiveFacts, d: WebDoc) -> tuple[list[dict[str, Any]], int]:
     """The facts of one page worth storing (excerpt in the page, its amount or percent in the excerpt, a
     plausible amount), as rows for the market-facts store; returns (rows, rejected)."""
     rows, rej = [], 0
-    for f in getattr(out, "facts", []) or []:
+    for f in out.facts:
         amount_ok = f.amount_eur is None or 0 < f.amount_eur <= 20000
         if not amount_ok or not _number_ok(f, d.text):
             rej += 1

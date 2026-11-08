@@ -21,7 +21,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
-from automind.acquisition.domain.gates import Verdict
+from automind.acquisition.domain.gates import GateVerdict, Verdict
 from automind.acquisition.domain.replay import wilson_lb
 
 REJECTED = ("OTHER_VARIANT", "NOT_ABOUT_CAR")
@@ -315,29 +315,29 @@ def relevance_replay_verdict(m: RelevanceMeasure, cfg: RelevanceGateConfig, *, w
     the change is abandoned."""
     bad = _guards(m, cfg)
     if bad:
-        return Verdict("fail", tuple(bad))
+        return Verdict(GateVerdict.FAIL, tuple(bad))
     if m.flipped < cfg.min_flipped or m.values_checked < cfg.min_checked:
         why = (f"{m.flipped} pages flipped (at least {cfg.min_flipped}), {m.values_checked} values checked "
                f"(at least {cfg.min_checked})")  # fmt: skip
         if waited_days >= wait_days:
-            return Verdict("abandon", (f"{why} after {wait_days} days",))
-        return Verdict("insufficient_evidence", (why,))
-    return Verdict("pass", (), ("flipped",))
+            return Verdict(GateVerdict.ABANDON, (f"{why} after {wait_days} days",))
+        return Verdict(GateVerdict.INSUFFICIENT_EVIDENCE, (why,))
+    return Verdict(GateVerdict.PASS, (), ("flipped",))
 
 
 def relevance_shadow_verdict(m: RelevanceMeasure, cfg: RelevanceGateConfig, *, days: float, min_pages: int,
                              decide_days: float, max_days: float, budget_left: bool = True) -> Verdict:  # fmt: skip
     """The shadow gate on pages judged live since the replay passed: no harm once enough pages are in."""
     if not budget_left:
-        return Verdict("abandon", ("the agent's budget ran out during shadow",))
+        return Verdict(GateVerdict.ABANDON, ("the agent's budget ran out during shadow",))
     bad = _guards(m, cfg)
     if bad:
-        return Verdict("fail", tuple(bad))
+        return Verdict(GateVerdict.FAIL, tuple(bad))
     if not (m.pages >= min_pages or (m.pages > 0 and days >= decide_days)):
         if days >= max_days:
-            return Verdict("abandon", (f"{m.pages} shadow pages in {max_days:g} days",))
-        return Verdict("wait", (f"{m.pages}/{min_pages} shadow pages",))
-    return Verdict("pass", (), ("flipped",) if m.flipped else ())
+            return Verdict(GateVerdict.ABANDON, (f"{m.pages} shadow pages in {max_days:g} days",))
+        return Verdict(GateVerdict.WAIT, (f"{m.pages}/{min_pages} shadow pages",))
+    return Verdict(GateVerdict.PASS, (), ("flipped",) if m.flipped else ())
 
 
 def sentence_part(m: RelevanceMeasure) -> str:

@@ -12,8 +12,10 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from automind.acquisition.domain.claims import REJECTED_PREFIX, ClaimStatus
 from automind.acquisition.parsing.extraction import areas
 from automind.acquisition.parsing.extraction import extract as ex
+from automind.acquisition.parsing.extraction.contracts import GENERATION_WIDE
 from automind.acquisition.pipeline import stamp
 from automind.acquisition.pipeline.domain import items
 from automind.acquisition.pipeline.domain.rows import ClaimRow, EvidenceIn, PageRow
@@ -95,13 +97,13 @@ async def _spec_claims(ports: AcqPorts, v: VariantFacts, area: str, d: WebDoc, e
     market = sense.market_fits(d.url, area)
     rows: list[ClaimRow] = []
     for i, (c, status, num, txt, rule) in enumerate(checked):
-        if status == "ACCEPTED" and not market.ok and c.attribute in ("official_price_es",):
-            status, rule = "REJECTED_OTHER_MARKET", market.rule_id
+        if status == ClaimStatus.ACCEPTED and not market.ok and c.attribute in ("official_price_es",):
+            status, rule = ClaimStatus.REJECTED_OTHER_MARKET, market.rule_id
         scope = "GENERATION" if d.snippet_only and c.scope == "VARIANT" else c.scope
         verdict = verdicts.get(i)
-        if status == "ACCEPTED" and verdict in VALIDATOR_REJECTS:
-            status = f"REJECTED_{verdict}"
-        elif status == "ACCEPTED" and verdict == "GENERATION_WIDE":
+        if status == ClaimStatus.ACCEPTED and verdict in VALIDATOR_REJECTS:
+            status = f"{REJECTED_PREFIX}{verdict}"
+        elif status == ClaimStatus.ACCEPTED and verdict == GENERATION_WIDE:
             scope = "GENERATION"  # kept, but LOW confidence (FR-018)
         rows.append(_claim(v, area, e, c, status, num, txt, rule, scope, "LLM", stamp.extractor(d)))
     return rows
@@ -111,10 +113,10 @@ async def _validator_verdicts(ports: AcqPorts, d: WebDoc, target: str, checked: 
                               known: dict[str, float]) -> dict[int, str]:  # fmt: skip
     conflicting = {
         i for i, (c, st, num, _, _) in enumerate(checked)
-        if st == "ACCEPTED" and num is not None and c.attribute in known
+        if st == ClaimStatus.ACCEPTED and num is not None and c.attribute in known
         and abs(num - known[c.attribute]) > max(abs(known[c.attribute]) * 0.06, 1e-9)
     }  # fmt: skip
-    if not (uncertain or conflicting) or not any(st == "ACCEPTED" for _, st, *_ in checked):
+    if not (uncertain or conflicting) or not any(st == ClaimStatus.ACCEPTED for _, st, *_ in checked):
         return {}
     verdicts = await ex.validate_claims(
         ports.llm, ports.ref.prompts["validator"], target, d,
@@ -137,9 +139,9 @@ def _count(rows: Sequence[ClaimRow], values_rejected: dict[str, int]) -> tuple[i
     """(accepted, rejected) claims; each rejection counted by its reason."""
     accepted = rejected = 0
     for row in rows:
-        if row.status == "ACCEPTED":
+        if row.status == ClaimStatus.ACCEPTED:
             accepted += 1
         else:
             rejected += 1
-            values_rejected[row.status.removeprefix("REJECTED_").lower()] += 1
+            values_rejected[row.status.removeprefix(REJECTED_PREFIX).lower()] += 1
     return accepted, rejected

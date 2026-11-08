@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from automind.acquisition.domain import relevance as rel
 from automind.acquisition.parsing.extraction import areas
 from automind.acquisition.parsing.extraction import extract as ex
+from automind.acquisition.parsing.extraction.contracts import AboutVariant
 from automind.acquisition.pipeline.contracts import JobSpec, PageTally
 from automind.acquisition.pipeline.domain.variant import VariantFacts
 from automind.acquisition.pipeline.parse import read_tables
@@ -92,6 +93,6 @@ class _CarPages:
             raise
         except Exception:  # noqa: BLE001 - one failing source never fails the job
             return None
-        if out is None or not getattr(out, "is_about_variant", True):
+        if out is None or (isinstance(out, AboutVariant) and not out.is_about_variant):
             return None
         return out

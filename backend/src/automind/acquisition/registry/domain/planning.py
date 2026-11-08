@@ -14,7 +14,7 @@ from dataclasses import dataclass
 
 from automind.acquisition.domain import thompson
 from automind.acquisition.registry.domain.config import RegistryConfig
-from automind.acquisition.registry.domain.model import ACCESS_BLOCKING
+from automind.acquisition.registry.domain.model import ACCESS_BLOCKING, CapabilityStatus
 from automind.acquisition.registry.domain.records import CapabilityView
 
 DOMAIN = re.compile(r"^[a-z0-9-]+(?:\.[a-z0-9-]+)+(?:/[\w./-]*)?$")  # survey text that is not a domain is skipped
@@ -38,23 +38,25 @@ def rank_queryable(rows: Sequence[CapabilityView], markets: Sequence[str], limit
     usable = [
         r for r in rows
         if DOMAIN.match(r.domain) and r.access not in ACCESS_BLOCKING
-        and (r.status == "active" or (r.status == "candidate" and r.access == "ok"))
+        and (r.status == CapabilityStatus.ACTIVE or (r.status == CapabilityStatus.CANDIDATE and r.access == "ok"))
     ]  # fmt: skip
-    usable.sort(key=lambda r: (r.status != "active", order.get(r.market, len(order)), -r.score,
+    usable.sort(key=lambda r: (r.status != CapabilityStatus.ACTIVE, order.get(r.market, len(order)), -r.score,
                                r.priority_seed or NO_SEED_PRIORITY, r.domain))  # fmt: skip
     return _one_per_domain(usable, limit)
 
 
 def ordered_active(rows: Sequence[CapabilityView]) -> list[CapabilityView]:
     """Active and degraded capabilities: active first, best score first, then seed priority; one per domain."""
-    usable = [r for r in rows if r.status in ("active", "degraded")]
-    usable.sort(key=lambda r: (r.status != "active", -r.score, r.priority_seed or NO_SEED_PRIORITY, r.domain))
+    usable = [r for r in rows if r.status in (CapabilityStatus.ACTIVE, CapabilityStatus.DEGRADED)]
+    usable.sort(
+        key=lambda r: (r.status != CapabilityStatus.ACTIVE, -r.score, r.priority_seed or NO_SEED_PRIORITY, r.domain)
+    )
     return _one_per_domain(usable, len(usable))
 
 
 def blocked_domains(rows: Sequence[CapabilityView]) -> list[str]:
     """The domains research must skip for the area."""
-    return sorted({r.domain for r in rows if r.status == "blocked"})
+    return sorted({r.domain for r in rows if r.status == CapabilityStatus.BLOCKED})
 
 
 def exploration(cfg: RegistryConfig, spent_today_eur: float, seed: int) -> Exploration:
@@ -66,7 +68,7 @@ def exploration(cfg: RegistryConfig, spent_today_eur: float, seed: int) -> Explo
 def pick_candidates(rows: Sequence[CapabilityView], taken: set[str], cfg: RegistryConfig,
                     how: Exploration) -> list[CapabilityView]:  # fmt: skip
     """Candidates not in `taken`, drawn by Thompson sampling (reproducible for a seed); one per domain."""
-    by_key = {(r.domain, r.market): r for r in rows if r.status == "candidate" and r.domain not in taken}
+    by_key = {(r.domain, r.market): r for r in rows if r.status == CapabilityStatus.CANDIDATE and r.domain not in taken}
     arms = [_arm(r, cfg) for r in by_key.values()]
     picked: list[CapabilityView] = []
     for a in thompson.explore(arms, how.seed, how.slots + EXTRA_DRAWS, how.budget_eur, cfg.score.cost_lambda):

@@ -27,7 +27,7 @@ from automind.shared.contracts.llm import LLM
 from automind.shared.provenance.versions import parse_key
 
 log = logging.getLogger(__name__)
-ALL_KINDS = ("parser", "rule", "prompt", "role_model", "source")
+ALL_KINDS = tuple(gates.ObjectKind)
 
 
 class ShadowGate:
@@ -52,9 +52,9 @@ class ShadowGate:
         if not read or not (self.events.in_shadow("parser") or self.events.in_shadow("rule")):
             return 0
         n = 0
-        for c in await self.store.in_shadow(("parser", "rule")):
-            ids = [sid for sid, key in read.items() if _reader(key) == c.object_key] if c.object_kind == "parser" \
-                else list(read)  # fmt: skip
+        for c in await self.store.in_shadow((gates.ObjectKind.PARSER, gates.ObjectKind.RULE)):
+            parser = c.object_kind == gates.ObjectKind.PARSER
+            ids = [sid for sid, key in read.items() if _reader(key) == c.object_key] if parser else list(read)
             n += await self._enqueue(c, ids)
         return n
 
@@ -71,7 +71,7 @@ class ShadowGate:
         """Add one page (when given) to the change's shadow and decide."""
         now = now or self.clock.now()
         c = await self.journal.load(change_id)
-        if c is None or c.status != "shadow" or not c.open:
+        if c is None or c.status != gates.ChangeStatus.SHADOW or not c.open:
             return {"skipped": "not in shadow"}
         budget = budget or self.agent_budgets.of(c.agent)
         if relevance_change.applies(c):
@@ -121,9 +121,9 @@ class ShadowGate:
     async def _decide(self, c: Change, verdict: gates.Verdict, old: gates.Metrics, new: gates.Metrics,
                       extra: JsonObject, now: datetime, pages: int) -> None:  # fmt: skip
         await self.experiments.record(c.id, old, new)
-        if verdict.verdict in ("pass", "fail", "abandon"):
+        if verdict.verdict in gates.CLOSING:
             await settle(self.journal, self.experiments, c.id, "shadow", verdict, old, new, extra, now)
-            if verdict.verdict == "pass":
+            if verdict.verdict == gates.GateVerdict.PASS:
                 await self.events.refresh_overrides()
         log.info("gate.shadow change=%s pages=%d verdict=%s %s", c.id, pages, verdict.verdict, verdict.reason)
 

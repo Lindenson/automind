@@ -7,6 +7,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, cast
 
 from automind.acquisition.domain import sense_ev
+from automind.acquisition.parsing.extraction.contracts import MARKET_POSITION, NETWORK_ES, WARRANTIES
 from automind.acquisition.parsing.extraction.extract import excerpt_in_doc
 from automind.acquisition.pipeline.domain import rows as r
 from automind.acquisition.pipeline.domain.used_prices import used_prices
@@ -47,7 +48,7 @@ def area_rows(v: VariantFacts, area: str, url: str, title: str, out: BaseModel, 
     """The rows of one extraction of a non-spec area (`url`/`title`: the page, for brand facts); another market's
     service schedule (e.g. Malaysia) gives none and counts every item rejected."""
     if area == "maintenance" and not sense.market_fits(url, area).ok:
-        k.rejected += len(getattr(out, "items", []) or [])
+        k.rejected += len(cast("MaintenanceItems", out).items)
         return []
     if area == "maintenance":
         return maintenance(v, cast("MaintenanceItems", out), k)  # the area's schema (extract.schema_for)
@@ -105,11 +106,11 @@ def issues(v: VariantFacts, area: str, out: IssueItems, k: ExcerptCounter) -> li
 
 def brand_fact_ok(f: ManufacturerEntry) -> tuple[bool, float | None]:
     """Spec 006 US6: a network count only next to a network word, a warranty only with plausible years."""
-    value = getattr(f, "value_num", None)
-    if f.fact_type == "NETWORK_ES":
+    value = f.value_num
+    if f.fact_type == NETWORK_ES:
         c = sense_ev.count_context(value, f.excerpt)
         return c.ok, c.value
-    if f.fact_type in ("WARRANTY", "BATTERY_WARRANTY"):
+    if f.fact_type in WARRANTIES:
         w = sense_ev.warranty_check(f.fact_type, f.excerpt)
         return w.ok, (w.value or {}).get("years")
     return True, value
@@ -125,8 +126,8 @@ def brand_facts(v: VariantFacts, url: str, title: str, out: ManufacturerFacts, k
             continue
         if k.ok(f.excerpt, must=f"{value:g}" if value is not None else None):
             rows.append(r.BrandFactRow(make=v.make, fact_type=f.fact_type, text=f.text,
-                                       positioning=f.positioning if f.fact_type == "MARKET_POSITION" else None,
-                                       value_num=value, year=getattr(f, "year", None), excerpt=f.excerpt, url=url,
+                                       positioning=f.positioning if f.fact_type == MARKET_POSITION else None,
+                                       value_num=value, year=f.year, excerpt=f.excerpt, url=url,
                                        source_name=title[:200]))  # fmt: skip
     return rows
 

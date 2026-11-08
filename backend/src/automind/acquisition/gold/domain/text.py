@@ -10,7 +10,6 @@ ICE_FUELS = frozenset({"petrol", "diesel", "lpg", "cng", "e85"})
 FUEL_SYNONYMS = {"gasoline": "petrol", "benzine": "petrol", "electric": "bev", "hev": "hybrid", "mhev": "hybrid",
                  "plug-in": "phev"}  # fmt: skip
 
-Tolerance = tuple[str, float]  # ("abs" | "rel", value)
 
 _NOT_ALNUM = re.compile(r"[^a-z0-9]+")
 
@@ -41,12 +40,6 @@ def norm_fuel(fuel: str | None) -> str | None:
         return None
     f = fuel.strip().lower()
     return FUEL_SYNONYMS.get(f, f)
-
-
-def within(value: float, reference: float, tol: Tolerance) -> bool:
-    """Whether `value` is within `tol` of `reference` (absolute, or relative to the reference)."""
-    kind, t = tol
-    return abs(value - reference) <= (t if kind == "abs" else t * abs(reference)) + 1e-9
 
 
 def weighted_median(pairs: list[tuple[float, int]]) -> float:

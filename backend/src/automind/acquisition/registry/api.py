@@ -2,23 +2,26 @@
 
 from __future__ import annotations
 
+from enum import StrEnum
 from typing import Literal, Protocol
 
 from pydantic import BaseModel, model_validator
 
 from automind.acquisition.domain.blame import ChallengeBlame, blame_challenge
+from automind.acquisition.domain.truth import TruthKind, TruthVerdict
 from automind.acquisition.registry.domain.blame import blame
+from automind.acquisition.registry.domain.model import CapabilityStatus
 from automind.shared.evidence import domain_of
 
-__all__ = ["Attempt", "ChallengeBlame", "Plan", "PlannedSource", "RegistryPort", "TruthSignalIn", "blame",
-           "blame_challenge"]  # fmt: skip
+__all__ = ["Attempt", "ChallengeBlame", "Outcome", "Plan", "PlannedSource", "RegistryPort", "TruthKind",
+           "TruthSignalIn", "TruthVerdict", "blame", "blame_challenge"]  # fmt: skip
 
 
 class PlannedSource(BaseModel):
     domain: str
     market: str
     priority: int
-    status: Literal["active", "candidate", "retired"]
+    status: CapabilityStatus  # active, candidate (explored) or retired
     unverified: bool = False
     path: str = ""  # spec 011 T108: the learned path prefix of its pages ("/fichas/"), for `site:domain/path`
 
@@ -47,7 +50,15 @@ class Plan(BaseModel):
         return any((d == s.domain or d.endswith("." + s.domain)) and s.unverified for s in self.sources)
 
 
-Outcome = Literal["accepted", "rejected", "robots", "junk", "empty", "error"]
+class Outcome(StrEnum):
+    """What one page of a source gave (`registry_attempts.outcome`)."""
+
+    ACCEPTED = "accepted"  # values accepted from it
+    REJECTED = "rejected"  # read, but nothing usable (the reason says why)
+    ROBOTS = "robots"  # robots.txt forbids it
+    JUNK = "junk"  # not a page about cars (a shop, a forum, a 404 page)
+    EMPTY = "empty"  # read, no values
+    ERROR = "error"  # the fetch failed
 
 
 class Attempt(BaseModel):
@@ -79,8 +90,8 @@ _COMPONENT_OF_010 = {"check": "units_sense"}
 
 
 class TruthSignalIn(BaseModel):
-    kind: Literal["challenge", "bad_source", "replacement", "agreement", "gold", "physics"]
-    verdict: Literal["right", "wrong"]
+    kind: TruthKind
+    verdict: TruthVerdict
     domain: str
     area: str
     market: str | None = None
@@ -113,4 +124,6 @@ class RegistryPort(Protocol):
 
     async def record(self, attempts: list[Attempt]) -> None: ...
 
-    async def signal(self, s: TruthSignalIn) -> None: ...
+    async def signal(self, s: TruthSignalIn) -> str | None:
+        """Record a truth signal; its id, None when it could not be stored."""
+        ...

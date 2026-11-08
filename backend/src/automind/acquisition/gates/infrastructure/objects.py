@@ -10,6 +10,8 @@ from datetime import UTC, datetime
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from automind.acquisition.domain.gates import ObjectKind
+from automind.acquisition.domain.versions import VersionStatus as VS
 from automind.acquisition.gates.application.ports import GateStoreUnavailable
 from automind.acquisition.gates.domain.change import Change
 from automind.shared.contracts.json import JsonObject
@@ -72,75 +74,75 @@ async def _parser_activate(s: AsyncSession, c: Change, now: datetime) -> JsonObj
     old = await s.get(ParserVersion, c.from_version) if c.from_version else None
     previous: JsonObject = {"key": c.from_version, "status": old.status if old is not None else None}
     if old is not None:
-        old.status = "superseded"
+        old.status = VS.SUPERSEDED
     await s.execute(update(ParserVersion).where(ParserVersion.key == c.to_version)
-                    .values(status="active", activated_at=now, zero_streak=0))  # fmt: skip
+                    .values(status=VS.ACTIVE, activated_at=now, zero_streak=0))  # fmt: skip
     await s.execute(update(Parser).where(Parser.reader == reader).values(active_version=version))
     return previous
 
 
 async def _parser_restore(s: AsyncSession, c: Change, now: datetime) -> JsonObject:
     reader, _ = parse_key(str(c.to_version))
-    await s.execute(update(ParserVersion).where(ParserVersion.key == c.to_version).values(status="rejected"))
+    await s.execute(update(ParserVersion).where(ParserVersion.key == c.to_version).values(status=VS.REJECTED))
     old_version = None
     if c.from_version:
         _, old_version = parse_key(c.from_version)
         await s.execute(update(ParserVersion).where(ParserVersion.key == c.from_version)
-                        .values(status=_previous(c).get("status") or "active"))  # fmt: skip
+                        .values(status=_previous(c).get("status") or VS.ACTIVE))  # fmt: skip
     await s.execute(update(Parser).where(Parser.reader == reader).values(active_version=old_version))
     return {}
 
 
 async def _parser_drop(s: AsyncSession, c: Change, now: datetime) -> JsonObject:
-    await s.execute(update(ParserVersion).where(ParserVersion.key == c.to_version, ParserVersion.status == "candidate")
-                    .values(status="rejected"))  # fmt: skip
+    await s.execute(update(ParserVersion).where(ParserVersion.key == c.to_version, ParserVersion.status == VS.CANDIDATE)
+                    .values(status=VS.REJECTED))  # fmt: skip
     return {}
 
 
 async def _prompt_activate(s: AsyncSession, c: Change, now: datetime) -> JsonObject:
-    await s.execute(update(PromptVersion).where(PromptVersion.name == c.object_key, PromptVersion.status == "active")
-                    .values(status="superseded"))  # fmt: skip
+    await s.execute(update(PromptVersion).where(PromptVersion.name == c.object_key, PromptVersion.status == VS.ACTIVE)
+                    .values(status=VS.SUPERSEDED))  # fmt: skip
     await s.execute(update(PromptVersion).where(PromptVersion.key == c.to_version)
-                    .values(status="active", activated_at=now))  # fmt: skip
+                    .values(status=VS.ACTIVE, activated_at=now))  # fmt: skip
     return {"key": c.from_version}
 
 
 async def _prompt_restore(s: AsyncSession, c: Change, now: datetime) -> JsonObject:
-    await s.execute(update(PromptVersion).where(PromptVersion.key == c.to_version).values(status="rejected"))
+    await s.execute(update(PromptVersion).where(PromptVersion.key == c.to_version).values(status=VS.REJECTED))
     if c.from_version:
-        await s.execute(update(PromptVersion).where(PromptVersion.key == c.from_version).values(status="active"))
+        await s.execute(update(PromptVersion).where(PromptVersion.key == c.from_version).values(status=VS.ACTIVE))
     return {}
 
 
 async def _prompt_drop(s: AsyncSession, c: Change, now: datetime) -> JsonObject:
-    await s.execute(update(PromptVersion).where(PromptVersion.key == c.to_version, PromptVersion.status == "candidate")
-                    .values(status="rejected"))  # fmt: skip
+    await s.execute(update(PromptVersion).where(PromptVersion.key == c.to_version, PromptVersion.status == VS.CANDIDATE)
+                    .values(status=VS.REJECTED))  # fmt: skip
     return {}
 
 
 async def _rule_activate(s: AsyncSession, c: Change, now: datetime) -> JsonObject:
-    q = select(RuleOverride).where(RuleOverride.path == c.object_key, RuleOverride.status == "active")
+    q = select(RuleOverride).where(RuleOverride.path == c.object_key, RuleOverride.status == VS.ACTIVE)
     old = (await s.execute(q)).scalar_one_or_none()
     if old is not None:
-        old.status = "superseded"
+        old.status = VS.SUPERSEDED
         await s.flush()
     await s.execute(
-        update(RuleOverride).where(RuleOverride.change_id == c.id).values(status="active", activated_at=now)
+        update(RuleOverride).where(RuleOverride.change_id == c.id).values(status=VS.ACTIVE, activated_at=now)
     )
     return {"id": old.id if old is not None else None}
 
 
 async def _rule_restore(s: AsyncSession, c: Change, now: datetime) -> JsonObject:
-    await s.execute(update(RuleOverride).where(RuleOverride.change_id == c.id).values(status="rejected"))
+    await s.execute(update(RuleOverride).where(RuleOverride.change_id == c.id).values(status=VS.REJECTED))
     await s.flush()
     if prev := _previous(c).get("id"):
-        await s.execute(update(RuleOverride).where(RuleOverride.id == prev).values(status="active"))
+        await s.execute(update(RuleOverride).where(RuleOverride.id == prev).values(status=VS.ACTIVE))
     return {}
 
 
 async def _rule_drop(s: AsyncSession, c: Change, now: datetime) -> JsonObject:
-    await s.execute(update(RuleOverride).where(RuleOverride.change_id == c.id, RuleOverride.status == "candidate")
-                    .values(status="rejected"))  # fmt: skip
+    await s.execute(update(RuleOverride).where(RuleOverride.change_id == c.id, RuleOverride.status == VS.CANDIDATE)
+                    .values(status=VS.REJECTED))  # fmt: skip
     return {}
 
 
@@ -162,8 +164,9 @@ async def _model_restore(s: AsyncSession, c: Change, now: datetime) -> JsonObjec
     return {}
 
 
-_ACTIVATE: dict[str, Step] = {"parser": _parser_activate, "prompt": _prompt_activate, "rule": _rule_activate,
-                              "role_model": _model_activate}  # fmt: skip
-_RESTORE: dict[str, Step] = {"parser": _parser_restore, "prompt": _prompt_restore, "rule": _rule_restore,
-                             "role_model": _model_restore}  # fmt: skip
-_DROP: dict[str, Step] = {"parser": _parser_drop, "prompt": _prompt_drop, "rule": _rule_drop}
+K = ObjectKind
+_ACTIVATE: dict[str, Step] = {K.PARSER: _parser_activate, K.PROMPT: _prompt_activate, K.RULE: _rule_activate,
+                              K.ROLE_MODEL: _model_activate}  # fmt: skip
+_RESTORE: dict[str, Step] = {K.PARSER: _parser_restore, K.PROMPT: _prompt_restore, K.RULE: _rule_restore,
+                             K.ROLE_MODEL: _model_restore}  # fmt: skip
+_DROP: dict[str, Step] = {K.PARSER: _parser_drop, K.PROMPT: _prompt_drop, K.RULE: _rule_drop}

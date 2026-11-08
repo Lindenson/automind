@@ -18,6 +18,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
+from enum import StrEnum
 from html.parser import HTMLParser
 from typing import Any
 from urllib.parse import urlparse
@@ -34,16 +35,33 @@ log = logging.getLogger(__name__)
 REDIRECT_STATUSES = (301, 302, 303, 307, 308)
 
 
+class Refusal(StrEnum):
+    """Why a URL is not fetched."""
+
+    NOT_HTTP = "not_http"
+    DENY_LIST = "deny_list"  # classifieds or automated access forbidden
+    PRIVATE = "private"  # a private or local address
+    ROBOTS = "robots"  # robots.txt disallows it
+    REDIRECTS = "redirects"  # too many redirects
+    HTTP = "http"  # an HTTP error status
+    CONTENT = "content"  # a content type or size not allowed
+    HOST_DOWN = "host_down"  # timed out repeatedly
+
+
+_FETCH_OUTCOME = {Refusal.ROBOTS: "robots", Refusal.DENY_LIST: "denied"}  # the `fetch{outcome}` metric
+
+
 class FetchRefused(RuntimeError):
-    """The URL may not be fetched (deny-list, robots, type or size). `reason` explains why.
+    """The URL may not be fetched: `kind` says why, `reason` explains it in words.
 
     `transient` is True when the refusal came from a failure that may go away (429 or 5xx after the
     retries were used up): the page store then remembers it only briefly.
     """
 
-    def __init__(self, reason: str, *, transient: bool = False) -> None:
+    def __init__(self, reason: str, *, kind: Refusal, transient: bool = False) -> None:
         super().__init__(reason)
         self.reason = reason
+        self.kind = kind
         self.transient = transient
 
 
@@ -283,16 +301,15 @@ class Fetcher:
             return False
         return bool(addrs) and all(public_ip(a) for a in addrs)
 
-    def _refused(self, url: str, reason: str, status: int | None = None) -> FetchRefused:
+    def _refused(self, url: str, reason: str, kind: Refusal, status: int | None = None) -> FetchRefused:
         domain = urlparse(url).netloc.lower()
-        kind = f"http_{status}" if status is not None else reason.split(" ")[0] if reason else "refused"
+        label = f"http_{status}" if status is not None else reason.split(" ")[0] if reason else "refused"
         by = self.refusals.setdefault(domain, {})
-        by[kind] = by.get(kind, 0) + 1
-        prom.inc("fetch", outcome="robots" if "robots" in reason else "denied" if "deny" in reason else
-                 "error" if status is not None else "refused")  # fmt: skip
+        by[label] = by.get(label, 0) + 1
+        prom.inc("fetch", outcome=_FETCH_OUTCOME.get(kind, "error" if status is not None else "refused"))
         log.info("fetch.refused domain=%s status=%s reason=%s", domain, status, reason,
                  extra={"event": "fetch.refused", "domain": domain, "status": status, "reason": reason})  # fmt: skip
-        return FetchRefused(reason, transient=status is not None and _retryable_status(status))
+        return FetchRefused(reason, kind=kind, transient=status is not None and _retryable_status(status))
 
     def refusal_stats(self) -> dict[str, dict[str, float]]:
         """Per domain: requests sent, refusals and their share (an operator view of blocked sites)."""
@@ -380,13 +397,15 @@ class Fetcher:
     async def _check(self, url: str) -> None:
         u = urlparse(url)
         if u.scheme not in ("http", "https") or not u.netloc:
-            raise FetchRefused("not an http(s) URL")
+            raise FetchRefused("not an http(s) URL", kind=Refusal.NOT_HTTP)
         if is_denied(url):
-            raise self._refused(url, "site is on the deny-list (classifieds or automated access forbidden)")
+            raise self._refused(
+                url, "site is on the deny-list (classifieds or automated access forbidden)", Refusal.DENY_LIST
+            )
         if not await self._public_host(url):
-            raise self._refused(url, "private or local address (not fetched)")
+            raise self._refused(url, "private or local address (not fetched)", Refusal.PRIVATE)
         if not await self._robots_allows(url):
-            raise self._refused(url, "disallowed by robots.txt")
+            raise self._refused(url, "disallowed by robots.txt", Refusal.ROBOTS)
 
     async def fetch_raw(self, url: str) -> RawPage:
         current = url
@@ -397,7 +416,7 @@ class Fetcher:
                 prom.inc("fetch", outcome="ok")
                 return result
             current = result  # a redirect: the next hop is checked again
-        raise self._refused(url, f"more than {self.policy.max_redirects} redirects")
+        raise self._refused(url, f"more than {self.policy.max_redirects} redirects", Refusal.REDIRECTS)
 
     async def _get_with_retries(self, url: str) -> RawPage | str:
         """One hop: the page, or the redirect target. Retries 429/5xx/transport errors only."""
@@ -409,7 +428,7 @@ class Fetcher:
                 if attempt >= self.policy.retries:
                     if r.error is not None:
                         raise r.error from None
-                    raise self._refused(url, f"HTTP {r.status}", r.status) from None
+                    raise self._refused(url, f"HTTP {r.status}", Refusal.HTTP, r.status) from None
                 delay = self.policy.backoff(attempt, r.retry_after)
             attempt += 1
             await self.sleep(delay)
@@ -429,15 +448,15 @@ class Fetcher:
         if _retryable_status(r.status_code):
             raise _Retry(status=r.status_code, retry_after=r.headers.get("retry-after"))
         if r.status_code >= 400:
-            raise self._refused(url, f"HTTP {r.status_code}", r.status_code)
+            raise self._refused(url, f"HTTP {r.status_code}", Refusal.HTTP, r.status_code)
         ctype = r.headers.get("content-type", "").split(";")[0].strip().lower()
         if ctype not in self.policy.allowed_content_types:
-            raise self._refused(url, f"content type {ctype or 'unknown'} not allowed")
+            raise self._refused(url, f"content type {ctype or 'unknown'} not allowed", Refusal.CONTENT)
         body = bytearray()
         async for chunk in r.aiter_bytes():
             body += chunk
             if len(body) > self.policy.max_bytes:
-                raise self._refused(url, f"larger than {self.policy.max_bytes} bytes")
+                raise self._refused(url, f"larger than {self.policy.max_bytes} bytes", Refusal.CONTENT)
         return RawPage(url=str(r.url), content_type=ctype, body=bytes(body), encoding=r.charset_encoding)
 
     async def _get_once(self, url: str) -> RawPage | str:
@@ -445,11 +464,11 @@ class Fetcher:
             self._total_sem = asyncio.Semaphore(self.policy.max_concurrency_total)
         host = urlparse(url).netloc
         if self._host_down(host):
-            raise FetchRefused("host not responding (timed out repeatedly)", transient=True)
+            raise FetchRefused("host not responding (timed out repeatedly)", kind=Refusal.HOST_DOWN, transient=True)
         sem = self._host_sem.setdefault(host, asyncio.Semaphore(self.policy.max_concurrency_per_host))
         async with self._total_sem, sem:
             if self._host_down(host):  # it went down while this request waited for its turn
-                raise FetchRefused("host not responding (timed out repeatedly)", transient=True)
+                raise FetchRefused("host not responding (timed out repeatedly)", kind=Refusal.HOST_DOWN, transient=True)
             await self._wait_turn(host, await self._crawl_delay(url))
             domain = host.lower()
             self.requests[domain] = self.requests.get(domain, 0) + 1

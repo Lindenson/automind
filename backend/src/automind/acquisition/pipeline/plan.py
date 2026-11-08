@@ -24,8 +24,7 @@ VERSION = "plan@2"  # 2: home-market research of a car sold only outside Europe 
 
 def known_makes(ports: AcqPorts) -> list[str]:
     """Canonical makes (config/makes.yaml), so a brand page about another make is not taken for ours."""
-    makes = getattr(ports.ref, "makes", None)
-    return list(getattr(makes, "makes", None) or [])
+    return list(ports.ref.makes.makes) if ports.ref.makes is not None else []
 
 
 async def variant(ports: AcqPorts, variant_id: str) -> CarVariant:
@@ -43,8 +42,7 @@ def identity_of(v: VariantFacts) -> search_plan.Identity:
 
 def market_names(ports: AcqPorts, v: VariantFacts) -> dict[str, str]:
     """The model's name per market (spec 009 FR-021; config/aliases.yaml market_names)."""
-    return search_plan.market_names_of(getattr(getattr(ports.ref, "aliases", None), "market_names", None), v.make,
-                                       v.model, v.generation)  # fmt: skip
+    return search_plan.market_names_of(ports.ref.aliases.market_names, v.make, v.model, v.generation)
 
 
 def area_markets(ports: AcqPorts, area: str) -> list[str]:
@@ -78,7 +76,7 @@ def queries_for(
         )  # fmt: skip
 
     out = plan(round_) or (plan(1) if round_ == 0 else [])
-    out += search_plan.ev_queries(out, ident, getattr(v, "powertrain", None), ports.ref.favourite_queries, names)
+    out += search_plan.ev_queries(out, ident, v.powertrain, ports.ref.favourite_queries, names)
     if round_ > 0 and area in ("specs", "engineering") and missing:
         labels = ", ".join(specs.ATTRS[k].label for k in missing if k in specs.ATTRS)
         text = f"{v.make} {v.model} {v.generation or ''} {v.variant_name} {labels}"
@@ -97,8 +95,8 @@ async def registry_queries(ports: AcqPorts, v: VariantFacts, job: JobSpec,
     round 0 on the area's own markets, a follow-up round (an area below its minimum) on the other European markets
     and, except for prices, beyond. "Find it" (fresh) and the retry of an area an earlier run left short (escalate)
     try both at once. Sites already queried are skipped."""
-    reg = getattr(ports, "registry", None)
-    if reg is None or not hasattr(reg, "sources_for") or job.area in research_plan.MARKET_AREAS:
+    reg = ports.registry
+    if reg is None or job.area in research_plan.MARKET_AREAS:
         return []
     cfg = ports.ref.registry or {}
     per_area = int(cfg.get("site_queries_per_area", SITE_QUERIES_PER_AREA))

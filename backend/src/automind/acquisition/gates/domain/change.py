@@ -12,7 +12,12 @@ from automind.acquisition.domain import gates, relevance_audit
 from automind.shared.contracts.json import JsonObject
 
 AGENT = "agent:"
-OPEN = ("proposed", "replay", "shadow", "watch")  # statuses a gate may still close
+OPEN = (
+    gates.ChangeStatus.PROPOSED,
+    gates.ChangeStatus.REPLAY,
+    gates.ChangeStatus.SHADOW,
+    gates.ChangeStatus.WATCH,
+)  # statuses a gate may still close
 WINDOW_DAYS = 30  # the replay corpus: the object's pages of the last month up to the change's `as_of`
 VERSION_CHARS = 80  # the version columns
 
@@ -23,11 +28,11 @@ class Change:
 
     id: str
     author: str  # agent:<name> | system | owner
-    object_kind: str  # parser | prompt | role_model | rule | source
+    object_kind: str  # a gates.ObjectKind value
     object_key: str
     from_version: str | None
     to_version: str | None
-    status: str
+    status: str  # a gates.ChangeStatus value
     diff: JsonObject = field(default_factory=dict)
     diff_hash: str = ""
     reason: str = ""
@@ -102,14 +107,15 @@ def corpus_window(c: Change, now: datetime) -> tuple[datetime, datetime]:
 
 def component_like(c: Change) -> str | None:
     """The `truth_signals.component` pattern of the change's new version (research R9 keys), None for a source."""
-    if c.object_kind == "parser":
-        return f"parser:{c.to_version}"
-    if c.object_kind == "prompt":
-        return f"extractor:{c.to_version}|%"
-    if c.object_kind == "role_model":
-        return f"extractor:%|{c.to_version}"
-    if c.object_kind == "rule":
-        return f"rule:{c.object_key}"
+    match c.object_kind:
+        case gates.ObjectKind.PARSER:
+            return f"parser:{c.to_version}"
+        case gates.ObjectKind.PROMPT:
+            return f"extractor:{c.to_version}|%"
+        case gates.ObjectKind.ROLE_MODEL:
+            return f"extractor:%|{c.to_version}"
+        case gates.ObjectKind.RULE:
+            return f"rule:{c.object_key}"
     return None
 
 

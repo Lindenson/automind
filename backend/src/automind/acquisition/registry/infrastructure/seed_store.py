@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from automind.acquisition.registry.application.ports import RegistryStoreUnavailable
-from automind.acquisition.registry.domain.model import Capability, Source
+from automind.acquisition.registry.domain.model import Capability, CapabilityStatus, Source
 from automind.shared.infrastructure.db.errors import translate_errors
 from automind.shared.infrastructure.db.models import CapabilityRow, RegistryChange, SourceRow, now
 from automind.shared.infrastructure.db.session import sessionmaker
@@ -68,11 +68,11 @@ async def _capability(s: AsyncSession, c: Capability, src: Source, reason: str) 
                              after={"status": c.status, "area": c.area, "market": c.market}, reason=reason,
                              evidence=src.access_evidence))  # fmt: skip
         return 1
-    if c.status == "blocked" and have.status != "blocked":
+    if c.status == CapabilityStatus.BLOCKED and have.status != CapabilityStatus.BLOCKED:
         before = have.status
-        have.status, have.status_since = "blocked", now()
+        have.status, have.status_since = CapabilityStatus.BLOCKED, now()
         s.add(RegistryChange(author="system", capability_id=have.id, domain=c.domain, change="blocked",
-                             before={"status": before}, after={"status": "blocked"}, reason=reason,
+                             before={"status": before}, after={"status": CapabilityStatus.BLOCKED}, reason=reason,
                              evidence=src.access_evidence))  # fmt: skip
     elif have.priority_seed is None and c.priority_seed is not None:
         have.priority_seed = c.priority_seed

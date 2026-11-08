@@ -185,9 +185,10 @@ class ChatSocket:
                 await store.add_signal(turn_id, "bad_source")
             sink = getattr(getattr(self.runner, "ports", None), "registry", None)
             if sink is not None and msg.get("area"):  # spec 010 T060: a truth signal against that kind of data
-                from automind.acquisition.registry.api import TruthSignalIn  # noqa: PLC0415
+                from automind.acquisition.registry.api import TruthKind, TruthSignalIn, TruthVerdict  # noqa: PLC0415
 
-                await sink.signal(TruthSignalIn(kind="bad_source", verdict="wrong", domain=domain_of(url),
+                await sink.signal(TruthSignalIn(kind=TruthKind.BAD_SOURCE, verdict=TruthVerdict.WRONG,
+                                                domain=domain_of(url),
                                                 area=str(msg["area"]), variant_id=str(msg.get("car_id") or "") or None,
                                                 attribute=str(msg.get("attribute") or "") or None))  # fmt: skip
         except Exception:  # noqa: BLE001

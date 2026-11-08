@@ -9,6 +9,7 @@ from typing import Any
 from automind.acquisition.gold.domain.records import DatasetRow
 from automind.acquisition.gold.infrastructure.loaders import num, pos, year_of
 
+ELECTRICITY = "elektriciteit"  # RDW's fuel word for a battery car
 _FUEL = {"benzine": "petrol", "diesel": "diesel", "lpg": "lpg", "cng": "cng", "alcohol": "e85", "waterstof": "fcev"}
 _ICE = frozenset(_FUEL.values()) - {"fcev"}
 
@@ -52,9 +53,9 @@ def _fuel_of(rows: Sequence[Mapping[str, Any]], f: Mapping[str, str]) -> str:
     hybrid = {str(r.get(f["hybrid_class"]) or "").upper() for r in rows}
     if "OVC-HEV" in hybrid:
         return "phev"
-    if "NOVC-HEV" in hybrid or ("elektriciteit" in kinds and len(kinds) > 1):
+    if "NOVC-HEV" in hybrid or (ELECTRICITY in kinds and len(kinds) > 1):
         return "hybrid"
-    if kinds == {"elektriciteit"}:
+    if kinds == {ELECTRICITY}:
         return "bev"
     return next((_FUEL[k] for k in sorted(kinds) if k in _FUEL), "other")
 

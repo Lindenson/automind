@@ -12,7 +12,8 @@ import unicodedata
 from dataclasses import dataclass, field
 from typing import Any
 
-Tolerance = tuple[str, float]
+from automind.acquisition.domain.tolerance import Tolerance, ToleranceKind, within
+
 Z = 1.96
 
 
@@ -96,12 +97,12 @@ def agrees(ours: Value, g: Gold, tolerances: dict[str, Tolerance]) -> bool:
         return g.text is not None and norm_text(ours.text) == norm_text(g.text)
     if ours.num is None:
         return False
-    kind, tol = (
+    tol = (
         (g.tolerance_kind, g.tolerance)
         if g.tolerance is not None and g.tolerance_kind
-        else tolerances.get(g.attribute, ("rel", 0.0))
+        else tolerances.get(g.attribute, (ToleranceKind.REL, 0.0))
     )
-    return abs(ours.num - g.num) <= (tol if kind == "abs" else tol * abs(g.num)) + 1e-9
+    return within(ours.num, g.num, tol)
 
 
 def compare(values: list[Value], gold: dict[tuple[str, str], Gold], tolerances: dict[str, Tolerance]) -> Comparison:

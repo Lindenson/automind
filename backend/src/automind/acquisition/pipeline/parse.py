@@ -17,15 +17,11 @@ VERSION = "parse@1"
 async def read_tables(ports: AcqPorts, v: VariantFacts, pages: list[Page]) -> dict[str, Any]:
     """The site readers' tables of the pages, by URL (favourite spec sites); a page whose layout is ambiguous or
     unknown is left out (the extraction role reads it)."""
-    prepare = getattr(ports.readers, "prepare", None)
-    if prepare is not None:
-        await prepare()  # the live registry reloads the running parser versions every 60 s
+    await ports.readers.prepare()  # the live registry reloads the running parser versions every 60 s
     readings: dict[str, Any] = {}
     for p in pages:
         r = ports.readers.read(p, {"variant_id": v.id})
         if r is not None and not r.ambiguous:
             readings[p.url] = r
-    flush = getattr(ports.readers, "flush_stats", None)
-    if flush is not None:
-        await flush()
+    await ports.readers.flush_stats()
     return readings

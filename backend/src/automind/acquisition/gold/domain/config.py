@@ -6,7 +6,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
-from automind.acquisition.gold.domain.text import Tolerance
+from automind.acquisition.domain.tolerance import Tolerance
 from automind.shared.contracts.json import JsonObject
 from automind.shared.vehicle import specs
 

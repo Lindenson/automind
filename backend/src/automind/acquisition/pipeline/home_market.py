@@ -22,13 +22,13 @@ from automind.shared.vehicle import markets
 
 def home_market(v: VariantFacts, job: JobSpec) -> str | None:
     """The market outside Europe the car is sold on (the case's, else the variant's), or None."""
-    m = (getattr(job, "market", None) or getattr(v, "market", None) or "ES").upper()
+    m = (job.market or v.market or "ES").upper()
     return None if markets.european(m) else m
 
 
 def local_name(ports: AcqPorts, v: VariantFacts, market: str) -> str:
     """The model's name on its market ("深蓝S09", "理想L9"; config/aliases.yaml local_names), else make + model."""
-    names = getattr(getattr(ports.ref, "aliases", None), "local_names", None) or {}
+    names = ports.ref.aliases.local_names
     return str((names.get(f"{v.make}|{v.model}") or {}).get(market) or f"{v.make} {v.model}")
 
 
@@ -86,9 +86,9 @@ def _home_cfg(ports: AcqPorts, market: str) -> dict[str, Any]:
 async def _local_sites(ports: AcqPorts, area: str, market: str, n: int, en_sites: tuple[str, ...]) -> list[str]:
     """Up to `n` of the registry's plain sources of the area on that market (terms allow them, not an English site);
     its candidates among them are remembered for the job. None without the registry or when it fails."""
-    reg = getattr(ports, "registry", None)
+    reg = ports.registry
     sources = []
-    if n > 0 and reg is not None and hasattr(reg, "sources_for"):
+    if n > 0 and reg is not None:
         try:
             sources = await reg.sources_for(area, [market], n + 8)
         except Exception:  # noqa: BLE001 - research works without the registry

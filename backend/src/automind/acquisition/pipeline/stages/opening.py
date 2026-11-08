@@ -15,6 +15,7 @@ from automind.acquisition.pipeline.plan import registry_plan
 from automind.acquisition.pipeline.scope import current_candidates, current_plan
 from automind.acquisition.ports import AcqPorts
 from automind.acquisition.registry.api import Plan
+from automind.acquisition.registry.domain.model import CapabilityStatus
 from automind.shared.metering.usage import current_job
 
 
@@ -40,4 +41,4 @@ def active_sources(the_plan: Plan | None) -> list[str]:
     """The domains of the plan's active sources, in its order (what the job should have reached)."""
     if the_plan is None:
         return []
-    return list(dict.fromkeys(x.domain for x in the_plan.sources if x.status == "active"))
+    return list(dict.fromkeys(x.domain for x in the_plan.sources if x.status == CapabilityStatus.ACTIVE))

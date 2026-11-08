@@ -11,6 +11,7 @@ from sqlalchemy import or_, select, text
 
 from automind.acquisition.registry.application.ports import RegistryStoreUnavailable
 from automind.acquisition.registry.domain.admission import Admission
+from automind.acquisition.registry.domain.model import CapabilityStatus
 from automind.shared.infrastructure.db.errors import translate_errors
 from automind.shared.infrastructure.db.models import CapabilityRow, RegistryChange, SourceRow
 from automind.shared.infrastructure.db.session import sessionmaker
@@ -27,7 +28,7 @@ class AdmissionStore:
     async def due(self, limit: int, now: datetime) -> list[str]:
         """Domains with a discovered capability or a re-check due, not frozen; at most `limit`."""
         async with sessionmaker()() as s:
-            discovered = select(CapabilityRow.domain).where(CapabilityRow.status == "discovered")
+            discovered = select(CapabilityRow.domain).where(CapabilityRow.status == CapabilityStatus.DISCOVERED)
             q = (
                 select(SourceRow.domain)
                 .where(
