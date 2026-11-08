@@ -46,6 +46,12 @@ family". Causes found (case_files change log, turn_outcomes, feedback, code):
    (identification/identify.py, application/research.py …). Fix: the two signals, a complaint opens an issue at once,
    update the paths and add a gate check that every path there exists.
 
+10. **Complain or quit at any step (owner)**: while the system asks (identification, intake card, choices), the
+    user must be able to (a) file a quality complaint and (b) end the dialogue — buttons next to every question,
+    not only the report's rating. Both are signals for self-diagnosis: a complaint opens an issue with the turn's
+    path and the open question; ending the dialogue during a question ("abandoned at <question kind>") is counted as a
+    failure of that step, never as silence.
+
 ## 0. Resume acquisition A3 (next action)
 
 **Where we are (2026-11-08, main = A4b merged, PR #124).** Chat services S7–S9c-2 are done. Since S9.3 (PR #116):
