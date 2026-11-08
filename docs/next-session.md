@@ -52,8 +52,7 @@ Structure baseline 1348, mypy report (all src) 200, 12 import contracts. Owner c
 `drift/`, `replay/` (run 367); with it `pipeline/identity.py` + `gold/versions.py` → `acquisition/identity_readers/`
 (T082 rest) and A3b-f1 (type `Found.stats` / hits: `SearchStats` / `SourceHit`). Callers of the parser store use
 `ParserStore()` (drift/daily, gates/page_reading) or the lazy imports still listed for agents/replay — A4/A6 remove
-them. A4 registry/gold/ (+ `identity.py` and `gold/versions.py` → `acquisition/identity_readers/`, T082 rest)/
-snapshots/drift/replay, A5 worker, A6 agents, A7 engine top level + `admin_api.py` (1049) → `admin/`, A8
+them. Then A5 worker, A6 agents, A7 engine top level + `admin_api.py` (1049) → `admin/`, A8
 `acquisition/domain` modules over 200 + `infrastructure/fetch.py`. Then S9d (chat: `confirm.py` nodes, `ask.py` →
 questions service, `ChallengeValue`, `report/stages/verdict.py` → `ResearchHistory`), S10, S12 rest, S13–S15.
 Deploy checkpoint after 2026-11-12.
