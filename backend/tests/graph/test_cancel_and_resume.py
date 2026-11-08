@@ -94,7 +94,7 @@ async def test_restart_resumes_without_redoing_finished_jobs(saver, chat_id):
     async def crash(*_args):  # a killed process runs no cleanup
         return None
 
-    a._finish_cancelled = crash  # type: ignore[method-assign]
+    a.execution.cancel = crash  # type: ignore[method-assign]
     task = asyncio.create_task(a.run_turn(chat_id, "FixtureMake Racer for a race enthusiast"))
 
     async def two_done():

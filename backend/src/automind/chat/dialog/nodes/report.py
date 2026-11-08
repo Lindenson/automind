@@ -18,8 +18,8 @@ from automind.chat.dialog.context import ctx, history, load_case, record_intake,
 from automind.chat.dialog.report_followup import shown_answer, shown_report
 from automind.chat.dialog.report_wording import WORDING
 from automind.chat.dialog.report_writer import log_removed, write_answer, write_report
-from automind.chat.dialog.runner import TurnContext
 from automind.chat.dialog.state import TurnState
+from automind.chat.dialog.turn.context import TurnContext
 from automind.chat.domain.case import CaseFile
 
 

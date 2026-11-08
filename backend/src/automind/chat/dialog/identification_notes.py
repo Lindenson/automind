@@ -8,8 +8,8 @@ from automind.chat.application.services.identification.service import CarIdentif
 from automind.chat.application.services.report.blocks.notice import Notice, notice
 from automind.chat.dialog.context import record_intake
 from automind.chat.dialog.phrases import market_name, t
-from automind.chat.dialog.runner import TurnContext
 from automind.chat.dialog.state import TurnState
+from automind.chat.dialog.turn.context import TurnContext
 from automind.chat.domain.case import CaseFile
 
 _RANK = {None: 0, "NEED": 1, "NOT_FOUND": 1, "CHOICES": 2, "IDENTIFIED": 3}  # how far an outcome got

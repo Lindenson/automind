@@ -20,10 +20,11 @@ from automind.chat.application.services.report.blocks.notice import Notice, noti
 from automind.chat.dialog import phrases
 from automind.chat.dialog.context import ctx, current_year, load_case, record_intake, save_case
 from automind.chat.dialog.phrases import PHRASES, t
-from automind.chat.dialog.runner import TurnContext
 from automind.chat.dialog.state import TurnState
+from automind.chat.dialog.turn.context import TurnContext
 from automind.chat.domain import intake
 from automind.chat.domain.case import Choice, Pending
+from automind.chat.domain.turn import Role
 from automind.shared.infrastructure.config.settings import settings
 from automind.shared.vehicle import markets
 
@@ -459,7 +460,7 @@ async def agreed(c: TurnContext, case: Any, lang: str | None) -> None:
         # chat 2026-11-06 (owner): a car not sold in Spain says where it was found here too, not only in the report
         text = "\n".join([t("agreed", lang, cars=names), *(str(x["note"]) for x in cars if x.get("note"))])
         blocks = [{"type": "agreed", "cars": cars}]
-        msg = await c.ports.messages.save(c.chat_id, "assistant", text, blocks, turn_id=c.turn_id)
+        msg = await c.ports.messages.save(c.chat_id, Role.ASSISTANT, text, blocks, turn_id=c.turn_id)
         await c.emit("agreed", {"message_id": msg.id, "created_at": msg.created_at.isoformat(), "text": text,
                                 "blocks": blocks, "role": "assistant"})  # fmt: skip
     except Exception:  # noqa: BLE001 - the entry is a trace, the turn goes on

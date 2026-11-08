@@ -402,10 +402,6 @@ duck|chat/application/services/report/stages/verdict.py|verdict_extras:region_co
 duck|chat/dialog/agents.py|scoped_tools:name
 duck|chat/dialog/nodes/confirm.py|_candidate_lines:replaced
 duck|chat/dialog/nodes/confirm.py|_candidate_lines:wanted_make
-duck|chat/dialog/runner.py|ChatRunner._budget:spent_today
-duck|chat/dialog/runner.py|ChatRunner._feedback_from_relation:role
-duck|chat/dialog/runner.py|ChatRunner._feedback_from_relation:text
-duck|chat/dialog/runner.py|ChatRunner._saved_research:status
 duck|chat/domain/case/fit.py|Fit.from_case:price_eur
 duck|chat/domain/identification/ladder/model.py|wanted_of:displacement_l
 duck|chat/domain/identification/ladder/model.py|wanted_of:family
@@ -434,11 +430,6 @@ duck|shared/infrastructure/llm/gateway.py|text:text
 duck|shared/infrastructure/llm/usage_callback.py|_tokens:message
 duck|shared/infrastructure/llm/usage_callback.py|_tokens:usage_metadata
 errtext|acquisition/registry/infrastructure/terms.py|_get
-errtext|chat/dialog/retry.py|transient_provider_error
-errtext|chat/dialog/runner.py|user_error_text
-errtext|shared/infrastructure/llm/gateway.py|quota_exhausted
-errtext|shared/infrastructure/llm/gateway.py|transient
-errtext|shared/infrastructure/llm/usage_callback.py|_error_kind
 exempt|.importlinter|api-uses-engine-facades:automind.delivery.web.app -> automind.acquisition.infrastructure.retention
 exempt|.importlinter|application-ports:automind.chat.application.maintenance.repair -> automind.shared.infrastructure.**
 exempt|.importlinter|application-ports:automind.chat.application.maintenance.repair -> sqlalchemy
@@ -1100,11 +1091,9 @@ order|shared/infrastructure/db/migrate.py|upgrade_head
 order|shared/infrastructure/db/session.py|init_db
 order|shared/infrastructure/db/session.py|sessionmaker
 order|shared/infrastructure/db/session.py|strip_nul
-order|shared/infrastructure/llm/gateway.py|ProviderUnavailable
 order|shared/infrastructure/llm/gateway.py|chat_model
 order|shared/infrastructure/llm/gateway.py|structured
 order|shared/infrastructure/llm/gateway.py|text
-order|shared/infrastructure/llm/usage_callback.py|UsageCallbackHandler
 order|shared/research_order/plan.py|energy_inputs_missing
 order|shared/research_order/plan.py|gaps
 order|shared/research_order/plan.py|minimum_met
@@ -1231,7 +1220,6 @@ size|chat/dialog/guard.py|>200
 size|chat/dialog/nodes/confirm.py|>200
 size|chat/dialog/phrases.py|>200
 size|chat/dialog/report_text.py|>200
-size|chat/dialog/runner.py|>200
 size|chat/domain/assessment/criteria.py|>200
 size|chat/domain/assessment/dragrace.py|>200
 size|chat/domain/assessment/feasibility.py|>200
@@ -1471,7 +1459,6 @@ word|chat/application/services/report/stages/present.py|present:type
 word|chat/application/services/report/stages/used_cars.py|used_facts:state
 word|chat/application/services/report/stages/used_cars.py|used_lines:state
 word|chat/application/services/report/stages/verdict.py|limits_from:verdict
-word|chat/application/services/research/service.py|ResearchService.run_job:status
 word|chat/application/usecases/challenge.py|_signals:outcome
 word|chat/application/usecases/challenge.py|recheck:status
 word|chat/dialog/agents.py|prompt_name:role
@@ -1503,10 +1490,6 @@ word|chat/dialog/report_text.py|electric_lines:verdict
 word|chat/dialog/report_text.py|suggestions_block:kind
 word|chat/dialog/report_writer.py|write_report:kind
 word|chat/dialog/report_writer.py|write_report:request_kind
-word|chat/dialog/runner.py|ChatRunner._outcome:status
-word|chat/dialog/runner.py|ChatRunner.resume:status
-word|chat/dialog/runner.py|ChatRunner.run_turn:kind
-word|chat/dialog/runner.py|ChatRunner.run_turn:status
 word|chat/dialog/tracing.py|nodata_items:type
 word|chat/dialog/tracing.py|previous_signals:kind
 word|chat/dialog/tracing.py|previous_signals:relation
@@ -1527,14 +1510,8 @@ word|chat/domain/intake/pick.py|pick:kind
 word|chat/domain/intake/steps.py|_need:outcome
 word|chat/domain/verdict/report_layout.py|annotate_sections:type
 word|chat/domain/verdict/report_layout.py|order_blocks:type
-word|chat/infrastructure/persistence/repositories.py|CaseRepo.save_if_idle:status
 word|chat/infrastructure/persistence/repositories.py|FeasibilityRepo.used_ranges:status
-word|chat/infrastructure/persistence/repositories.py|JobRepo.mark:status
 word|chat/infrastructure/persistence/repositories.py|TurnRepo.last_report_fingerprint:action
-word|chat/infrastructure/persistence/repositories.py|TurnRepo.last_report_fingerprint:status
-word|chat/infrastructure/persistence/repositories.py|TurnRepo.running:status
-word|chat/infrastructure/persistence/repositories.py|TurnRepo.start:status
-word|chat/infrastructure/persistence/repositories.py|TurnRepo.update:status
 word|delivery/cli/baseline.py|main_async:action
 word|delivery/web/admin.py|set_status:status
 word|delivery/web/rest.py|_idle:status

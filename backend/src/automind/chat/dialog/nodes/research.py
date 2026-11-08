@@ -22,8 +22,8 @@ from automind.chat.application.services.research.service import ResearchService
 from automind.chat.dialog.context import ctx, load_case, record_intake, save_case
 from automind.chat.dialog.phrases import t, yes_or_no
 from automind.chat.dialog.report_wording import WORDING
-from automind.chat.dialog.runner import TurnContext
 from automind.chat.dialog.state import RESET, TurnState
+from automind.chat.dialog.turn.context import TurnContext
 
 
 def _service(c: TurnContext) -> ResearchService:

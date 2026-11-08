@@ -16,7 +16,6 @@ from sqlalchemy.exc import IntegrityError
 from automind.chat.application.ports import (
     JobChanges,
     JobRecord,
-    JobStatus,
     MessageRecord,
     TurnBusy,
     TurnChanges,
@@ -24,6 +23,7 @@ from automind.chat.application.ports import (
     VersionConflict,
 )
 from automind.chat.domain.assessment.metrics import intake_summary
+from automind.chat.domain.turn import FINAL, OPEN, JobStatus, Role, TurnStatus
 from automind.chat.infrastructure.persistence.errors import store_errors
 from automind.shared.contracts.json import JsonObject
 from automind.shared.infrastructure.db.models import (
@@ -184,7 +184,9 @@ class CaseRepo:
         it) and VersionConflict when the case moved on since `expected_version` (re-read and apply again)."""
         async with sessionmaker()() as s:
             await s.execute(text("SELECT pg_advisory_xact_lock(hashtext(:k))"), {"k": f"turns:{chat_id}"})
-            running = await s.execute(select(Turn.id).where(Turn.chat_id == chat_id, Turn.status == "RUNNING").limit(1))
+            running = await s.execute(
+                select(Turn.id).where(Turn.chat_id == chat_id, Turn.status == TurnStatus.RUNNING).limit(1)
+            )
             if running.scalar_one_or_none() is not None:
                 raise TurnBusy("a turn is running in this chat")
             current = int(
@@ -199,13 +201,18 @@ class CaseRepo:
             return current + 1
 
 
+_JOB_FINAL = frozenset({JobStatus.DONE, JobStatus.FAILED, JobStatus.SKIPPED})
+
+
 class TurnRepo:
     @store_errors
     async def start(self, chat_id: str, user_message_id: str | None, case_version: int) -> TurnRecord:
         async with sessionmaker()() as s:
             # two tabs / a double click: the check and the insert happen under one per-chat lock (reviewer 2026-11-03)
             await s.execute(text("SELECT pg_advisory_xact_lock(hashtext(:k))"), {"k": f"turns:{chat_id}"})
-            running = await s.execute(select(Turn.id).where(Turn.chat_id == chat_id, Turn.status == "RUNNING").limit(1))
+            running = await s.execute(
+                select(Turn.id).where(Turn.chat_id == chat_id, Turn.status == TurnStatus.RUNNING).limit(1)
+            )
             if running.scalar_one_or_none() is not None:
                 raise TurnBusy("a turn is already running in this chat")  # also the unique index (migration 0009)
             seq = (await s.execute(select(func.max(Turn.seq)).where(Turn.chat_id == chat_id))).scalar()
@@ -215,7 +222,7 @@ class TurnRepo:
                 seq=int(seq or 0) + 1,
                 user_message_id=user_message_id,
                 case_version_before=case_version,
-                status="RUNNING",
+                status=TurnStatus.RUNNING,
             )
             s.add(turn)
             try:
@@ -246,7 +253,7 @@ class TurnRepo:
     @store_errors
     async def update(self, turn_id: str, **changes: Unpack[TurnChanges]) -> None:
         values: dict[str, object] = dict(changes)
-        if changes.get("status") in ("DONE", "CANCELLED", "FAILED"):
+        if changes.get("status") in FINAL:
             values["finished_at"] = now()
         async with sessionmaker()() as s:
             await s.execute(update(Turn).where(Turn.id == turn_id).values(**values))
@@ -258,7 +265,7 @@ class TurnRepo:
         async with sessionmaker()() as s:
             rows = await s.execute(
                 select(Turn)
-                .where(Turn.chat_id == chat_id, Turn.status.in_(("RUNNING", "WAITING_CONFIRMATION")))
+                .where(Turn.chat_id == chat_id, Turn.status.in_(list(OPEN)))
                 .order_by(Turn.seq.desc())
                 .limit(1)
             )
@@ -270,7 +277,7 @@ class TurnRepo:
         async with sessionmaker()() as s:
             rows = await s.execute(
                 select(Turn.fingerprint)
-                .where(Turn.chat_id == chat_id, Turn.action == "REPORT", Turn.status == "DONE")
+                .where(Turn.chat_id == chat_id, Turn.action == "REPORT", Turn.status == TurnStatus.DONE)
                 .order_by(Turn.seq.desc())
                 .limit(1)
             )
@@ -279,7 +286,7 @@ class TurnRepo:
     @store_errors
     async def running(self) -> list[TurnRecord]:
         async with sessionmaker()() as s:
-            rows = await s.execute(select(Turn).where(Turn.status == "RUNNING"))
+            rows = await s.execute(select(Turn).where(Turn.status == TurnStatus.RUNNING))
             return [_turn(t) for t in rows.scalars()]
 
 
@@ -345,8 +352,8 @@ class JobRepo:
         async with sessionmaker()() as s:
             res = await s.execute(
                 update(ResearchJob)
-                .where(ResearchJob.turn_id == turn_id, ResearchJob.status.in_(("PENDING", "RUNNING")))
-                .values(status="SKIPPED", error=reason, finished_at=now())
+                .where(ResearchJob.turn_id == turn_id, ResearchJob.status.in_((JobStatus.PENDING, JobStatus.RUNNING)))
+                .values(status=JobStatus.SKIPPED, error=reason, finished_at=now())
             )
             await s.commit()
             return int(res.rowcount or 0)
@@ -354,10 +361,10 @@ class JobRepo:
     @store_errors
     async def mark(self, job_id: str, status: JobStatus, **changes: Unpack[JobChanges]) -> None:
         values: dict[str, object] = dict(changes)
-        if status == "RUNNING":
+        if status == JobStatus.RUNNING:
             values.setdefault("started_at", now())
             values["attempts"] = ResearchJob.attempts + 1
-        if status in ("DONE", "FAILED", "SKIPPED"):
+        if status in _JOB_FINAL:
             values.setdefault("finished_at", now())
         async with sessionmaker()() as s:
             await s.execute(update(ResearchJob).where(ResearchJob.id == job_id).values(status=status, **values))
@@ -377,7 +384,7 @@ class MessageRepo:
     async def save(
         self,
         chat_id: str,
-        role: str,
+        role: Role,
         text: str,
         blocks: list[JsonObject] | None = None,
         *,
@@ -596,14 +603,14 @@ class ModelVersionsRepo:
 
 
 def _turn(t: Turn) -> TurnRecord:
-    return TurnRecord(id=t.id, chat_id=t.chat_id, seq=t.seq, status=t.status, usage=dict(t.usage or {}))
+    return TurnRecord(id=t.id, chat_id=t.chat_id, seq=t.seq, status=TurnStatus(t.status), usage=dict(t.usage or {}))
 
 
 def _message(m: ChatMessage) -> MessageRecord:
-    return MessageRecord(id=m.id, chat_id=m.chat_id, turn_id=m.turn_id, role=m.role, text=m.text,
+    return MessageRecord(id=m.id, chat_id=m.chat_id, turn_id=m.turn_id, role=Role(m.role), text=m.text,
                          blocks=list(m.blocks or []), created_at=m.created_at)  # fmt: skip
 
 
 def _job(j: ResearchJob) -> JobRecord:
     return JobRecord(id=j.id, turn_id=j.turn_id, variant_id=j.variant_id, area=j.area, round=j.round,
-                     status=j.status, attempts=j.attempts or 0, error=j.error)  # fmt: skip
+                     status=JobStatus(j.status), attempts=j.attempts or 0, error=j.error)  # fmt: skip

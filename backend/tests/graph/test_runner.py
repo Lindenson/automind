@@ -8,7 +8,8 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.runtime import Runtime
 from langgraph.types import interrupt
 
-from automind.chat.dialog.runner import Busy, ChatRunner, TurnContext
+from automind.chat.dialog.runner import Busy, ChatRunner
+from automind.chat.dialog.turn.context import TurnContext
 
 from .conftest import budget_factory, make_ports
 

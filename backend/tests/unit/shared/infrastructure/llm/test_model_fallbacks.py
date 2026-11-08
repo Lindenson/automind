@@ -2,6 +2,7 @@
 
 import pytest
 
+from automind.shared.contracts.provider_failure import quota_reset_s
 from automind.shared.infrastructure.llm import gateway as g
 
 DAILY = RuntimeError(
@@ -11,9 +12,9 @@ MINUTE = RuntimeError("429 RESOURCE_EXHAUSTED ... GenerateRequestsPerMinutePerPr
 
 
 def test_quota_detection():
-    assert abs(g.quota_exhausted(DAILY) - (16 * 3600 + 35 * 60 + 52.8)) < 1
-    assert g.quota_exhausted(MINUTE) is None
-    assert g.quota_exhausted(ValueError("bad schema")) is None
+    assert abs(quota_reset_s(DAILY) - (16 * 3600 + 35 * 60 + 52.8)) < 1
+    assert quota_reset_s(MINUTE) is None
+    assert quota_reset_s(ValueError("bad schema")) is None
 
 
 async def test_used_up_model_falls_back_and_is_skipped(monkeypatch):
@@ -75,7 +76,7 @@ async def test_overloaded_model_falls_back_then_waits_and_gives_a_plain_error(mo
 
     with pytest.raises(g.ProviderUnavailable):
         await g._with_fallbacks("x", always_busy)
-    from automind.chat.dialog.runner import user_error_text
+    from automind.chat.dialog.turn.endings import user_error_text
 
     assert "overloaded" in user_error_text(g.ProviderUnavailable("503"))
     assert "503" not in user_error_text(busy)

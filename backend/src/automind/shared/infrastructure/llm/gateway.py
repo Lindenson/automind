@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import re
 import time
 from collections.abc import Callable
 from contextvars import ContextVar
@@ -20,6 +19,7 @@ from langchain.chat_models import init_chat_model
 from langchain_core.language_models import BaseChatModel
 from pydantic import BaseModel
 
+from automind.shared.contracts.provider_failure import ProviderFailure, ProviderUnavailable, classify, quota_reset_s
 from automind.shared.infrastructure.config import loader as cfg
 from automind.shared.infrastructure.config.settings import settings
 from automind.shared.infrastructure.llm.usage_callback import UsageCallbackHandler, current_prompt, prompt_identity
@@ -97,35 +97,19 @@ def set_role_model_source(source: Callable[[str], str | None]) -> None:
 # Models whose provider quota is used up (e.g. a free tier's requests per day): name -> monotonic time it
 # may be tried again. Calls go to the role's fallback models meanwhile (config/models.yaml `fallbacks`).
 _EXHAUSTED: dict[str, float] = {}
-_RETRY_RE = re.compile(r"retry in (?:(\d+)h)?(?:(\d+)m)?(?:([\d.]+)s)?", re.I)
-
-
-def quota_exhausted(error: BaseException) -> float | None:
-    """Seconds until a daily/plan quota resets when the error is one (None for other errors)."""
-    text = str(error)
-    if "RESOURCE_EXHAUSTED" not in text and "insufficient_quota" not in text:
-        return None
-    if "PerMinute" in text or "per minute" in text.lower():
-        return None  # a short burst limit: the client's own retries handle it
-    m = _RETRY_RE.search(text)
-    if m and any(m.groups()):
-        h, mi, sec = (float(x) if x else 0.0 for x in m.groups())
-        return h * 3600 + mi * 60 + sec
-    return 3600.0
 
 
 TRANSIENT_PAUSE_S = 120.0
 
 
 def transient(error: BaseException) -> bool:
-    """Provider overloaded or briefly down (503 UNAVAILABLE, 500, 'high demand', 'overloaded')."""
-    text = str(error)
-    return any(k in text for k in ("503", "UNAVAILABLE", "high demand", "overloaded", "Overloaded", "500 INTERNAL"))
+    """Provider overloaded or briefly down: the model is paused, and all models busy wait once and retry."""
+    return classify(error) is ProviderFailure.OVERLOAD
 
 
 def mark_exhausted(name: str, error: BaseException) -> bool:
     """Skip a model for a while: until its quota resets, or 2 minutes when it is overloaded."""
-    wait = quota_exhausted(error)
+    wait = quota_reset_s(error)
     if wait is None and transient(error):
         wait = TRANSIENT_PAUSE_S
     if wait is None:
@@ -200,10 +184,6 @@ async def _try_models(role: str, call: Any) -> Any:
         await asyncio.sleep(5)
     assert last is not None
     raise ProviderUnavailable(str(last)) from last
-
-
-class ProviderUnavailable(RuntimeError):
-    """Every model of a role is overloaded or out of quota (shown to the user as a plain message)."""
 
 
 async def structured(role: str, schema: type[T], system: str, user: str) -> T:

@@ -17,7 +17,7 @@ from automind.chat.application.services.identification import catalogue
 from automind.chat.application.services.identification.contracts import VariantIdentity
 from automind.chat.dialog.nodes import confirm
 from automind.chat.dialog.prompts import load_all
-from automind.chat.dialog.runner import TurnContext
+from automind.chat.dialog.turn.context import TurnContext
 from automind.chat.domain.case import CaseCar, CaseFile, Pending
 from automind.delivery.bootstrap import reference
 from automind.shared.infrastructure import db
