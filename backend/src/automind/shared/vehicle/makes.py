@@ -1,8 +1,8 @@
 """Make registry (spec 005 R2, R3): makes sold in Spain, their aliases, transliterations and official sites.
 
 Matching order: alias or transliteration as a whole word → URL domain → fuzzy (WRatio ≥ 85) on single words.
-Models are matched against a known list (catalog, config or the make's line-up) on the transliterated text and
-on a consonant skeleton, so "атека" finds "Ateca" and "спортейдж" finds "Sportage".
+Models are matched against a known list (catalog, config or the make's line-up) by `model_names`: the person's
+words as written, or a Cyrillic name by its sound ("атека" finds "Ateca"); a look-alike spelling is only suggested.
 """
 
 from __future__ import annotations
@@ -15,11 +15,9 @@ from urllib.parse import urlparse
 
 from rapidfuzz import fuzz
 
-from automind.shared.vehicle.identity import sound_key, transliterate_ru
+from automind.shared.vehicle import model_names
 
 FUZZY_MAKE = 85.0
-MODEL_MIN = 72.0
-MODEL_MARGIN = 4.0
 _URL = re.compile(r"https?://\S+|www\.\S+", re.I)
 _CJK = re.compile(r"[\u3400-\u9fff]")
 
@@ -126,22 +124,10 @@ class MakeRegistry:
         return best[1] if best else None
 
     def match_model(self, text: str, known: Iterable[str]) -> str | None:
-        """The known model the text names (any script), or None when no model is clearly ahead."""
-        t = transliterate_ru(text.lower()).strip()
-        tk = sound_key(t)
-        n_words = len(t.split())
-        scored: list[tuple[float, str]] = []
-        for k in set(known):
-            kl = k.lower()
-            s = max(fuzz.WRatio(t, kl), fuzz.ratio(tk, sound_key(kl)) if tk else 0.0)
-            if t == kl or re.search(rf"(?<![\w]){re.escape(kl)}(?![\w])", t):
-                s = 100.0 + len(kl) / 100  # the model written as is; the longest wins ("Seal U" over "Seal")
-            elif len(kl.split()) == n_words:
-                s += 5.0
-            scored.append((s, k))
-        scored.sort(key=lambda x: -x[0])
-        if not scored or scored[0][0] < MODEL_MIN:
-            return None
-        if len(scored) > 1 and scored[0][0] - scored[1][0] < MODEL_MARGIN and scored[0][0] < 100:
-            return None
-        return scored[0][1]
+        """The known model the text names: exact, as whole words, the class form, or a Cyrillic name by its sound
+        (spec 013 I1, `model_names`); None when the person's words do not name one."""
+        return model_names.match_model(text, known)
+
+    def suggest_models(self, text: str, known: Iterable[str]) -> list[str]:
+        """Known models spelled or sounding like the text ("did you mean"), best first; never chosen for the person."""
+        return model_names.suggest_models(text, known)

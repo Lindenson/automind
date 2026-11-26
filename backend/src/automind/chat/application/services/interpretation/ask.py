@@ -289,8 +289,11 @@ def _options(kind: str, car: Any, generations: list[str], gearboxes: dict[str, s
 MAX_CHIPS = 12
 
 
-def _chip(label: str, ch: dict[str, Any] | None = None) -> dict[str, Any]:
+def _chip(label: str, ch: dict[str, Any] | None = None, oid: str | None = None) -> dict[str, Any]:
+    """A one-tap answer: its label (sent as the text too, for old clients) and the option id it answers (T013)."""
     chip: dict[str, Any] = {"label": label, "text": label}
+    if oid:
+        chip["id"] = oid
     if ch and ch.get("suggested"):
         chip |= {"suggested": True, "reason": ch.get("reason")}
     return chip
@@ -298,12 +301,15 @@ def _chip(label: str, ch: dict[str, Any] | None = None) -> dict[str, Any]:
 
 def _question_chips(q: dict[str, Any], car: Any, labels: dict[str, str]) -> tuple[list[dict[str, Any]], bool]:
     """A question's own answers, and whether it takes "choose for me"."""
-    kind = q["kind"]
+    kind, key = q["kind"], car.key
     if kind == "PROPOSE":
-        return [_chip(labels["yes"]), _chip(labels["no"])], False
-    own = [_chip(labels[x]) for x in ("automatic", "manual") if labels.get(x)] if (
+        return [_chip(labels["yes"], oid=intake.option_id(intake.OptionKind.YES, key)),
+                _chip(labels["no"], oid=intake.option_id(intake.OptionKind.NO, key))], False  # fmt: skip
+    own = [_chip(labels[x], oid=intake.option_id(intake.OptionKind.GEARBOX, key, x))
+           for x in ("automatic", "manual") if labels.get(x)] if (
         kind == "GEARBOX" and not q.get("choices")) else []  # fmt: skip
-    own += [_chip(ch["label"], ch) for ch in q.get("choices") or []]
+    own += [_chip(ch["label"], ch, intake.option_id(intake.OptionKind.CHOICE, key, kind, i))
+            for i, ch in enumerate(q.get("choices") or [])]  # fmt: skip
     chooses = kind in ("MAKE_LINEUP", "TRIM", "GEARBOX", "REMOVE_OR_CHOOSE", "FUEL", "POWER", "DRIVE") or (
         kind == "ENGINE" and bool(q.get("choices"))
     )
@@ -340,7 +346,8 @@ def intake_quick_replies(items: list[dict[str, Any]], case: CaseFile, labels: di
     removes: list[dict[str, Any]] = []
     for q in items:
         if q["kind"] == "CONDITION":
-            fixed += [_chip(labels["new"]), _chip(labels["used"])]
+            fixed += [_chip(labels["new"], oid=intake.option_id(intake.OptionKind.CONDITION, "NEW")),
+                      _chip(labels["used"], oid=intake.option_id(intake.OptionKind.CONDITION, "USED"))]  # fmt: skip
             continue
         car = cars.get(str(q.get("car") or ""))
         if car is None:
@@ -348,9 +355,10 @@ def intake_quick_replies(items: list[dict[str, Any]], case: CaseFile, labels: di
         own, chooses = _question_chips(q, car, labels)
         groups.append(own)
         if chooses:
-            fixed.append(_chip(labels["choose"]))
+            fixed.append(_chip(labels["choose"], oid=intake.OptionKind.CHOOSE.value))
         if q["kind"] in CAR_KINDS:
-            removes.append(_chip(labels["remove"].format(car=car.display_name)))
+            removes.append(_chip(labels["remove"].format(car=car.display_name),
+                                 oid=intake.option_id(intake.OptionKind.REMOVE, car.key)))  # fmt: skip
     seen: set[str] = set()
 
     def fresh(xs: list[dict[str, Any]]) -> list[dict[str, Any]]:

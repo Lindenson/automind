@@ -1,5 +1,6 @@
 """Stage ask_model: the make is known, the model is not — the make's models are offered, the 1–3 that fit the person
-first, marked as suggestions with machine reasons (spec 005 FR-008, FR-024)."""
+first, marked as suggestions with machine reasons (spec 005 FR-008, FR-024); a model the person wrote that is not
+known and not found is asked back as "did you mean", the person's own name first (spec 013 I1)."""
 
 from __future__ import annotations
 
@@ -19,6 +20,21 @@ def ask_model(car: CaseCar, case: CaseFile, names: KnownModels, note: str | None
         Choice(label=f"{make} {m}", make=make, model=m) for m in sorted(names.known)[:MAX_MODELS]
     ]
     return IdentifyOutcome(outcome="CHOICES" if choices else "NEED", need="MODEL", choices=choices, note=note)
+
+
+UNSURE_OUTCOMES = frozenset({"NOT_FOUND", "NEED"})
+
+
+def did_you_mean(car: CaseCar, names: KnownModels, found: IdentifyOutcome) -> IdentifyOutcome:
+    """A model the person wrote that no known model matches, and the look-up found nothing for it: the person's own
+    name first, then the look-alike known models, as a "did you mean" question (spec 013 I1: never replaced)."""
+    if not names.suggestions or not car.model or car.model in names.known or found.outcome not in UNSURE_OUTCOMES:
+        return found
+    make = car.make or ""
+    own = Choice(label=f"{make} {car.model}", make=make, model=car.model, suggested=True, reason="your_words")
+    alike = [Choice(label=f"{make} {m}", make=make, model=m, reason="did_you_mean") for m in names.suggestions]
+    return IdentifyOutcome(outcome="CHOICES", need="MODEL", choices=[own, *alike], checked=found.checked,
+                           note=found.note)  # fmt: skip
 
 
 def _from_lineup(names: KnownModels, make: str, case: CaseFile) -> list[Choice]:

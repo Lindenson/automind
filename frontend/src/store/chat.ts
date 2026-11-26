@@ -131,7 +131,7 @@ interface ChatState {
   setHistoryLoading: (v: boolean) => void;
   handleRaw: (raw: unknown) => void;
   /** true when the message went out; false keeps it in the composer (not connected, busy, empty) */
-  send: (text: string) => boolean;
+  send: (text: string, optionId?: string | null) => boolean;
   manualLang: Lang | null; // the user's choice in the header (kept in this browser)
   convoLang: Lang | null; // the conversation's language, from the latest reply
   setLang: (lang: Lang | null) => void;
@@ -543,7 +543,7 @@ export const useChat = create<ChatState>((set, get) => {
       }
     },
 
-    send: (text) => {
+    send: (text, optionId) => {
       const { transport, pending } = get();
       const trimmed = text.trim();
       if (!trimmed || pending || !transport) return false;
@@ -552,6 +552,7 @@ export const useChat = create<ChatState>((set, get) => {
         type: "user_message",
         message_id,
         text: trimmed,
+        ...(optionId ? { option_id: optionId } : {}),
       });
       if (!ok) {
         set((s) => ({

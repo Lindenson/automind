@@ -7,27 +7,16 @@ import re
 
 from automind.chat.domain.case import CaseCar, CaseFile, Choice
 from automind.shared.text.patterns import whole_word
+from automind.shared.vehicle.engine import EngineHint
+from automind.shared.vehicle.identity import parse_engine
 
 _NOT_LABEL_CHAR = re.compile(
     r"[^\w+.\-()]"
 )  # anything but letters, digits and + . - ( ): "Golf (Mk8)!" → "Golf (Mk8) "
 
 
-def _plain_text(s: str | None) -> str:
-    return " ".join(_NOT_LABEL_CHAR.sub(" ", (s or "").lower()).split())
-
-
-def _without(label: str, *words: str | None) -> str:
-    out = label
-    for w in sorted({x for x in words if x}, key=len, reverse=True):
-        out = whole_word(w, ignore_case=True).sub(" ", out)
-    return " ".join(out.split())
-
-
-def _apply_choice(car: CaseCar, ch: Choice) -> str:
+def apply_choice(car: CaseCar, ch: Choice) -> str:
     """The user picked this option: it replaces what an earlier option left behind (generation, engine, version)."""
-    from automind.shared.vehicle.identity import parse_engine  # local import: identity imports casefile lazily
-
     k = car.constraints
     if ch.level is not None:
         return _apply_level(car, ch)
@@ -45,10 +34,78 @@ def _apply_choice(car: CaseCar, ch: Choice) -> str:
     return f"{car.key}: {ch.label} (picked)"
 
 
+def pick(case: CaseFile, text: str, *, gearbox_words: dict[str, str], yes: bool = False,
+         choose: bool = False) -> tuple[CaseFile, list[str]] | None:  # fmt: skip
+    """A reply that is exactly one of the offered options (a tapped chip, or the option typed) answers the pending
+    question by code, without the interpreter: the option's variant, model or engine is set and the hints left by
+    an earlier option are dropped. "Yes" to a proposal takes the proposed option; "choose for me" on a gearbox
+    question takes the automatic; "choose for me" (or yes) to "remove or choose?" lets the hub choose.
+    Returns None when the reply is not an offered option."""
+    p = case.pending
+    if p is None or p.kind != "QUESTIONS":
+        return None
+    said = _plain_text(text)
+    if not said:
+        return None
+    new = case.model_copy(deep=True)
+    logs: list[str] = []
+    for item in p.items:
+        key = str(item.get("car") or "")
+        if not key or not any(c.key == key for c in new.cars):
+            continue
+        car = new.car(key)
+        kind = item.get("kind")
+        raw = item.get("choices")
+        if kind == "GEARBOX" and not raw:  # the gearbox question of the older rules (no ladder options)
+            gb = gearbox_words.get(said) or ("automatic" if choose else None)
+            if gb:
+                car.constraints.gearbox_hint = gb  # type: ignore[assignment]
+                return new, [f"{key}: gearbox {gb}"]
+            continue
+        choices = [Choice.model_validate(x) for x in raw] if isinstance(raw, list) else []
+        if (log := _answer(new, car, str(kind), choices, said, yes=yes, choose=choose)) is not None:
+            logs.append(log)
+            if not car.chosen_for_me or not (choices and choices[0].level):
+                return new, logs
+            # "choose for me" with several ladder questions open settles every one of them (spec 008 US3)
+    return (new, logs) if logs else None
+
+
+def inherit_condition(before: CaseFile, after: CaseFile) -> list[str]:
+    """A car added later in the chat ("and the Mazda?") is bought like the cars already compared: when they all
+    share a condition (and, if new, a year), the added car takes it instead of asking "new or used?" again."""
+    old = {c.key for c in before.cars}
+    others = [c for c in after.cars if c.key in old and not c.replaced]  # the user's own car is not bought
+    conds = {c.condition for c in others}
+    if len(conds) != 1 or "UNKNOWN" in conds:
+        return []
+    cond = next(iter(conds))
+    years = {c.year for c in others}
+    log = []
+    for car in after.cars:
+        if car.key in old or car.condition != "UNKNOWN":
+            continue
+        car.condition = cond
+        if cond == "NEW" and len(years) == 1 and car.year is None:
+            car.year = next(iter(years))
+        log.append(f"{car.key}: {cond.lower()} like the other cars")
+    return log
+
+
+def _plain_text(s: str | None) -> str:
+    return " ".join(_NOT_LABEL_CHAR.sub(" ", (s or "").lower()).split())
+
+
+def _without(label: str, *words: str | None) -> str:
+    out = label
+    for w in sorted({x for x in words if x}, key=len, reverse=True):
+        out = whole_word(w, ignore_case=True).sub(" ", out)
+    return " ".join(out.split())
+
+
 def _apply_level(car: CaseCar, ch: Choice) -> str:
     """An option of one ladder level (spec 008): its facts become the user's statement of that level; the levels
     above are kept, nothing is parsed from the label."""
-    from automind.shared.vehicle.engine import EngineHint  # noqa: PLC0415
 
     k = car.constraints
     e = k.engine_hint.model_copy() if k.engine_hint else EngineHint()
@@ -93,43 +150,6 @@ def _choose_for_user(case: CaseFile, car: CaseCar) -> str:
     return f"{car.key}: choose for me (the named engine and version are dropped)"
 
 
-def pick(case: CaseFile, text: str, *, gearbox_words: dict[str, str], yes: bool = False,
-         choose: bool = False) -> tuple[CaseFile, list[str]] | None:  # fmt: skip
-    """A reply that is exactly one of the offered options (a tapped chip, or the option typed) answers the pending
-    question by code, without the interpreter: the option's variant, model or engine is set and the hints left by
-    an earlier option are dropped. "Yes" to a proposal takes the proposed option; "choose for me" on a gearbox
-    question takes the automatic; "choose for me" (or yes) to "remove or choose?" lets the hub choose.
-    Returns None when the reply is not an offered option."""
-    p = case.pending
-    if p is None or p.kind != "QUESTIONS":
-        return None
-    said = _plain_text(text)
-    if not said:
-        return None
-    new = case.model_copy(deep=True)
-    logs: list[str] = []
-    for item in p.items:
-        key = str(item.get("car") or "")
-        if not key or not any(c.key == key for c in new.cars):
-            continue
-        car = new.car(key)
-        kind = item.get("kind")
-        raw = item.get("choices")
-        if kind == "GEARBOX" and not raw:  # the gearbox question of the older rules (no ladder options)
-            gb = gearbox_words.get(said) or ("automatic" if choose else None)
-            if gb:
-                car.constraints.gearbox_hint = gb  # type: ignore[assignment]
-                return new, [f"{key}: gearbox {gb}"]
-            continue
-        choices = [Choice.model_validate(x) for x in raw] if isinstance(raw, list) else []
-        if (log := _answer(new, car, str(kind), choices, said, yes=yes, choose=choose)) is not None:
-            logs.append(log)
-            if not car.chosen_for_me or not (choices and choices[0].level):
-                return new, logs
-            # "choose for me" with several ladder questions open settles every one of them (spec 008 US3)
-    return (new, logs) if logs else None
-
-
 def _answer(case: CaseFile, car: CaseCar, kind: str, choices: list[Choice], said: str, *, yes: bool,
             choose: bool) -> str | None:  # fmt: skip
     """The option the reply takes for one question, applied to the car; None when it takes none."""
@@ -139,37 +159,16 @@ def _answer(case: CaseFile, car: CaseCar, kind: str, choices: list[Choice], said
         car.identify = None
         return f"{car.key}: choose for me ({kind.lower()} and below)"
     if kind == "PROPOSE" and (yes or choose) and choices:
-        return _apply_choice(car, choices[0])
+        return apply_choice(car, choices[0])
     if kind in ("REMOVE_OR_CHOOSE", "PROPOSE") and (yes or choose):
         return _choose_for_user(case, car)
     if choose and choices:  # "choose for me" on a list of versions, engines or models: the first suggested one
         ch = next((x for x in choices if x.suggested), choices[0])
         car.chosen_for_me = True
-        return _apply_choice(car, ch) + " (chosen for the user)"
+        return apply_choice(car, ch) + " (chosen for the user)"
     hit = _label_hit(choices, said)
-    return _apply_choice(car, hit) if hit is not None else None
+    return apply_choice(car, hit) if hit is not None else None
 
 
 def _label_hit(choices: list[Choice], said: str) -> Choice | None:
     return next((ch for ch in choices if _plain_text(ch.label) == said), None)
-
-
-def inherit_condition(before: CaseFile, after: CaseFile) -> list[str]:
-    """A car added later in the chat ("and the Mazda?") is bought like the cars already compared: when they all
-    share a condition (and, if new, a year), the added car takes it instead of asking "new or used?" again."""
-    old = {c.key for c in before.cars}
-    others = [c for c in after.cars if c.key in old and not c.replaced]  # the user's own car is not bought
-    conds = {c.condition for c in others}
-    if len(conds) != 1 or "UNKNOWN" in conds:
-        return []
-    cond = next(iter(conds))
-    years = {c.year for c in others}
-    log = []
-    for car in after.cars:
-        if car.key in old or car.condition != "UNKNOWN":
-            continue
-        car.condition = cond
-        if cond == "NEW" and len(years) == 1 and car.year is None:
-            car.year = next(iter(years))
-        log.append(f"{car.key}: {cond.lower()} like the other cars")
-    return log

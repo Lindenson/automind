@@ -1,6 +1,7 @@
 """Stage catalogue_lookup: the models known for the car's make — the catalogue, config/generations.yaml and the
 make's line-up (Spain; for a make not sold in Spain, where it is sold) — and the model the person named matched
-to one of them (spec 005 R2, FR-007)."""
+to one of them — only when the person's words name it; otherwise the look-alikes are kept as suggestions (spec 005
+R2, FR-007; spec 013 I1)."""
 
 from __future__ import annotations
 
@@ -20,9 +21,9 @@ async def catalogue_lookup(ports: Ports, car: CaseCar, lookup: LineupLookup | No
     lineup = await lookup(ports, make) if lookup is not None and in_spain else None
     catalog = set(await known_models(make, ports.ref))
     known = catalog | {m.model for m in lineup_models(lineup)}
-    match_model(car, reg, known)
+    suggestions = match_model(car, reg, known)
     if not car.model and not in_spain:  # a make not sold in Spain: its models where it is sold
         _, lineup = await where_sold(ports, car, reg, lookup, any_model=True)
         known |= {m.model for m in lineup_models(lineup)}
-        match_model(car, reg, known)
-    return KnownModels(lineup, catalog, known)
+        suggestions = match_model(car, reg, known)
+    return KnownModels(lineup, catalog, known, tuple(suggestions))

@@ -95,7 +95,9 @@ def test_a_lineup_outside_europe_keeps_no_price_and_needs_the_maker_or_a_trusted
     assert [m.model for m in lu.models] == ["L9", "L6"] and all(m.price_from_eur is None for m in lu.models)
     news = [LineupEntry(model="L9", source_url="https://news.example/li-auto")]
     assert not lineup.validate("Li Auto", news, DOCS, None, "CN").models  # a news page alone is not a line-up
-    assert lineup.validate("Li Auto", news, DOCS, None, "CN", ("news.example",)).models
+    # spec 013 T014: a trusted page may source a line-up, but one model from it is not the range
+    assert not lineup.validate("Li Auto", news, DOCS, None, "CN", ("news.example",)).models
+    assert lineup.validate("Li Auto", news, DOCS, None, "CN", ("news.example",), min_models=1).models
 
 
 @dataclass

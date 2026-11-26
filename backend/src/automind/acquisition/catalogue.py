@@ -12,7 +12,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from rapidfuzz import fuzz
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 
 from automind.acquisition.api.contracts import CatalogueVariant, StoredLineup, VariantDraft
 from automind.shared.infrastructure import db
@@ -105,6 +105,21 @@ async def store_lineup(lineup: StoredLineup) -> None:
             s.add(row)
         row.models, row.sources = lineup.models, lineup.sources
         row.fetched_at = lineup.fetched_at or datetime.now(UTC)
+        await s.commit()
+
+
+async def all_lineups() -> list[StoredLineup]:
+    """Every cached line-up (any age), by make and market."""
+    async with db.sessionmaker()() as s:
+        rows = (await s.execute(select(db.BrandLineup).order_by(db.BrandLineup.make, db.BrandLineup.market))).scalars()
+        return [StoredLineup(make=r.make, market=r.market, models=list(r.models), sources=list(r.sources),
+                             fetched_at=r.fetched_at) for r in rows]  # fmt: skip
+
+
+async def delete_lineup(make: str, market: str) -> None:
+    """Remove the make's cached line-up on the market (none: nothing happens)."""
+    async with db.sessionmaker()() as s:
+        await s.execute(delete(db.BrandLineup).where(db.BrandLineup.make == make, db.BrandLineup.market == market))
         await s.commit()
 
 

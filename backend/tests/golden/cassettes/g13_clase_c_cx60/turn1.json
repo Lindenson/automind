@@ -27,5 +27,23 @@
   ],
   "asker": [
     "Вы рассматриваете седан Mercedes-Benz C-класса и кроссовер Mazda CX-60.\n\n1. Вы рассматриваете новые машины или подержанные?"
+  ],
+  "resolver": [
+    {
+      "make": "Mercedes-Benz",
+      "model": "C-Class",
+      "generation": "W206",
+      "generation_years_from": 2021,
+      "generation_years_to": null,
+      "variant_name": "C 200",
+      "powertrain": "MHEV",
+      "body_class": "SEDAN",
+      "engine_cc": 1496,
+      "power_kw": 150,
+      "fuel": "mhev",
+      "price_eur": 51000,
+      "known_model": true,
+      "certainty": "likely"
+    }
   ]
 }

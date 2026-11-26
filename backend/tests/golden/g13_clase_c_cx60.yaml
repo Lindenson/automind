@@ -257,11 +257,9 @@ model_versions:
     name: Motores del Mazda CX-60 en todas sus versiones
 turns:
 - user: я выбираю между Clase C Berlina мерседесом и Маздой CX-60
-  known_bug: C-Class replaced by E-Class by a phonetic match (spec 013 B2) — S1 T010/T011
-  expect:
+  expect:  # no_search: the C-Class is not in the caches, identification looks it up (not research)
     action: ASK
     language: ru
-    no_search: true
     cars:
       car#1:
         make: Mercedes-Benz

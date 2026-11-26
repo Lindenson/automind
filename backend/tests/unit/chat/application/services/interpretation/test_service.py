@@ -17,7 +17,7 @@ from automind.chat.application.services.interpretation import (
 )
 from automind.chat.dialog.prompts import load_all
 from automind.chat.dialog.report_wording import WORDING
-from automind.chat.domain.case import CaseCar, CaseDelta, CaseFile
+from automind.chat.domain.case import CaseCar, CaseDelta, CaseFile, Pending
 from automind.delivery.bootstrap import reference
 
 T = TypeVar("T", bound=BaseModel)
@@ -114,3 +114,29 @@ def test_choose_for_me_settles_the_request(text: str) -> None:
     service, _ = _service()
     applied = service.apply(ApplyRequest(_case(), Interpretation(request="compare", language="en"), text, False, 2026))
     assert applied.request == "choose_for_me"
+
+
+def _asked_case() -> CaseFile:
+    choices = [
+        {"label": "1.5 TSI", "level": "ENGINE", "engine": "1.5 TSI", "fuel": "petrol", "power_kw": 110},
+        {"label": "2.0 TDI", "level": "ENGINE", "engine": "2.0 TDI", "fuel": "diesel", "power_kw": 110},
+    ]
+    case = _case()
+    case.pending = Pending(kind="QUESTIONS", items=[{"car": "car#1", "kind": "ENGINE", "choices": choices}])
+    return case
+
+
+async def test_a_tapped_chip_is_applied_by_its_id_without_the_model() -> None:
+    """Spec 013 T013: the chip's words ("1.5 TSI") would pick the first option; its id picks the second."""
+    service, _ = _service(answer=None)  # the model is never asked
+    preset: Preset = {"kind": "pick", "option_id": "q:car#1:ENGINE:1"}
+    reading = await service.read(_asked_case(), [], "1.5 TSI", preset)
+    assert reading.picked and reading.interpretation is not None
+    req = ApplyRequest(_asked_case(), reading.interpretation, "1.5 TSI", True, 2026, "q:car#1:ENGINE:1")
+    assert service.apply(req).case.car("car#1").constraints.version_hint == "2.0 TDI"
+
+
+async def test_a_stale_chip_id_is_read_as_words() -> None:
+    service, _ = _service({"request": "compare", "language": "en", "delta": {}})
+    reading = await service.read(_case(), [], "1.5 TSI", {"kind": "pick", "option_id": "q:car#1:ENGINE:1"})
+    assert not reading.picked and reading.interpretation is not None

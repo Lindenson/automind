@@ -57,7 +57,11 @@ class MakeNames(Protocol):
         ...
 
     def match_model(self, text: str, known: Iterable[str]) -> str | None:
-        """The known model the text names (any script), or None when no model is clearly ahead."""
+        """The known model the person's words name (any script), or None (spec 013 I1)."""
+        ...
+
+    def suggest_models(self, text: str, known: Iterable[str]) -> list[str]:
+        """Known models spelled or sounding like the text ("did you mean"), best first."""
         ...
 
 

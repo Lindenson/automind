@@ -37,6 +37,7 @@ from automind.chat.application.services.report.blocks.car_view import edit_delta
 from automind.chat.domain import intake
 from automind.chat.domain.case import CaseFile, apply, apply_defaults
 from automind.chat.domain.decision import RequestKind
+from automind.chat.domain.turn import PresetKind, preset_kind
 from automind.shared.contracts.config import Reference
 from automind.shared.contracts.llm import LLM
 
@@ -55,6 +56,7 @@ class ApplyRequest:
     text: str
     picked: bool
     year: int
+    option_id: str | None = None  # spec 013 T013: the tapped chip's id (applied by the id, not by its words)
 
 
 class InterpretationService:
@@ -69,6 +71,13 @@ class InterpretationService:
         said = [m["text"] for m in history if m["role"] == "user"]
         if preset and preset.get("kind") == "car_edit":  # spec 010 FR-037: a structured car edit, applied by code
             return await self._car_edit(case, said, preset)
+        if (
+            preset and preset_kind(preset) is PresetKind.PICK
+        ):  # spec 013 T013: a tapped chip, by its id; else read as words
+            if intake.pick_by_id(case, str(preset.get("option_id") or "")) is not None:
+                i = Interpretation(request="compare", language=self.words.guess_language(said))
+                return Reading(i, i.language, picked=True)
+            preset = None
         if preset:  # a button already knows the request ("find it"): no model call
             return _reading(Interpretation.model_validate({
                 "request": preset.get("kind", "research_more"),
@@ -114,7 +123,8 @@ class InterpretationService:
 
     def _delta_applied(self, req: ApplyRequest) -> tuple[CaseFile, list[str]]:
         """The offered option the words pick, else the interpretation's delta. Raises ValueError for an unknown car."""
-        picked = picked_option(req.case, req.text, self.words) if req.picked else None
+        by_id = intake.pick_by_id(req.case, req.option_id) if req.picked and req.option_id else None
+        picked = by_id or (picked_option(req.case, req.text, self.words) if req.picked else None)
         return picked if picked is not None else apply(req.case, req.interpretation.delta, current_year=req.year)
 
     async def _car_edit(self, case: CaseFile, said: list[str], preset: Preset) -> Reading:

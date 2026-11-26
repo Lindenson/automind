@@ -139,7 +139,9 @@ async def test_unknown_model_question_keeps_the_users_name_and_never_offers_it_b
     llm = _llm()
     unknown = {**S09, "known_model": False, "certainty": "ambiguous"}
     llm.responders["resolver"] = lambda s, u: unknown if "Model asked: Deepal S09" in u else L9
-    llm.responders["lineup"] = lambda s, u: {"models": []} if "Market: CN" in u and "Deepal" in u else _lineup(s, u)
+    # spec 013 T014: the EU line-up (one model from an article) is not the range; the maker's CN site lists the S07
+    only_s07 = {"models": LINEUPS[("Deepal", "CN")][:1]}
+    llm.responders["lineup"] = lambda s, u: only_s07 if "Market: CN" in u and "Deepal" in u else _lineup(s, u)
     rn = await _runner(saver, llm)
     chat = str(uuid.uuid4())
     r = await rn.run_turn(chat, FIRST)

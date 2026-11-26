@@ -77,7 +77,8 @@ class ChatSocket:
             text = str(msg.get("text", "")).strip()[:2000]
             if text:
                 await self.chats.title_from_first_message(self.chat_id, text)
-                self._background(self.runner.run_turn(self.chat_id, text, msg.get("message_id")))
+                pick = _pick_preset(msg)  # spec 013 T013: a tapped chip sends its option id with its text
+                self._background(self.runner.run_turn(self.chat_id, text, msg.get("message_id"), preset=pick))
         elif kind in ("find", "car_edit"):  # buttons that already know the request: no interpretation
             self._preset_turn(msg)
         elif kind in ("rating", "bad_source"):  # spec 004 FR-026; spec 010 US2
@@ -257,6 +258,12 @@ def _resume_payload(msg: dict[str, Any]) -> dict[str, Any]:
 
 
 _CAR_EDIT_FIELDS = ("generation", "engine", "gearbox", "trim", "not_this_car", "remove")
+
+
+def _pick_preset(msg: dict[str, Any]) -> dict[str, Any] | None:
+    """A tapped one-tap answer: its option id as a preset (spec 013 T013); None for typed words or an old client."""
+    oid = str(msg.get("option_id") or "").strip()[:120]
+    return {"kind": "pick", "option_id": oid, "language": msg.get("language")} if oid else None
 
 
 def _car_edit_preset(msg: dict[str, Any]) -> dict[str, Any] | None:

@@ -522,6 +522,7 @@ export const QuickRepliesBlockSchema = z.object({
   question: z.string().nullish(), // spec 004 FR-018: a question about the user under the report
   items: z.array(
     z.object({
+      id: z.string().nullish(), // spec 013 T013: the option's id, sent instead of guessing from the words
       label: z.string(),
       text: z.string(),
       suggested: z.boolean().nullish(), // spec 005 FR-024: a model the user did not name
@@ -1093,6 +1094,7 @@ export type UserMessageOut = {
   type: "user_message";
   message_id: string;
   text: string;
+  option_id?: string; // spec 013 T013: a tapped quick reply sends the option's id; the text is only shown
 };
 export type HelloOut = { type: "hello"; last_seq: number };
 export type ConfirmOut = {

@@ -535,8 +535,6 @@ lazy|chat/application/maintenance/repair.py|reclassify_sources
 lazy|chat/application/usecases/challenge.py|_signals
 lazy|chat/dialog/context.py|record_intake
 lazy|chat/domain/cost/energy/model.py|_stale
-lazy|chat/domain/intake/pick.py|_apply_choice
-lazy|chat/domain/intake/pick.py|_apply_level
 lazy|chat/infrastructure/events.py|EventBus.current
 lazy|chat/infrastructure/persistence/repositories.py|FeasibilityRepo.used_ranges
 lazy|chat/infrastructure/persistence/repositories.py|MarketFactRepo.done
@@ -573,7 +571,6 @@ lazy|observability/metrics/snapshot.py|_spend
 lazy|shared/infrastructure/config/loader.py|models
 lazy|shared/infrastructure/db/session.py|init_db
 lazy|shared/infrastructure/metrics/prom.py|SnapshotCollector.collect
-node|chat/dialog/nodes/confirm.py|apply_intake
 node|chat/dialog/nodes/confirm.py|apply_variants
 node|chat/dialog/nodes/confirm.py|ask_node
 node|chat/dialog/nodes/confirm.py|prepare_intake
@@ -919,8 +916,6 @@ order|chat/domain/intake/names.py|keep_user_names
 order|chat/domain/intake/names.py|other_names
 order|chat/domain/intake/names.py|same_name
 order|chat/domain/intake/names.py|user_model
-order|chat/domain/intake/pick.py|inherit_condition
-order|chat/domain/intake/pick.py|pick
 order|chat/domain/intake/steps.py|is_repeat
 order|chat/domain/intake/steps.py|next_step
 order|chat/domain/intake/steps.py|question_hash
@@ -1155,7 +1150,6 @@ regex|shared/vehicle/identity.py|_norm
 regex|shared/vehicle/identity.py|normalize_make_model
 regex|shared/vehicle/identity.py|sound_key
 regex|shared/vehicle/makes.py|MakeRegistry.match_make
-regex|shared/vehicle/makes.py|MakeRegistry.match_model
 regex|shared/vehicle/markets.py|country_of_url
 regex|shared/vehicle/specs/normalize.py|_excerpt_unit
 regex|shared/vehicle/specs/normalize.py|normalize_transmission
@@ -1364,8 +1358,6 @@ word|chat/dialog/agents.py|prompt_name:role
 word|chat/dialog/context.py|history:role
 word|chat/dialog/identification_notes.py|car_notices:kind
 word|chat/dialog/nodes/confirm.py|apply_cost:choice
-word|chat/dialog/nodes/confirm.py|apply_intake:choice
-word|chat/dialog/nodes/confirm.py|apply_variants:choice
 word|chat/dialog/nodes/confirm.py|ask_node:kind
 word|chat/dialog/nodes/confirm.py|route_after_candidates:route
 word|chat/dialog/nodes/feasibility.py|apply_feasibility:choice
