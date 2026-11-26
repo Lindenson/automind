@@ -10,7 +10,8 @@ export function focusComposer(): void {
 }
 
 /**
- * One-tap answers under a question: each sends its text as the user's message (spec 004 FR-031). Styled as the
+ * One-tap answers under a question: each sends its text as the user's message, with the option's id when it has one
+ * (spec 004 FR-031; spec 013 T013: the server takes the id, never guesses from the words). Styled as the
  * user's own reply bubbles, so they read as answers, not as next actions (audit F11).
  */
 export function QuickReplies({ b }: { b: B }) {
@@ -29,7 +30,7 @@ export function QuickReplies({ b }: { b: B }) {
             type="button"
             disabled={busy}
             title={it.reason ?? undefined}
-            onClick={() => (it.typing ? focusComposer() : send(it.text))}
+            onClick={() => (it.typing ? focusComposer() : send(it.text, it.id))}
             className={`min-h-11 rounded-2xl rounded-br-md border px-4 py-2 text-left text-sm hover:border-accent/60 disabled:opacity-50 ${
               it.suggested
                 ? "border-accent/60 bg-accent/10"

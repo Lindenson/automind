@@ -4,6 +4,8 @@ line-up for the person, applying the option they picked, and keeping their own m
 Owns: `steps` — the step machine (ASK, PROPOSE, REMOVE_OR_CHOOSE, CARD, NONE) and never-repeated questions;
   `lineup` — body words, line-up ranking and candidates with machine reasons (FR-008, spec 007 US7);
   `pick` — applying a picked option (choice, level, "choose for me", inherited condition);
+  `card_choice` — a confirmation's answer as a closed set: only a button confirms (spec 013 T012);
+  `option_ids` — the ids of one-tap answers and applying a tapped one by its id (spec 013 T013);
   `names` — the person's own model names kept (never "nearest: <the same model>").
 Depends on: chat.domain.case, chat.domain.understanding, shared.vehicle. Must not depend on: sqlalchemy, langgraph,
   fastapi, the application, the dialog.
@@ -11,6 +13,7 @@ Note: `steps` moves into chat.dialog with the policy in S6 (it is the intake par
 Public API: the names below (`from automind.chat.domain import intake; intake.next_step(...)`).
 """
 
+from automind.chat.domain.intake.card_choice import CardAnswer, CardChoice, card_answer
 from automind.chat.domain.intake.lineup import (
     BODY_WORDS,
     LineupModel,
@@ -25,6 +28,7 @@ from automind.chat.domain.intake.names import (
     same_name,
     user_model,
 )
+from automind.chat.domain.intake.option_ids import OptionKind, option_id, pick_by_id
 from automind.chat.domain.intake.pick import (
     inherit_condition,
     pick,
@@ -61,7 +65,13 @@ __all__ = [
     "keep_user_names",
     "next_step",
     "other_names",
+    "CardAnswer",
+    "CardChoice",
+    "OptionKind",
+    "card_answer",
+    "option_id",
     "pick",
+    "pick_by_id",
     "pick_candidates",
     "progress",
     "question_hash",

@@ -4,7 +4,8 @@ Owns: `contracts` — requests, results and the `Backend` protocol the engine im
   This `__init__` — the functions: acquire, missing_critical, last_done, ev_counts, powertrains, registry_done,
   unmet_areas, tried_by_area, gearbox_families_mixed, reselect, recheck_value, revalidate_claims, recheck_minimums,
   lineup, versions, generation_hints, dataset_versions, record_challenge_gold; the catalogue (spec 012 T028):
-  catalogue_models, find_variants, get_variant, upsert_variant, stale_areas, cached_lineup, store_lineup; the car read
+  catalogue_models, find_variants, get_variant, upsert_variant, stale_areas, cached_lineup, store_lineup,
+  all_lineups, delete_lineup; the car read
   model: car_data, evidence_refs (`car` — its rows: CarData and the stored rows it holds).
 Flow: caller → function here → `_backend()` loads `acquisition.backend` by name at the first call → engine.
   The chat orders "these kinds of data for this car, by this deadline" and gets values with confidence and sources,
@@ -102,6 +103,8 @@ __all__: list[str] = [
     "stale_areas",
     "cached_lineup",
     "store_lineup",
+    "all_lineups",
+    "delete_lineup",
     "car_data",
     "evidence_refs",
     "CarData",
@@ -248,6 +251,16 @@ async def cached_lineup(make: str, market: str, ttl_days: int) -> StoredLineup |
 
 async def store_lineup(lineup: StoredLineup) -> None:
     await _backend().store_lineup(lineup)
+
+
+async def all_lineups() -> list[StoredLineup]:
+    """Every cached line-up, any age (spec 013 T015: the audit)."""
+    return await _backend().all_lineups()
+
+
+async def delete_lineup(make: str, market: str) -> None:
+    """Remove a make's cached line-up on a market (spec 013 T015: the purge of line-ups that are not the range)."""
+    await _backend().delete_lineup(make, market)
 
 
 async def car_data(variant_id: str) -> CarData | None:

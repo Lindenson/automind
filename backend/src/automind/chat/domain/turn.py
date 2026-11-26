@@ -66,6 +66,7 @@ class PresetKind(StrEnum):
     CAR_EDIT = "car_edit"  # "Change" on a car (generation, engine, gearbox, trim, not this car, remove)
     RESCORE = "rescore"  # an edit in the case panel (weights, profile)
     REPORT_SAVED = "report_saved"  # after a turn timeout: the report from the data already saved
+    PICK = "pick"  # spec 013 T013: a tapped one-tap answer, applied by its option id (its text is the person's)
 
 
 EDITS = frozenset({PresetKind.CAR_EDIT, PresetKind.RESCORE, PresetKind.REPORT_SAVED})  # not the person's words

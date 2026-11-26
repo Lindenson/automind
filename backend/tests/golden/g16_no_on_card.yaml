@@ -89,7 +89,6 @@ turns:
       cars[1].resolution: PROPOSED
       cars[0].resolution: AUTO_OK
 - user: нет
-  known_bug: typed "нет" on the card confirms every proposed car (spec 013 B3) — S1 T012
   expect:
     no_search: true
     case:

@@ -168,14 +168,14 @@ def wait_confirm(state: TurnState) -> dict[str, Any]:
 
 
 async def apply_variants(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
-    """Button choice → confirm; free text → interpret it (it may be a correction, R2)."""
+    """Only a button confirms the proposal ("confirm"/"run", or a version picked); typed words and any other id are
+    read by the interpreter (it may be a correction or a rejection, R2; spec 013 T012)."""
     c = ctx(runtime)
     _, case = await load_case(c)
-    answer = state.get("resume") or {}
-    choice = str(answer.get("choice") or "")
-    if choice in ("text", "edit") or (not choice and answer.get("text")):
-        return {"user_text": answer.get("text") or "", "confirm_payload": None, "resume": None, "route": "interpret"}
-    if choice == "skip":
+    answer = intake.card_answer(state.get("resume") or {})
+    if answer.kind in (intake.CardChoice.TEXT, intake.CardChoice.OTHER, intake.CardChoice.EDIT_FIELD):
+        return {"user_text": answer.text, "confirm_payload": None, "resume": None, "route": "interpret"}
+    if answer.kind in (intake.CardChoice.SKIP, intake.CardChoice.STOP):
         for car in case.cars:
             if car.resolution == "PROPOSED":
                 car.variant_id, car.label, car.resolution = None, None, "UNRESOLVED"
@@ -186,18 +186,13 @@ async def apply_variants(state: TurnState, runtime: Runtime[TurnContext]) -> dic
             "action": "CONFIRM_VARIANTS",
             "reply_text": t("variants_skipped", state.get("language")),
         }
-    if choice.startswith("remove:"):
-        key = choice.split(":", 1)[1]
-        case.cars = [x for x in case.cars if x.key != key]
+    if answer.kind is intake.CardChoice.REMOVE:
+        case.cars = [x for x in case.cars if x.key != answer.arg]
         case.pending = None
-        version = await save_case(c, case, [f"{key} removed"])
+        version = await save_case(c, case, [f"{answer.arg} removed"])
         return {"route": "assess", "confirm_payload": None, "resume": None, "case_version": version}
-    if choice.startswith("option:"):
-        _, key, vid = choice.split(":", 2)
-        car = case.car(key)
-        v = await catalogue.get_variant(vid)
-        if v is not None:
-            car.variant_id, car.label = v.id, v.label
+    if answer.kind is intake.CardChoice.OPTION:
+        await _pick_option(case, answer.arg)
     changes = _confirm_proposed(case)
     case.pending = None
     version = await save_case(c, case, changes)
@@ -381,47 +376,49 @@ async def _card_edit(c: TurnContext, case: Any, answer: dict[str, Any]) -> None:
     await save_case(c, case, changes or ["card edit not applied"])
 
 
-async def _pick_option(case: Any, choice: str) -> None:
-    _, key, vid = choice.split(":", 2)
+async def _pick_option(case: Any, arg: str) -> None:
+    key, _, vid = arg.partition(":")
     if (v := await catalogue.get_variant(vid)) is not None and any(x.key == key for x in case.cars):
         case.car(key).variant_id, case.car(key).label = v.id, v.label
 
 
 async def apply_intake(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
+    """The intake card's answer: only a button confirms; typed words (even "нет") are read by the interpreter
+    (spec 013 T012), never by a word list."""
     c = ctx(runtime)
     _, case = await load_case(c)
-    answer = state.get("resume") or {}
-    choice = str(answer.get("choice") or "")
+    answer = intake.card_answer(state.get("resume") or {})
     done = {"confirm_payload": None, "resume": None}
-    if choice == "edit_field":  # a chip on the card: code applies it, the car is identified again
-        await _card_edit(c, case, answer)
-        await record_intake(c, "CARD_EDITED", answer.get("car_key"), str(answer.get("field") or ""))
+    if answer.kind is intake.CardChoice.EDIT_FIELD:  # a chip on the card: code applies it, the car is identified again
+        resume = state.get("resume") or {}
+        await _card_edit(c, case, resume)
+        await record_intake(c, "CARD_EDITED", resume.get("car_key"), str(resume.get("field") or ""))
         return {**done, "route": "identify"}
-    if choice in ("text", "edit") or (not choice and answer.get("text")):
-        raw = str(answer.get("text") or "")
-        bare = len(raw.split()) <= 3 and not any(ch.isdigit() for ch in raw)  # "нет, 1.5" is a correction, not a no
-        typed = "yes" if phrases.choose_for_me(raw) else (phrases.yes_or_no(raw) if bare else None)
-        if typed is None:
-            case.pending = None
-            await save_case(c, case, [], publish=False)
-            return {**done, "user_text": answer.get("text") or "", "route": "interpret"}
-        choice = "yes" if typed == "yes" else "stop"
-    if choice.startswith("option:"):  # a version picked from the options (old clients): that version, and yes
-        await _pick_option(case, choice)
-        choice = "yes"
-    if choice.startswith("remove:"):
-        key = choice.split(":", 1)[1]
-        case.cars = [x for x in case.cars if x.key != key]
+    if answer.kind in (intake.CardChoice.TEXT, intake.CardChoice.OTHER):
         case.pending = None
-        await save_case(c, case, [f"{key} removed"])
+        await save_case(c, case, [], publish=False)
+        return {**done, "user_text": answer.text, "route": "interpret"}
+    if answer.kind is intake.CardChoice.REMOVE:
+        case.cars = [x for x in case.cars if x.key != answer.arg]
+        case.pending = None
+        await save_case(c, case, [f"{answer.arg} removed"])
         return {**done, "route": "assess"}
+    if answer.kind is intake.CardChoice.OPTION:  # a version picked from the options (old clients): that version, yes
+        await _pick_option(case, answer.arg)
+    research = answer.kind in (intake.CardChoice.CONFIRM, intake.CardChoice.OPTION)  # "not now": cars kept only
+    return await _card_confirmed(c, case, state, research=research)
+
+
+async def _card_confirmed(c: TurnContext, case: Any, state: TurnState, *, research: bool) -> dict[str, Any]:
+    """The cars of the card confirmed by a button; the research too, unless "not now" (`research` False)."""
+    done = {"confirm_payload": None, "resume": None}
     for car in case.cars:
         if car.variant_id and car.resolution in ("PROPOSED", "AUTO_OK", "UNRESOLVED"):
             car.resolution = "CONFIRMED"
     case.intake.card_confirmed = True
     case.pending = None
     await record_intake(c, "CONFIRMED")
-    if choice in ("yes", "run", "confirm", "continue"):
+    if research:
         await save_case(c, case, ["cars and research confirmed"])
         await agreed(c, case, state.get("language"))
         return {**done, "route": "assess", "cost_approved": True}

@@ -22,7 +22,7 @@ from automind.chat.application.services.identification.contracts import (
     Placed,
 )
 from automind.chat.application.services.identification.revalidation import drop_wrong_variant
-from automind.chat.application.services.identification.stages.ask_model import ask_model
+from automind.chat.application.services.identification.stages.ask_model import ask_model, did_you_mean
 from automind.chat.application.services.identification.stages.catalogue_lookup import catalogue_lookup
 from automind.chat.application.services.identification.stages.normalise_name import canonical_make, classify_url
 from automind.chat.application.services.identification.stages.place_market import place_on_market, say_where_sold
@@ -78,7 +78,7 @@ class IdentificationService:
         if (year_asked := year_first(ports, case, car, req.current_year)) is not None:
             return year_asked
         found = await self._first_answer(Placed(case, car, req.current_year, lineup))
-        return say_where_sold(car, found)
+        return say_where_sold(car, did_you_mean(car, names, found))
 
     async def identify_case(
         self, case: CaseFile, current_year: int, progress: Progress | None = None

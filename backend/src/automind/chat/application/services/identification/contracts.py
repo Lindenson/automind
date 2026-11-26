@@ -95,11 +95,13 @@ class IdentifyRequest:
 @dataclass
 class KnownModels:
     """The models known for a make. `lineup`: the make's line-up read (or None); `catalog`: models of the catalogue
-    and config; `known`: both."""
+    and config; `known`: both; `suggestions`: known models that look like the person's model when none matched it
+    (spec 013 I1: offered as "did you mean", never set)."""
 
     lineup: Lineup | None
     catalog: set[str]
     known: set[str]
+    suggestions: tuple[str, ...] = ()
 
 
 @dataclass

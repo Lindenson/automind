@@ -68,7 +68,9 @@ async def test_nonsense_reply_to_a_variant_proposal_proposes_again(saver):
     assert data["cars"] == [] and r.status == "DONE"
 
 
-async def test_choose_for_me_confirms_the_proposal(saver):
+async def test_typed_any_on_the_card_is_read_and_only_the_button_confirms(saver):
+    """Spec 013 T012: typed words on the card go to the interpreter (they never confirm by a word list); the card's
+    "yes" button confirms the proposal."""
     used = {"request_text": "used FixtureMake Racer", "make": MAKE, "model": "Racer", "condition": "USED",
             "year": 2025}  # fmt: skip
     llm = FakeLLM().queue("interpreter", {"request": "compare", "language": "en", "delta": {"add_cars": [used]}})
@@ -77,8 +79,11 @@ async def test_choose_for_me_confirms_the_proposal(saver):
     rn = _runner(saver, llm)
     chat = str(uuid.uuid4())
     await rn.run_turn(chat, "a used FixtureMake Racer from 2025")
-    llm.queue("interpreter", NOTHING)
-    await rn.resume(chat, {"choice": "text", "text": "any"})  # typed "any" = choose for me
+    llm.queue("interpreter", {"request": "choose_for_me", "language": "en", "delta": {}})
+    w = await rn.resume(chat, {"choice": "text", "text": "any"})
+    _, data, _ = await rn.ports.cases.latest(chat)
+    assert data["cars"][0]["resolution"] == "PROPOSED" and w.confirm is not None and w.confirm["kind"] == "intake"
+    await rn.resume(chat, {"choice": "yes"})
     _, data, _ = await rn.ports.cases.latest(chat)
     assert data["cars"][0]["resolution"] == "CONFIRMED"
 

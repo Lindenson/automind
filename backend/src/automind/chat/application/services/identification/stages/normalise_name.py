@@ -40,17 +40,27 @@ def canonical_make(car: CaseCar, reg: MakeNames | None) -> None:
         car.make = canon
 
 
-def match_model(car: CaseCar, reg: MakeNames | None, known: set[str]) -> None:
-    """The model in any script or spelling, mapped to a known one ("атека" → Ateca, "сил ю" → Seal U)."""
+def match_model(car: CaseCar, reg: MakeNames | None, known: set[str]) -> list[str]:
+    """The model in any script or spelling, mapped to a known one only when the person's words name it ("атека" →
+    Ateca, "Clase C" → C-Class, spec 013 I1). Otherwise the person's model stays as written and the look-alike known
+    models are returned as "did you mean" suggestions ("c-class" never becomes the E-Class)."""
     if reg is None or not known or not car.make:
-        return
+        return []
     if not car.model:
         aliases = [n for n, c in reg.names.items() if c == car.make]
         rest = _strip_make(car.request_text, car.make, aliases)
-        if rest and (m := reg.match_model(rest, known)):
+        if not rest:
+            return []
+        if m := reg.match_model(rest, known):
             car.model = m
-    elif car.model not in known and (m := reg.match_model(car.model, known)):
+            return []
+        return reg.suggest_models(rest, known)
+    if car.model in known:
+        return []
+    if m := reg.match_model(car.model, known):
         car.model = m
+        return []
+    return reg.suggest_models(car.model, known)
 
 
 def _plain(s: str | None) -> str:

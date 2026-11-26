@@ -60,7 +60,8 @@ async def apply_delta_node(state: TurnState, runtime: Runtime[TurnContext]) -> A
     i = Interpretation.model_validate(state.get("interpretation"))
     edit = (state.get("preset") or {}).get("kind") == "car_edit"  # the edit's label is not the person's words
     text = "" if edit else state.get("user_text") or ""
-    applied = _service(c).apply(ApplyRequest(case, i, text, bool(state.get("picked")), current_year(c)))
+    option = (state.get("preset") or {}).get("option_id")  # spec 013 T013: a tapped chip's id
+    applied = _service(c).apply(ApplyRequest(case, i, text, bool(state.get("picked")), current_year(c), option))
     if applied.ask is not None:
         return {"action": "ASK", "done": True, "reply_text": t(applied.ask, i.language)}
     version = await save_case(c, applied.case, applied.changes) if applied.saved else None

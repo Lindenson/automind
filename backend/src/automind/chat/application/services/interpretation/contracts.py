@@ -72,8 +72,9 @@ class Interpretation(BaseModel):
 
 
 class Preset(TypedDict, total=False):
-    """A request a button sends instead of words: "find it" (`kind` research_more, `focus_cars`, `areas`) or a car
-    edit (`kind` car_edit, `car_key`, `field`, `value`). `language` is the chat's when the button knows it."""
+    """A request a button sends instead of words: "find it" (`kind` research_more, `focus_cars`, `areas`), a car
+    edit (`kind` car_edit, `car_key`, `field`, `value`) or a tapped one-tap answer (`kind` pick, `option_id`, spec 013
+    T013). `language` is the chat's when the button knows it."""
 
     kind: str
     language: str | None
@@ -82,6 +83,7 @@ class Preset(TypedDict, total=False):
     car_key: str
     field: str
     value: str
+    option_id: str
 
 
 class ReadState(TypedDict, total=False):

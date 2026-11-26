@@ -46,28 +46,34 @@ read as an engine answer, "давай сравним с BMW" = choose for me (g1
 
 ## S1 — Stop the worst now (PR 2)
 
-- [ ] T010 `shared/vehicle/makes.MakeRegistry.match_model` (verify ~l.128): a model is set only by exact / alias /
+- [x] T010 `shared/vehicle/makes.MakeRegistry.match_model` (verify ~l.128): a model is set only by exact / alias /
   transliterated match (word-bounded); fuzzy and `sound_key` scores never select a model — they return
   "did you mean" suggestions (new function `suggest_models(text, known) -> list[str]`). Remove the +5 bonus path
   that lifts fuzzy over 100. Unit tests: "c-class" vs {E-Class, CLA, C-Class}, "Clase C" (es), "класс С"/"цешка"
   (ru translit), "Seal U" vs "Seal", "атека" → Ateca still works.
-- [ ] T011 `identification/stages/normalise_name.match_model`: no match → the person's model text is kept as is
+- [x] T011 `identification/stages/normalise_name.match_model`: no match → the person's model text is kept as is
   (`car.model` untouched) and the outcome carries the suggestions (UNSURE-like: CHOICES with "did you mean" + the
   person's own name first). Never replace a model the person wrote.
-- [ ] T012 `dialog/nodes/confirm.apply_intake` (verify ~l.390): typed text never goes through `phrases.yes_or_no` /
+- [x] T012 `dialog/nodes/confirm.apply_intake` (verify ~l.390): typed text never goes through `phrases.yes_or_no` /
   `choose_for_me`; it goes to `interpret` (the S4 Understander later). Only an explicit button id confirms.
   `apply_variants`: confirm only on an explicit `yes`/`option:` id; anything else → interpret. Tests: "нет",
   "нет, другую", "да, но дизель" on the card.
-- [ ] T013 Buttons send ids: `application/services/interpretation/ask.intake_quick_replies` chips carry
+- [x] T013 Buttons send ids: `application/services/interpretation/ask.intake_quick_replies` chips carry
   `{id, label}`; frontend sends `{"type":"confirm","choice":<id>}` (or a `ui_action` message) instead of the label
   text; backend maps ids. Old clients sending text stay served as text. Frontend test (vitest) for the chip payload.
-- [ ] T014 Line-up sanity gate (`chat/application/services/identification/lineup.py`, `acquisition/catalogue.py`
+- [x] T014 Line-up sanity gate (`chat/application/services/identification/lineup.py`, `acquisition/catalogue.py`
   where `brand_lineups` is written — verify): a line-up with < `lineup.min_models` (config, 5) models, or whose
   models all come from one article URL, is not stored and not used. Unit tests.
-- [ ] T015 Data repair (owner said yes; `scripts/deploy.sh backup` first): CLI
+- [x] T015 Data repair (owner said yes; `scripts/deploy.sh backup` first): CLI
   `python -m automind.delivery.cli.lineups audit|purge --min-models 5` lists and deletes bad `brand_lineups` rows;
   run on pre-prod, paste the list into the PR.
-- [ ] T016 Remove xfail from g13 turn 1 (C-Class kept) and g16.
+- [x] T016 Remove xfail from g13 turn 1 (C-Class kept) and g16.
+
+Done 2026-11-26 (PR "S1"): `shared/vehicle/model_names` (exact / whole words / class form / Cyrillic by sound with
+letter codes agreeing; `suggest_models`), `did_you_mean` in ask_model; `intake.card_answer` (only button ids confirm);
+chips carry ids (`intake.option_ids`, preset `pick`, frontend `option_id`); `intake.lineup_sanity` (maker's site, or
+≥ `intake.lineup_min_models` models not all from one headline-slug article); CLI `delivery.cli.lineups`. g13 t1 and
+g16 t3 green. Purge on pre-prod: after the owner's report (backup first).
 
 ## S2 — Rejection memory + verification (PR 3)
 

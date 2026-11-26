@@ -5,7 +5,9 @@ one Spanish search plus the official site (≤ `lineup_max_pages` pages, robots 
 the `lineup` web reader (`acquisition.api.lineup`), and code here keeps only what the documents support:
 - a model must be written in the text of its document;
 - a price must be written in its excerpt, and the excerpt in the document;
-- at least one source must be the official site or a page that states a price (otherwise nothing is stored).
+- at least one source must be the official site or a page that states a price (otherwise nothing is stored);
+- the line-up must be the range (spec 013 T014, `intake.lineup_sanity`): the maker's site, or at least
+  `intake.lineup_min_models` models from two pages — a news article about one model is neither stored nor used.
 
 A car not on the Spanish line-up is looked up on another market (chat 2026-11-06: Deepal S09, Li Auto L9): Europe
 ("EU"), the make's home market ("CN"), anywhere ("ANY"), cached per market. Outside Europe no price is kept (spec 009
@@ -24,6 +26,7 @@ from automind.acquisition.api import LineupEntry, StoredLineup
 from automind.chat.application.ports import Ports
 from automind.chat.application.services.identification.contracts import Lineup
 from automind.chat.domain.intake import LineupModel
+from automind.chat.domain.intake.lineup_sanity import MIN_MODELS, lineup_fault
 from automind.shared import evidence
 from automind.shared.vehicle.markets import country_of_url, european
 
@@ -59,7 +62,7 @@ class _Origin:
 
 
 def validate(make: str, entries: list[LineupEntry], docs: dict[str, tuple[str, str]], official: str | None,
-             market: str = "ES", trusted: tuple[str, ...] = ()) -> Lineup:  # fmt: skip
+             market: str = "ES", trusted: tuple[str, ...] = (), min_models: int = MIN_MODELS) -> Lineup:  # fmt: skip
     """Keep the entries their documents support (pure apart from the evidence helpers): a model written in its
     document, a price written in its excerpt. Outside Europe no price is kept, and a source must be the maker's site
     or a `trusted` one; with no source that is official, priced or trusted nothing is kept (an empty line-up).
@@ -73,13 +76,16 @@ def validate(make: str, entries: list[LineupEntry], docs: dict[str, tuple[str, s
         return Lineup(make=make)
     sources = [{"url": u, "name": name, "type": "MANUFACTURER" if origin.official_page(u) else "PUBLICATION"}
                for u, (name, _) in used.items()]  # fmt: skip
+    if lineup_fault([m.source_url for m in models], sources, min_models) is not None:
+        return Lineup(make=make)  # not the range (an article about one model): nothing kept
     return Lineup(make=make, models=models, sources=sources, fetched_at=datetime.now(UTC))
 
 
-async def cached(make: str, ttl_days: int, market: str = "ES") -> Lineup | None:
-    """The make's line-up on the market as cached, None when there is none younger than `ttl_days`."""
+async def cached(make: str, ttl_days: int, market: str = "ES", min_models: int = MIN_MODELS) -> Lineup | None:
+    """The make's line-up on the market as cached, None when there is none younger than `ttl_days` or the cached one
+    is not the range (stored before the sanity gate, spec 013 T014)."""
     row = await acquisition.cached_lineup(make, market, ttl_days)
-    if row is None:
+    if row is None or lineup_fault([m.get("source_url") for m in row.models], row.sources, min_models) is not None:
         return None
     models = [LineupModel(model=m["model"], body=m.get("body", ""), powertrains=tuple(m.get("powertrains") or ()),
                           price_from_eur=m.get("price_from_eur"), source_url=m.get("source_url"),
@@ -100,7 +106,8 @@ async def get_lineup(ports: Ports, make: str, market: str = "ES") -> Lineup | No
     """The make's line-up in Spain, or on `market` for a car not sold in Spain (cache-first), or None when no source
     supports one."""
     lim = ports.ref.search["intake"]
-    if (hit := await cached(make, int(lim["lineup_ttl_days"]), market)) is not None:
+    least = int(lim.get("lineup_min_models", MIN_MODELS))
+    if (hit := await cached(make, int(lim["lineup_ttl_days"]), market, least)) is not None:
         return hit
     reg = ports.ref.makes
     if reg is None:
@@ -119,7 +126,8 @@ async def get_lineup(ports: Ports, make: str, market: str = "ES") -> Lineup | No
     if read is None:
         return None
     cfg = dict(((ports.ref.search or {}).get("abroad") or {}).get(market) or {})
-    lu = validate(make, read.out.models, read.docs, official, market, tuple(str(t) for t in cfg.get("trusted") or ()))
+    trusted = tuple(str(t) for t in cfg.get("trusted") or ())
+    lu = validate(make, read.out.models, read.docs, official, market, trusted, least)
     if not lu.models:
         return None
     await store(lu, market)

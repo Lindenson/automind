@@ -128,6 +128,12 @@ class EngineBackend:
     async def store_lineup(self, lineup: StoredLineup) -> None:
         await catalogue.store_lineup(lineup)
 
+    async def all_lineups(self) -> list[StoredLineup]:
+        return await catalogue.all_lineups()
+
+    async def delete_lineup(self, make: str, market: str) -> None:
+        await catalogue.delete_lineup(make, market)
+
     async def car_data(self, variant_id: str) -> CarData | None:
         return await car_data.car_data(variant_id)
 
