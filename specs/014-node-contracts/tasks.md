@@ -32,7 +32,8 @@ pr-self-check answered. Paths under `backend/src/automind/chat/dialog/` unless s
   read.
 - [ ] T112 Retry purity: `report_node`/`answer_node` persist after the model call (or split the persist into a
   non-retried node); test fake fails on a store write before the first LLM call of a `Retry.PROVIDER` node.
-- [ ] T113 Owner's decision G3 implemented (retry once from a fresh read, or fail with a notice).
+- [ ] T113 Owner's decision G3: on `VersionConflict` the node runs once more from a fresh read (cache dropped); a
+  second conflict fails the turn with a notice; test for both.
 
 ## C3 — Sections and automatic reset (PR 3, with spec 013 S4)
 
