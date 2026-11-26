@@ -1,6 +1,6 @@
 # Spec 013 — Dialogue quality: understanding the person and identifying the car
 
-**Branch**: `013-dialogue-quality` · **Created**: 2026-11-26 · **Status**: Draft, owner to confirm the step order
+**Branch**: `013-dialogue-quality` · **Created**: 2026-11-26 · **Status**: Approved by the owner 2026-11-26 (§G)
 
 **Input**: (1) the owner's chats `d170b861` (Clase C → E-Class, 2026-11-26) and `4bb83866` (MX-30 R-EV + URL,
 2026-11-08), `docs/next-session.md` §00 and §0a; (2) the understanding spec of 2026-11-26 ("Переделка слоя понимания
@@ -205,8 +205,10 @@ Then spec 012 resumes at A4c. Checkpoint compatibility (understanding spec §9):
 (`interpretation`, `request_kind`) are read until S4 and removed after; Pending without an id gets a stable content
 hash id on read; old clients sending button words are served as text with the option list.
 
-## G. Open questions for the owner
+## G. Owner's decisions (2026-11-26)
 
-1. Order: S0 → S1 first (fast relief), then S2…S7 — or S5 (subgraph) earlier, right after S2?
-2. Live eval cost: the golden set on the real model ≈ 150 calls × 2 (old + new) ≈ €1–2 per run — nightly OK?
-3. Removing the garbage line-ups (`brand_lineups` with < N models): N = 5? (backup first)
+1. Order: S0 → S1 → S2 → … → S7, as in §F. "Делаем всё."
+2. Live eval of the golden set on the real model (≈ €1–2 per run): yes, on every prompt/schema/rule change and nightly.
+3. Line-ups with fewer than 5 models (or from a single news article) are removed, backup first; N = 5 in config.
+
+Execution: `tasks.md` (one phase = one PR).

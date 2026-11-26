@@ -1,0 +1,156 @@
+# Tasks — Spec 013 Dialogue quality
+
+One phase = one PR, merged to main; after each: `scripts/deploy.sh up --monitoring`, replay the owner's chat live
+(`docs/next-session.md` §5 driver), show the result to the owner before he tests. Gate per PR: `scripts/check.sh`
+green, structure ratchet does not grow, pr-self-check answered (specs/012 contracts still apply to new code:
+ports, named stages, enums + transition tables, ≤ 200 lines/module, no SQL outside `infrastructure/`).
+
+Paths below are under `backend/src/automind/` unless they start with `backend/` or `scripts/`.
+"(verify)" = the reference was read on 2026-11-26; check it again before editing.
+
+## S0 — Measuring first (PR 1)
+
+The existing harness `backend/tests/golden/` (YAML dialogues, `runner.py`, `schema.py`, replay with scripted model
+outputs + cassettes; `-m live` for real models) is the base. Extend it, do not build a second one.
+
+- [ ] T001 Dialogue scenarios (replay, scripted model outputs = what the model really returned in the chat, taken from
+  `turn_events` `case_file` payloads and the LLM call log): `g13_clase_c_cx60` (d170b861: turn 1 must keep C-Class
+  and not settle the CX-60; turn 2 "ты не нашел мерседес класс C. отменяй поиск" must stop), `g14_mx30_rev_url`
+  (4bb83866: URL read first, R-EV kept, complaint not an answer), `g15_i10_manual` (no silent "manual"),
+  `g16_no_on_card` ("нет" on the intake card never confirms), `g17_question_during_question` ("давай сравним с
+  BMW" / "а что такое DSG?" during an open question). Fixture line-up for Mercedes-Benz = the real garbage one
+  ("Clase S" only) so the test reproduces the failure.
+- [ ] T002 Extend `schema.py` expectations: per car `model`, `identity_state` (from S5 on; before: `resolution`),
+  `asked_level`, `reply_kind`, `not_repeated: true`, `stopped: true`.
+- [ ] T003 Mark the new scenarios `xfail(strict=True)` with the reason; each step that fixes one removes its xfail
+  (strict: a fix that passes by accident fails the gate).
+- [ ] T004 Golden message set `backend/tests/eval/understanding/cases.yaml`: 100–150 cases (ru/es/en evenly):
+  case fixture ref, pending (with id + options), history, message → expected significant `Intent` fields and
+  `Action.kind`. Must include every example of spec §B4, rejections ("не тот", "другую", "ты не нашел X"), stop,
+  complaints, look-alike yes/no, two-intent messages, each pending kind (QUESTIONS, CONFIRM_VARIANTS, CONFIRM_COST,
+  CONFIRM_INTAKE, limit).
+- [ ] T005 Eval runner `backend/tests/eval/understanding/runner.py` (`-m live`): runs the current interpreter + the
+  old label mapping (spec §D1 table) on the set, writes `specs/013-dialogue-quality/baseline.md` (accuracy per
+  field, per language, per pending kind, list of failures). Cost estimate before the run, announce it.
+- [ ] T006 Nightly: a worker/cron task or `scripts/eval_understanding.sh` + doc in quickstart; result to
+  Prometheus gauge `understanding_eval_accuracy{field}`.
+
+## S1 — Stop the worst now (PR 2)
+
+- [ ] T010 `shared/vehicle/makes.MakeRegistry.match_model` (verify ~l.128): a model is set only by exact / alias /
+  transliterated match (word-bounded); fuzzy and `sound_key` scores never select a model — they return
+  "did you mean" suggestions (new function `suggest_models(text, known) -> list[str]`). Remove the +5 bonus path
+  that lifts fuzzy over 100. Unit tests: "c-class" vs {E-Class, CLA, C-Class}, "Clase C" (es), "класс С"/"цешка"
+  (ru translit), "Seal U" vs "Seal", "атека" → Ateca still works.
+- [ ] T011 `identification/stages/normalise_name.match_model`: no match → the person's model text is kept as is
+  (`car.model` untouched) and the outcome carries the suggestions (UNSURE-like: CHOICES with "did you mean" + the
+  person's own name first). Never replace a model the person wrote.
+- [ ] T012 `dialog/nodes/confirm.apply_intake` (verify ~l.390): typed text never goes through `phrases.yes_or_no` /
+  `choose_for_me`; it goes to `interpret` (the S4 Understander later). Only an explicit button id confirms.
+  `apply_variants`: confirm only on an explicit `yes`/`option:` id; anything else → interpret. Tests: "нет",
+  "нет, другую", "да, но дизель" on the card.
+- [ ] T013 Buttons send ids: `application/services/interpretation/ask.intake_quick_replies` chips carry
+  `{id, label}`; frontend sends `{"type":"confirm","choice":<id>}` (or a `ui_action` message) instead of the label
+  text; backend maps ids. Old clients sending text stay served as text. Frontend test (vitest) for the chip payload.
+- [ ] T014 Line-up sanity gate (`chat/application/services/identification/lineup.py`, `acquisition/catalogue.py`
+  where `brand_lineups` is written — verify): a line-up with < `lineup.min_models` (config, 5) models, or whose
+  models all come from one article URL, is not stored and not used. Unit tests.
+- [ ] T015 Data repair (owner said yes; `scripts/deploy.sh backup` first): CLI
+  `python -m automind.delivery.cli.lineups audit|purge --min-models 5` lists and deletes bad `brand_lineups` rows;
+  run on pre-prod, paste the list into the PR.
+- [ ] T016 Remove xfail from g13 turn 1 (C-Class kept) and g16.
+
+## S2 — Rejection memory + verification (PR 3)
+
+- [ ] T020 Domain: `chat/domain/identification/rejection.py` — `RejectLevel` enum (MODEL, GENERATION, VERSION,
+  ENGINE, GEARBOX, DRIVE), `Rejection(level, value, wanted, evidence, turn_seq)`; `CaseCar.identity_rejected:
+  list[Rejection]` (Pydantic default `[]`, old cases load). Not cleared by a replace of the same car key.
+- [ ] T021 Interpreter (old path, until S4): the prompt + schema get `rejections` (car key, level, value, wanted,
+  evidence); `validate`: evidence must be in the message; the value must be the car's current one or None.
+- [ ] T022 One filter `exclude_rejected(pool, rejected)` used by every strategy (SourcedVersions, CatalogueRows,
+  OpenWorld, ladder options, lineup suggestions). Proposing a rejected candidate is impossible (test per strategy).
+- [ ] T023 `verify(candidate, car) -> Verdict(ok | contradiction(field, person_said, candidate_has))` in
+  `chat/domain/identification/verify.py`: make, model (exact/alias/translit), engine/fuel/power, year/generation,
+  URL page facts. Called before any proposal; a contradiction → CHOICES question naming it ("Вы писали C-Class, а я
+  нашёл только E-Class — это не то. Уточните…"), never a proposal.
+- [ ] T024 Tactic change after a rejection: next attempt widens (make's models list from the catalogue + live
+  lookup, ask for a link, or say "I could not find X; I checked: …"). Never the same question (see T052).
+- [ ] T025 Remove xfail g13 turn 2 (rejection heard, C-Class kept or asked, never E-Class).
+
+## S3 — Understanding in the shadow (PR 4)
+
+- [ ] T030 `chat/domain/understanding/intent.py`: `PendingAnswer`, `Goal`/`GoalKind` (+ `stop`), `Reaction`,
+  `Rejection` (reuse T020), `Understanding`, `UiAction`, `Override`, `Intent` (spec §D1, understanding spec §4).
+- [ ] T031 `Pending` (`chat/domain/case/casefile.py` ~l.52, verify) gets `id` and `options: list[{id, label}]`; a
+  validator gives old pendings a stable content-hash id.
+- [ ] T032 `chat/application/services/understanding/`: `Understander` (port `LLM`, prompt `understander.md`
+  ≤ 800 words + 15–20 examples from the set), `validate_understanding` (moved checks of `interpret.py`: car keys,
+  numbers in the text, persona evidence, engine parser; new: pending_id / option_id exist), `IntentResolver` with
+  rules `stale_pending`, `option_from_ui`, `no_goal_with_pending`, `cars_safety_net`, `language_hysteresis`,
+  `complaint_is_not_an_answer` — each a named function with a unit test, each writes an `Override`.
+- [ ] T033 `turn_understanding` table (migration; owner's yes for a new table — additive) + port + store in
+  `chat/infrastructure/`; write errors logged with chat_id/turn_id, never fail the turn.
+- [ ] T034 Shadow: the `interpret` node runs the new chain after the old one, records both; the old decides.
+  Eval runner compares new vs old on the set → `specs/013-dialogue-quality/shadow.md`.
+- [ ] T035 CLI `python -m automind.delivery.cli.turn show <turn_id>` (input, model_raw, rejected, overrides, intent,
+  policy_trail).
+
+## S4 — Switch to Intent (PR 5; deploy checkpoint)
+
+- [ ] T040 Node `understand` (alias `interpret` kept) writes `intent`; `apply_delta` → `apply_changes` (alias kept):
+  only applies `case_changes` + the pending answer, never rewrites intent. `PER_TURN_RESET` resets `intent`; language
+  from the previous turn, never "en".
+- [ ] T041 Policy (`dialog/policy/`) reads `Intent`: goals without preconditions answered first;
+  `ANSWER_AND_REASK` when a bot question is open; goal `stop` → end the open question/search, say so, case kept;
+  reason names the goal and the rule.
+- [ ] T042 `apply_*` confirmation nodes and `research.apply_limit` take a ready `PendingAnswer` / `UiAction`; text
+  always via `understand`. Word lists in `phrases.py` (`_YES/_NO/_CHOOSE/_GO`, `yes_or_no`, `choose_for_me`,
+  `go_ahead`) only in the degraded mode (model down) and only on an exact whole-phrase match.
+- [ ] T043 Readers of `request_kind` (policy rules answer/general/limits, understand.py, research.py,
+  report_writer, report_followup, tracing, metrics) moved to `Intent`; `tracing.previous_signals` from
+  `intent.reaction` of the turn. `turns.request_kind` column keeps a derived value for the admin until removed.
+- [ ] T044 Acceptance numbers of spec §E on the eval set; no regression vs baseline where old was right.
+- [ ] T045 Remove xfail g17; all §B4 examples green.
+
+## S5 — Identification subgraph (PR 6a spike, PR 6b)
+
+- [ ] T050 Spike (throwaway branch, report in `research.md`): LangGraph subgraph with `interrupt` inside, on our
+  Postgres checkpointer, resumed through the parent thread; node-id stability; what `check_checkpoints.py` sees.
+- [ ] T051 `chat/domain/identification/state.py`: `IdentityState` enum (NAMED, MATCHED, NARROWING, PROPOSED,
+  CONFIRMED, UNSURE, NOT_FOUND, REJECTED, ABANDONED), `TRANSITIONS` table, `check_move`; `CaseCar.identity_state`
+  (old cases derive it from `resolution` + `identify.outcome` on read).
+- [ ] T052 Invariants I1–I7 as guards in one module (`chat/domain/identification/invariants.py`), each with a unit
+  test; a blocked transition is logged into `identification_trail` and counted
+  (`identification_invariant_blocked_total{rule}`). I4 repeat guard: (car, level, options hash) asked before → change
+  tactic (T024).
+- [ ] T053 Subgraph `identify_dialog` (`chat/dialog/identification/graph.py`): consumes `Intent` (answer, rejections,
+  case_changes of the car, stop), runs the strategies as candidate sources, asks, proposes; exits to `assess` only
+  when every car is CONFIRMED or ABANDONED. The main graph's `identify` node becomes the subgraph entry (alias kept);
+  identity questions leave `intake`/`variants` confirmations (the card confirms cost/person only).
+- [ ] T054 `identification_trail` (per car: states, candidates with scores and sources, blocked invariants) in the
+  `turn_understanding` record.
+- [ ] T055 `tests/graph/graph_shape.json` updated; checkpoint compatibility proved by `check_checkpoints.py` on prod
+  blobs; g13–g15 fully green.
+
+## S6 — Complain / quit at every question (PR 7)
+
+- [ ] T060 Every question block (identification, card, choices, limit) gets buttons "Пожаловаться" (+ short reason)
+  and "Закончить" → `UiAction(complain|quit)`; frontend + vitest.
+- [ ] T061 A complaint opens a self-diagnosis issue at once (trail + open question); quit during a question → turn
+  outcome "abandoned at <identity_state|pending kind>", counted as a failure of that step.
+- [ ] T062 Signals: "identification changed the person's model", "person rejected the identified car", "user URL not
+  read", "question repeated"; `config/insight.yaml files:` paths fixed + a gate check in `check.sh` that each exists.
+
+## S7 — The rest of §0a (PR 8, may split)
+
+- [ ] T070 The person's URL read first; the version must match the page (I6).
+- [ ] T071 EREV a powertrain of its own (`shared/vehicle/engine.Fuel`, interpreter/understander, identification,
+  energy); Mazda R-EV its family; known EREVs stored as PHEV migrated (owner's yes, backup).
+- [ ] T072 LLM hints rank, never filter (`versions.lookup(fuel=…)`); a contradiction asks.
+- [ ] T073 A named version rebuilds the pool; EV/EREV never offered a manual gearbox.
+- [ ] T074 Answers routed to the right car (pending option ids make this structural); reply language kept.
+- [ ] T075 g14 fully green; live replay of 4bb83866 and d170b861 on pre-prod shown to the owner.
+
+## After S7
+
+Update `docs/next-session.md`; spec 012 resumes at A4c.
