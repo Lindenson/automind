@@ -6,7 +6,7 @@ Owner approved it on 2026-11-26 ("да, делаем все"): order S0 → S1 �
 backup first. Spec 012 (A4c onward) waits until S7 is merged. New code still follows the 012 code-shape contract.
 
 **Spec 014 (node contracts, owner's critique §11) drafted 2026-11-26**: `specs/014-node-contracts/` — owner's
-decisions G1–G3 pending; proposal: C1–C2 now beside 013 S1–S2, C3 with 013 S4, C4 with 013 S5.
+approved 2026-11-26: C1–C2 now beside 013 S1–S2, C3 with 013 S4, C4 with 013 S5; VersionConflict → retry once.
 
 **Done: S0a (T001–T003)** — g13–g17 red (strict per-turn `known_bug`) in `backend/tests/golden/`, see tasks.md.
 **Open: T004–T006** need the understanding spec of 2026-11-26 (§4 old-label mapping, Intent/Goal/Reaction fields):

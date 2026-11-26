@@ -1,6 +1,6 @@
 # Spec 014 — Graph node contracts: typed input and output, one owner per state section
 
-**Branch**: `014-node-contracts` · **Created**: 2026-11-26 · **Status**: Draft (owner's critique §11, 2026-11-26)
+**Branch**: `014-node-contracts` · **Created**: 2026-11-26 · **Status**: Approved by the owner 2026-11-26 (§G)
 
 **Input**: the owner's critique "11. Контракт узлов графа" (2026-11-26), checked against the code on the same day
 (§B). Related: spec 013 (understanding, `Intent`, identification subgraph), spec 012 code-shape contract
@@ -162,8 +162,9 @@ Acceptance:
 | C3 | Sections + `begin_turn` automatic reset + checkpoint adapter | with 013 S4 |
 | C4 | `Command(goto)` from `Out.next()` instead of `route`/`done` routers; policy stays a router | with 013 S5 |
 
-## G. Owner's decisions needed
+## G. Owner's decisions (2026-11-26)
 
-1. Order: C1–C2 now in parallel with spec 013 S1–S2 (proposal), C3 with 013 S4, C4 with 013 S5?
-2. Production behaviour on a violation during the transition: log + metric for one week at 0, then error (proposal)?
-3. `VersionConflict` in a turn: retry the node once from a fresh read (proposal) or fail the turn with a notice?
+1. Order: C1–C2 now, beside spec 013 S1–S2; C3 with 013 S4; C4 with 013 S5 — "да, порядок ок".
+2. A violation in production during the transition: log + metric, strict after a week at 0 (the proposal; owner's "да").
+3. `VersionConflict` in a turn: the node is retried once from a fresh read of the case; a second conflict fails the
+   turn with a notice — "при конфликте повторять один раз".
