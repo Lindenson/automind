@@ -15,12 +15,16 @@ DIALOGUES = sorted(Path(GOLDEN_DIR).glob("g*.yaml"))
 
 @pytest.mark.parametrize("path", DIALOGUES, ids=[p.stem for p in DIALOGUES])
 async def test_golden_replay(path, saver):
-    failures = await run_dialogue(path, saver)
-    assert not failures, "\n".join(failures)
+    run = await run_dialogue(path, saver)
+    assert not run.failures, "\n".join(run.failures)
+    if run.known_bugs:  # spec 013 T003: every `known_bug` turn still fails (strict: a passing one is a failure)
+        pytest.xfail("\n".join(run.known_bugs))
 
 
 @pytest.mark.live
 @pytest.mark.parametrize("path", DIALOGUES, ids=[p.stem for p in DIALOGUES])
 async def test_golden_live(path, saver, request):
-    failures = await run_dialogue(path, saver, live=True, record=request.config.getoption("--record"))
-    assert not failures, "\n".join(failures)
+    run = await run_dialogue(path, saver, live=True, record=request.config.getoption("--record"))
+    assert not run.failures, "\n".join(run.failures)
+    if run.known_bugs:
+        pytest.xfail("\n".join(run.known_bugs))

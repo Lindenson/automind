@@ -1,0 +1,207 @@
+id: g15_i10_manual
+description: >-
+  Chat 4bb83866 turns 4–6 (bugs 6, 7, 8): the Hyundai i10 1.0 MPI 63 CV waits for the gearbox answer; a complaint is parsed
+  as an answer ("Я не понял ответ …"), the same question comes back, and the next turn settles "manual" without any answer
+  (a ladder level asked twice is settled silently). Nothing settles without the person's answer (spec 013 I5).
+scenario: empty
+forget:
+- Hyundai
+lineups:
+- make: Hyundai
+  market: ES
+  models:
+  - body: suv
+    model: Inster
+    country: null
+    source_url: https://www.quecochemecompro.com/precios/hyundai/
+    powertrains:
+    - bev
+    price_from_eur: 17965
+  - body: hatchback
+    model: i20
+    country: null
+    source_url: https://www.quecochemecompro.com/precios/hyundai/
+    powertrains:
+    - petrol
+    price_from_eur: 15380
+  - body: hatchback
+    model: i30
+    country: null
+    source_url: https://www.quecochemecompro.com/precios/hyundai/
+    powertrains:
+    - petrol
+    - diesel
+    - mhev
+    price_from_eur: 23350
+  - body: suv
+    model: Bayon
+    country: null
+    source_url: https://www.quecochemecompro.com/precios/hyundai/
+    powertrains:
+    - petrol
+    price_from_eur: 18120
+  - body: suv
+    model: Kona
+    country: null
+    source_url: https://www.quecochemecompro.com/precios/hyundai/
+    powertrains:
+    - petrol
+    - hybrid
+    - bev
+    price_from_eur: 22250
+  - body: suv
+    model: Tucson
+    country: null
+    source_url: https://www.quecochemecompro.com/precios/hyundai/
+    powertrains:
+    - petrol
+    - diesel
+    - hybrid
+    price_from_eur: 26945
+  - body: suv
+    model: Ioniq 5
+    country: null
+    source_url: https://www.quecochemecompro.com/precios/hyundai/
+    powertrains:
+    - bev
+    price_from_eur: 30505
+  - body: suv
+    model: Santa Fe
+    country: null
+    source_url: https://www.quecochemecompro.com/precios/hyundai/
+    powertrains:
+    - petrol
+    price_from_eur: 48040
+  - body: suv
+    model: NEXO
+    country: null
+    source_url: https://www.quecochemecompro.com/precios/hyundai/
+    powertrains:
+    - bev
+    price_from_eur: 71000
+  - body: sedan
+    model: Ioniq 6
+    country: null
+    source_url: https://www.quecochemecompro.com/precios/hyundai/
+    powertrains:
+    - bev
+    price_from_eur: 30485
+  - body: estate
+    model: i30 CW
+    country: null
+    source_url: https://www.quecochemecompro.com/precios/hyundai/
+    powertrains:
+    - petrol
+    - mhev
+    price_from_eur: 23250
+  - body: mpv
+    model: Staria
+    country: null
+    source_url: https://www.quecochemecompro.com/precios/hyundai/
+    powertrains:
+    - petrol
+    price_from_eur: 49970
+  sources:
+  - url: https://www.quecochemecompro.com/precios/hyundai/
+    name: Precios Hyundai - Modelos, promociones y ofertas de coches nuevos Hyundai
+    type: PUBLICATION
+model_versions:
+- make: Hyundai
+  model: i10
+  generation: AC3
+  years_from: 2020
+  years_to: null
+  body_class: HATCHBACK
+  versions:
+  - fuel: petrol
+    drives:
+    - FWD
+    engine: 1.0 MPI 63 CV
+    excerpt: un motor 1.0 de 3 cilindros y 63 CV disponible con transmisión manual o automática
+    power_kw: 46
+    years_to: null
+    engine_cc: 1000
+    gearboxes:
+    - manual
+    - automatic
+    source_url: https://www.hyundai.com/es/es/modelos/nuevo-i10/rendimiento.html
+    years_from: 2024
+  - fuel: petrol
+    drives:
+    - FWD
+    engine: 1.0 MPI 67 CV
+    excerpt: El menos potente es el 1.0 MPI de tres cilindros que ofrece una potencia de 67 CV
+    power_kw: 49
+    years_to: null
+    engine_cc: 1000
+    gearboxes:
+    - manual
+    - automatic
+    source_url: https://www.carwow.es/hyundai/i10
+    years_from: 2020
+  - fuel: petrol
+    drives:
+    - FWD
+    engine: 1.2 MPI 79 CV
+    excerpt: otro motor 1.2 de 4 cilindros y 79 CV disponible con transmisión manual
+    power_kw: 58
+    years_to: null
+    engine_cc: 1200
+    gearboxes:
+    - manual
+    source_url: https://www.hyundai.com/es/es/modelos/nuevo-i10/rendimiento.html
+    years_from: 2024
+  - fuel: petrol
+    drives:
+    - FWD
+    engine: 1.2 MPI 84 CV
+    excerpt: El motor 1.2 MPI también es atmosférico, pero de 4 cilindros y con una potencia de 84 CV
+    power_kw: 62
+    years_to: null
+    engine_cc: 1200
+    gearboxes:
+    - manual
+    - automatic
+    source_url: https://www.carwow.es/hyundai/i10
+    years_from: 2020
+  - fuel: petrol
+    drives:
+    - FWD
+    engine: 1.0 T-GDi 100 CV
+    excerpt: El motor 1.0 T-GDi es de tres cilindros y está turboalimentado... entrega 100 CV
+    power_kw: 74
+    years_to: null
+    engine_cc: 1000
+    gearboxes:
+    - manual
+    source_url: https://www.carwow.es/hyundai/i10
+    years_from: 2020
+  sources:
+  - url: https://www.carwow.es/hyundai/i10
+    name: Precio Hyundai i10 2026 | Prueba y opiniones
+  - url: https://www.hyundai.com/es/es/modelos/nuevo-i10/rendimiento.html
+    name: 'Nuevo i10: motores eficientes'
+turns:
+- user: Хочу новый Hyundai i10 1.0 MPI 63 CV
+  expect:
+    action: ASK
+    cars:
+      car#1:
+        model: i10
+        asked_level: GEARBOX
+        settled: false
+- user: Очень плохо! Ты ничего не нашел
+  known_bug: a complaint is parsed as an answer (bug 6) and the same question repeats (bug 7) — S4/S5
+  expect:
+    cars:
+      car#1:
+        settled: false
+    reply_not_contains:
+    - Я не понял ответ
+    not_repeated: true
+- user: Ты опять ничего не нашел
+  known_bug: the gearbox settled to manual without an answer (bug 8) — S5 I5
+  expect:
+    cars:
+      car#1:
+        settled: false

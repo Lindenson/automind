@@ -1,0 +1,31 @@
+{
+  "interpreter": [
+    {
+      "request": "compare",
+      "language": "ru",
+      "relation": "continues",
+      "delta": {
+        "add_cars": [
+          {
+            "request_text": "Clase C Berlina мерседесом",
+            "make": "Mercedes-Benz",
+            "model": "C-Class",
+            "condition": "UNKNOWN",
+            "constraints": {
+              "body_hint": "Berlina"
+            }
+          },
+          {
+            "request_text": "Маздой CX-60",
+            "make": "Mazda",
+            "model": "CX-60",
+            "condition": "UNKNOWN"
+          }
+        ]
+      }
+    }
+  ],
+  "asker": [
+    "Вы рассматриваете седан Mercedes-Benz C-класса и кроссовер Mazda CX-60.\n\n1. Вы рассматриваете новые машины или подержанные?"
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "interpreter": [
+    {
+      "request": "compare",
+      "language": "ru",
+      "relation": "continues",
+      "delta": {
+        "add_cars": [
+          {
+            "request_text": "мазду mx-30 r-ev https://www.mazda.es/promociones/promociones-actuales/mazdamx30/flexiopcion-mx-30-r-ev/",
+            "make": "Mazda",
+            "model": "MX-30",
+            "condition": "UNKNOWN",
+            "constraints": {
+              "url": "https://www.mazda.es/promociones/promociones-actuales/mazdamx30/flexiopcion-mx-30-r-ev/",
+              "engine_hint": {
+                "fuel": "bev",
+                "family": "R-EV",
+                "evidence": "мазду mx-30 r-ev"
+              }
+            }
+          },
+          {
+            "request_text": "hyundai i10",
+            "make": "Hyundai",
+            "model": "i10",
+            "condition": "UNKNOWN"
+          }
+        ]
+      }
+    }
+  ],
+  "asker": [
+    "Вы рассматриваете Mazda MX-30 R-EV и Hyundai i10.\n\n1. Вы рассматриваете новые машины или подержанные?"
+  ]
+}

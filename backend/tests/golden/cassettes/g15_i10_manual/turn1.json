@@ -1,0 +1,31 @@
+{
+  "interpreter": [
+    {
+      "request": "single",
+      "language": "ru",
+      "relation": "continues",
+      "delta": {
+        "add_cars": [
+          {
+            "request_text": "новый Hyundai i10 1.0 MPI 63 CV",
+            "make": "Hyundai",
+            "model": "i10",
+            "condition": "NEW",
+            "constraints": {
+              "engine_hint": {
+                "fuel": "petrol",
+                "family": "MPI",
+                "displacement_l": 1.0,
+                "power_hp": 63,
+                "evidence": "1.0 MPI 63 CV"
+              }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "asker": [
+    "Новый Hyundai i10 1.0 MPI 63 CV."
+  ]
+}

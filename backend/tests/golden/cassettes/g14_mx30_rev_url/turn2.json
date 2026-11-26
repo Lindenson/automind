@@ -1,0 +1,13 @@
+{
+  "interpreter": [
+    {
+      "request": "critique",
+      "language": "ru",
+      "relation": "complaint",
+      "delta": {}
+    }
+  ],
+  "asker": [
+    "Вы выбираете между Mazda MX-30 и Hyundai i10."
+  ]
+}

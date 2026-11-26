@@ -1,0 +1,13 @@
+{
+  "interpreter": [
+    {
+      "request": "general_question",
+      "language": "ru",
+      "relation": "continues",
+      "delta": {}
+    }
+  ],
+  "asker": [
+    "Хорошо."
+  ]
+}
