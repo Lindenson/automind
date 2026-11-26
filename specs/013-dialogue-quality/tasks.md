@@ -28,10 +28,15 @@ outputs + cassettes; `-m live` for real models) is the base. Extend it, do not b
   case fixture ref, pending (with id + options), history, message → expected significant `Intent` fields and
   `Action.kind`. Must include every example of spec §B4, rejections ("не тот", "другую", "ты не нашел X"), stop,
   complaints, look-alike yes/no, two-intent messages, each pending kind (QUESTIONS, CONFIRM_VARIANTS, CONFIRM_COST,
-  CONFIRM_INTAKE, limit).
+  CONFIRM_INTAKE, limit). Expected fields as in `understanding-spec.md` §4 (schemas, old→new label table, the "problem messages"
+  table); every example of its §1; "все равно хочу дизель" twice (engine question open → `value`; not open → only
+  `case_changes`). Sources (its §8): §1 examples, real misses from pre-prod (`turn_outcomes` / feedback with
+  complaint or rephrase), the golden dialogues the prompt names; every patch in `interpreter.md` and every word of
+  `phrases._YES/_NO/_CHOOSE/_GO` becomes a case before it is deleted (its §9 risk).
 - [ ] T005 Eval runner `backend/tests/eval/understanding/runner.py` (`-m live`): runs the current interpreter + the
-  old label mapping (spec §D1 table) on the set, writes `specs/013-dialogue-quality/baseline.md` (accuracy per
-  field, per language, per pending kind, list of failures). Cost estimate before the run, announce it.
+  old label mapping (`understanding-spec.md` §4 "Соответствие старых меток") on the set, writes `specs/013-dialogue-quality/baseline.md` (accuracy per
+  field, per language, per pending kind, list of failures) and the p95 latency of the understanding step (old
+  interpreter), the reference for the +20 % criterion. Cost estimate before the run, announce it.
 - [ ] T006 Nightly: a worker/cron task or `scripts/eval_understanding.sh` + doc in quickstart; result to
   Prometheus gauge `understanding_eval_accuracy{field}`.
 
@@ -41,8 +46,8 @@ Done 2026-11-26 (PR "S0a"): g13–g17 with per-turn `known_bug` (strict: a marke
 `quality.py`. Reproduced on the current code: C→E-Class (g13 t1), rejection + stop ignored, E-Class engine question
 repeated, CX-60 settled silently (g13 t2); MX-30 BEV settled despite R-EV + URL (g14); complaint read as an answer,
 question repeated, i10 "manual" settled after two asks (g15); "нет" on the card confirms (g16); "а что такое DSG?"
-read as an engine answer, "давай сравним с BMW" = choose for me (g17). T004–T006 wait for the understanding spec's
-§4 (Intent fields and the old-label mapping), not in the repo.
+read as an engine answer, "давай сравним с BMW" = choose for me (g17). T004–T006 unblocked: the owner's understanding
+spec is now `specs/013-dialogue-quality/understanding-spec.md` (coverage of it: `coverage-audit.md`).
 
 ## S1 — Stop the worst now (PR 2)
 
@@ -95,16 +100,31 @@ g16 t3 green. Purge on pre-prod: after the owner's report (backup first).
 ## S3 — Understanding in the shadow (PR 4)
 
 - [ ] T030 `chat/domain/understanding/intent.py`: `PendingAnswer`, `Goal`/`GoalKind` (+ `stop`), `Reaction`,
-  `Rejection` (reuse T020), `Understanding`, `UiAction`, `Override`, `Intent` (spec §D1, understanding spec §4).
+  `Rejection` (reuse T020), `Understanding`, `UiAction`, `Override`, `Intent` — fields and value sets exactly as
+  `understanding-spec.md` §4 (`PendingAnswer.kind` option|value|yes|no|choose_for_me; `GoalKind` compare|single|follow_up|
+  change_priorities|research_more|ask_general|critique, + `stop` (spec §D1); `Reaction` thanks|complaint|correction|
+  rephrase; `UiAction.kind` pick_option|confirm|decline|choose_for_me|edit_car|research_more|panel_edit (+ complain|
+  quit, S6); `Intent.source` text|ui|system; `Override` rule, field, before, after, why), + `rejections` (spec §D1).
 - [ ] T031 `Pending` (`chat/domain/case/casefile.py` ~l.52, verify) gets `id` and `options: list[{id, label}]`; a
-  validator gives old pendings a stable content-hash id.
+  validator gives old pendings a stable content-hash id. Chips are built from `Pending.options[].id` and send
+  `pending_id` with the option id (S1's `option_ids.py` scheme becomes the option id), so `stale_pending` can check a
+  button; the research-limit question gets a pending id too.
 - [ ] T032 `chat/application/services/understanding/`: `Understander` (port `LLM`, prompt `understander.md`
   ≤ 800 words + 15–20 examples from the set), `validate_understanding` (moved checks of `interpret.py`: car keys,
   numbers in the text, persona evidence, engine parser; new: pending_id / option_id exist), `IntentResolver` with
   rules `stale_pending`, `option_from_ui`, `no_goal_with_pending`, `cars_safety_net`, `language_hysteresis`,
-  `complaint_is_not_an_answer` — each a named function with a unit test, each writes an `Override`.
+  `complaint_is_not_an_answer` — each a named function with a unit test, each writes an `Override`; behaviour of each
+  rule as `understanding-spec.md` §5.2. Prompt per its §6: role (2–3 sentences), four blocks (pending answer, goals, reaction,
+  facts), fact rules once, 15–20 examples in three languages incl. all §1 examples; input CASE FILE / PENDING (id,
+  question, options) / LAST ANSWER (new: summary of the bot's last answer, for `reaction`) / HISTORY / MESSAGE; no
+  spec/FR references, no "an open question makes every message an answer", CaseDelta placement rules move into the
+  schema field descriptions.
 - [ ] T033 `turn_understanding` table (migration; owner's yes for a new table — additive) + port + store in
-  `chat/infrastructure/`; write errors logged with chat_id/turn_id, never fail the turn.
+  `chat/infrastructure/`; write errors logged with chat_id/turn_id, never fail the turn. Fields as `understanding-spec.md` §7:
+  input (text or UiAction + pending id), model_raw (+ prompt version, model name), rejected, overrides, intent,
+  policy_trail.
+- [ ] T036 Prometheus: share of turns with overrides `{rule}`, share rejected, share of turns whose open question was
+  asked again; p95 of the understanding step (old and new, for the +20 % criterion).
 - [ ] T034 Shadow: the `interpret` node runs the new chain after the old one, records both; the old decides.
   Eval runner compares new vs old on the set → `specs/013-dialogue-quality/shadow.md`.
 - [ ] T035 CLI `python -m automind.delivery.cli.turn show <turn_id>` (input, model_raw, rejected, overrides, intent,
@@ -113,19 +133,31 @@ g16 t3 green. Purge on pre-prod: after the owner's report (backup first).
 ## S4 — Switch to Intent (PR 5; deploy checkpoint)
 
 - [ ] T040 Node `understand` (alias `interpret` kept) writes `intent`; `apply_delta` → `apply_changes` (alias kept):
-  only applies `case_changes` + the pending answer, never rewrites intent. `PER_TURN_RESET` resets `intent`; language
-  from the previous turn, never "en".
+  only applies `case_changes` + the pending answer, never rewrites intent. `intent` reset per turn (with 014 C3 the
+  reset is `begin_turn`'s, `PER_TURN_RESET` deleted — one release, no double mechanism); language from the previous
+  turn, never "en". While a turn waits on `wait_*`, a typed answer goes to `understand` and, with `answer_to_pending`
+  for that confirmation, the router leads to its `apply_*` with the ready answer (014 T130 adds this target to
+  `UnderstandOut.next()`). The pending closes only when answered or when the topic changes (rule: owner's decision
+  G5). `report_saved` → `Intent(source="system")`, never a person's intent.
 - [ ] T041 Policy (`dialog/policy/`) reads `Intent`: goals without preconditions answered first;
   `ANSWER_AND_REASK` when a bot question is open; goal `stop` → end the open question/search, say so, case kept;
-  reason names the goal and the rule.
+  reason names the goal and the rule; the bot's question names its reason ("Чтобы сравнить, нужен год Prado"); several
+  goals: those without preconditions first, then the first one with preconditions (staging per G6); `policy_trail`
+  written to `turn_understanding`.
 - [ ] T042 `apply_*` confirmation nodes and `research.apply_limit` take a ready `PendingAnswer` / `UiAction`; text
   always via `understand`. Word lists in `phrases.py` (`_YES/_NO/_CHOOSE/_GO`, `yes_or_no`, `choose_for_me`,
-  `go_ahead`) only in the degraded mode (model down) and only on an exact whole-phrase match.
+  `go_ahead`) only in the degraded mode (model down) and only on an exact whole-phrase match; no match → the soft
+  "сервис перегружен" ending. Removed: the text stage `picked_option` (`interpretation/service.py`,
+  `stages/picked_option.py`), the `choose_for_me` rewrite in `InterpretationService.apply`, `research.apply_limit`'s
+  `yes_or_no`, the duplicate `_card_edit` in `nodes/confirm.py`.
 - [ ] T043 Readers of `request_kind` (policy rules answer/general/limits, understand.py, research.py,
   report_writer, report_followup, tracing, metrics) moved to `Intent`; `tracing.previous_signals` from
   `intent.reaction` of the turn. `turns.request_kind` column keeps a derived value for the admin until removed.
+  `Interpretation.relation` removed (replaced by `reaction`).
 - [ ] T044 Acceptance numbers of spec §E on the eval set; no regression vs baseline where old was right.
 - [ ] T045 Remove xfail g17; all §B4 examples green.
+- [ ] T046 Buttons as `UiAction` (understanding spec §3): car edit → `edit_car` with precise errors (no "which car?"
+  for every failure), preset → `research_more` / `panel_edit` (rescore), `source="ui"`, the model never called.
 
 ## S5 — Identification subgraph (PR 6a spike, PR 6b)
 

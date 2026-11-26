@@ -212,3 +212,21 @@ hash id on read; old clients sending button words are served as text with the op
 3. Line-ups with fewer than 5 models (or from a single news article) are removed, backup first; N = 5 in config.
 
 Execution: `tasks.md` (one phase = one PR).
+
+### Decisions pending (from the understanding spec §10 and the coverage audit, 2026-11-26)
+
+- G4 (§10 Q1): the model of the `understander` role and the budget per turn (latency, cost). Proposal: the cheap fast
+  model of today's `asker` role; ≤ +20 % p95 (acceptance), buttons never call it.
+- G5 (§10 Q5): when a topic change closes the open question unanswered. Proposal: a `compare`/`single` goal naming
+  other cars than the pending's, or the person's `stop`.
+- G6 (§9 risk): several goals — full support at S4 (as T041), or first goal only at S3–S4 and the rest recorded, full
+  at a later step (the source's staging). Proposal: first goal only at S4, full in S4b after the eval shows no loss.
+- G7 (§10 Q2): who collects real misses into the eval set. Proposal: a weekly script over `turn_outcomes`/feedback
+  (complaint, rephrase) proposes cases; the owner confirms the expected intent.
+- G8 (§10 Q6): a per-chat old/new switch at S4. Proposal: no switch; the shadow (S3) and the eval are the gate, a
+  config flag reverts globally.
+- G9 (§10 Q4): ANSWER_AND_REASK always (proposal) or only for short answers.
+- G10 (§10 Q7): accuracy thresholds of §E confirmed after the baseline run (T005).
+- G11 (source §11.6 vs spec 014): the source puts 014's steps 3–4 "with stage 3 of the rework"; 014 (approved) puts
+  C3 with S4 and C4 with S5. Keep 014's order (proposal: sections are born with `Intent` at S4; `goto` with the
+  subgraph at S5) or move both to S3.
