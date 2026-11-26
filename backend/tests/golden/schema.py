@@ -20,6 +20,11 @@ Assertions cover the action, case-file fields and resolved variants per turn, no
           max_questions: 3
           no_search: true
           max_cost_eur: 0.30
+          cars: {car#1: {model: C-Class, settled: false, label_not_contains: [E-Class]}}   # spec 013
+          reply_kind: ASK
+          not_repeated: true
+          stopped: true
+        known_bug: "..."             # spec 013: strict expected failure of the current code
 """
 
 from __future__ import annotations
@@ -35,6 +40,18 @@ class VariantExpect(BaseModel):
     years_include: int | None = None
     make: str | None = None
     model: str | None = None
+
+
+class CarExpect(BaseModel):
+    """Spec 013 T002: one car of the case after the turn."""
+
+    make: str | None = None
+    model: str | None = None  # the model the case keeps (the person's, never a look-alike)
+    resolution: str | None = None  # until S5; then identity_state
+    identity_state: str | None = None  # spec 013 S5 (NAMED … CONFIRMED); not checked before the field exists
+    asked_level: str | None = None  # the level identification asks about (ENGINE, MODEL …); "none": nothing asked
+    settled: bool | None = None  # false: no version chosen for the car without the person's answer
+    label_not_contains: list[str] = Field(default_factory=list)  # e.g. ["E-Class"] for a C-Class
 
 
 class Expect(BaseModel):
@@ -61,11 +78,20 @@ class Expect(BaseModel):
     retention_insufficient: list[str] = Field(default_factory=list)  # "insufficient data for this brand"
     notes_contain: list[str] = Field(default_factory=list)  # substrings of the verdict's profile notes
     energy_metrics: dict[str, Any] = Field(default_factory=dict)  # FR-022: fields of this turn's ENERGY_REPORT
+    # spec 013 T002: dialogue quality
+    cars: dict[str, CarExpect] = Field(default_factory=dict)  # car key -> expectations
+    reply_kind: str | None = None  # ASK | CONFIRM | REPORT | ANSWER | STOPPED (derived from status, action, pending)
+    not_repeated: bool = False  # no question of this turn (car, kind, options) was asked on the previous turn
+    stopped: bool = False  # the open question / search ended: nothing pending, no research, no question asked
+    reply_not_contains: list[str] = Field(default_factory=list)  # e.g. "Я не понял ответ" (a complaint as an answer)
 
 
 class Turn(BaseModel):
     user: str | None = None
     confirm: str | None = None
+    # spec 013 T003: a known failure of the current code. The turn must fail (strict: a fix that makes it pass
+    # fails the gate until the marker is removed); the dialogue is reported xfail while every marked turn fails.
+    known_bug: str | None = None
     expect: Expect = Field(default_factory=Expect)
 
     @model_validator(mode="after")
@@ -87,6 +113,35 @@ class SeedVariant(BaseModel):
     segment: str | None = None
     cached: bool = False
     specs: dict[str, float | str] = Field(default_factory=dict)
+    # spec 013: a catalogue row as the replayed chat found it (identification reads these)
+    transmission: str | None = None
+    drive: str | None = None
+    trim: str | None = None
+    engine_cc: int | None = None
+    power_kw: int | None = None
+    fuel: str | None = None
+
+
+class SeedLineup(BaseModel):
+    """A make's cached line-up (`brand_lineups`), as found in the database of the chat replayed."""
+
+    make: str
+    market: str = "ES"
+    models: list[dict[str, Any]]
+    sources: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class SeedVersions(BaseModel):
+    """A model generation's cached versions (`model_versions`), as found in the database of the chat replayed."""
+
+    make: str
+    model: str
+    generation: str
+    years_from: int | None = None
+    years_to: int | None = None
+    body_class: str | None = None
+    versions: list[dict[str, Any]]
+    sources: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class Dialogue(BaseModel):
@@ -100,4 +155,8 @@ class Dialogue(BaseModel):
     settings: dict[str, Any] = Field(
         default_factory=dict
     )  # overrides of automind.shared.infrastructure.config.settings settings for this dialogue
+    # spec 013: the line-ups and versions caches the chat saw; either one wires the line-up look-up and the
+    # versions store into the ports (identification as in production)
+    lineups: list[SeedLineup] = Field(default_factory=list)
+    model_versions: list[SeedVersions] = Field(default_factory=list)
     turns: list[Turn]

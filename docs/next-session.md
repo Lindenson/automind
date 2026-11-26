@@ -5,7 +5,11 @@ Owner approved it on 2026-11-26 ("да, делаем все"): order S0 → S1 �
 (≈ €1–2/run) on every prompt/schema/rule change and nightly; line-ups with < 5 models (or from one article) removed,
 backup first. Spec 012 (A4c onward) waits until S7 is merged. New code still follows the 012 code-shape contract.
 
-Start: S0 (T001–T006) — the owner's failed chats as red (strict xfail) dialogue scenarios in `backend/tests/golden/`
+**Done: S0a (T001–T003)** — g13–g17 red (strict per-turn `known_bug`) in `backend/tests/golden/`, see tasks.md.
+**Open: T004–T006** need the understanding spec of 2026-11-26 (§4 old-label mapping, Intent/Goal/Reaction fields):
+it is not in the repo — ask the owner for it (or agree to derive it) before writing the eval set.
+
+Start was: S0 (T001–T006) — the owner's failed chats as red (strict xfail) dialogue scenarios in `backend/tests/golden/`
 and the understanding golden set + baseline run. Then S1 (stop the worst: no fuzzy/phonetic model jump, "нет" on the
 card never confirms, buttons send ids, line-up sanity + purge). After every merged step: redeploy pre-prod, replay
 the owner's chat live, show the result to the owner first.

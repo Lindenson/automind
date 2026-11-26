@@ -110,7 +110,7 @@ async def test_turn_latency_with_and_without_the_worker(saver, monkeypatch):
                 load = await _start_load() if which == "running" else None
                 try:
                     for path in DIALOGUES:
-                        failures = await run_dialogue(path, saver)
+                        failures = (await run_dialogue(path, saver)).failures
                         assert not failures, "\n".join(failures)
                 finally:
                     if load is not None:

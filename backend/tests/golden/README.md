@@ -1,6 +1,6 @@
 # Golden dialogues (FR-046, SC-001, SC-002)
 
-Twelve scripted conversations with expected actions, case-file fields and resolved variants per turn
+Scripted conversations with expected actions, case-file fields and resolved variants per turn
 (not prose). Format: `schema.py`; runner: `runner.py`.
 
 | ID | What it checks |
@@ -17,6 +17,17 @@ Twelve scripted conversations with expected actions, case-file fields and resolv
 | G10 `g10_mg4_vs_id3` | Two BEVs, the same electric rows; MG resale "insufficient data for this brand" |
 | G11 `g11_rav4_vs_sportage_phev` | The HEV has no electric share; the plug-in splits electricity and petrol; ECO vs ZERO; no range check for a plug-in |
 | G12 `g12_used_leaf` | Used BEV: energy line, ZERO, no invented battery health |
+| G13 `g13_clase_c_cx60` | Spec 013, chat d170b861: "Clase C" stays C-Class (not E-Class); "ты не нашел … отменяй поиск" stops; CX-60 not settled silently |
+| G14 `g14_mx30_rev_url` | Spec 013, chat 4bb83866: MX-30 R-EV + the person's page never settles the BEV; a complaint changes tactic |
+| G15 `g15_i10_manual` | Spec 013 bugs 6–8: a complaint is not an answer, no repeated question, no silent "manual" |
+| G16 `g16_no_on_card` | Spec 013 B3: a typed "нет" on the intake card never confirms the cars |
+| G17 `g17_question_during_question` | Spec 013 B4: "а что такое DSG?" / "давай сравним с BMW" while a version question is open |
+
+G13–G17 start red: a turn marked `known_bug` must fail (strict — once a fix makes it pass, the marker has to be
+removed); the dialogue is reported xfail while every marked turn fails. They seed the caches the chat saw
+(`lineups:`, `model_versions:`, catalogue rows), which wires the line-up look-up and the versions store
+(`seeding.py`); the spec 013 checks (`cars:`, `reply_kind`, `not_repeated`, `stopped`, `reply_not_contains`) live in
+`quality.py`.
 
 G8 also found two real bugs: in a two-car message the engine words of one car went to the other ("BYD Seal U
 DM-i or SEAT Ateca 1.5 TSI" gave the Ateca a DM-i engine), and G11 found the feasibility range check applied to

@@ -1,0 +1,28 @@
+{
+  "interpreter": [
+    {
+      "request": "compare",
+      "language": "ru",
+      "relation": "continues",
+      "delta": {
+        "add_cars": [
+          {
+            "request_text": "Mazda CX-60",
+            "make": "Mazda",
+            "model": "CX-60",
+            "condition": "NEW"
+          },
+          {
+            "request_text": "Hyundai i10",
+            "make": "Hyundai",
+            "model": "i10",
+            "condition": "NEW"
+          }
+        ]
+      }
+    }
+  ],
+  "asker": [
+    "Новые Mazda CX-60 и Hyundai i10."
+  ]
+}

@@ -38,7 +38,9 @@ from automind.shared.infrastructure.db.session import sessionmaker
 from tests.fakes.fake_llm import FakeLLM, FixedEstimator
 from tests.fakes.fixture_search import FixtureSearch
 
+from .quality import check_quality, questions_of
 from .schema import Dialogue, Expect
+from .seeding import seed_caches, wire_identification
 
 GOLDEN_DIR = Path(__file__).resolve().parent
 CASSETTES = GOLDEN_DIR / "cassettes"
@@ -98,6 +100,14 @@ def check_value(actual: Any, expected: Any) -> str | None:
 
 
 @dataclass
+class DialogueRun:
+    """`failures`: what must be fixed now; `known_bugs`: failures of turns marked `known_bug` (spec 013 T003)."""
+
+    failures: list[str] = field(default_factory=list)
+    known_bugs: list[str] = field(default_factory=list)
+
+
+@dataclass
 class TurnObservation:
     result: TurnResult
     case: dict[str, Any]
@@ -106,6 +116,7 @@ class TurnObservation:
     researched: list[str] = field(default_factory=list)
     events: list[dict[str, Any]] = field(default_factory=list)
     energy_report: dict[str, Any] | None = None  # spec 006 FR-022: the intake event of this turn
+    asked_before: set[tuple[str, str, tuple[str, ...]]] = field(default_factory=set)  # spec 013: previous turn
 
 
 def check_turn(obs: TurnObservation, exp: Expect) -> list[str]:
@@ -153,6 +164,7 @@ def check_turn(obs: TurnObservation, exp: Expect) -> list[str]:
     if exp.researched is not None and sorted(obs.researched) != sorted(exp.researched):
         errs.append(f"researched {sorted(obs.researched)} != {sorted(exp.researched)}")
     errs += check_electrified(obs, exp)
+    errs += check_quality(obs, exp)
     for path, val in exp.energy_metrics.items():
         if obs.energy_report is None:
             errs.append("no ENERGY_REPORT metric recorded")
@@ -247,8 +259,13 @@ async def restore_makes(saved: list[tuple[str, str, str]]) -> None:
     async with sessionmaker()() as s:
         for vid, make, key in saved:
             v = await s.get(m.Variant, vid)
-            if v is not None:
-                v.make, v.canonical_key = make, key
+            if v is None:
+                continue
+            q = select(m.Variant).where(m.Variant.canonical_key == key)
+            if (made := (await s.execute(q)).scalar_one_or_none()) is not None:  # the dialogue made the same row
+                made.make, made.canonical_key = f"golden-{uuid.uuid4().hex[:8]}", f"{key}#golden#{made.id}"
+                await s.flush()
+            v.make, v.canonical_key = make, key
         await s.commit()
 
 
@@ -293,6 +310,12 @@ async def seed(d: Dialogue) -> None:
                     generation_years_to=v.years[1] if v.years else None,
                     vehicle_class=v.vehicle_class,
                     segment=v.segment,
+                    transmission=v.transmission,
+                    drive=v.drive,
+                    trim=v.trim,
+                    engine_cc=v.engine_cc,
+                    power_kw=v.power_kw,
+                    fuel=v.fuel,
                 )
                 s.add(existing)
                 await s.flush()
@@ -406,17 +429,19 @@ class RecordingLLM:
 # --- driver -----------------------------------------------------------------------------------
 
 
-async def run_dialogue(path: Path, saver: Any, *, live: bool = False, record: bool = False) -> list[str]:
-    """Run one golden dialogue. Returns a list of failure messages (empty = pass)."""
+async def run_dialogue(path: Path, saver: Any, *, live: bool = False, record: bool = False) -> DialogueRun:
+    """Run one golden dialogue: its failures (empty = pass) and the failures of its `known_bug` turns."""
     d = load(path)
     hidden = await hide_makes(d)
+    restore_caches = await seed_caches(d)
     try:
         return await _run_dialogue(d, saver, live=live, record=record)
     finally:
+        await restore_caches()
         await restore_makes(hidden)
 
 
-async def _run_dialogue(d: Dialogue, saver: Any, *, live: bool, record: bool) -> list[str]:
+async def _run_dialogue(d: Dialogue, saver: Any, *, live: bool, record: bool) -> DialogueRun:
     from automind.chat.dialog.graph import build_graph  # US1 (T035)
 
     await seed(d)
@@ -472,26 +497,29 @@ async def _run_dialogue(d: Dialogue, saver: Any, *, live: bool, record: bool) ->
         feasibility=FeasibilityRepo(),
         market_facts=facts,
     )
+    ports = wire_identification(ports, d)
     runner = ChatRunner(build_graph(saver), ports, budgets, messages=MessageRepo())
-    failures: list[str] = []
     from automind.shared.infrastructure.config.settings import settings as _settings
 
     saved = {k: getattr(_settings(), k) for k in d.settings}
     for k, v in d.settings.items():
         setattr(_settings(), k, v)
     try:
-        return await _run_turns(d, runner, chat_id, live, record, failures, llm, ports)
+        return await _run_turns(d, runner, chat_id, live, record, llm, ports)
     finally:
         for k, v in saved.items():
             setattr(_settings(), k, v)
 
 
-async def _run_turns(d, runner, chat_id, live, record, failures, llm, ports):  # noqa: ANN001, ANN202
+async def _run_turns(d, runner, chat_id, live, record, llm, ports):  # noqa: ANN001, ANN202, C901, PLR0912
+    run = DialogueRun()
+    asked: set[tuple[str, str, tuple[str, ...]]] = set()
     for i, turn in enumerate(d.turns, 1):
         cassette = CASSETTES / d.id / f"turn{i}.json"
         if not live:
             if not cassette.exists():
-                return [f"missing cassette {cassette.relative_to(GOLDEN_DIR)}"]
+                run.failures.append(f"missing cassette {cassette.relative_to(GOLDEN_DIR)}")
+                return run
             for role, outs in json.loads(cassette.read_text(encoding="utf-8")).items():
                 llm.queue(role, *outs)
         if turn.user is not None:
@@ -508,7 +536,9 @@ async def _run_turns(d, runner, chat_id, live, record, failures, llm, ports):  #
             searches,
             await researched_cars(result.turn_id, case or {}),
             energy_report=await energy_report(result.turn_id),
+            asked_before=asked,
         )
+        asked = questions_of(obs.case)
         if os.environ.get("GOLDEN_VERBOSE"):
             async with sessionmaker()() as ss:
                 dur = (await ss.get(m.Turn, result.turn_id)).duration_ms
@@ -526,17 +556,23 @@ async def _run_turns(d, runner, chat_id, live, record, failures, llm, ports):  #
             print("  variants:", {k: v["label"] for k, v in obs.variants.items()})
             print("  reply:", (result.reply_text or (result.confirm or {}).get("text", ""))[:160].replace("\n", " "))
             print("  blocks:", [b.get("type") for b in result.blocks])
-        failures += [f"{d.id} turn {i}: {e}" for e in check_turn(obs, turn.expect)]
+        errs = [f"{d.id} turn {i}: {e}" for e in check_turn(obs, turn.expect)]
+        if turn.known_bug is None:
+            run.failures += errs
+        elif errs:
+            run.known_bugs += [f"{e} [known bug: {turn.known_bug}]" for e in errs]
+        else:
+            run.failures.append(f"{d.id} turn {i}: passes now — remove `known_bug: {turn.known_bug}` (strict)")
         if not live:
             left = {r: len(q) for r, q in llm.queues.items() if q}
             if left:
-                failures.append(f"{d.id} turn {i}: unconsumed cassette outputs {left}")
+                run.failures.append(f"{d.id} turn {i}: unconsumed cassette outputs {left}")
             llm.queues.clear()
         elif record:
             cassette.parent.mkdir(parents=True, exist_ok=True)
             cassette.write_text(json.dumps(llm.turn, ensure_ascii=False, indent=2), encoding="utf-8")
             llm.turn = {}
-    return failures
+    return run
 
 
 def _clock() -> Any:

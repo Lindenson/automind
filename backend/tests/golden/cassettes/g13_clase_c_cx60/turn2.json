@@ -1,0 +1,25 @@
+{
+  "interpreter": [
+    {
+      "request": "correction",
+      "language": "ru",
+      "relation": "correction",
+      "delta": {
+        "replace_cars": [
+          {
+            "target_key": "car#1",
+            "request_text": "Mercedes C-Class Berlina",
+            "make": "Mercedes-Benz",
+            "model": "C-Class",
+            "constraints": {
+              "body_hint": "Berlina"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "asker": [
+    "Вы рассматриваете седан Mercedes C-Class и кроссовер Mazda CX-60.\n\n1. Новые или с пробегом? От этого сильно зависят цены и надёжность."
+  ]
+}

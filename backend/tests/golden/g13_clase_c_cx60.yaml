@@ -1,0 +1,287 @@
+id: g13_clase_c_cx60
+description: >-
+  Chat d170b861 (2026-11-26, spec 013 B1). "Clase C Berlina" vs Mazda CX-60. The model understood C-Class both turns; identification
+  replaced it with the E-Class (sound_key c-class == e-class, +5 bonus over the margin guard; the stored Mercedes line-up
+  is one model, "Clase S", from a news article). Turn 2 rejects it and says stop: the same E-Class engine question came
+  back, the CX-60 settled to 200 CV without an answer.
+scenario: empty
+forget: [Mercedes-Benz, Mazda]
+seed:  # the catalogue rows the chat found (created by an earlier chat at 19:06 / 19:08)
+  - {make: Mazda, model: CX-60, generation: KH, variant_name: e-Skyactiv D 3.3 200 CV RWD Exclusive-Line,
+     powertrain: MHEV, body_class: SUV, years: [2022, null], transmission: automatic, drive: RWD,
+     trim: Exclusive-Line, engine_cc: 3283, power_kw: 147, fuel: mhev}
+  - {make: Mercedes-Benz, model: E-Class, generation: W214, variant_name: E 200 automatic, powertrain: MHEV,
+     body_class: SEDAN, years: [2023, null], transmission: automatic, drive: RWD, engine_cc: 2000, power_kw: 150,
+     fuel: mhev}
+lineups:
+- make: Mercedes-Benz
+  market: ES
+  models:
+  - body: sedan
+    model: Clase S
+    country: null
+    source_url: >-
+      https://www.autonocion.com/maldito-dinero-todos-los-precios-del-nuevo-mercedes-benz-clase-s-hasta-287-100-euros/
+    powertrains:
+    - petrol
+    - diesel
+    - mhev
+    price_from_eur: 97350
+  sources:
+  - url: >-
+      https://www.autonocion.com/maldito-dinero-todos-los-precios-del-nuevo-mercedes-benz-clase-s-hasta-287-100-euros/
+    name: '¡Maldito dinero!: Todos los precios del nuevo Mercedes-Benz Clase S, ¡Hasta 287.100 euros!'
+    type: PUBLICATION
+- make: Mazda
+  market: ES
+  models:
+  - body: hatchback
+    model: Mazda2
+    country: null
+    source_url: https://www.coches.com/coches-nuevos/mazda.htm
+    powertrains:
+    - hybrid
+    - mhev
+    - petrol
+    price_from_eur: null
+  - body: suv
+    model: CX-60
+    country: null
+    source_url: https://www.quecochemecompro.com/precios/mazda/
+    powertrains:
+    - phev
+    - diesel
+    price_from_eur: 40840
+  - body: suv
+    model: CX-80
+    country: null
+    source_url: https://www.coches.com/coches-nuevos/mazda.htm
+    powertrains:
+    - phev
+    price_from_eur: null
+  - body: hatchback
+    model: Mazda 3
+    country: null
+    source_url: https://www.quecochemecompro.com/precios/mazda/
+    powertrains:
+    - petrol
+    price_from_eur: 25565
+  - body: suv
+    model: CX-5
+    country: null
+    source_url: https://www.quecochemecompro.com/precios/mazda/
+    powertrains:
+    - petrol
+    price_from_eur: 29995
+  - body: suv
+    model: CX-30
+    country: null
+    source_url: https://www.quecochemecompro.com/precios/mazda/
+    powertrains:
+    - petrol
+    price_from_eur: 25770
+  - body: sedan
+    model: Mazda 3 SportSedan
+    country: null
+    source_url: https://www.quecochemecompro.com/precios/mazda/
+    powertrains:
+    - petrol
+    price_from_eur: 26065
+  - body: cabrio
+    model: MX-5
+    country: null
+    source_url: https://www.quecochemecompro.com/precios/mazda/
+    powertrains:
+    - petrol
+    price_from_eur: 30280
+  - body: cabrio
+    model: MX-5 RF
+    country: null
+    source_url: https://www.quecochemecompro.com/precios/mazda/
+    powertrains:
+    - petrol
+    price_from_eur: 35202
+  sources:
+  - url: https://www.coches.com/coches-nuevos/mazda.htm
+    name: Precios de Mazda - Ofertas en modelos Mazda nuevos
+    type: PUBLICATION
+  - url: https://www.quecochemecompro.com/precios/mazda/
+    name: Precios Mazda - Modelos, promociones y ofertas de coches nuevos Mazda
+    type: PUBLICATION
+model_versions:
+- make: Mercedes-Benz
+  model: E-Class
+  generation: W214
+  years_from: 2023
+  years_to: null
+  body_class: SEDAN
+  versions:
+  - fuel: mhev
+    drives:
+    - RWD
+    - AWD
+    engine: E 200
+    excerpt: Potencia 150 kW (204 CV) a 5.800 rpm
+    power_kw: 150
+    years_to: null
+    engine_cc: 2000
+    gearboxes:
+    - automatic
+    source_url: https://noticias.coches.com/mercedes-clase-e-2024
+    years_from: 2023
+  - fuel: mhev
+    drives:
+    - RWD
+    - AWD
+    engine: E 220 d
+    excerpt: 145 kW (197 CV) a 3600 rpm
+    power_kw: 145
+    years_to: null
+    engine_cc: 2000
+    gearboxes:
+    - automatic
+    source_url: https://noticias.coches.com/mercedes-clase-e-2024
+    years_from: 2023
+  - fuel: phev
+    drives:
+    - RWD
+    - AWD
+    engine: E 300 e
+    excerpt: Potencia combinada 230 kW (313 CV)
+    power_kw: 230
+    years_to: null
+    engine_cc: 2000
+    gearboxes:
+    - automatic
+    source_url: https://noticias.coches.com/mercedes-clase-e-2024
+    years_from: 2023
+  - fuel: phev
+    drives:
+    - RWD
+    - AWD
+    engine: E 300 de
+    excerpt: E 300 de 9G-TRONIC Ficha Tecnica | 2023 | 313 hp / 230 kW
+    power_kw: 230
+    years_to: null
+    engine_cc: 2000
+    gearboxes:
+    - automatic
+    source_url: https://www.ultimatespecs.com/es/car-specs/Mercedes-Benz/M13607/E-Class-W214
+    years_from: 2023
+  - fuel: mhev
+    drives:
+    - AWD
+    engine: E 450
+    excerpt: E 450 4MATIC 9G-TRONIC Ficha Tecnica | 2023 | 404 hp / 297 kW
+    power_kw: 297
+    years_to: null
+    engine_cc: 3000
+    gearboxes:
+    - automatic
+    source_url: https://www.ultimatespecs.com/es/car-specs/Mercedes-Benz/M13607/E-Class-W214
+    years_from: 2023
+  - fuel: mhev
+    drives:
+    - AWD
+    engine: E 450 d
+    excerpt: E 450 d 4MATIC 9G-TRONIC Ficha Tecnica | 2025 | 390 hp / 287 kW
+    power_kw: 287
+    years_to: null
+    engine_cc: 3000
+    gearboxes:
+    - automatic
+    source_url: https://www.ultimatespecs.com/es/car-specs/Mercedes-Benz/M13607/E-Class-W214
+    years_from: 2025
+  - fuel: phev
+    drives:
+    - AWD
+    engine: E 53 Hybrid AMG
+    excerpt: E 53 Hybrid AMG 4MATIC Ficha Tecnica | 2024 | 585 hp / 430 kW
+    power_kw: 430
+    years_to: null
+    engine_cc: 3000
+    gearboxes:
+    - automatic
+    source_url: https://www.ultimatespecs.com/es/car-specs/Mercedes-Benz/M13607/E-Class-W214
+    years_from: 2024
+  sources:
+  - url: https://www.ultimatespecs.com/es/car-specs/Mercedes-Benz/M13607/E-Class-W214
+    name: Fichas tecnicas de Mercedes Benz E Class W214, dimensiones e consumos
+  - url: https://noticias.coches.com/mercedes-clase-e-2024
+    name: Mercedes Clase E 2024 | Precios | Motores | Equipamientos
+- make: Mazda
+  model: CX-60
+  generation: KH
+  years_from: 2022
+  years_to: null
+  body_class: SUV
+  versions:
+  - fuel: mhev
+    drives:
+    - RWD
+    engine: 3.3 e-Skyactiv D MHEV 200 CV
+    excerpt: el E-Skyactive D MHEV 200 CV RDW de 3,3 litros
+    power_kw: 147
+    years_to: null
+    engine_cc: 3300
+    gearboxes:
+    - automatic
+    source_url: https://rentingcoches.com/ofertas-renting-mazda/cx-60/motores
+    years_from: 2022
+  - fuel: mhev
+    drives:
+    - AWD
+    engine: 3.3 e-Skyactiv D MHEV 254 CV
+    excerpt: el E-Skyactive D MHEV 254 CV AWD, también de 3,3 litros
+    power_kw: 187
+    years_to: null
+    engine_cc: 3300
+    gearboxes:
+    - automatic
+    source_url: https://rentingcoches.com/ofertas-renting-mazda/cx-60/motores
+    years_from: 2022
+  - fuel: phev
+    drives:
+    - AWD
+    engine: 2.5 e-Skyactiv PHEV 327 CV
+    excerpt: El motor híbrido enchufable es el E-Skyactiv PHEV 327 CV AWD de 2,5 litros
+    power_kw: 241
+    years_to: null
+    engine_cc: 2500
+    gearboxes:
+    - automatic
+    source_url: https://rentingcoches.com/ofertas-renting-mazda/cx-60/motores
+    years_from: 2022
+  sources:
+  - url: https://rentingcoches.com/ofertas-renting-mazda/cx-60/motores
+    name: Motores del Mazda CX-60 en todas sus versiones
+turns:
+- user: я выбираю между Clase C Berlina мерседесом и Маздой CX-60
+  known_bug: C-Class replaced by E-Class by a phonetic match (spec 013 B2) — S1 T010/T011
+  expect:
+    action: ASK
+    language: ru
+    no_search: true
+    cars:
+      car#1:
+        make: Mercedes-Benz
+        model: C-Class
+        label_not_contains:
+        - E-Class
+      car#2:
+        model: CX-60
+        settled: false
+- user: ты не нашел мерседес класс C. отменяй поиск. пошел в жопу
+  known_bug: rejection not remembered (S2), no stop intent (S4, bug 10), CX-60 settled silently (bug 8)
+  expect:
+    no_search: true
+    stopped: true
+    not_repeated: true
+    cars:
+      car#1:
+        model: C-Class
+        label_not_contains:
+        - E-Class
+      car#2:
+        model: CX-60
+        settled: false

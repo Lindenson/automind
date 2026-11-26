@@ -13,16 +13,16 @@ Paths below are under `backend/src/automind/` unless they start with `backend/` 
 The existing harness `backend/tests/golden/` (YAML dialogues, `runner.py`, `schema.py`, replay with scripted model
 outputs + cassettes; `-m live` for real models) is the base. Extend it, do not build a second one.
 
-- [ ] T001 Dialogue scenarios (replay, scripted model outputs = what the model really returned in the chat, taken from
+- [x] T001 Dialogue scenarios (replay, scripted model outputs = what the model really returned in the chat, taken from
   `turn_events` `case_file` payloads and the LLM call log): `g13_clase_c_cx60` (d170b861: turn 1 must keep C-Class
   and not settle the CX-60; turn 2 "ты не нашел мерседес класс C. отменяй поиск" must stop), `g14_mx30_rev_url`
   (4bb83866: URL read first, R-EV kept, complaint not an answer), `g15_i10_manual` (no silent "manual"),
   `g16_no_on_card` ("нет" on the intake card never confirms), `g17_question_during_question` ("давай сравним с
   BMW" / "а что такое DSG?" during an open question). Fixture line-up for Mercedes-Benz = the real garbage one
   ("Clase S" only) so the test reproduces the failure.
-- [ ] T002 Extend `schema.py` expectations: per car `model`, `identity_state` (from S5 on; before: `resolution`),
+- [x] T002 Extend `schema.py` expectations: per car `model`, `identity_state` (from S5 on; before: `resolution`),
   `asked_level`, `reply_kind`, `not_repeated: true`, `stopped: true`.
-- [ ] T003 Mark the new scenarios `xfail(strict=True)` with the reason; each step that fixes one removes its xfail
+- [x] T003 Mark the new scenarios `xfail(strict=True)` with the reason; each step that fixes one removes its xfail
   (strict: a fix that passes by accident fails the gate).
 - [ ] T004 Golden message set `backend/tests/eval/understanding/cases.yaml`: 100–150 cases (ru/es/en evenly):
   case fixture ref, pending (with id + options), history, message → expected significant `Intent` fields and
@@ -34,6 +34,15 @@ outputs + cassettes; `-m live` for real models) is the base. Extend it, do not b
   field, per language, per pending kind, list of failures). Cost estimate before the run, announce it.
 - [ ] T006 Nightly: a worker/cron task or `scripts/eval_understanding.sh` + doc in quickstart; result to
   Prometheus gauge `understanding_eval_accuracy{field}`.
+
+Done 2026-11-26 (PR "S0a"): g13–g17 with per-turn `known_bug` (strict: a marked turn that passes fails the gate);
+`schema.py` `cars:` / `reply_kind` / `not_repeated` / `stopped` / `reply_not_contains`, seeded `lineups:` /
+`model_versions:` / catalogue rows (`seeding.py` wires the line-up look-up and the versions store); checks in
+`quality.py`. Reproduced on the current code: C→E-Class (g13 t1), rejection + stop ignored, E-Class engine question
+repeated, CX-60 settled silently (g13 t2); MX-30 BEV settled despite R-EV + URL (g14); complaint read as an answer,
+question repeated, i10 "manual" settled after two asks (g15); "нет" on the card confirms (g16); "а что такое DSG?"
+read as an engine answer, "давай сравним с BMW" = choose for me (g17). T004–T006 wait for the understanding spec's
+§4 (Intent fields and the old-label mapping), not in the repo.
 
 ## S1 — Stop the worst now (PR 2)
 

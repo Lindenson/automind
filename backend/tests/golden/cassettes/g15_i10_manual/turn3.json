@@ -1,0 +1,10 @@
+{
+  "interpreter": [
+    {
+      "request": "critique",
+      "language": "ru",
+      "relation": "complaint",
+      "delta": {}
+    }
+  ]
+}
