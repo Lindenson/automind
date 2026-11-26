@@ -8,6 +8,10 @@ backup first. Spec 012 (A4c onward) waits until S7 is merged. New code still fol
 **Spec 014 (node contracts, owner's critique §11) drafted 2026-11-26**: `specs/014-node-contracts/` — owner's
 approved 2026-11-26: C1–C2 now beside 013 S1–S2, C3 with 013 S4, C4 with 013 S5; VersionConflict → retry once.
 
+**Done: S1 (PR #137, 2026-11-26)** — deployed to pre-prod (`5702d35`); backup `backups/automind-20261126-210922.sql.gz`,
+purged the one bad line-up (Mercedes-Benz ES "Clase S"). Live replay of d170b861: C-Class kept (W206, asks fuel);
+still open: "отменяй поиск" not a stop (S4), CX-60 settled silently on turn 2 (S5 I5). Next: 013 S2 + 014 C1.
+
 **Done: S0a (T001–T003)** — g13–g17 red (strict per-turn `known_bug`) in `backend/tests/golden/`, see tasks.md.
 **Open: T004–T006** need the understanding spec of 2026-11-26 (§4 old-label mapping, Intent/Goal/Reaction fields):
 it is not in the repo — ask the owner for it (or agree to derive it) before writing the eval set.
