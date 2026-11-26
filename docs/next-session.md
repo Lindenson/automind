@@ -1,4 +1,4 @@
-# Next session: start here (2026-11-08 after S9.4b + pre-prod on main; next: A4c snapshots/drift/replay)
+# Next session: start here (2026-11-26: the agent fails at its basic job — owner's patience is at its limit; fix that first)
 
 **First task: refactoring — spec 012, executed by `specs/012-refactoring/tasks.md` (one phase = one PR).**
 No new features until it is done (owner, 2026-11-06). All functional work in §4 is parked, still valid, and
@@ -12,6 +12,46 @@ Context to read first: `specs/012-refactoring/{spec,plan,research,data-model}.md
 fallbacks = strategies behind a Protocol), then `tasks.md` from S7 on.
 What the system is: `README.md` ("Acquisition engine"), `docs/adr/ADR-032-acquisition-engine.md`,
 `docs/history/next-session-2026-11-06-engine.md` §1, specs 001–009: `docs/baseline.md`.
+
+## 00. The agent cannot do its job — FIRST (owner, 2026-11-26)
+
+Owner: "the last chat is the limit of patience… the agent can't do anything". The refactoring (A4c onward) waits:
+the dialogue must first stop being confidently wrong. Ask the owner to confirm this order at the start.
+
+**Chat `d170b861` (2026-11-26 19:14): "я выбираю между Clase C Berlina мерседесом и Маздой CX-60".**
+1. **"Clase C" became the E-Class.** `shared/vehicle/makes.MakeRegistry.match_model` (called from
+   `identification/stages/normalise_name.match_model`): `sound_key("c-class") == sound_key("e-class")` (ratio 100), and
+   the same-word-count bonus (+5) lifts that fuzzy 100 to 105, above the `< 100` condition that guards the margin
+   check meant for exact names — so a different model is picked as if written exactly (reproduced:
+   E-Class 100/105, CLA 90, Clase C 85). The known set had no C-Class because the stored Mercedes-Benz ES line-up
+   (`brand_lineups`, 2026-11-26 19:08) is garbage: **one** model, "Clase S", from a news article about S-Class prices.
+2. The user's correction ("ты не нашел мерседес класс C") replaced the car → the same path → E-Class again.
+3. **"отменяй поиск. пошел в жопу" was not a stop**: classified `correction`, the same E-Class engine question
+   repeated. No stop/quit intent exists (bug 10); the complaint went to `feedback` as `correction`, not `complaint`.
+4. **Mazda CX-60 silently settled** to "3.3 200 CV RWD Exclusive-Line" on turn 2 without any answer about it (same as
+   bug 8, i10 "manual").
+5. Self-diagnosis: turn 1 got `wrong_car` + `not_understood` (good), score 0; still no issue below the threshold.
+
+**Diagnosis across 4bb83866 and d170b861**: identification is a stack of heuristics (fuzzy and phonetic matching,
+LLM hints as hard filters, a fallback order that reads the user's own evidence last, auto-settling the single
+survivor) that guesses with full confidence, never checks the guess against what the user wrote, and never admits
+it is unsure. Nothing measures it: no regression suite of real dialogues.
+
+**Plan to propose (owner decides the order):**
+- a. **Dialogue regression suite** from the owner's failed chats (4bb83866 MX-30 R-EV + URL, d170b861 C-Class,
+  i10 "manual", CX-60 auto-settle, "cancel / go away", complaint during a question) as scripted scenarios with
+  recorded search hits/pages; each asserts the car identified and the turn's reply kind; part of `check.sh`.
+- b. **Never confidently wrong**: a model name the user wrote is kept unless an exact (or Cyrillic-transliterated)
+  match says otherwise — no fuzzy/phonetic jump between distinct models (C→E, CLA); fix the bonus/margin bug;
+  the user's words and URL beat the line-up and datasets; a contradiction asks; nothing settles without either the
+  user's answer or evidence that names that version.
+- c. **Stop, complain, quit** at any step (bug 10), no repeated question (bug 7), a complaint is never parsed as an
+  answer (bug 6), no silent settling (bug 8).
+- d. **Line-up sanity**: a make's line-up from fewer than N models or from a single news article is not stored.
+- e. Then §0a 1–5 and 9 (URL first, EREV, hints, pool, routing, self-diagnosis).
+
+Pre-prod: http://192.168.1.142:8090 runs main `ff93b2f` (up since 2026-11-25). `backend/src/automind/chat.zip`
+(untracked, 2026-11-26 16:16) is the owner's — do not commit or delete it.
 
 ## 0a. Pre-prod bugs (owner, 2026-11-08) — FIRST, before A4c
 
