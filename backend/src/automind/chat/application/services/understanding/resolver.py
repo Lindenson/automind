@@ -18,6 +18,7 @@ from automind.chat.domain.understanding.intent import (
     UiActionKind,
     Understanding,
 )
+from automind.chat.domain.understanding.open_question import canonical_answer
 
 _ANSWER_OF = {UiActionKind.PICK_OPTION: AnswerKind.OPTION, UiActionKind.CONFIRM: AnswerKind.YES,
               UiActionKind.DECLINE: AnswerKind.NO, UiActionKind.CHOOSE_FOR_ME: AnswerKind.CHOOSE_FOR_ME}  # fmt: skip
@@ -58,9 +59,10 @@ def option_from_ui(i: Intent, action: UiAction, ctx: Context) -> Intent:
     if kind is not None:
         kind = AnswerKind.CHOOSE_FOR_ME if action.option_id == CHOOSE_ID else kind
         open_id = ctx.question.id if ctx.question else "none"
-        a = PendingAnswer(pending_id=action.pending_id or open_id, kind=kind,
-                          option_id=action.option_id if kind is AnswerKind.OPTION else None,
-                          evidence=f"button {action.kind.value}")  # fmt: skip
+        tapped = PendingAnswer(pending_id=action.pending_id or open_id, kind=kind,
+                               option_id=action.option_id if kind is AnswerKind.OPTION else None,
+                               evidence=f"button {action.kind.value}")  # fmt: skip
+        a = canonical_answer(tapped, ctx.question) or tapped
         o = Override(rule="option_from_ui", field="answer_to_pending", after=a.model_dump(mode="json"),
                      why=f"the button {action.kind.value} answers by its id")  # fmt: skip
         return i.model_copy(update={"answer_to_pending": a, "overrides": [*i.overrides, o]})

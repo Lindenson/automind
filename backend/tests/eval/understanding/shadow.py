@@ -79,7 +79,7 @@ def report(results: list[Result], old: dict[str, dict[str, object]], fx: Fixture
         "(`new_path.py`). `action` is indicative on both sides: today's policy on the mapped request, without "
         "identification or assessment; the policy reads the intent only from S4.", "",
         "## Accuracy per field", "", "| Field | Checked | Old | New | Fixed | Broke |", "|---|---|---|---|---|---|",
-        *(_row(f, done, old) for f in FIELDS), _row_all(done, old), "",
+        *(_row(f, done, old) for f in FIELDS), _row_all(done, old), _row_all(done, old, but="action"), "",
         f"## Latency of the understanding step ({len(lat)} new calls)", "",
         f"old p95 {_pct(old_lat, 95):.0f} ms · new p95 **{_pct(lat, 95):.0f} ms** (p50 {_pct(lat, 50):.0f} ms) — "
         "criterion: new ≤ old + 20 % (G4). Wall clock with 4 calls in flight.", "",
@@ -108,17 +108,22 @@ def _row(f: str, done: list[Result], old: dict[str, dict[str, object]]) -> str:
             f"{_ratio(sum(n for _, n in pairs), len(pairs))} | {fixed} | {broke} |")  # fmt: skip
 
 
-def _all_old(old: dict[str, dict[str, object]], case_id: str) -> bool:
+def _all_old(old: dict[str, dict[str, object]], case_id: str, but: str = "") -> bool:
     fields = old[case_id].get("fields") or {}
-    return all(fields.values()) if isinstance(fields, dict) else False
+    return all(v for k, v in fields.items() if k != but) if isinstance(fields, dict) else False
 
 
-def _row_all(done: list[Result], old: dict[str, dict[str, object]]) -> str:
-    o = sum(_all_old(old, r.case.id) for r in done)
-    n = sum(r.score.ok for r in done)  # type: ignore[union-attr]
-    fixed = sum(1 for r in done if r.score.ok and not _all_old(old, r.case.id))  # type: ignore[union-attr]
-    broke = sum(1 for r in done if _all_old(old, r.case.id) and not r.score.ok)  # type: ignore[union-attr]
-    return f"| **all fields** | {len(done)} | {_ratio(o, len(done))} | **{_ratio(n, len(done))}** | {fixed} | {broke} |"
+def _all_new(r: Result, but: str = "") -> bool:
+    return all(v for k, v in r.score.fields.items() if k != but)  # type: ignore[union-attr]
+
+
+def _row_all(done: list[Result], old: dict[str, dict[str, object]], but: str = "") -> str:
+    o = sum(_all_old(old, r.case.id, but) for r in done)
+    n = sum(_all_new(r, but) for r in done)
+    fixed = sum(1 for r in done if _all_new(r, but) and not _all_old(old, r.case.id, but))
+    broke = sum(1 for r in done if _all_old(old, r.case.id, but) and not _all_new(r, but))
+    label = f"all fields but {but}" if but else "all fields"
+    return f"| **{label}** | {len(done)} | {_ratio(o, len(done))} | **{_ratio(n, len(done))}** | {fixed} | {broke} |"
 
 
 def _groups(title: str, done: list[Result], old: dict[str, dict[str, object]], key) -> list[str]:  # type: ignore[no-untyped-def]

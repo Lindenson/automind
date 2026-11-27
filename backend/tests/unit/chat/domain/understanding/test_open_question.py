@@ -4,7 +4,8 @@ options with the ids the chips send."""
 from __future__ import annotations
 
 from automind.chat.domain.case import Pending
-from automind.chat.domain.understanding.open_question import limit_question, open_question, pending_id
+from automind.chat.domain.understanding.intent import AnswerKind, PendingAnswer
+from automind.chat.domain.understanding.open_question import canonical_answer, limit_question, open_question, pending_id
 
 
 def _ids(p: Pending) -> list[str]:
@@ -57,3 +58,14 @@ def test_confirmations_offer_their_buttons() -> None:
 def test_the_research_limit_is_a_question_of_its_own() -> None:
     q = limit_question("limit-1")
     assert (q.id, q.kind, [o.id for o in q.options]) == ("limit-1", "LIMIT", ["continue", "stop"])
+
+
+def test_yes_and_no_have_one_form_whether_typed_or_tapped() -> None:
+    card = open_question(Pending(kind="CONFIRM_INTAKE", items=[{"car": "car#1"}]))
+    assert card is not None
+    tapped = PendingAnswer(pending_id=card.id, kind=AnswerKind.OPTION, option_id="stop", evidence="Not now")
+    typed = PendingAnswer(pending_id=card.id, kind=AnswerKind.NO, evidence="not now")
+    assert canonical_answer(tapped, card) == tapped.model_copy(update={"kind": AnswerKind.NO})
+    assert canonical_answer(typed, card) == typed.model_copy(update={"option_id": "stop"})
+    other = PendingAnswer(pending_id="q-other", kind=AnswerKind.OPTION, option_id="stop", evidence="x")
+    assert canonical_answer(other, card) is other and canonical_answer(None, card) is None

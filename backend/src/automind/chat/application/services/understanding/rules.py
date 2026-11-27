@@ -81,13 +81,17 @@ def complaint_is_not_an_answer(i: Intent, ctx: Context) -> Intent:
 
 def no_goal_with_pending(i: Intent, ctx: Context) -> Intent:
     """No goal and no answer, but facts about what the open question asks: they answer it (kind `value`). Replaces
-    the old "while a question is open every message is an answer"."""
+    the old "while a question is open every message is an answer". A complaint or a correction (a car replaced or
+    rejected: "ты не нашел класс C") is never made an answer."""
     q = ctx.question
     if (
         q is None
         or q.kind is not OpenKind.QUESTIONS
         or i.goals
         or i.answer_to_pending
+        or i.reaction in (Reaction.COMPLAINT, Reaction.CORRECTION)
+        or i.case_changes.replace_cars
+        or i.case_changes.rejections
         or not _on_topic(i.case_changes, q)
     ):
         return i

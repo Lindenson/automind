@@ -3,7 +3,8 @@ anything is resolved. It guesses no meaning; it keeps what the person's words ca
 
 The checks of the old interpreter (`checks`: car keys, persona and profile words, numbers written in the message,
 the engine from the words, rejections with their words) plus the open question's ids: an `option` answer must name
-an option the question offers. Whether the answer is to the question open now is the resolver's (`stale_pending`).
+an option the question offers, and an option that agrees or refuses is the answer yes / no. Whether the answer is
+to the question open now is the resolver's (`stale_pending`).
 
 A reading that names a car the case does not have is refused as a whole (`Validated.refused`), as the old
 interpreter asks to rephrase instead of guessing; everything else only drops a part. Pure; never raises."""
@@ -15,7 +16,7 @@ from dataclasses import dataclass
 from automind.chat.application.services.understanding import checks, engine
 from automind.chat.domain.case import CaseFile
 from automind.chat.domain.understanding.intent import AnswerKind, Goal, PendingAnswer, Understanding
-from automind.chat.domain.understanding.open_question import OpenQuestion
+from automind.chat.domain.understanding.open_question import OpenQuestion, canonical_answer
 from automind.chat.domain.understanding.record import Dropped
 
 
@@ -63,8 +64,9 @@ def _known_focus(goals: list[Goal], case: CaseFile, added: int) -> tuple[list[Go
 
 
 def _answer(u: Understanding, question: OpenQuestion | None) -> tuple[PendingAnswer | None, list[Dropped]]:
-    """The answer, unless it picks an option the open question does not offer."""
-    a = u.answer_to_pending
+    """The answer in its one form (`canonical_answer`), unless it picks an option the open question does not
+    offer."""
+    a = canonical_answer(u.answer_to_pending, question)
     if a is None or question is None or a.pending_id != question.id or a.kind is not AnswerKind.OPTION:
         return a, []
     if question.option(a.option_id) is not None:

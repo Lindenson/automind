@@ -18,6 +18,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from automind.chat.domain.case import Pending
 from automind.chat.domain.intake.option_ids import CAR_KINDS, CHOOSABLE_KINDS, OptionKind, option_id
+from automind.chat.domain.understanding.intent import AnswerKind, PendingAnswer
 
 
 class OpenKind(StrEnum):
@@ -46,7 +47,7 @@ _CONFIRM_TEXT = {
     OpenKind.CONFIRM_INTAKE: "Is the card right? Confirm to start the research.",
     OpenKind.LIMIT: "The research limit is reached. Continue?",
 }
-_YES_NO = {
+_YES_NO = {  # (yes id, label), (no id, label)
     OpenKind.CONFIRM_COST: (("run", "yes, run it"), ("skip", "no")),
     OpenKind.CONFIRM_INTAKE: (("yes", "yes, research"), ("stop", "no")),
     OpenKind.LIMIT: (("continue", "continue"), ("stop", "stop")),
@@ -60,6 +61,7 @@ class QuestionOption(BaseModel):
 
     id: str
     label: str
+    means: AnswerKind | None = None  # yes / no: the option agrees or refuses (a yes/no question, a proposal)
 
 
 class OpenQuestion(BaseModel):
@@ -76,6 +78,18 @@ class OpenQuestion(BaseModel):
     def option(self, oid: str | None) -> QuestionOption | None:
         """The option with id `oid`, None when it is not offered."""
         return next((o for o in self.options if o.id == oid), None)
+
+
+def canonical_answer(a: PendingAnswer | None, q: OpenQuestion | None) -> PendingAnswer | None:
+    """One form for "yes" and "no": an option that agrees or refuses is the answer yes / no with its id, and a typed
+    yes / no names the one option of that meaning (the policy reads one kind; the record shows the button)."""
+    if a is None or q is None or a.pending_id != q.id:
+        return a
+    if a.kind is AnswerKind.OPTION:
+        o = q.option(a.option_id)
+        return a if o is None or o.means is None else a.model_copy(update={"kind": o.means})
+    same = [o.id for o in q.options if o.means is a.kind]
+    return a.model_copy(update={"option_id": same[0]}) if a.option_id is None and len(same) == 1 else a
 
 
 def pending_id(p: Pending) -> str:
@@ -127,8 +141,9 @@ def _item_options(kind: str, car: str, item: Mapping[str, object]) -> list[Quest
     if not car:
         return []
     if asked is Asked.PROPOSE:
-        return [QuestionOption(id=option_id(OptionKind.YES, car), label="yes"),
-                QuestionOption(id=option_id(OptionKind.NO, car), label="no, another one")]  # fmt: skip
+        yes, no = option_id(OptionKind.YES, car), option_id(OptionKind.NO, car)
+        return [QuestionOption(id=yes, label="yes", means=AnswerKind.YES),
+                QuestionOption(id=no, label="no, another one", means=AnswerKind.NO)]  # fmt: skip
     choices = item.get("choices")
     if isinstance(choices, list) and choices:
         return [QuestionOption(id=option_id(OptionKind.CHOICE, car, kind, n), label=_label(ch))
@@ -148,7 +163,9 @@ def _variants(p: Pending) -> OpenQuestion:
 
 
 def _yes_no(qid: str, kind: OpenKind, cars: tuple[str, ...], text: str | None = None) -> OpenQuestion:
-    options = tuple(QuestionOption(id=i, label=label) for i, label in _YES_NO[kind])
+    (yes, yes_label), (no, no_label) = _YES_NO[kind]
+    options = (QuestionOption(id=yes, label=yes_label, means=AnswerKind.YES),
+               QuestionOption(id=no, label=no_label, means=AnswerKind.NO))  # fmt: skip
     return OpenQuestion(id=qid, kind=kind, question=text or _CONFIRM_TEXT[kind], cars=cars, options=options)
 
 

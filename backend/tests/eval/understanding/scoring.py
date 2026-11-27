@@ -14,7 +14,7 @@ from automind.chat.domain.case import CaseFile
 from automind.chat.domain.case.car import CaseCar
 from tests.eval.understanding.old_path import Observed
 from tests.eval.understanding.schema import CarChange, ChangesExpect, Expected
-from tests.eval.understanding.vocab import ReactionExpect
+from tests.eval.understanding.vocab import AnswerKind, ReactionExpect
 
 FIELDS = ("language", "answer", "goals", "reaction", "rejections", "changes", "action")
 
@@ -53,6 +53,9 @@ def _answer(e: Expected, o: Observed) -> tuple[bool, str]:
     if e.answer is None:
         return o.answer is None, f"none / {o.answer}"
     kind_ok = o.answer is not None and o.answer.value == e.answer.kind.value
+    # spec 013 S3: on a yes/no question the new chain gives the button's option as yes / no with its id kept
+    same_button = e.answer.kind is AnswerKind.OPTION and o.option_id is not None and o.option_id == e.answer.option_id
+    kind_ok = kind_ok or same_button
     option_ok = e.answer.option_id is None or e.answer.option_id == o.option_id
     return kind_ok and option_ok, f"{e.answer.kind.value}:{e.answer.option_id} / {o.answer}:{o.option_id}"
 
