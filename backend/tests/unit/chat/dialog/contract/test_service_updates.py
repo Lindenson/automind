@@ -16,7 +16,8 @@ from automind.shared.research_order.plan import Job, ResearchPlan
 
 def test_a_question_asked_back_ends_the_turn() -> None:
     asked = InterpretOut.from_reading(Reading(None, "ru", ask="rephrase"), "Please rephrase")
-    assert asked.update() == {"action": "ASK", "done": True, "reply_text": "Please rephrase"}
+    # the question asked back keeps the person's language (review 2026-11-27: "переформулируйте" came in English)
+    assert asked.update() == {"action": "ASK", "done": True, "reply_text": "Please rephrase", "language": "ru"}
     which = InterpretOut.from_reading(Reading(None, "es", ask="which_car"), "¿Qué coche?")
     assert which.update() == {"action": "ASK", "done": True, "reply_text": "¿Qué coche?", "language": "es"}
 

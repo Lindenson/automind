@@ -85,10 +85,8 @@ class InterpretOut(NodeOut):
     @classmethod
     def from_reading(cls, reading: Reading, reply_text: str) -> InterpretOut:
         """The update of `reading`; `reply_text` is its question in the person's language (unused otherwise)."""
-        if reading.ask is not None:
-            if reading.ask == "which_car":  # a car edit knows the chat's language; a failed reading keeps the turn's
-                return cls(action="ASK", done=True, reply_text=reply_text, language=reading.language)
-            return cls(action="ASK", done=True, reply_text=reply_text)
+        if reading.ask is not None:  # the question is asked in the language the reading found (the person's)
+            return cls(action="ASK", done=True, reply_text=reply_text, language=reading.language)
         assert reading.interpretation is not None  # a reading without a question always has its interpretation
         i = reading.interpretation
         if reading.picked:

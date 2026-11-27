@@ -62,6 +62,13 @@ async def test_an_unreadable_model_answer_is_asked_back() -> None:
     assert reading.ask == "rephrase" and reading.interpretation is None
 
 
+async def test_the_rephrase_question_keeps_the_persons_language() -> None:
+    """Review 2026-11-27: a Russian person got "please rephrase" in English (the turn's language is reset to "en")."""
+    service, _ = _service(answer=None)
+    history = [{"role": "user", "text": "сравни сеат атеку и киа спортейдж"}, {"role": "assistant", "text": "…"}]
+    assert (await service.read(_case(), history, "ну и что", None)).language == "ru"
+
+
 async def test_a_model_answer_naming_an_unknown_car_is_asked_back() -> None:
     service, _ = _service({"request": "correction", "language": "en", "delta": {"remove_cars": ["car#9"]}})
     assert (await service.read(_case(), [], "drop the other one", None)).ask == "rephrase"
