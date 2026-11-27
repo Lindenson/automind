@@ -1,0 +1,740 @@
+# Spec 013 T004: the small named case files and open questions the golden message set refers to.
+#
+# `cases:` a case file as the understanding step sees it (cars by key, whether a report was shown, the chat's stable
+#   language; null = the first message of a chat). No catalogue: a car that is not CONFIRMED / AUTO_OK still needs
+#   identification.
+# `pendings:` an open bot question (understanding-spec §4 "Требование к Pending"): id, kind, the question as asked,
+#   and per item the car it concerns, its topic and the options with ids. Option ids follow S1's scheme
+#   (`domain/intake/option_ids.py`: `q:<car>:<KIND>:<n>`, `gb:<car>:<gearbox>`, `condition:<NEW|USED>`, `choose`,
+#   `remove:<car>`, `yes:<car>`, `no:<car>`) and today's confirmation ids (card `yes|stop`, variants
+#   `option:<car>:<variant>` + `choose`, limit `continue|stop`; cost `run|skip` as the golden dialogues name them).
+#   `case:` names the case file the pending belongs to.
+
+cases:
+  empty_ru: {chat_language: null, cars: []}
+  empty_es: {chat_language: null, cars: []}
+  empty_en: {chat_language: null, cars: []}
+
+  # g1 / g16: Bigster vs used Prado
+  bigster_prado_age_en:
+    chat_language: en
+    cars:
+      - {key: car#1, make: Dacia, model: Bigster, condition: NEW, resolution: AUTO_OK}
+      - {key: car#2, make: Toyota, model: Land Cruiser Prado, condition: USED, resolution: UNRESOLVED}
+  bigster_prado_card_ru:
+    chat_language: ru
+    cars:
+      - {key: car#1, make: Dacia, model: Bigster, condition: NEW, resolution: AUTO_OK}
+      - {key: car#2, make: Toyota, model: Land Cruiser Prado, condition: USED, resolution: PROPOSED,
+         label: "Land Cruiser Prado J150 2.8 D-4D"}
+  bigster_prado_report_en:
+    chat_language: en
+    report_shown: true
+    cars:
+      - {key: car#1, make: Dacia, model: Bigster, condition: NEW, resolution: CONFIRMED}
+      - {key: car#2, make: Toyota, model: Land Cruiser Prado, condition: NEW, resolution: CONFIRMED,
+         label: "Land Cruiser Prado J250 2.8 D-4D"}
+
+  # Kia Sportage alone (card / engine question / report) and with the Tucson (pre-prod 3e19d5dd)
+  sportage_card_ru:
+    chat_language: ru
+    cars:
+      - {key: car#1, make: Kia, model: Sportage, condition: NEW, resolution: PROPOSED, label: "Sportage NQ5 1.6 T-GDi HEV"}
+  sportage_engine_ru:
+    chat_language: ru
+    cars:
+      - {key: car#1, make: Kia, model: Sportage, condition: NEW, resolution: UNRESOLVED}
+  sportage_report_ru:
+    chat_language: ru
+    report_shown: true
+    cars:
+      - {key: car#1, make: Kia, model: Sportage, condition: NEW, resolution: CONFIRMED, label: "Sportage NQ5 1.6 T-GDi HEV"}
+  sportage_tucson_ru:
+    chat_language: ru
+    cars:
+      - {key: car#1, make: Kia, model: Sportage, condition: NEW, resolution: UNRESOLVED, fuel: hybrid}
+      - {key: car#2, make: Hyundai, model: Tucson, condition: NEW, resolution: UNRESOLVED, fuel: hybrid}
+
+  # g17: CX-60 vs i10, both new, engine questions open
+  cx60_i10_ru:
+    chat_language: ru
+    cars:
+      - {key: car#1, make: Mazda, model: CX-60, condition: NEW, resolution: UNRESOLVED}
+      - {key: car#2, make: Hyundai, model: i10, condition: NEW, resolution: UNRESOLVED}
+
+  # pre-prod d170b861 / g13: the person wrote "Clase C Berlina", identification put the E-Class
+  eclass_cx60_ru:
+    chat_language: ru
+    cars:
+      - {key: car#1, make: Mercedes-Benz, model: E-Class, condition: UNKNOWN, resolution: UNRESOLVED,
+         request_text: Clase C Berlina мерседес}
+      - {key: car#2, make: Mazda, model: CX-60, condition: UNKNOWN, resolution: UNRESOLVED}
+  # pre-prod eb81dd90: the C-Class is already in the case
+  cclass_cx60_ru:
+    chat_language: ru
+    cars:
+      - {key: car#1, make: Mercedes-Benz, model: C-Class, condition: UNKNOWN, resolution: UNRESOLVED}
+      - {key: car#2, make: Mazda, model: CX-60, condition: UNKNOWN, resolution: UNRESOLVED}
+  eclass_cx60_es:
+    chat_language: es
+    cars:
+      - {key: car#1, make: Mercedes-Benz, model: E-Class, condition: NEW, resolution: PROPOSED, request_text: Clase C}
+      - {key: car#2, make: Mazda, model: CX-60, condition: NEW, resolution: AUTO_OK}
+
+  # pre-prod 4bb83866 / g14 / g15: Mazda MX-30 R-EV vs Hyundai i10
+  mx30_i10_ru:
+    chat_language: ru
+    cars:
+      - {key: car#1, make: Mazda, model: MX-30, condition: UNKNOWN, resolution: UNRESOLVED}
+      - {key: car#2, make: Hyundai, model: i10, condition: UNKNOWN, resolution: UNRESOLVED}
+  mx30_bev_i10_ru:
+    chat_language: ru
+    cars:
+      - {key: car#1, make: Mazda, model: MX-30, condition: NEW, resolution: AUTO_OK, fuel: bev,
+         label: "MX-30 e-Skyactiv EV 145 CV"}
+      - {key: car#2, make: Hyundai, model: i10, condition: NEW, resolution: UNRESOLVED, label: "i10 1.0 MPI 63 CV"}
+  mx30_bev_report_en:
+    chat_language: en
+    report_shown: true
+    cars:
+      - {key: car#1, make: Mazda, model: MX-30, condition: NEW, resolution: CONFIRMED, fuel: bev,
+         label: "MX-30 e-Skyactiv EV 145 CV"}
+      - {key: car#2, make: Hyundai, model: i10, condition: NEW, resolution: CONFIRMED, label: "i10 1.0 MPI 63 CV"}
+  i10_ru:
+    chat_language: ru
+    cars:
+      - {key: car#1, make: Hyundai, model: i10, condition: NEW, resolution: UNRESOLVED, label: "i10 1.0 MPI 63 CV"}
+  i10_es:
+    chat_language: es
+    cars:
+      - {key: car#1, make: Hyundai, model: i10, condition: NEW, resolution: UNRESOLVED, label: "i10 1.0 MPI 63 CV"}
+
+  # pre-prod c41e34b0: new Dacia Sandero or an MG of the same size
+  sandero_mg_ru:
+    chat_language: ru
+    cars:
+      - {key: car#1, make: Dacia, model: Sandero, condition: NEW, resolution: UNRESOLVED}
+      - {key: car#2, make: MG, model: null, condition: NEW, resolution: UNKNOWN_MODEL}
+  sandero_zs_ru:
+    chat_language: ru
+    cars:
+      - {key: car#1, make: Dacia, model: Sandero Stepway, condition: NEW, resolution: UNRESOLVED}
+      - {key: car#2, make: MG, model: ZS, condition: NEW, resolution: AUTO_OK, label: "MG ZS Hybrid+ 1.5 197 CV"}
+  sandero_zs_report_ru:
+    chat_language: ru
+    report_shown: true
+    cars:
+      - {key: car#1, make: Dacia, model: Sandero Stepway, condition: NEW, resolution: CONFIRMED,
+         label: "Sandero Stepway III hybrid 155"}
+      - {key: car#2, make: MG, model: ZS, condition: NEW, resolution: CONFIRMED, label: "MG ZS Hybrid+ 1.5 197 CV"}
+
+  # pre-prod fcf5b3b8 / 2f8b0018: replace a 10-year-old Prado J150 by a new Sorento PHEV
+  sorento_prado_report_ru:
+    chat_language: ru
+    report_shown: true
+    cars:
+      - {key: car#1, make: Toyota, model: Land Cruiser Prado, condition: USED, resolution: CONFIRMED,
+         label: "Land Cruiser Prado J150 2.8 D-4D, replaced: true"}
+      - {key: car#2, make: Kia, model: Sorento, condition: NEW, resolution: CONFIRMED, label: "Sorento MQ4 1.6 T-GDi PHEV"}
+  sorento_prado_research_ru:
+    chat_language: ru
+    cars:
+      - {key: car#1, make: Toyota, model: Land Cruiser Prado, condition: USED, resolution: CONFIRMED,
+         label: "Land Cruiser Prado J150 2.8 D-4D, replaced: true"}
+      - {key: car#2, make: Kia, model: Sorento, condition: NEW, resolution: CONFIRMED, label: "Sorento MQ4 1.6 T-GDi PHEV"}
+  # understanding-spec §4 PENDING example: "Какая коробка у Kia Sorento?"
+  sorento_ru:
+    chat_language: ru
+    cars:
+      - {key: car#1, make: Kia, model: Sorento, condition: NEW, resolution: UNRESOLVED}
+
+  # interpreter.md examples 7–8: "byd" (model asked) and SEAT Ateca 1.0 TSI
+  byd_ateca_ru:
+    chat_language: ru
+    cars:
+      - {key: car#1, make: null, model: null, condition: UNKNOWN, resolution: UNKNOWN_MODEL, request_text: byd}
+      - {key: car#2, make: SEAT, model: Ateca, condition: UNKNOWN, resolution: UNRESOLVED, label: "Ateca 1.0 TSI"}
+
+  # spec 007 US7: no car named, a need and a budget; the new-or-used question is open
+  need_budget_ru:
+    chat_language: ru
+    cars: []
+
+  # g4 / g5: Golf GTI Mk8 vs i30 N, a report was shown
+  golf_i30_report_en:
+    chat_language: en
+    report_shown: true
+    cars:
+      - {key: car#1, make: Volkswagen, model: Golf, condition: NEW, resolution: CONFIRMED, label: "Golf GTI Mk8"}
+      - {key: car#2, make: Hyundai, model: i30 N, condition: NEW, resolution: CONFIRMED, label: "i30 N 280 PS"}
+  # g7: three cars, the research cost is asked
+  octavia_leon_308_en:
+    chat_language: en
+    cars:
+      - {key: car#1, make: Skoda, model: Octavia, condition: NEW, resolution: CONFIRMED, label: "Octavia RS"}
+      - {key: car#2, make: Cupra, model: Leon, condition: NEW, resolution: CONFIRMED, label: "Leon VZ"}
+      - {key: car#3, make: Peugeot, model: "308", condition: NEW, resolution: CONFIRMED}
+  # g11: RAV4 hybrid vs Sportage PHEV
+  rav4_sportage_en:
+    chat_language: en
+    cars:
+      - {key: car#1, make: Toyota, model: RAV4, condition: NEW, resolution: AUTO_OK, fuel: hybrid}
+      - {key: car#2, make: Kia, model: Sportage, condition: NEW, resolution: UNRESOLVED, fuel: phev}
+  rav4_sportage_card_en:
+    chat_language: en
+    cars:
+      - {key: car#1, make: Toyota, model: RAV4, condition: NEW, resolution: AUTO_OK, fuel: hybrid}
+      - {key: car#2, make: Kia, model: Sportage, condition: NEW, resolution: PROPOSED, fuel: phev,
+         label: "Sportage NQ5 1.6 T-GDi PHEV 252 CV"}
+  rav4_sportage_research_en:
+    chat_language: en
+    cars:
+      - {key: car#1, make: Toyota, model: RAV4, condition: NEW, resolution: CONFIRMED, fuel: hybrid}
+      - {key: car#2, make: Kia, model: Sportage, condition: NEW, resolution: CONFIRMED, fuel: phev}
+  golf_used_en:
+    chat_language: en
+    cars:
+      - {key: car#1, make: Volkswagen, model: Golf, condition: USED, resolution: PROPOSED, year: 2019,
+         label: "Golf Mk7.5 1.5 TSI 150 PS DSG"}
+  golf_engine_en:
+    chat_language: en
+    cars:
+      - {key: car#1, make: Volkswagen, model: Golf, condition: NEW, resolution: UNRESOLVED}
+  civic_en:
+    chat_language: en
+    cars:
+      - {key: car#1, make: Honda, model: Civic, condition: UNKNOWN, resolution: UNRESOLVED}
+
+  # g8: BYD Seal U DM-i vs SEAT Ateca 1.5 TSI DSG, a family in Seville
+  seal_ateca_es:
+    chat_language: es
+    cars:
+      - {key: car#1, make: BYD, model: Seal U, condition: NEW, resolution: AUTO_OK, fuel: phev}
+      - {key: car#2, make: SEAT, model: Ateca, condition: NEW, resolution: UNRESOLVED}
+  seal_ateca_card_es:
+    chat_language: es
+    cars:
+      - {key: car#1, make: BYD, model: Seal U, condition: NEW, resolution: AUTO_OK, fuel: phev}
+      - {key: car#2, make: SEAT, model: Ateca, condition: NEW, resolution: PROPOSED, label: "Ateca 1.5 TSI 150 CV DSG"}
+  seal_ateca_research_es:
+    chat_language: es
+    cars:
+      - {key: car#1, make: BYD, model: Seal U, condition: NEW, resolution: CONFIRMED, fuel: phev}
+      - {key: car#2, make: SEAT, model: Ateca, condition: NEW, resolution: CONFIRMED, label: "Ateca 1.5 TSI 150 CV DSG"}
+  seal_ateca_report_es:
+    chat_language: es
+    report_shown: true
+    cars:
+      - {key: car#1, make: BYD, model: Seal U, condition: NEW, resolution: CONFIRMED, fuel: phev}
+      - {key: car#2, make: SEAT, model: Ateca, condition: NEW, resolution: CONFIRMED, label: "Ateca 1.5 TSI 150 CV DSG"}
+  golf_engine_es:
+    chat_language: es
+    cars:
+      - {key: car#1, make: Volkswagen, model: Golf, condition: NEW, resolution: UNRESOLVED, label: "Golf 1.0 eTSI"}
+  corolla_qashqai_es:
+    chat_language: es
+    cars:
+      - {key: car#1, make: Toyota, model: Corolla, condition: UNKNOWN, resolution: UNRESOLVED}
+      - {key: car#2, make: Nissan, model: Qashqai, condition: UNKNOWN, resolution: UNRESOLVED}
+
+pendings:
+  prado_age:
+    case: bigster_prado_age_en
+    id: q-prado-age
+    kind: QUESTIONS
+    question: How old is the used Land Cruiser Prado (year or age)?
+    items:
+      - {car: car#2, topic: USED_AGE, options: []}
+  prado_card_ru:
+    case: bigster_prado_card_ru
+    id: q-card-prado
+    kind: CONFIRM_INTAKE
+    question: Проверьте, что я понял, и подтвердите — после этого начну исследование.
+    items:
+      - car: null
+        topic: CARD
+        options:
+          - {id: "yes", label: "Да, исследовать"}
+          - {id: stop, label: "Пока не надо"}
+      - car: car#2
+        topic: PROPOSE
+        options:
+          - {id: "yes:car#2", label: "Да"}
+          - {id: "no:car#2", label: "Нет, другую"}
+  prado_variants_ru:
+    case: bigster_prado_card_ru
+    id: q-var-prado
+    kind: CONFIRM_VARIANTS
+    question: "Прежде чем искать данные, подтвердите точные модификации: car#2 Land Cruiser Prado J150 2.8 D-4D"
+    items:
+      - car: car#2
+        topic: VERSION
+        options:
+          - {id: "option:car#2:j150-28d", label: "Land Cruiser Prado J150 2.8 D-4D 2015–2017"}
+          - {id: "option:car#2:j150-30d", label: "Land Cruiser Prado J150 3.0 D-4D 2009–2015"}
+          - {id: "remove:car#2", label: "Убрать Prado"}
+      - car: null
+        topic: CHOOSE
+        options:
+          - {id: choose, label: "Выбери сам"}
+  sportage_card:
+    case: sportage_card_ru
+    id: q-card-sportage
+    kind: CONFIRM_INTAKE
+    question: Проверьте, что я понял (Kia Sportage NQ5 1.6 T-GDi HEV), и подтвердите.
+    items:
+      - car: null
+        topic: CARD
+        options:
+          - {id: "yes", label: "Да, исследовать"}
+          - {id: stop, label: "Пока не надо"}
+      - car: car#1
+        topic: PROPOSE
+        options:
+          - {id: "yes:car#1", label: "Да"}
+          - {id: "no:car#1", label: "Нет, другую"}
+  sportage_engine:
+    case: sportage_engine_ru
+    id: q-sportage-engine
+    kind: QUESTIONS
+    question: "Какой двигатель у Kia Sportage: 1.6 T-GDi HEV 215 CV, 1.6 T-GDi PHEV 252 CV, 1.6 CRDi MHEV 136 CV?"
+    items:
+      - car: car#1
+        topic: ENGINE
+        options:
+          - {id: "q:car#1:ENGINE:0", label: "1.6 T-GDi HEV 215 CV"}
+          - {id: "q:car#1:ENGINE:1", label: "1.6 T-GDi PHEV 252 CV"}
+          - {id: "q:car#1:ENGINE:2", label: "1.6 CRDi MHEV 136 CV"}
+          - {id: choose, label: "Выбери сам"}
+  sportage_tucson_engines:
+    case: sportage_tucson_ru
+    id: q-st-engines
+    kind: QUESTIONS
+    question: "1. Какой двигатель у Kia Sportage: 1.6 CRDi MHEV 136 CV, 1.6 HEV 210 CV? 2. Какой у Hyundai Tucson?"
+    items:
+      - car: car#1
+        topic: ENGINE
+        options:
+          - {id: "q:car#1:ENGINE:0", label: "1.6 CRDi MHEV 136 CV"}
+          - {id: "q:car#1:ENGINE:1", label: "1.6 HEV 210 CV"}
+      - car: car#2
+        topic: ENGINE
+        options:
+          - {id: "q:car#2:ENGINE:0", label: "1.6 T-GDi HEV 215 CV"}
+          - {id: "q:car#2:ENGINE:1", label: "1.6 T-GDi PHEV 252 CV"}
+  cx60_i10_engines:
+    case: cx60_i10_ru
+    id: q-cx60-i10-engines
+    kind: QUESTIONS
+    question: "1. Какой двигатель у Mazda CX-60? 2. Какой двигатель у Hyundai i10?"
+    items:
+      - car: car#1
+        topic: ENGINE
+        options:
+          - {id: "q:car#1:ENGINE:0", label: "e-Skyactiv D 3.3 200 CV"}
+          - {id: "q:car#1:ENGINE:1", label: "e-Skyactiv D 3.3 254 CV"}
+          - {id: "q:car#1:ENGINE:2", label: "e-Skyactiv PHEV 2.5 327 CV"}
+      - car: car#2
+        topic: ENGINE
+        options:
+          - {id: "q:car#2:ENGINE:0", label: "1.0 MPI 63 CV"}
+          - {id: "q:car#2:ENGINE:1", label: "1.2 MPI 79 CV"}
+          - {id: "q:car#2:ENGINE:2", label: "1.0 T-GDi 100 CV"}
+  eclass_engine:
+    case: eclass_cx60_ru
+    id: q-eclass-engine
+    kind: QUESTIONS
+    question: "1. Какой двигатель у Mercedes-Benz E-Class: E 200, E 220 d, E 300 e, E 300 de, E 450 d? 2. Mazda CX-60?"
+    items:
+      - car: car#1
+        topic: ENGINE
+        options:
+          - {id: "q:car#1:ENGINE:0", label: "E 200"}
+          - {id: "q:car#1:ENGINE:1", label: "E 220 d"}
+          - {id: "q:car#1:ENGINE:2", label: "E 300 e"}
+          - {id: "q:car#1:ENGINE:3", label: "E 300 de"}
+          - {id: "q:car#1:ENGINE:4", label: "E 450 d"}
+      - car: car#2
+        topic: ENGINE
+        options:
+          - {id: "q:car#2:ENGINE:0", label: "e-Skyactiv D 3.3 200 CV"}
+          - {id: "q:car#2:ENGINE:1", label: "e-Skyactiv PHEV 2.5 327 CV"}
+  eclass_drive:
+    case: eclass_cx60_ru
+    id: q-eclass-drive
+    kind: QUESTIONS
+    question: "Какой привод у Mercedes-Benz E-Class: задний привод, полный привод — или «выбери сам»?"
+    items:
+      - car: car#1
+        topic: DRIVE
+        options:
+          - {id: "q:car#1:DRIVE:0", label: "задний привод"}
+          - {id: "q:car#1:DRIVE:1", label: "полный привод"}
+          - {id: choose, label: "Выбери сам"}
+  cclass_fuel:
+    case: cclass_cx60_ru
+    id: q-cclass-fuel
+    kind: QUESTIONS
+    question: "1. Какое топливо у Mercedes-Benz C-Class: мягкий гибрид, плагин-гибрид? 2. Mazda CX-60 · двигатель?"
+    items:
+      - car: car#1
+        topic: FUEL
+        options:
+          - {id: "q:car#1:FUEL:0", label: "мягкий гибрид"}
+          - {id: "q:car#1:FUEL:1", label: "плагин-гибрид"}
+      - car: car#2
+        topic: ENGINE
+        options:
+          - {id: "q:car#2:ENGINE:0", label: "e-Skyactiv D 3.3 200 CV"}
+          - {id: "q:car#2:ENGINE:1", label: "e-Skyactiv PHEV 2.5 327 CV"}
+  eclass_card_es:
+    case: eclass_cx60_es
+    id: q-card-eclass
+    kind: CONFIRM_INTAKE
+    question: "Comprueba lo que he entendido y confirma: Mercedes-Benz Clase E E 200, Mazda CX-60 e-Skyactiv D 200 CV."
+    items:
+      - car: null
+        topic: CARD
+        options:
+          - {id: "yes", label: "Sí, investigar"}
+          - {id: stop, label: "Ahora no"}
+      - car: car#1
+        topic: PROPOSE
+        options:
+          - {id: "yes:car#1", label: "Sí"}
+          - {id: "no:car#1", label: "No, otro"}
+  i10_engine_condition:
+    case: mx30_i10_ru
+    id: q-i10-engine-cond
+    kind: QUESTIONS
+    question: "1. Какой двигатель у Hyundai i10: 1.0 MPI 63 CV, 1.2 MPI 79 CV, 1.0 T-GDi 100 CV? 2. Новые или подержанные?"
+    items:
+      - car: car#2
+        topic: ENGINE
+        options:
+          - {id: "q:car#2:ENGINE:0", label: "1.0 MPI 63 CV"}
+          - {id: "q:car#2:ENGINE:1", label: "1.2 MPI 79 CV"}
+          - {id: "q:car#2:ENGINE:2", label: "1.0 T-GDi 100 CV"}
+      - car: null
+        topic: CONDITION
+        options:
+          - {id: "condition:NEW", label: "Новые"}
+          - {id: "condition:USED", label: "Подержанные"}
+  mx30_i10_gearbox:
+    case: mx30_bev_i10_ru
+    id: q-i10-gearbox-2
+    kind: QUESTIONS
+    question: "Hyundai i10 1.0 MPI 63 CV продаётся с разными коробками (механика, автомат). Какой вариант?"
+    items:
+      - car: car#2
+        topic: GEARBOX
+        options:
+          - {id: "gb:car#2:manual", label: "Механика"}
+          - {id: "gb:car#2:automatic", label: "Автомат"}
+  mx30_engine:
+    case: mx30_bev_i10_ru
+    id: q-mx30-engine
+    kind: QUESTIONS
+    question: "Какой двигатель у Mazda MX-30: e-Skyactiv EV 145 CV, e-Skyactiv R-EV 170 CV?"
+    items:
+      - car: car#1
+        topic: ENGINE
+        options:
+          - {id: "q:car#1:ENGINE:0", label: "e-Skyactiv EV 145 CV"}
+          - {id: "q:car#1:ENGINE:1", label: "e-Skyactiv R-EV 170 CV"}
+  i10_gearbox:
+    case: i10_ru
+    id: q-i10-gearbox
+    kind: QUESTIONS
+    question: "Hyundai i10 продаётся с разными коробками (механика, автомат). Какой вариант?"
+    items:
+      - car: car#1
+        topic: GEARBOX
+        options:
+          - {id: "gb:car#1:manual", label: "Механика"}
+          - {id: "gb:car#1:automatic", label: "Автомат"}
+          - {id: choose, label: "Выбери сам"}
+  i10_gearbox_es:
+    case: i10_es
+    id: q-i10-gearbox-es
+    kind: QUESTIONS
+    question: "El Hyundai i10 se vende con cambio manual o automático. ¿Cuál?"
+    items:
+      - car: car#1
+        topic: GEARBOX
+        options:
+          - {id: "gb:car#1:manual", label: "Manual"}
+          - {id: "gb:car#1:automatic", label: "Automático"}
+          - {id: choose, label: "Elige tú"}
+  mg_lineup:
+    case: sandero_mg_ru
+    id: q-mg-model
+    kind: QUESTIONS
+    question: "Какую модель MG вы имеете в виду? В Испании продаются: MG HS, MG 4, MG ZS"
+    items:
+      - car: car#2
+        topic: MAKE_LINEUP
+        options:
+          - {id: "q:car#2:MAKE_LINEUP:0", label: "MG HS (suv, petrol, phev, hybrid)"}
+          - {id: "q:car#2:MAKE_LINEUP:1", label: "MG 4 (hatchback, bev)"}
+          - {id: "q:car#2:MAKE_LINEUP:2", label: "MG ZS (suv, petrol, hybrid)"}
+  sandero_engine:
+    case: sandero_zs_ru
+    id: q-sandero-engine
+    kind: QUESTIONS
+    question: "Такого двигателя у Dacia Sandero Stepway нет. В продаже: Eco-G 120, TCe 110, hybrid 155. Какой?"
+    items:
+      - car: car#1
+        topic: ENGINE
+        options:
+          - {id: "q:car#1:ENGINE:0", label: "Eco-G 120"}
+          - {id: "q:car#1:ENGINE:1", label: "TCe 110"}
+          - {id: "q:car#1:ENGINE:2", label: "hybrid 155"}
+  sorento_prado_limit:
+    case: sorento_prado_research_ru
+    id: q-limit-sorento
+    kind: LIMIT
+    question: "Я приостановил исследование: достигнут лимит (стоимость). Продолжить или ответить по тому, что уже собрано?"
+    items:
+      - car: null
+        topic: LIMIT
+        options:
+          - {id: continue, label: "Продолжить исследование"}
+          - {id: stop, label: "Ответить по собранному"}
+  sorento_cost:
+    case: sorento_prado_research_ru
+    id: q-cost-sorento
+    kind: CONFIRM_COST
+    question: "Исследование Prado J150, Sorento PHEV (глубина: standard) обойдётся примерно в €0.45. Запустить?"
+    items:
+      - car: null
+        topic: COST
+        options:
+          - {id: run, label: "Запустить"}
+          - {id: skip, label: "Пропустить"}
+  sorento_gearbox:
+    case: sorento_ru
+    id: q-17
+    kind: QUESTIONS
+    question: Какая коробка у Kia Sorento?
+    items:
+      - car: car#1
+        topic: GEARBOX
+        options:
+          - {id: "gb:car#1:automatic", label: "Автомат"}
+          - {id: "gb:car#1:manual", label: "Механика"}
+  byd_model:
+    case: byd_ateca_ru
+    id: q-byd-model
+    kind: QUESTIONS
+    question: "Какую модель BYD вы имеете в виду: Seal U DM-i, Atto 3, Dolphin?"
+    items:
+      - car: car#1
+        topic: MAKE_LINEUP
+        options:
+          - {id: "q:car#1:MAKE_LINEUP:0", label: "Seal U DM-i"}
+          - {id: "q:car#1:MAKE_LINEUP:1", label: "Atto 3"}
+          - {id: "q:car#1:MAKE_LINEUP:2", label: "Dolphin"}
+  budget_intent:
+    case: need_budget_ru
+    id: q-budget-intent
+    kind: QUESTIONS
+    question: Вы рассматриваете новую машину или подержанную?
+    items:
+      - car: null
+        topic: BUDGET_INTENT
+        options:
+          - {id: "q:-:BUDGET_INTENT:0", label: "Новую"}
+          - {id: "q:-:BUDGET_INTENT:1", label: "Подержанную"}
+          - {id: "q:-:BUDGET_INTENT:2", label: "Неважно"}
+  octavia_cost:
+    case: octavia_leon_308_en
+    id: q-cost-octavia
+    kind: CONFIRM_COST
+    question: Researching Octavia RS, Leon VZ, 308 at deep depth costs about €0.90. Run it?
+    items:
+      - car: null
+        topic: COST
+        options:
+          - {id: run, label: "Run"}
+          - {id: skip, label: "Skip"}
+  sportage_engine_en:
+    case: rav4_sportage_en
+    id: q-sportage-engine-en
+    kind: QUESTIONS
+    question: "Which engine of the Kia Sportage plug-in hybrid: 1.6 T-GDi PHEV 252 PS, 1.6 T-GDi PHEV 265 PS?"
+    items:
+      - car: car#2
+        topic: ENGINE
+        options:
+          - {id: "q:car#2:ENGINE:0", label: "1.6 T-GDi PHEV 252 PS"}
+          - {id: "q:car#2:ENGINE:1", label: "1.6 T-GDi PHEV 265 PS"}
+          - {id: choose, label: "Choose for me"}
+  rav4_sportage_card:
+    case: rav4_sportage_card_en
+    id: q-card-rav4
+    kind: CONFIRM_INTAKE
+    question: Please check what I understood and confirm — then I start the research (≈ €0.40).
+    items:
+      - car: null
+        topic: CARD
+        options:
+          - {id: "yes", label: "Yes, research"}
+          - {id: stop, label: "Not now"}
+      - car: car#2
+        topic: PROPOSE
+        options:
+          - {id: "yes:car#2", label: "Yes"}
+          - {id: "no:car#2", label: "No, another one"}
+  rav4_sportage_limit:
+    case: rav4_sportage_research_en
+    id: q-limit-rav4
+    kind: LIMIT
+    question: I paused the research at the cost limit. Continue or answer with what I have?
+    items:
+      - car: null
+        topic: LIMIT
+        options:
+          - {id: continue, label: "Continue research"}
+          - {id: stop, label: "Answer with what you have"}
+  rav4_sportage_cost:
+    case: rav4_sportage_research_en
+    id: q-cost-rav4
+    kind: CONFIRM_COST
+    question: Researching RAV4 hybrid, Sportage PHEV at standard depth costs about €0.35. Run it?
+    items:
+      - car: null
+        topic: COST
+        options:
+          - {id: run, label: "Run"}
+          - {id: skip, label: "Skip"}
+  golf_variants_en:
+    case: golf_used_en
+    id: q-var-golf
+    kind: CONFIRM_VARIANTS
+    question: "Before I research, please confirm the exact variants: car#1 Golf Mk7.5 1.5 TSI 150 PS DSG"
+    items:
+      - car: car#1
+        topic: VERSION
+        options:
+          - {id: "option:car#1:mk75-15tsi", label: "Golf Mk7.5 1.5 TSI 150 PS DSG 2017–2019"}
+          - {id: "option:car#1:mk75-20tdi", label: "Golf Mk7.5 2.0 TDI 150 PS DSG 2017–2019"}
+          - {id: "option:car#1:mk8-15etsi", label: "Golf Mk8 1.5 eTSI 150 PS DSG 2020–"}
+          - {id: "remove:car#1", label: "Remove Golf"}
+      - car: null
+        topic: CHOOSE
+        options:
+          - {id: choose, label: "Choose for me"}
+  golf_engine_en:
+    case: golf_engine_en
+    id: q-golf-engine-en
+    kind: QUESTIONS
+    question: "Which engine for the Golf: 1.5 eTSI 150 PS, 2.0 TDI 150 PS?"
+    items:
+      - car: car#1
+        topic: ENGINE
+        options:
+          - {id: "q:car#1:ENGINE:0", label: "1.5 eTSI 150 PS"}
+          - {id: "q:car#1:ENGINE:1", label: "2.0 TDI 150 PS"}
+          - {id: choose, label: "Choose for me"}
+  ateca_engine_es:
+    case: seal_ateca_es
+    id: q-ateca-engine
+    kind: QUESTIONS
+    question: "¿Qué motor tiene el SEAT Ateca: 1.5 TSI 150 CV DSG, 2.0 TDI 150 CV DSG, 1.0 TSI 115 CV?"
+    items:
+      - car: car#2
+        topic: ENGINE
+        options:
+          - {id: "q:car#2:ENGINE:0", label: "1.5 TSI 150 CV DSG"}
+          - {id: "q:car#2:ENGINE:1", label: "2.0 TDI 150 CV DSG"}
+          - {id: "q:car#2:ENGINE:2", label: "1.0 TSI 115 CV"}
+          - {id: choose, label: "Elige tú"}
+  seal_ateca_card:
+    case: seal_ateca_card_es
+    id: q-card-ateca
+    kind: CONFIRM_INTAKE
+    question: Comprueba lo que he entendido y confirma; después empiezo la investigación (≈ 0,40 €).
+    items:
+      - car: null
+        topic: CARD
+        options:
+          - {id: "yes", label: "Sí, investigar"}
+          - {id: stop, label: "Ahora no"}
+      - car: car#2
+        topic: PROPOSE
+        options:
+          - {id: "yes:car#2", label: "Sí"}
+          - {id: "no:car#2", label: "No, otro"}
+  ateca_variants_es:
+    case: seal_ateca_card_es
+    id: q-var-ateca
+    kind: CONFIRM_VARIANTS
+    question: "Antes de investigar, confirma las versiones exactas: car#2 Ateca 1.5 TSI 150 CV DSG"
+    items:
+      - car: car#2
+        topic: VERSION
+        options:
+          - {id: "option:car#2:15tsi-dsg", label: "Ateca 1.5 TSI 150 CV DSG"}
+          - {id: "option:car#2:20tdi-dsg", label: "Ateca 2.0 TDI 150 CV DSG"}
+          - {id: "remove:car#2", label: "Quitar Ateca"}
+      - car: null
+        topic: CHOOSE
+        options:
+          - {id: choose, label: "Elige tú"}
+  seal_ateca_cost:
+    case: seal_ateca_research_es
+    id: q-cost-ateca
+    kind: CONFIRM_COST
+    question: "Investigar Seal U DM-i, Ateca 1.5 TSI (profundidad: standard) cuesta unos 0,40 €. ¿Lo ejecuto?"
+    items:
+      - car: null
+        topic: COST
+        options:
+          - {id: run, label: "Ejecutar"}
+          - {id: skip, label: "Omitir"}
+  seal_ateca_limit:
+    case: seal_ateca_research_es
+    id: q-limit-ateca
+    kind: LIMIT
+    question: He pausado la investigación al llegar al límite (coste). ¿Continúo o respondo con lo que tengo?
+    items:
+      - car: null
+        topic: LIMIT
+        options:
+          - {id: continue, label: "Seguir investigando"}
+          - {id: stop, label: "Responder con lo que hay"}
+  golf_engine_es:
+    case: golf_engine_es
+    id: q-golf-engine-es
+    kind: QUESTIONS
+    question: "¿Qué motor tiene el Volkswagen Golf: 1.0 eTSI 110 CV, 1.5 eTSI 150 CV, 2.0 TDI 150 CV?"
+    items:
+      - car: car#1
+        topic: ENGINE
+        options:
+          - {id: "q:car#1:ENGINE:0", label: "1.0 eTSI 110 CV"}
+          - {id: "q:car#1:ENGINE:1", label: "1.5 eTSI 150 CV"}
+          - {id: "q:car#1:ENGINE:2", label: "2.0 TDI 150 CV"}
+  condition_es:
+    case: corolla_qashqai_es
+    id: q-condition-es
+    kind: QUESTIONS
+    question: ¿Buscas coches nuevos o de segunda mano?
+    items:
+      - car: null
+        topic: CONDITION
+        options:
+          - {id: "condition:NEW", label: "Nuevos"}
+          - {id: "condition:USED", label: "De segunda mano"}
+  condition_en:
+    case: civic_en
+    id: q-condition-en
+    kind: QUESTIONS
+    question: New or used?
+    items:
+      - car: null
+        topic: CONDITION
+        options:
+          - {id: "condition:NEW", label: "New"}
+          - {id: "condition:USED", label: "Used"}
