@@ -44,11 +44,21 @@ result to the owner first. Spec 012 (A4c onward) waits until 013 S7. New code fo
   the last report" with no report → strict xfail `tests/unit/chat/dialog/policy/test_policy_known_bugs.py` (fix at S4).
 - Pre-prod runs main `a2677a8`+ (redeployed after C1); `check_checkpoints.py`: 0 module paths, 17 threads load.
 
+- **013 T005** (PR "T005"): baseline `specs/013-dialogue-quality/baseline.md` (+ `.json`), €1.15, gemini-3.6-flash:
+  all fields 20 % vs harness ceiling 17 %; answer 66/72, goals 76/86, reaction 82/100, action 28 = ceiling (the
+  harness has no identify/assess: action is indicative); p95 of understanding 4.6 s (G4 reference). Re-run:
+  `cd backend && uv run python -m tests.eval.understanding.runner` (DATABASE_URL = test DB for usage rows).
+- 013 S5 got findings A/B as I8/I9 (T056/T057, PR #150); the invented row f28fe7f7 stays until T057 (≈ 320
+  dependent rows, no cascade); backup `automind-20261127-101515.sql.gz`.
+- Spec 016 narration guard drafted from a teammate's source (PR #151, NOT merged): audit, D1–D11 await the owner;
+  N1 (quick fixes of the old guard) proposed in parallel with 015 PL2.
+- 2026-11-27 ~10:20 Google prepaid credits ran out (402 on every model → pre-prod down); owner topped up ~10:45.
+
 **Next (agreed with the owner 2026-11-27)**
 1. ~~015 PL1 ∥ 014 C2~~ done. Owner to decide: add findings A (reset attempt counters when a car's model changes)
    and B (a relative generation — "newer", "older", "такой же" — is never a generation name; nothing unverified
    enters `vehicle_variants`) to spec 013 S5; delete the invented row.
-2. 013 T005 baseline run on the real model (≈ €1–2 — announce first), T006 nightly.
+2. ~~013 T005~~ done; T006 nightly next. Owner: D1–D11 of spec 016 and whether N1 goes now.
 3. 015 PL2 (after C2), PL3 (before S3); 013 S3 shadow; 015 PL5; then 013 S4 + 014 C3 + 015 PL4.
 
 **Working notes**

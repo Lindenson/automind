@@ -33,10 +33,15 @@ outputs + cassettes; `-m live` for real models) is the base. Extend it, do not b
   `case_changes`). Sources (its §8): §1 examples, real misses from pre-prod (`turn_outcomes` / feedback with
   complaint or rephrase), the golden dialogues the prompt names; every patch in `interpreter.md` and every word of
   `phrases._YES/_NO/_CHOOSE/_GO` becomes a case before it is deleted (its §9 risk).
-- [ ] T005 Eval runner `backend/tests/eval/understanding/runner.py` (`-m live`): runs the current interpreter + the
+- [x] T005 Eval runner `backend/tests/eval/understanding/runner.py` (`-m live`): runs the current interpreter + the
   old label mapping (`understanding-spec.md` §4 "Соответствие старых меток") on the set, writes `specs/013-dialogue-quality/baseline.md` (accuracy per
   field, per language, per pending kind, list of failures) and the p95 latency of the understanding step (old
   interpreter), the reference for the +20 % criterion. Cost estimate before the run, announce it.
+  Done 2026-11-27: `runner.py` + `old_path.py` (today's path per pending kind) + `scoring.py` + `oracle.py` (the
+  harness ceiling: expected labels through the same path, free). Baseline on gemini-3.6-flash, €1.15: all fields
+  20 % (ceiling 17 %), language 96, answer 66 (ceiling 72), goals 76 (86), reaction 82 (100), rejections 67,
+  changes 80, action 28 = ceiling 28 (indicative only: no identify/assess in the harness); understanding p95
+  4.6 s. Weakest: QUESTIONS pending (answer 29 %, all-ok 2 %), choose_for_me / lookalikes 0 % all-ok.
 - [ ] T006 Nightly: a worker/cron task or `scripts/eval_understanding.sh` + doc in quickstart; result to
   Prometheus gauge `understanding_eval_accuracy{field}`.
 
