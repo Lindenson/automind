@@ -26,6 +26,7 @@ from automind.acquisition.api import (
     VersionsRead,
     WebHint,
 )
+from automind.chat.domain.decision import PolicyConfig
 from automind.chat.domain.identification.ladder import Generation
 from automind.chat.domain.intake import LineupModel
 from automind.chat.domain.turn import JobStatus, Role, TurnStatus
@@ -396,6 +397,7 @@ class Ports:
     estimator: Estimator
     computations: ComputationStore
     research: ResearchHistory  # spec 012 S9c: what earlier research left, for the planner
+    policy: PolicyConfig  # spec 015 T210: built once at startup (`chat.infrastructure.adapters.policy_config`)
     acquisition: AcquisitionPort | None = None  # spec 011 S8: the engine (search, pages, readers live there)
     feasibility: FeasibilityStore | None = None  # spec 003 US3: used-price ranges and the checks of a turn
     lineup: LineupLookup | None = None  # spec 005: a make's line-up on a market; None: no look-up

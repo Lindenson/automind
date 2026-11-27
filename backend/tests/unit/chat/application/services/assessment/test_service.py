@@ -118,3 +118,15 @@ def test_a_warning_is_given_once_a_turn() -> None:
     first = new_warnings(plan, case, frozenset(), WORDING)
     assert [n["level"] for n in first] == ["warning"] and "older than 25 years" in first[0]["text"]
     assert new_warnings(plan, case, frozenset({first[0]["text"]}), WORDING) == []
+
+
+async def test_an_earlier_feasibility_finding_waits_until_the_person_acknowledges_it() -> None:
+    """Spec 015 T212: assess says whether a finding waits (the policy reads the fact); with no new checks this
+    pass (here: no feasibility store), the turn's earlier checks decide."""
+    checked = {"results": [], "fingerprint": "fp-1"}
+    waiting = await _service(_History()).plan(PlanRequest(_case(), _assessed(), checked=checked))
+    assert waiting.feasibility is None and waiting.feasibility_pending is True
+    seen = await _service(_History()).plan(PlanRequest(_case(feasibility_ack="fp-1"), _assessed(), checked=checked))
+    assert seen.feasibility_pending is False
+    nothing = await _service(_History()).plan(PlanRequest(_case(), _assessed()))
+    assert nothing.feasibility_pending is False

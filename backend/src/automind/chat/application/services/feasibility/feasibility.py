@@ -7,6 +7,8 @@ editorial used-price ranges), runs the pure `domain.feasibility` rules, persists
 
 from __future__ import annotations
 
+import hashlib
+import json
 from dataclasses import asdict
 from typing import Any, Protocol
 
@@ -16,6 +18,7 @@ from automind.chat.domain import understanding
 from automind.chat.domain.assessment import feasibility as fz
 from automind.chat.domain.case import CaseFile
 from automind.chat.domain.cost import tco
+from automind.shared.contracts.json import JsonObject
 
 
 class FeasibilityStore(Protocol):
@@ -34,6 +37,7 @@ CHECK_LABEL = {
 
 
 def needs_of(case: CaseFile) -> fz.Needs:
+    """The person's constraints as the feasibility rules read them (budget, running cost, space, use)."""
     b = case.budget
     return fz.Needs(
         budget_amount=float(b.max_eur) if b.max_eur else None,
@@ -50,29 +54,21 @@ def needs_of(case: CaseFile) -> fz.Needs:
 
 
 def has_constraints(case: CaseFile) -> bool:
+    """True when the person set any constraint the checks can test."""
     return needs_of(case).any()
 
 
-def _fact(car: dict[str, Any], key: str) -> fz.Fact | None:
-    sv = car["values"].get(key)
-    if sv is None or not sv.available or sv.value_num is None:
-        return None
-    sources = [car["claim_src"][cid]["url"] for cid in (sv.claim_ids or []) if cid in car["claim_src"]][:3]
-    return fz.Fact(float(sv.value_num), "SOURCED", tuple(sources))
+def needs_ack(case: CaseFile) -> str:
+    """The acknowledgement that covers the current constraints whatever the data shows later ("look at used")."""
+    payload = json.dumps(constraint_lines(case) + [case.budget.intent], sort_keys=True)
+    return "needs:" + hashlib.sha256(payload.encode()).hexdigest()[:24]
 
 
-async def _used_ranges(store: FeasibilityStore, variant_id: str) -> list[fz.UsedRange]:
-    return [
-        fz.UsedRange(
-            r.model_year_from,
-            r.model_year_to,
-            float(r.min_eur),
-            float(r.max_eur),
-            url,
-            r.quoted_on.isoformat() if r.quoted_on else None,
-        )  # fmt: skip
-        for r, url in await store.used_ranges(variant_id)
-    ]
+def pending(case: CaseFile, data: JsonObject | None) -> bool:
+    """True when the checks `data` found something the person has not acknowledged yet (spec 003 FR-020): the
+    policy says it before any report."""
+    fp = (data or {}).get("fingerprint")
+    return bool(fp) and case.feasibility_ack not in (fp, needs_ack(case))
 
 
 async def car_facts(case: CaseFile, rates_cfg: dict[str, Any], store: FeasibilityStore) -> list[fz.CarFacts]:
@@ -128,6 +124,7 @@ async def persist(store: FeasibilityStore, chat_id: str, turn_id: str, case: Cas
 
 
 def constraint_lines(case: CaseFile) -> list[str]:
+    """The person's constraints as short English lines (the feasibility block, the alternatives prompt)."""
     b, out = case.budget, []
     if b.max_eur:
         what = {"NEW": "new", "USED": "used", "ANY": "new or used"}.get(b.intent, "")
@@ -178,4 +175,26 @@ def problems(data: dict[str, Any]) -> list[str]:
     """One line per check that is not FITS (for the reply text and the confirmation)."""
     return [
         f"{r['label']}: {c['summary']}" for r in data.get("results", []) for c in r["checks"] if c["verdict"] != "FITS"
+    ]
+
+
+def _fact(car: dict[str, Any], key: str) -> fz.Fact | None:
+    sv = car["values"].get(key)
+    if sv is None or not sv.available or sv.value_num is None:
+        return None
+    sources = [car["claim_src"][cid]["url"] for cid in (sv.claim_ids or []) if cid in car["claim_src"]][:3]
+    return fz.Fact(float(sv.value_num), "SOURCED", tuple(sources))
+
+
+async def _used_ranges(store: FeasibilityStore, variant_id: str) -> list[fz.UsedRange]:
+    return [
+        fz.UsedRange(
+            r.model_year_from,
+            r.model_year_to,
+            float(r.min_eur),
+            float(r.max_eur),
+            url,
+            r.quoted_on.isoformat() if r.quoted_on else None,
+        )  # fmt: skip
+        for r, url in await store.used_ranges(variant_id)
     ]

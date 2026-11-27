@@ -3,6 +3,7 @@ R7), then any variant that is ambiguous, used or new to the catalogue."""
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import ClassVar
 
 from automind.chat.dialog.policy.contracts import CarFacts, RuleOutcome, Situation, Stage, fire, skip
@@ -20,7 +21,7 @@ class IntakeCard:
     requirement: ClassVar[str | None] = "spec 005 R7; spec 007 US7"
 
     def check(self, s: Situation, cfg: PolicyConfig) -> RuleOutcome:
-        case, est = s.case, s.cost_estimate_eur or 0.0
+        case, est = s.case, s.cost_estimate_eur or Decimal(0)
         if case.intake.card_confirmed:
             return skip(self, "the card is confirmed")
         if not any(c.identify is not None for c in case.cars):

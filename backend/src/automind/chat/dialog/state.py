@@ -65,6 +65,8 @@ class TurnState(TypedDict, total=False):
     limit_hit: LimitHit | None  # research paused at a limit (asks the user, never cancels)
     limit_extensions: int  # how many times the user said "continue" in this turn
     feasibility: dict[str, Any] | None  # {results, fingerprint} from application.feasibility (spec 003 US3)
+    feasibility_pending: bool  # a feasibility finding waits for the person's acknowledgement (assess, spec 015 T212)
+    assessed_version: int | None  # the case version assess assessed the cars on (spec 015 D6)
     preset: dict[str, Any] | None  # a request from a button (no interpretation): {kind, focus_cars, areas, language}
     not_understood: list[str]  # car keys whose question the last message did not answer (spec 004 FR-031)
     picked: bool  # the message was one of the offered options, applied by code (spec 007 F)
@@ -88,6 +90,8 @@ PER_TURN_RESET: dict[str, Any] = {
     "limit_hit": None,
     "limit_extensions": 0,
     "feasibility": None,
+    "feasibility_pending": False,
+    "assessed_version": None,
     "not_understood": [],
     "picked": False,
     "hops": 0,

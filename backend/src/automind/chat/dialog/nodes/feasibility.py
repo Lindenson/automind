@@ -6,10 +6,7 @@ The verdict and its numbers come from application.feasibility (code); this node 
 
 from __future__ import annotations
 
-import hashlib
-import json
 import uuid
-from typing import Any
 
 from automind.chat.application.services.feasibility import feasibility as fz_app
 from automind.chat.dialog.contract import node
@@ -23,18 +20,6 @@ from automind.chat.dialog.nodes.feasibility_io import (
 from automind.chat.dialog.phrases import t
 from automind.chat.dialog.state import TurnState
 from automind.chat.dialog.turn.context import TurnContext
-from automind.chat.domain.case import CaseFile
-
-
-def needs_ack(case: CaseFile) -> str:
-    """Acknowledgement that covers the current constraints whatever the data shows later ("look at used")."""
-    payload = json.dumps(fz_app.constraint_lines(case) + [case.budget.intent], sort_keys=True)
-    return "needs:" + hashlib.sha256(payload.encode()).hexdigest()[:24]
-
-
-def pending(case: CaseFile, data: dict[str, Any] | None) -> bool:
-    fp = (data or {}).get("fingerprint")
-    return bool(fp) and case.feasibility_ack not in (fp, needs_ack(case))
 
 
 @node("prepare_feasibility", reads=FeasibilityIn, writes=PrepareFeasibilityOut)
@@ -80,7 +65,7 @@ async def apply_feasibility(inp: ApplyFeasibilityIn, c: TurnContext) -> ApplyFea
         for car in case.cars:
             if car.key in over or car.condition == "UNKNOWN":
                 car.condition = "USED"
-        case.feasibility_ack = needs_ack(case)
+        case.feasibility_ack = fz_app.needs_ack(case)
         await c.save_case(case, ["looking at used cars for the budget"])
         return ApplyFeasibilityOut(route="assess", confirm_payload=None, resume=None)
     case.feasibility_ack = data.get("fingerprint")

@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     cost_confirm_threshold_eur: float = 0.30
     cost_hard_cap_eur: float = 1.00
     policy_max_passes: int = 8  # spec 007 FR-027: policy passes in one turn before the limit pass
+    # spec 015 D6: a policy input that breaks an invariant fails the turn (tests) instead of a log line and a metric
+    policy_strict: bool = Field(default=False, validation_alias="AUTOMIND_POLICY_STRICT")
     max_concurrency: int = 4
     job_timeout_s: float = 180.0  # one car × area; a slow source no longer cuts a job short
     turn_timeout_s: float = 900.0  # research pauses (and asks) at 85% of it; 300 s paused 3-car research

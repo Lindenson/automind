@@ -45,7 +45,6 @@ from automind.chat.domain import intake
 from automind.chat.domain.case import Choice, Pending
 from automind.chat.domain.turn import Role
 from automind.shared.contracts.json import JsonObject
-from automind.shared.infrastructure.config.settings import settings
 from automind.shared.vehicle import markets
 
 
@@ -245,7 +244,7 @@ async def prepare_cost(inp: CostIn, c: TurnContext) -> ConfirmOut:
     eur = float(inp.cost_estimate or 0)
     await c.status("estimating", f"Estimated research cost €{eur:.2f}")
     lang = inp.language
-    cap = t("over_cap", lang, cap=f"{settings().cost_hard_cap_eur:.2f}") if d.get("over_cap") else ""
+    cap = t("over_cap", lang, cap=f"{c.ports.policy.hard_cap_eur:.2f}") if d.get("over_cap") else ""
     labels = [case.car(k).label or case.car(k).request_text for k in d["cars"]]
     payload = {
         "kind": "cost",
@@ -368,7 +367,7 @@ async def prepare_intake(inp: CostIn, c: TurnContext) -> ConfirmOut:
     case.pending = Pending(kind="CONFIRM_INTAKE", items=[{"car": x.key} for x in case.cars])
     await c.save_case(case, ["confirmation card shown"])
     await record_intake(c, "CARD_SHOWN")
-    over = t("over_cap", lang, cap=f"{settings().cost_hard_cap_eur:.2f}") if inp.decision.get("over_cap") else ""
+    over = t("over_cap", lang, cap=f"{c.ports.policy.hard_cap_eur:.2f}") if inp.decision.get("over_cap") else ""
     await c.status("estimating", f"Confirm the cars and the research (≈ €{eur:.2f})")
     payload = {
         "kind": "intake",

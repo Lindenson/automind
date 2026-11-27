@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import UTC, datetime
+from decimal import Decimal
 from typing import Any, TypeVar
 
 from langchain.agents import create_agent
@@ -13,7 +15,9 @@ from automind.acquisition.infrastructure.wiring import engine_ports
 from automind.acquisition.registry.infrastructure.wiring import registry_service
 from automind.chat.application.ports import Ports
 from automind.chat.application.services.identification.lineup import get_lineup
+from automind.chat.domain import intake
 from automind.chat.domain.cost.turn_cost import AreaAverage, CostPrices, estimate
+from automind.chat.domain.decision import PolicyConfig
 from automind.chat.infrastructure.events import EventBus
 from automind.chat.infrastructure.models_on_sale import models_on_sale
 from automind.chat.infrastructure.persistence.computations import ComputationRepo
@@ -31,6 +35,7 @@ from automind.observability.infrastructure.outcomes import OutcomeRepo, settings
 from automind.shared.contracts.config import Reference
 from automind.shared.infrastructure.config.loader import config_dir, search_config
 from automind.shared.infrastructure.config.runtime import reference
+from automind.shared.infrastructure.config.settings import Settings, settings
 from automind.shared.infrastructure.db.usage import UsageRepo
 from automind.shared.infrastructure.llm import gateway as llm_gateway
 
@@ -71,6 +76,7 @@ def live_ports(events: EventBus, prompts: dict[str, str]) -> Ports:
         estimator=LiveEstimator(),
         computations=ComputationRepo(),
         research=EngineResearchHistory(),
+        policy=policy_config(settings(), ref.search),
         feasibility=FeasibilityRepo(),
         market_facts=MarketFactRepo(),
         lineup=get_lineup,
@@ -78,6 +84,19 @@ def live_ports(events: EventBus, prompts: dict[str, str]) -> Ports:
         versions=ModelVersionsRepo(),
         outcomes=_outcomes(ref, prompts),
         registry=registry,
+    )
+
+
+def policy_config(s: Settings, search: Mapping[str, Any]) -> PolicyConfig:
+    """The policy's config (spec 015 T210) from the settings and `search.yaml intake`, built once at startup.
+    Raises `pydantic.ValidationError` for an invalid one (a hard cap below the threshold, no pass), so the app does
+    not start with it."""
+    return PolicyConfig(
+        confirm_threshold_eur=Decimal(str(s.cost_confirm_threshold_eur)),
+        hard_cap_eur=Decimal(str(s.cost_hard_cap_eur)),
+        max_passes=s.policy_max_passes,
+        intake=intake.Limits.from_config(search.get("intake") or {}),
+        strict_inputs=s.policy_strict,
     )
 
 

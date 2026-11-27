@@ -84,6 +84,8 @@ OWNERS: Final[Mapping[str, Owner]] = {
     "research_plan": Owner.one("assess"),
     "cost_estimate": Owner.one("assess"),
     "feasibility": Owner.one("assess"),
+    "feasibility_pending": Owner.one("assess"),
+    "assessed_version": Owner.one("assess"),
     "decision": Owner.one("policy"),
     "hops": Owner.one("policy"),
     "cost_approved": Owner.shared("015 PL5: ResearchStatus", "apply_cost", "apply_intake"),

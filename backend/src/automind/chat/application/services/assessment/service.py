@@ -4,7 +4,8 @@
 again, the car looked up and auto-resolved when one version clearly wins — and changes the case in place; the caller
 saves it when there are changes, before the plan is made. `plan` makes the case-driven research plan from what
 earlier research left, prices it, says whether the person already declined this very plan, runs the feasibility
-checks when the plan has nothing to research, and words the plan's warnings.
+checks when the plan has nothing to research, says whether the checks (these, else the turn's earlier ones in
+`PlanRequest.checked`) wait for the person's acknowledgement (spec 015 T212), and words the plan's warnings.
 
 Failures: a store that cannot be read (`StoreUnavailable` from the research history, the market facts, the
 estimator or the feasibility store) propagates; nothing is written here, so the turn resumes from its checkpoint
@@ -66,9 +67,11 @@ class AssessmentService:
         # Decided on every assess: the plan can grow inside a turn (a car confirmed after the first assess), and a
         # refusal of the smaller plan must not block research for the new one.
         declined = bool(plan.jobs) and case.declined_plan == key
+        checks = await self._feasibility(case, plan)
         return Planned(
-            _freshness(req.assessments, case, plan), plan, key, cost, declined, await self._feasibility(case, plan),
+            _freshness(req.assessments, case, plan), plan, key, cost, declined, checks,
             new_warnings(plan, case, req.shown, self.words),
+            fz.pending(case, checks if checks is not None else req.checked),
         )  # fmt: skip
 
     async def _history(self, case: CaseFile) -> PlanHistory:

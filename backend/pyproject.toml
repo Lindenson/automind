@@ -113,6 +113,7 @@ module = [
     "automind.chat.dialog.graph", "automind.chat.dialog.nodes.understand_io", "automind.chat.dialog.nodes.identify_io",
     "automind.chat.dialog.nodes.confirm_io", "automind.chat.dialog.nodes.research_io",
     "automind.chat.dialog.nodes.report_io", "automind.chat.dialog.nodes.feasibility_io",
+    "automind.chat.dialog.nodes.policy_io", "automind.chat.dialog.nodes.policy",
     "automind.shared.contracts.provider_failure",
     "automind.acquisition.reputation.domain.*", "automind.acquisition.reputation.application.*",
     "automind.acquisition.reputation.infrastructure.*", "automind.delivery.cli.baseline",

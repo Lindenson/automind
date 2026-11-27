@@ -4,6 +4,8 @@ took, so the regression test feeds the same arguments to both."""
 
 from __future__ import annotations
 
+from decimal import ROUND_HALF_UP, Decimal
+
 from automind.chat.dialog.policy import CarFacts, Decision, Situation, decide
 from automind.chat.domain import intake
 from automind.chat.domain.case import CaseFile
@@ -15,8 +17,13 @@ THRESHOLD, CAP, MAX_PASSES = 0.30, 1.00, 8
 def config(
     *, threshold: float = THRESHOLD, cap: float = CAP, max_passes: int = MAX_PASSES, limits: intake.Limits | None = None
 ) -> PolicyConfig:
-    return PolicyConfig(confirm_threshold_eur=threshold, hard_cap_eur=cap, max_passes=max_passes,
-                        intake=limits or intake.Limits(full_intake=False))  # fmt: skip
+    return PolicyConfig(confirm_threshold_eur=eur(threshold), hard_cap_eur=eur(cap), max_passes=max_passes,
+                        intake=limits or intake.Limits(full_intake=False), strict_inputs=True)  # fmt: skip
+
+
+def eur(amount: float) -> Decimal:
+    """`amount` as the policy compares it: euros rounded half-up to the cent (as `situation_from` rounds)."""
+    return Decimal(str(amount)).quantize(Decimal("0.01"), ROUND_HALF_UP)
 
 
 def facts(case: CaseFile, cars: dict[str, CarState] | None = None) -> tuple[CarFacts, ...]:
@@ -38,7 +45,8 @@ def situation(
     feasibility_pending: bool = False,
     pass_no: int = 1,
 ) -> Situation:
-    return Situation(case=case, request=request, cars=facts(case, cars), cost_estimate_eur=cost_estimate_eur,
+    cost = None if cost_estimate_eur is None else eur(cost_estimate_eur)
+    return Situation(case=case, request=request, cars=facts(case, cars), cost_estimate_eur=cost,
                      last_fingerprint=last_fingerprint, cost_approved=cost_approved,
                      research_declined=research_declined, case_changed=case_changed,
                      feasibility_pending=feasibility_pending, pass_no=pass_no)  # fmt: skip

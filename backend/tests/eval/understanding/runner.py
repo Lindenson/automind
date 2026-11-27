@@ -25,8 +25,7 @@ from pathlib import Path
 from automind.chat.application.services.interpretation.service import InterpretationService
 from automind.chat.dialog.prompts import load_all as load_prompts
 from automind.chat.dialog.report_wording import WORDING
-from automind.chat.domain import intake
-from automind.chat.domain.decision import PolicyConfig
+from automind.chat.infrastructure.adapters import policy_config
 from automind.delivery.bootstrap import configure_domain, reference
 from automind.shared.infrastructure.config.settings import settings
 from automind.shared.infrastructure.llm import gateway
@@ -62,10 +61,7 @@ async def run(cases: list[Case], fx: Fixtures, llm: object, *, quiet: bool = Fal
     configure_domain()
     ref = reference(load_prompts())
     service = InterpretationService(llm, ref, WORDING, _no_log)  # type: ignore[arg-type]
-    s = settings()
-    cfg = PolicyConfig(confirm_threshold_eur=s.cost_confirm_threshold_eur, hard_cap_eur=s.cost_hard_cap_eur,
-                       max_passes=s.policy_max_passes,
-                       intake=intake.Limits.from_config(ref.search.get("intake") or {}))  # fmt: skip
+    cfg = policy_config(settings(), ref.search)
     gate = asyncio.Semaphore(CONCURRENCY)
 
     async def one(c: Case) -> Result:

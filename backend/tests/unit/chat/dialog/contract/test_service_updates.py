@@ -42,13 +42,14 @@ def test_an_applied_message_says_what_changed() -> None:
 
 def test_an_assessment_writes_the_plan_and_only_new_notices() -> None:
     plan = ResearchPlan(jobs=[Job("a", "v1", "specs")], rounds=1)
-    planned = Planned({"a": Assessment(state=CarState())}, plan, "plan-1", 0.01, False, None, [])
+    planned = Planned({"a": Assessment(state=CarState())}, plan, "plan-1", 0.01, False, None, [], False)
     earlier = [notice("earlier")]
-    out = AssessOut.from_planned(planned, earlier).update()
+    out = AssessOut.from_planned(planned, earlier, assessed_version=3).update()
     assert out["research_plan"] == {"jobs": [["a", "v1", "specs", False, False]], "rounds": 1, "key": "plan-1"}
     assert out["cost_estimate"] == 0.01 and out["research_declined"] is False
+    assert out["feasibility_pending"] is False and out["assessed_version"] == 3
     assert "notices" not in out and "feasibility" not in out and "case_version" not in out
-    warned = Planned({}, plan, "plan-1", 0.0, True, {"results": []}, [notice("old car", "warning")])
-    out = AssessOut.from_planned(warned, earlier).update()
+    warned = Planned({}, plan, "plan-1", 0.0, True, {"results": []}, [notice("old car", "warning")], True)
+    out = AssessOut.from_planned(warned, earlier, assessed_version=4).update()
     assert out["notices"] == [*earlier, notice("old car", "warning")] and "case_version" not in out
-    assert out["feasibility"] == {"results": []}
+    assert out["feasibility"] == {"results": []} and out["feasibility_pending"] is True

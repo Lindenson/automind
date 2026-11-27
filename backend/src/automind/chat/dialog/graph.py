@@ -21,7 +21,7 @@ from typing import Any
 from langgraph.graph import END, START, StateGraph
 
 from automind.chat.dialog.confirmation import AnyNode, Confirmation, Route, add_confirmation
-from automind.chat.dialog.nodes import confirm, feasibility, identify, report, research, understand
+from automind.chat.dialog.nodes import confirm, feasibility, identify, policy, report, research, understand
 from automind.chat.dialog.policy import policy_targets, route_of
 from automind.chat.dialog.state import TurnState
 from automind.chat.dialog.turn.context import TurnContext
@@ -35,7 +35,7 @@ NODES: tuple[AnyNode, ...] = (
     understand.apply_delta_node,
     identify.identify_node,
     understand.assess_node,
-    understand.policy_node,
+    policy.policy_node,
     report.general_node,
     confirm.ask_node,
     confirm.select_candidates,

@@ -144,9 +144,6 @@ doc|chat/application/services/feasibility/feasibility.py|FeasibilityStore.save_c
 doc|chat/application/services/feasibility/feasibility.py|FeasibilityStore.used_ranges
 doc|chat/application/services/feasibility/feasibility.py|block
 doc|chat/application/services/feasibility/feasibility.py|car_facts
-doc|chat/application/services/feasibility/feasibility.py|constraint_lines
-doc|chat/application/services/feasibility/feasibility.py|has_constraints
-doc|chat/application/services/feasibility/feasibility.py|needs_of
 doc|chat/application/services/feasibility/feasibility.py|persist
 doc|chat/application/services/interpretation/ask.py|fill_questions
 doc|chat/application/services/interpretation/ask.py|phrase
@@ -758,12 +755,6 @@ order|acquisition/worker/queue.py|release
 order|acquisition/worker/scheduler.py|due
 order|acquisition/worker/scheduler.py|interval_s
 order|acquisition/worker/scheduler.py|tick
-order|chat/application/services/feasibility/feasibility.py|block
-order|chat/application/services/feasibility/feasibility.py|car_facts
-order|chat/application/services/feasibility/feasibility.py|constraint_lines
-order|chat/application/services/feasibility/feasibility.py|evaluate
-order|chat/application/services/feasibility/feasibility.py|persist
-order|chat/application/services/feasibility/feasibility.py|problems
 order|chat/application/services/identification/candidates.py|ask_the_model
 order|chat/application/services/identification/candidates.py|propose
 order|chat/application/services/identification/lineup.py|cached
