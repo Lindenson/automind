@@ -1,4 +1,4 @@
-# Next session: start here (2026-11-27: specs 013 + 014 + 015 approved, implement step by step)
+# Next session: start here (2026-11-27 pm: 015 PL1 + 014 C2 merged; next 013 T005 baseline, then PL2)
 
 Three approved specs, one PR per step, merged to main without review; after each merged step that touches `src`:
 `scripts/deploy.sh up --monitoring`, replay the owner's chat live (cost ≈ €0.01–0.06; script below), show the
@@ -21,17 +21,38 @@ result to the owner first. Spec 012 (A4c onward) waits until 013 S7. New code fo
 - **014 C1** (PR #144): `@node` + typed In/Out for all 32 nodes, owners registry, `contract.md`, differs 0.
   `request_kind` single owner is `apply_delta` (not interpret — see tasks.md T103). Double writers pinned by test,
   each with the step that removes it (C2/C3/C4/015 PL5).
+- **015 PL1** (PR #147): rules as classes, `decide(situation, config) -> Decision` with the rule trail, `ROUTES`
+  (END/SUSPEND/LOOP), contract `policy-pure`; 10 000-case regression vs the frozen old chain: 0 differences;
+  `policy_max_passes` setting (8). Structure 1406 → 1401.
+- **014 C2** (PR #148): `ctx.case()` / `ctx.save_case()` (`turn/cached.py` `Cached[T]`, reusable for PL2's
+  fingerprint), `save_version(expected=)` → `VersionConflict`, report/answer persist after the model call
+  (`DeferredIntake`), one conflict retry in `@node`, a second fails the turn. Structure → 1390.
+- Remote branches can no longer be deleted (repo rule GH013): `014-c2-case-once`, `015-pl1-policy-skeleton` stay.
+- Pre-prod = main `c22dd39` (redeployed 2026-11-27 ~09:05). Live replay (chat b6c108ab, €0.027): t1 finds the
+  **W206 C-Class** (S1 holds), asks Mercedes fuel + CX-60 engine + new/used; t2 ("…отменяй поиск. пошел в жопу")
+  is again not a stop and not acknowledged — the same fuel question, and the **CX-60 question vanished** (settled
+  silently, bug 8; the remove chip already showed "200 CV RWD Exclusive-Line" on t1).
+- Review of the owner's d170b861 continued on 11-27 (turns 5–11): C→E fixed; new findings — (A) intake attempt
+  counters stay on car#1 after the model changes, so the C-Class engine was auto-picked by the ask limit ("C 200 d",
+  with a false "asked twice" note; `ladder/steps.py:154`); (B) "такой же но более нового поколения" became
+  `generation_hint="newer"` and an **invented version "C 200 DSG FWD"** was stored in `vehicle_variants`
+  (`f28fe7f7…`, key `…|newer|c 200 dsg|mhev`, source LOOKED_UP) — W206 is already the newest; (C) an engine edit
+  on the card was dropped silently ("card edit not applied"; S4 T046); (D) the verdict flipped to "equal" because
+  depreciation data was missing. A and B are in no spec yet; the invented row awaits the owner's decision (backup
+  first).
 - Live miss 2026-11-27 (chat eb81dd90 t2): complaint read as `correction` + unchanged case → "nothing changed since
   the last report" with no report → strict xfail `tests/unit/chat/dialog/policy/test_policy_known_bugs.py` (fix at S4).
 - Pre-prod runs main `a2677a8`+ (redeployed after C1); `check_checkpoints.py`: 0 module paths, 17 threads load.
 
 **Next (agreed with the owner 2026-11-27)**
-1. **015 PL1** (rule skeleton, `ROUTES`, 10 000-case regression vs the old code) **in parallel with 014 C2**
-   (`ctx.case()`, `VersionConflict`, retry purity) — separate worktrees and test DBs.
+1. ~~015 PL1 ∥ 014 C2~~ done. Owner to decide: add findings A (reset attempt counters when a car's model changes)
+   and B (a relative generation — "newer", "older", "такой же" — is never a generation name; nothing unverified
+   enters `vehicle_variants`) to spec 013 S5; delete the invented row.
 2. 013 T005 baseline run on the real model (≈ €1–2 — announce first), T006 nightly.
 3. 015 PL2 (after C2), PL3 (before S3); 013 S3 shadow; 015 PL5; then 013 S4 + 014 C3 + 015 PL4.
 
 **Working notes**
+- Parallel agents share the session scratchpad: give each its own log names (a `check.log` was overwritten once).
 - Parallel agents: each in its own worktree AND its own test DB (`automind_test_<tag>` / `automind_mig_<tag>`, create
   with `docker compose exec -T postgres createdb -U automind <db>`; pass `TEST_DATABASE_URL=…5433/automind_test_<tag>`).
 - Live replay script (scratchpad, recreate if gone): GET `/api/v1/chats` for the owner cookie, chat id = a new uuid4
