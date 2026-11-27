@@ -59,6 +59,8 @@ class Settings(BaseSettings):
     # spec 010 FR-030: Prometheus /metrics; without a token only these networks may scrape
     metrics_token: str | None = None
     metrics_nets: str = "127.0.0.0/8,::1/128,172.16.0.0/12"
+    # spec 013 T006: the nightly understanding eval's summary (scripts/eval_understanding.sh; mounted into the app)
+    understanding_eval_summary: str = "/eval-runs/understanding/latest.json"
     # Spend across all chats per day (Europe/Madrid): research pauses and asks "continue?" at it; 0 = no cap
     daily_cap_eur: float = 5.00
 

@@ -42,8 +42,12 @@ outputs + cassettes; `-m live` for real models) is the base. Extend it, do not b
   20 % (ceiling 17 %), language 96, answer 66 (ceiling 72), goals 76 (86), reaction 82 (100), rejections 67,
   changes 80, action 28 = ceiling 28 (indicative only: no identify/assess in the harness); understanding p95
   4.6 s. Weakest: QUESTIONS pending (answer 29 %, all-ok 2 %), choose_for_me / lookalikes 0 % all-ok.
-- [ ] T006 Nightly: a worker/cron task or `scripts/eval_understanding.sh` + doc in quickstart; result to
+- [x] T006 Nightly: a worker/cron task or `scripts/eval_understanding.sh` + doc in quickstart; result to
   Prometheus gauge `understanding_eval_accuracy{field}`.
+  Done 2026-11-27: `scripts/eval_understanding.sh` (host cron 03:30, flock, pre-prod DB for usage rows) →
+  `eval-runs/understanding/` (gitignored); the app reads `latest.json` (`shared/infrastructure/metrics/
+  understanding_eval.py`, volume `./eval-runs:/eval-runs:ro`) → `automind_understanding_eval_*`; rules
+  `AutomindUnderstandingEvalStale` (36 h) and `…Errors` (> 5). Doc: the set's README. Thresholds stay G10's.
 
 Done 2026-11-26 (PR "S0a"): g13–g17 with per-turn `known_bug` (strict: a marked turn that passes fails the gate);
 `schema.py` `cars:` / `reply_kind` / `not_repeated` / `stopped` / `reply_not_contains`, seeded `lineups:` /

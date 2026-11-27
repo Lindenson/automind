@@ -424,6 +424,7 @@ case "$cmd" in
     fi
     if [[ " ${profiles[*]-} " == *" monitoring "* ]]; then write_metrics_token; fi
     port_free
+    mkdir -p eval-runs/understanding  # spec 013 T006: mounted into the app; created by us, not by Docker as root
     say "Building the image"
     compose build --pull app
     say "Starting Postgres, the app (migrations run at container start) and the worker"

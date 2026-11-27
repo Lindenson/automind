@@ -26,6 +26,9 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://automind:${POSTGRES_PASSWORD:?run scripts/deploy.sh}@postgres:5432/automind
     ports: ["${AUTOMIND_BIND:-127.0.0.1}:${AUTOMIND_PORT:-8080}:8000"]
+    # spec 013 T006: the nightly understanding eval's summary (scripts/eval_understanding.sh), exported as gauges
+    volumes:
+      - ./eval-runs:/eval-runs:ro
     depends_on:
       postgres: { condition: service_healthy }
 

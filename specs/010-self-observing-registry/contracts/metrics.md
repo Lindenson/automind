@@ -67,5 +67,7 @@ Cardinality: `kind` ≤ 15, `area` 12, `market` ≤ 10, `domain` ≤ ~300 (statu
 | `AutomindLoopFailing` | `loop_fails_in_row >= 2` | 0m | critical |
 | `AutomindIssueRegression` | `automind_issues{status="regression"} > 0` | 0m | warning |
 | `AutomindDown` | `up{job="automind"} == 0` | 2m | critical |
+| `AutomindUnderstandingEvalStale` (spec 013 T006) | `time() - understanding_eval_last_run_timestamp_seconds > 36h` | 30m | warning |
+| `AutomindUnderstandingEvalErrors` (spec 013 T006) | `understanding_eval_errors > 5` | 0m | warning |
 
 Each rule carries `annotations.summary` and `annotations.admin` (link to `/admin` where useful). `tests/unit/test_prom_rules.py` parses the file and checks every `automind_*` name exists in the exporter registry (FR-032). Routing is configured by the owner in Alertmanager (`deploy/prometheus/alertmanager.yml` ships a placeholder receiver).

@@ -95,3 +95,16 @@ understanding-spec §4 "Соответствие старых меток", runs 
 It reports accuracy per field (`answer` present+kind, `goals`, `action`, plus `reaction` / `changes` / `rejections`
 where given), per language, per pending kind and per category, and lists the failures. All of this goes into
 `specs/013-dialogue-quality/baseline.md`, along with the p95 latency of the understanding step.
+
+## Baseline and nightly run (T005, T006)
+
+- Baseline: `cd backend && uv run python -m tests.eval.understanding.runner` (≈ €1.15; `DATABASE_URL` for the usage
+  rows) → `specs/013-dialogue-quality/baseline.md` + `.json`. `--ceiling-only` runs only the free oracle (expected
+  labels through the same path: what the old schema and the harness can score at best); `--ids`, `--limit` for a
+  few cases. `test_runner_ceiling.py` runs the oracle in the unit suite.
+- Nightly: host cron `30 3 * * * <repo>/scripts/eval_understanding.sh >> <repo>/eval-runs/understanding/cron.log 2>&1`.
+  It writes `eval-runs/understanding/<date>.md|.json` and `latest.json`; the app (volume `./eval-runs:/eval-runs:ro`)
+  exports `automind_understanding_eval_accuracy{field}`, `_ceiling{field}`, `_cases`, `_errors`, `_cost_eur`,
+  `_latency_p95_seconds`, `_last_run_timestamp_seconds`. Rules: `AutomindUnderstandingEvalStale` (no run for 36 h),
+  `AutomindUnderstandingEvalErrors` (> 5 cases failed to run). Usage rows go to the pre-prod DB (spend in /admin).
+
