@@ -10,8 +10,10 @@ import re
 from automind.chat.application.ports import Ports
 from automind.chat.application.services.identification.catalogue import find_variants
 from automind.chat.application.services.identification.contracts import Lineup
+from automind.chat.application.services.identification.rejected import lineup_facts, name_facts, variant_facts
 from automind.chat.application.services.identification.stages.place_market import lineup_models
 from automind.chat.domain.case import CaseCar, Choice
+from automind.chat.domain.identification.rejection import exclude_rejected
 from automind.chat.domain.identification.variant_match import fits, same_model
 from automind.shared.contracts.config import Reference
 from automind.shared.vehicle import identity
@@ -23,15 +25,16 @@ _ENGINE_TOKEN = re.compile(r"^[VWR]\d{1,2}$")  # V6, W12: cylinders, not a gener
 
 async def engines_on_sale(ports: Ports, car: CaseCar, year: int, alternatives: list[str]) -> list[Choice]:
     """Catalogued versions of this model that fit the car without the engine named (a new car: the generation on
-    sale now); then the resolver's alternatives."""
+    sale now); then the resolver's alternatives; never a version the person rejected (spec 013 I3)."""
     probe = car.model_copy(deep=True)
     probe.constraints.engine_hint = probe.constraints.trim_hint = probe.constraints.generation_hint = None
     same = await find_variants(car.make or "", car.model or "")
-    fitting = sorted((v for v in same if fits(v, probe, year, ports.ref)), key=lambda v: v.label)
+    fitting = sorted((v for v in exclude_rejected(same, car.identity_rejected, variant_facts)
+                      if fits(v, probe, year, ports.ref)), key=lambda v: v.label)  # fmt: skip
     out = [Choice(label=v.label, make=v.make, model=v.model, variant_id=v.id) for v in fitting
            if not year_conflict(v.label, car, ports.ref)]  # fmt: skip
     seen = {c.label.lower() for c in out}
-    for a in alternatives:
+    for a in exclude_rejected(alternatives, car.identity_rejected, name_facts):
         label = a if a.lower().startswith((car.make or "").lower()) else f"{car.make} {car.model} {a}"
         if label.lower() not in seen and not year_conflict(label, car, ports.ref):
             out.append(Choice(label=label, make=car.make, model=car.model))
@@ -65,7 +68,7 @@ def year_conflict(label: str, car: CaseCar, ref: Reference | None) -> bool:
 
 def close_lineup(lineup: Lineup | None, car: CaseCar) -> list[Choice]:
     """Models of the make's line-up close to the name the user gave (the same model first)."""
-    models = lineup_models(lineup)
+    models = exclude_rejected(lineup_models(lineup), car.identity_rejected, lineup_facts)
     close = [m for m in models if same_model(car.model, m.model) or same_model(m.model, car.model)]
     rest = [m for m in models if m not in close]
     return [Choice(label=f"{car.make} {m.model}", make=car.make, model=m.model, source_url=m.source_url)

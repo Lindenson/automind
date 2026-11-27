@@ -3,7 +3,9 @@ description: >-
   Chat d170b861 (2026-11-26, spec 013 B1). "Clase C Berlina" vs Mazda CX-60. The model understood C-Class both turns; identification
   replaced it with the E-Class (sound_key c-class == e-class, +5 bonus over the margin guard; the stored Mercedes line-up
   is one model, "Clase S", from a news article). Turn 2 rejects it and says stop: the same E-Class engine question came
-  back, the CX-60 settled to 200 CV without an answer.
+  back, the CX-60 settled to 200 CV without an answer. The interpreter's turn-2 output carries the rejection it reads
+  (spec 013 S2: "not the E-Class, the C-Class"); the case now holds the C-Class (S1), so code drops a rejection of
+  a model the car does not have and the C-Class stays.
 scenario: empty
 forget: [Mercedes-Benz, Mazda]
 seed:  # the catalogue rows the chat found (created by an earlier chat at 19:06 / 19:08)
@@ -270,16 +272,21 @@ turns:
         model: CX-60
         settled: false
 - user: ты не нашел мерседес класс C. отменяй поиск. пошел в жопу
-  known_bug: rejection not remembered (S2), no stop intent (S4, bug 10), CX-60 settled silently (bug 8)
-  expect:
+  expect:  # S2: the rejection is heard — the C-Class kept (or asked), never the E-Class; no question repeated
     no_search: true
-    stopped: true
     not_repeated: true
     cars:
       car#1:
         model: C-Class
         label_not_contains:
         - E-Class
-      car#2:
-        model: CX-60
-        settled: false
+  later:
+  - known_bug: no stop intent (S4, bug 10)
+    expect:
+      stopped: true
+  - known_bug: CX-60 settled silently (bug 8, S5 I5)
+    expect:
+      cars:
+        car#2:
+          model: CX-60
+          settled: false

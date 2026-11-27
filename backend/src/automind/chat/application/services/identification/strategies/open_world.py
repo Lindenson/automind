@@ -12,15 +12,22 @@ from automind.chat.application.services.identification.contracts import (
     Placed,
     UnknownModel,
 )
+from automind.chat.application.services.identification.rejected import (
+    variant_facts,
+    without_rejected_choices,
+    without_rejected_models,
+)
 from automind.chat.application.services.identification.resolver import resolve_with_llm
 from automind.chat.application.services.identification.stages.offer_engines import close_lineup, engines_on_sale
 from automind.chat.application.services.identification.stages.place_market import lineup_models
 from automind.chat.application.services.identification.stages.settle import proposed, settle
 from automind.chat.domain import intake
-from automind.chat.domain.case import Choice, IdentifyOutcome
+from automind.chat.domain.case import CaseCar, Choice, IdentifyKind, IdentifyOutcome, IntakeItem
+from automind.chat.domain.identification.rejection import is_rejected
 from automind.chat.domain.identification.variant_match import engine_of_fits, same_model
 
 MAX_NAMES = 6  # the line-up's models offered for an unknown one
+IDENTIFIED: IdentifyKind = "IDENTIFIED"
 
 
 class OpenWorld:
@@ -32,7 +39,7 @@ class OpenWorld:
     async def identify(self, placed: Placed) -> IdentifyOutcome:
         """The resolver's version, or what to ask when it cannot place one (the engines on sale, the line-up)."""
         o = await self._resolve(placed)
-        if o.outcome == "IDENTIFIED":
+        if o.outcome == IDENTIFIED:
             o.events.append({"kind": "identity_less_certain"})
         return o
 
@@ -64,9 +71,12 @@ class OpenWorld:
         except UnknownModel as e:
             names = e.closest or [f"{car.make} {m.model}" for m in lineup_models(lineup)[:MAX_NAMES]]
             names = intake.other_names(f"{car.make} {car.model}", intake.other_names(car.model, names))  # never itself
-            choices = [Choice(label=n, make=car.make, model=n.removeprefix(f"{car.make} ")) for n in names]
+            offered = [Choice(label=n, make=car.make, model=n.removeprefix(f"{car.make} ")) for n in names]
+            choices = without_rejected_choices(car, offered)
             car.resolution, car.variant_id, car.label = "UNRESOLVED", None, None
             return settle(car, IdentifyOutcome(outcome="NOT_FOUND", need="MODEL", choices=choices, checked=e.checked))
+        if is_rejected(variant_facts(v), car.identity_rejected):  # the person said "not this" (spec 013 I3)
+            return await self._instead_of_rejected(placed.car, year, v.model, v.label)
         hint = car.constraints.engine_hint
         if hint is not None and not hint.empty() and not engine_of_fits(v, hint):
             # no version with the named engine (FR-015): offer the engines that exist, no unsourced alternatives
@@ -75,3 +85,15 @@ class OpenWorld:
                                                choices=choices))  # fmt: skip
         car.variant_id, car.label, car.resolution = v.id, v.label, proposed(car)
         return settle(car, IdentifyOutcome(outcome="IDENTIFIED", note=ident.note))
+
+    async def _instead_of_rejected(self, car: CaseCar, year: int, model: str, label: str) -> IdentifyOutcome:
+        """The resolver named a version (or a model) the person rejected: never proposed; the versions on sale they
+        have not rejected are offered, else nothing is found and the tactic widens (the model when the model was
+        rejected, else the version)."""
+        choices = await engines_on_sale(self.ports, car, year, [])
+        car.resolution, car.variant_id, car.label = "UNRESOLVED", None, None
+        if choices:
+            return settle(car, IdentifyOutcome(outcome="CHOICES", need="ENGINE", choices=choices,
+                                               note=f"rejected: {label}"))  # fmt: skip
+        need: IntakeItem = "ENGINE" if without_rejected_models(car, [model]) else "MODEL"
+        return settle(car, IdentifyOutcome(outcome="NOT_FOUND", need=need, note=f"rejected: {label}"))

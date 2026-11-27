@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from automind.chat.application.ports import Ports
 from automind.chat.application.services.identification.assessment import assess_car
 from automind.chat.application.services.identification.contracts import IntakeConfig, Placed, VariantRow
+from automind.chat.application.services.identification.rejected import row_facts
 from automind.chat.application.services.identification.stages.ask_stale_version import (
     ask_stale_version,
     newer_versions,
@@ -27,6 +28,7 @@ from automind.chat.application.services.identification.stages.narrow_ladder impo
 from automind.chat.application.services.identification.stages.settle import SETTLED, proposed, settle
 from automind.chat.domain.case import CaseCar, Choice, IdentifyOutcome, LadderMemo
 from automind.chat.domain.identification import ladder
+from automind.chat.domain.identification.rejection import exclude_rejected
 from automind.chat.domain.identification.variant_match import bought_now
 
 MAX_CHOICES = 4  # other rows shown on the card
@@ -46,7 +48,8 @@ class CatalogueRows:
         events = reconcile(ports, car)
         a = await assess_car(car, ports.ref, year, case.compare_level)
         now = bought_now(car, year)
-        cands = current_rows(a.candidates, year) if now else a.candidates
+        cands = exclude_rejected(current_rows(a.candidates, year) if now else a.candidates, car.identity_rejected,
+                                 row_facts)  # fmt: skip
         since = picked_since(car)
         if not cands or (now and since is not None and all((c.get("generation_years_from") or 0) < since
                                                             for c in cands)):  # fmt: skip

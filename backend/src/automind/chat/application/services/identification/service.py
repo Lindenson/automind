@@ -15,18 +15,22 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
 from automind.chat.application.ports import Ports
+from automind.chat.application.services.identification import catalogue
 from automind.chat.application.services.identification.contracts import (
     Fallback,
     IdentifyRequest,
+    KnownModels,
     LineupLookup,
     Placed,
 )
 from automind.chat.application.services.identification.revalidation import drop_wrong_variant
 from automind.chat.application.services.identification.stages.ask_model import ask_model, did_you_mean
 from automind.chat.application.services.identification.stages.catalogue_lookup import catalogue_lookup
+from automind.chat.application.services.identification.stages.change_tactic import change_tactic
 from automind.chat.application.services.identification.stages.normalise_name import canonical_make, classify_url
 from automind.chat.application.services.identification.stages.place_market import place_on_market, say_where_sold
 from automind.chat.application.services.identification.stages.settle import has_version, needs_identify, settle
+from automind.chat.application.services.identification.stages.verify_proposal import verify_proposal
 from automind.chat.application.services.identification.stages.year_first import year_first
 from automind.chat.application.services.identification.strategies.catalogue_rows import CatalogueRows
 from automind.chat.application.services.identification.strategies.open_world import OpenWorld
@@ -63,13 +67,22 @@ class IdentificationService:
         self.fallbacks: tuple[Fallback, ...] = (SourcedVersions(ports), CatalogueRows(ports), OpenWorld(ports))
 
     async def run(self, req: IdentifyRequest) -> IdentifyOutcome:
-        """Identify one car in place (make and model canonical, a version proposed when found)."""
-        ports, case, car = self.ports, req.case, req.car
+        """Identify one car in place (make and model canonical, a version proposed when found and not contradicted
+        by the person's words); after a rejection, an attempt that finds nothing or repeats the last question
+        widens (spec 013 S2). Reads the catalogue (`catalogue.get_variant`) to verify a version found."""
+        ports, car = self.ports, req.car
+        before = car.identify  # the last question asked about this car (spec 013 T024: never asked the same way)
         note = classify_url(car, ports.ref.makes)
         canonical_make(car, ports.ref.makes)
         if not car.make:
             return settle(car, IdentifyOutcome(outcome="NEED", need="MAKE", note=note))
         names = await catalogue_lookup(ports, car, self.lineup)
+        return change_tactic(car, before, await self._attempt(req, names, note), names)
+
+    async def _attempt(self, req: IdentifyRequest, names: KnownModels, note: str | None) -> IdentifyOutcome:
+        """One identification attempt of a car whose make is known: the model asked, the version kept, the year
+        asked first, or the strategies' answer verified against the person's words."""
+        ports, case, car = self.ports, req.case, req.car
         if not car.model:
             return settle(car, ask_model(car, case, names, note))
         if has_version(car):
@@ -78,6 +91,7 @@ class IdentificationService:
         if (year_asked := year_first(ports, case, car, req.current_year)) is not None:
             return year_asked
         found = await self._first_answer(Placed(case, car, req.current_year, lineup))
+        found = await verify_proposal(car, found, catalogue.get_variant)
         return say_where_sold(car, did_you_mean(car, names, found))
 
     async def identify_case(

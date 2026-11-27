@@ -28,6 +28,7 @@ from automind.chat.application.services.interpretation.contracts import (
 from automind.chat.application.services.interpretation.interpret import interpret
 from automind.chat.application.services.interpretation.stages.brand_explained import brand_from_text
 from automind.chat.application.services.interpretation.stages.cars_safety_net import cars_safety_net
+from automind.chat.application.services.interpretation.stages.heard_rejections import heard_rejections
 from automind.chat.application.services.interpretation.stages.make_to_choose import make_to_choose_from
 from automind.chat.application.services.interpretation.stages.person_facts import person_from_text
 from automind.chat.application.services.interpretation.stages.picked_option import picked_option
@@ -88,7 +89,9 @@ class InterpretationService:
             i = Interpretation(request="compare", language=self.words.guess_language(said))
             return Reading(i, i.language, picked=True)
         try:
-            i = await interpret(self.llm, self.ref.prompts["interpreter"], case, history, text)
+            i = heard_rejections(
+                case, await interpret(self.llm, self.ref.prompts["interpreter"], case, history, text), text
+            )  # spec 013 T021: a rejection only with the words and the value behind it
         except InterpretError:
             return Reading(None, None, ask="rephrase")
         earlier = said[:-1] if said and said[-1] == text else said

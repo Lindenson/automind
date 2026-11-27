@@ -25,6 +25,9 @@ Assertions cover the action, case-file fields and resolved variants per turn, no
           not_repeated: true
           stopped: true
         known_bug: "..."             # spec 013: strict expected failure of the current code
+        later:                       # spec 013: checks of a later step; `expect` above must pass now
+          - known_bug: "no stop intent (S4)"
+            expect: {stopped: true}
 """
 
 from __future__ import annotations
@@ -86,6 +89,14 @@ class Expect(BaseModel):
     reply_not_contains: list[str] = Field(default_factory=list)  # e.g. "Я не понял ответ" (a complaint as an answer)
 
 
+class Later(BaseModel):
+    """Spec 013: expectations a later step makes pass. Each block must still fail (strict, like `known_bug`); the
+    turn's own `expect` must pass now. A turn whose message is fixed in steps keeps each step's checks apart."""
+
+    known_bug: str
+    expect: Expect = Field(default_factory=Expect)
+
+
 class Turn(BaseModel):
     user: str | None = None
     confirm: str | None = None
@@ -93,6 +104,7 @@ class Turn(BaseModel):
     # fails the gate until the marker is removed); the dialogue is reported xfail while every marked turn fails.
     known_bug: str | None = None
     expect: Expect = Field(default_factory=Expect)
+    later: list[Later] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def one_input(self) -> Turn:

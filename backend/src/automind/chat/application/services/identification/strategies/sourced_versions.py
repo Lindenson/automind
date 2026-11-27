@@ -12,6 +12,7 @@ from automind.chat.application.ports import Ports
 from automind.chat.application.services.identification import versions
 from automind.chat.application.services.identification.catalogue import upsert_variant
 from automind.chat.application.services.identification.contracts import Placed, VariantIdentity
+from automind.chat.application.services.identification.rejected import generation_rejected, version_facts
 from automind.chat.application.services.identification.stages.narrow_ladder import (
     asked,
     decide,
@@ -22,6 +23,7 @@ from automind.chat.application.services.identification.stages.narrow_ladder impo
 from automind.chat.application.services.identification.stages.settle import proposed, settle
 from automind.chat.domain.case import CaseCar, IdentifyOutcome, LadderMemo
 from automind.chat.domain.identification import ladder
+from automind.chat.domain.identification.rejection import exclude_rejected
 
 _AWD_WORD = re.compile(r"awd|4motion|quattro|xdrive|4x4|4wd", re.IGNORECASE)  # "2.0 TDI 4Motion" already says AWD
 
@@ -46,13 +48,16 @@ class SourcedVersions:
                                       new=new, current_year=year, fuel=fuel, market=car.market)  # fmt: skip
         except Exception:  # noqa: BLE001 - a failed look-up never blocks the intake: the fallback identifies
             g = None
-        if g is None or not g.versions:
-            return None
+        if g is None or not g.versions or generation_rejected(car, g.generation):
+            return None  # no sourced list, or the person rejected this generation (spec 013 I3)
         memo = car.ladder or LadderMemo()
         memo.certainty, memo.generation = "SOURCED", g.generation
         memo.generation_from, memo.generation_to = g.years_from, g.years_to
         car.ladder = memo
-        pool = ladder.on_sale(g.versions, year) if new else g.versions
+        pool = exclude_rejected(ladder.on_sale(g.versions, year) if new else g.versions, car.identity_rejected,
+                                version_facts)  # fmt: skip
+        if not pool:
+            return None  # every version listed was rejected: the next way looks further
         d = decide(ports, case, car, pool, memo, events)
         if not (d.done and d.step.version is not None):
             return asked(car, d, events)

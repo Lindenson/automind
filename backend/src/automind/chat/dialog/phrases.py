@@ -247,6 +247,36 @@ PHRASES: dict[str, dict[str, str]] = {
         "desde {since}); las matriculaciones en la UE muestran una versión más nueva desde {newest}. ¿Cuál es la "
         "tuya? Tócala, «elige tú» o escribe la potencia.",
     },
+    # spec 013 S2: a version that contradicts the person's words is never proposed; a rejection widens the search
+    "contradiction": {
+        "en": "{car}: you wrote «{said}», but what I found is {found} — that is not it, so I do not propose it. "
+        "Please tell me which one you mean.",
+        "ru": "{car}: вы писали «{said}», а я нашёл только {found} — это не то, предлагать не буду. Уточните, "
+        "пожалуйста, какую вы имеете в виду.",
+        "es": "{car}: escribiste «{said}», pero lo que encontré es {found}; no es eso, así que no lo propongo. "
+        "Dime cuál quieres decir.",
+    },
+    "not_found_checked": {
+        "en": "I could not find {wanted}; I checked: {checked}. Pick another model or send me a link to its page.",
+        "ru": "Я не нашёл {wanted}; проверил: {checked}. Выберите другую модель или пришлите ссылку на её страницу.",
+        "es": "No encontré {wanted}; revisé: {checked}. Elige otro modelo o envíame un enlace a su página.",
+    },
+    "not_found_wider": {
+        "en": "I could not find {wanted} in my catalogue or the make's line-up. Pick another model or send me a "
+        "link to its page.",
+        "ru": "Я не нашёл {wanted} ни в каталоге, ни в модельном ряду марки. Выберите другую модель или пришлите "
+        "ссылку на её страницу.",
+        "es": "No encontré {wanted} ni en mi catálogo ni en la gama de la marca. Elige otro modelo o envíame "
+        "un enlace a su página.",
+    },
+    "version_not_found": {
+        "en": "{car}: I found no other version than the one you rejected ({rejected}). Send me a link to the page "
+        "of the one you mean, or tell me its engine and power.",
+        "ru": "{car}: другой версии, кроме отклонённой вами ({rejected}), я не нашёл. Пришлите ссылку на страницу "
+        "нужной версии или напишите её двигатель и мощность.",
+        "es": "{car}: no encontré otra versión que la que rechazaste ({rejected}). Envíame un enlace a la página de "
+        "la que buscas, o dime su motor y potencia.",
+    },
     "ladder_missing": {
         "en": "{car} has no «{missing}» — the version there is: {label}.",
         "ru": "У {car} нет «{missing}» — есть версия: {label}.",

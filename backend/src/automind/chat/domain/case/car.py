@@ -8,10 +8,14 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 from automind.chat.domain.case.enums import Condition, Drive, Gearbox, IdentifyKind, IntakeItem, Resolution
+from automind.chat.domain.identification.rejection import Rejection
 from automind.shared.vehicle.engine import EngineHint
 
 
 class Constraints(BaseModel):
+    """What the person said narrows the car down: generation, fuel, body, trim, gearbox, driven wheels, the exact
+    engine of a tapped option, the page they sent and the engine they named."""
+
     generation_hint: str | None = None
     fuel_hint: str | None = None
     body_hint: str | None = None
@@ -83,6 +87,10 @@ class LadderMemo(BaseModel):
 
 
 class CaseCar(BaseModel):
+    """A car of the case: the person's words and facts (`request_text`, make, model, condition, year, mileage,
+    `constraints`), the version found (`variant_id`, `label`, `resolution`), the last identify outcome and ladder
+    memo, and what the person rejected about its identity (`identity_rejected`, spec 013 I3)."""
+
     key: str
     request_text: str
     make: str | None = None
@@ -105,6 +113,9 @@ class CaseCar(BaseModel):
     # chat 2026-11-06: the market the car was identified on when it is not on the Spanish line-up ("EU", "CN",
     # "ANY"); None: Spain. Outside Europe no price is taken (spec 009 FR-009)
     market: str | None = None
+    # spec 013 S2 (I3): what the person rejected about the identity ("not the E-Class"); kept across a replace of
+    # the same car key and never proposed again. Older cases load with none.
+    identity_rejected: list[Rejection] = Field(default_factory=list)
 
     @property
     def display_name(self) -> str:

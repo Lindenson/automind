@@ -11,14 +11,19 @@ from automind.chat.domain.case.car import CaseCar, Constraints
 from automind.chat.domain.case.casefile import CaseFile, Prediction, RaceSettings
 from automind.chat.domain.case.enums import Condition, CriterionKey, Depth, Persona, PersonaSource, Strength, Usage
 from automind.chat.domain.case.person import Budget, Needs, Priority, Profile, Rates, RunningLimit
+from automind.chat.domain.case.rejections import CarRejection, record_rejections
 
 
 class PersonaChange(BaseModel):
+    """The persona the message states or implies, and how it is known."""
+
     persona: Persona
     source: PersonaSource = "INFERRED"
 
 
 class PriorityChange(BaseModel):
+    """A criterion the person cares about, and how much."""
+
     criterion: CriterionKey
     strength: Strength = "MEDIUM"
 
@@ -53,6 +58,10 @@ class CarContext(BaseModel):
 
 
 class CaseDelta(BaseModel):
+    """The typed change of the case one message states (the interpreter proposes it, code checks it, `apply` is the
+    only code that applies it): persona and profile, settings, priorities, cars added / replaced / removed / given
+    context, rejections of a car's identity, race settings, a prediction, the make to choose from."""
+
     set_persona: PersonaChange | None = None
     # spec 007: STATED unless the interpreter marks a field INFERRED (with the user's words in profile.evidence)
     profile_basis: dict[str, Literal["STATED", "INFERRED"]] = Field(default_factory=dict)
@@ -76,8 +85,12 @@ class CaseDelta(BaseModel):
     set_prediction: Prediction | None = None
     choose_from_make: str | None = Field(default=None, description="A make the user wants a car of without naming "
                                          "a model ('find me a Kia'); never also in add_cars")  # fmt: skip
+    rejections: list[CarRejection] = Field(default_factory=list, description="What the person rejects about a car's "
+                                           "identity in THIS message ('not the E-Class', 'you did not find the "
+                                           "C-Class', 'another engine'); spec 013 S2")  # fmt: skip
 
     def is_empty(self) -> bool:
+        """The message states no change at all."""
         return self == CaseDelta()
 
 
@@ -292,6 +305,7 @@ def _same_request(car: CaseCar, ref: CarRef, year: int | None) -> bool:
 
 
 def _apply_cars(c: CaseFile, d: CaseDelta, log: list[str], current_year: int) -> None:
+    record_rejections(c, d.rejections, log)  # first: "not this" is about the car as the person saw it
     for key in d.remove_cars:
         removed = c.car(key)
         c.cars = [x for x in c.cars if x.key != key]
@@ -333,6 +347,7 @@ def _replace(c: CaseFile, ctx: CarContext, log: list[str], current_year: int) ->
         age_years=age,
         mileage_km=ctx.mileage_km if ctx.mileage_km is not None or not same_line else old.mileage_km,
         constraints=ctx.constraints or (old.constraints if same_line else Constraints()),
+        identity_rejected=old.identity_rejected,  # spec 013 I3: a replace never forgets what was rejected
     )
     if _identity(new) == _identity(old):
         return  # the same car again (e.g. "I meant the used 150"): nothing to change
