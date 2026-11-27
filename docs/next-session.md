@@ -93,6 +93,12 @@ result to the owner first. Spec 012 (A4c onward) waits until 013 S7. New code fo
   p95 4.6 → 1.6 s. §E targets not yet met (answer 97, goals 92): before S4 decide with the owner whether the
   understander runs on gemini-3.6-flash (one eval ≈ €1; latency has room). Owner: watch the shadow rows a few days
   (`turn show`, `automind_understanding_overrides_total`) before S4.
+- Pre-prod = main with S3 (redeployed 2026-11-27 ~14:20, backup `automind-20261127-141641.sql.gz` before 0027). Live
+  replay of d170b861 (chat 9c891343, €0.024): the old path answers as before (W206 C-Class found; t2 "отменяй поиск"
+  not a stop, the CX-60 question vanished: S4 / S5). The shadow on t2 reads goal **stop**, reaction **complaint**, no
+  answer (old: critique) — but also a false rejection "MODEL C-Class" with no `wanted` (the car already is the
+  C-Class; `heard_rejections` keeps it because only `wanted == current` is dropped). Fix before S4 applies
+  rejections from the intent: "you did not find X" while the case shows X is no rejection (prompt + check).
 - `diff_behaviour.py --base-db URL`: a head with a new migration leaves the test DB at a revision main does not know
   (every base test errors, "same 0, added N"); give the base its own DB (`automind_test_<tag>` + `automind_mig_<tag>`).
 

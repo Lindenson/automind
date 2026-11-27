@@ -21,3 +21,10 @@ def test_the_chain_of_a_turn_is_readable() -> None:
                  'intent: {"language": "ru"}', "old interpreter (decided the turn)", "confirm_yes"):  # fmt: skip
         assert part in text, part
     assert render_understanding(None) == "no understanding recorded for this turn"
+
+
+def test_empty_fields_are_left_out() -> None:
+    rec = UnderstandingRecord(chat_id="c", turn_id="t", source="text", input={"text": "stop", "question": None},
+                              intent={"goals": [{"kind": "stop", "focus_cars": [], "question": None}],
+                                      "answer_to_pending": None, "case_changes": {"add_cars": []}})  # fmt: skip
+    assert 'intent: {"goals": [{"kind": "stop"}]}' in render_understanding(rec)
