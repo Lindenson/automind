@@ -40,6 +40,20 @@ forbidden_modules =
     automind.observability.infrastructure.outcomes
     automind.delivery.web
 
+[importlinter:contract:policy-pure]
+name = The action policy is a pure function of the situation and the config (spec 015 D2)
+type = forbidden
+source_modules =
+    automind.chat.dialog.policy
+forbidden_modules =
+    automind.chat.dialog.nodes
+    automind.chat.dialog.graph
+    automind.chat.application
+    automind.chat.infrastructure
+    automind.shared.infrastructure
+    langgraph
+    sqlalchemy
+
 [importlinter:contract:application-ports]
 name = Application depends only on domain and ports
 type = forbidden

@@ -2,10 +2,11 @@
 
 import pytest
 
-from automind.chat.dialog.policy import decide
 from automind.chat.domain.case import CarRef, CaseDelta, CaseFile, PersonaChange, apply
 from automind.chat.domain.decision import CarState
 from automind.chat.domain.fingerprint import fingerprint
+
+from .builder import act as decide
 
 YEAR = 2026
 

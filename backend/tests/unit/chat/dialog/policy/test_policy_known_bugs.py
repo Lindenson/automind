@@ -4,8 +4,7 @@ A test here that starts passing fails the gate: remove its mark in the PR that f
 
 import pytest
 
-from automind.chat.dialog.policy import decide
-
+from .builder import act as decide
 from .test_policy import NEW_GOLF, case, ready
 
 

@@ -14,6 +14,7 @@ from automind.chat.infrastructure.persistence.repositories import MessageRepo
 from automind.shared.infrastructure import db
 from tests.fakes.fake_llm import FakeLLM
 from tests.fakes.fixture_search import FixtureSearch
+from tests.unit.chat.dialog.policy.builder import config, situation
 
 from .conftest import budget_factory, make_ports
 
@@ -21,7 +22,7 @@ LM = intake.LineupModel
 
 
 def _decide(case):
-    return decide(case, "compare", {}, cost_estimate_eur=None, last_fingerprint=None)
+    return decide(situation(case), config()).action
 
 
 def test_no_car_with_a_need_and_a_budget_selects_candidates():

@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     max_llm_calls_per_turn: int = 160  # spec 003: more pages per area; the €1 cost cap still bounds a turn
     cost_confirm_threshold_eur: float = 0.30
     cost_hard_cap_eur: float = 1.00
+    policy_max_passes: int = 8  # spec 007 FR-027: policy passes in one turn before the limit pass
     max_concurrency: int = 4
     job_timeout_s: float = 180.0  # one car × area; a slow source no longer cuts a job short
     turn_timeout_s: float = 900.0  # research pauses (and asks) at 85% of it; 300 s paused 3-car research

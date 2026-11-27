@@ -259,7 +259,6 @@ doc|chat/domain/cost/tco/model.py|TcoRates.from_config
 doc|chat/domain/cost/turn_cost.py|AreaAverage
 doc|chat/domain/cost/turn_cost.py|CostPrices
 doc|chat/domain/cost/turn_cost.py|job_cost
-doc|chat/domain/decision.py|Action
 doc|chat/domain/identification/identification.py|closest_models
 doc|chat/domain/identification/identification.py|settled
 doc|chat/domain/identification/ladder/labels.py|Reconciled
@@ -1255,7 +1254,6 @@ storage|observability/loop.py|sqlalchemy
 storage|observability/metrics/snapshot.py|automind.shared.infrastructure.db
 storage|observability/metrics/snapshot.py|sqlalchemy
 table|acquisition/infrastructure/fetch.py|_Text.handle_starttag
-table|chat/dialog/nodes/understand.py|route_policy
 table|shared/vehicle/specs/converters.py|km
 table|shared/vehicle/specs/normalize.py|normalize_drivetrain
 table|shared/vehicle/units.py|distance_to_km
@@ -1349,8 +1347,6 @@ word|chat/dialog/nodes/research.py|apply_limit:choice
 word|chat/dialog/nodes/research.py|route_after_limit:route
 word|chat/dialog/nodes/understand.py|_plan_request:request_kind
 word|chat/dialog/nodes/understand.py|apply_delta_node:kind
-word|chat/dialog/policy/rules/intake.py|intake_step:kind
-word|chat/dialog/policy/rules/intake.py|intake_step:outcome
 word|chat/dialog/report_followup.py|changed_blocks:request_kind
 word|chat/dialog/report_followup.py|changed_blocks:type
 word|chat/dialog/report_followup.py|confirm_inferred:type
@@ -1379,7 +1375,6 @@ word|chat/domain/identification/ladder/steps.py|Decision.done:kind
 word|chat/domain/identification/ladder/steps.py|decide:kind
 word|chat/domain/intake/pick.py|_answer:kind
 word|chat/domain/intake/pick.py|pick:kind
-word|chat/domain/intake/steps.py|_need:outcome
 word|chat/domain/verdict/report_layout.py|annotate_sections:type
 word|chat/domain/verdict/report_layout.py|order_blocks:type
 word|chat/infrastructure/persistence/repositories.py|FeasibilityRepo.used_ranges:status

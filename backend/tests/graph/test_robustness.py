@@ -1,11 +1,12 @@
 """Graph robustness (spec 007 FR-027..FR-029): a hop limit, retried provider errors, a report after a timeout."""
 
-from automind.chat.dialog.policy import MAX_HOPS, decide
+from automind.chat.dialog.policy import decide
 from automind.chat.dialog.retry import transient_provider_error
 from automind.chat.domain.case import CaseCar, CaseFile
 from automind.chat.infrastructure.persistence.repositories import MessageRepo
 from tests.fakes.fake_llm import FakeLLM
 from tests.golden.runner import load, seed
+from tests.unit.chat.dialog.policy.builder import MAX_PASSES, config, situation
 
 from .test_rescore import _reported
 from .test_weights_recompute import G6, runner, turn
@@ -17,10 +18,11 @@ class APIConnectionError(Exception):  # the provider SDK's name: a transient fai
 
 def test_hop_limit_ends_with_what_the_turn_has():
     car = CaseCar(key="car#1", request_text="Golf", make="VW", model="Golf", variant_id="v1", resolution="CONFIRMED")
-    a = decide(CaseFile(cars=[car]), "compare", {}, cost_estimate_eur=None, last_fingerprint=None, hops=MAX_HOPS)
+    limit_pass = MAX_PASSES + 1
+    a = decide(situation(CaseFile(cars=[car]), pass_no=limit_pass), config()).action
     assert a.kind == "REPORT" and "hop" in a.reason
     bare = CaseFile(cars=[CaseCar(key="car#1", request_text="Golf")])
-    b = decide(bare, "compare", {}, cost_estimate_eur=None, last_fingerprint=None, hops=MAX_HOPS)
+    b = decide(situation(bare, pass_no=limit_pass), config()).action
     assert b.kind == "ANSWER_GENERAL"
 
 

@@ -6,12 +6,20 @@ from __future__ import annotations
 import hashlib
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Literal
+from enum import StrEnum
 
 from automind.chat.domain.case import CaseCar, CaseFile, Choice, IdentifyKind, IntakeItem
 from automind.shared.contracts.json import JsonObject
 
-StepKind = Literal["ASK", "PROPOSE", "REMOVE_OR_CHOOSE", "CARD", "NONE"]
+
+class StepKind(StrEnum):
+    """What the intake does next about the cars' identity."""
+
+    ASK = "ASK"  # questions about the cars
+    PROPOSE = "PROPOSE"  # a version proposed after the attempts on an item ran out
+    REMOVE_OR_CHOOSE = "REMOVE_OR_CHOOSE"  # the attempts on a car ran out: remove it or choose for the person
+    CARD = "CARD"  # every car identified: the confirmation card
+    NONE = "NONE"  # nothing to do (no car, or the card already confirmed)
 
 
 ALL = "*"  # attempts key for questions about every car (CONDITION)
@@ -20,6 +28,9 @@ ALL = "*"  # attempts key for questions about every car (CONDITION)
 MAX_ITEMS = 3
 
 
+# what is still missing after an identify outcome when the outcome names nothing (None: the car is identified)
+_MISSING_AFTER: dict[IdentifyKind, IntakeItem | None] = {"IDENTIFIED": None, "CHOICES": "CHOICE", "NEED": "MODEL",
+                                                          "NOT_FOUND": "MODEL"}  # fmt: skip
 _RANK: dict[str | None, int] = {None: 0, "NEED": 1, "NOT_FOUND": 1, "CHOICES": 2, "IDENTIFIED": 3}
 
 
@@ -85,12 +96,8 @@ def _need(car: CaseCar) -> IntakeItem | None:
         return o.need if o and o.need in ("MODEL", "CHOICE") else "MODEL"
     if o is None:
         return None  # not identified yet in this turn (a case before 005, or a 4th car): the policy rules decide
-    outcome: IdentifyKind = o.outcome
-    if outcome == "IDENTIFIED":
-        return None
-    if outcome == "CHOICES":
-        return o.need or "CHOICE"
-    return o.need or "MODEL"
+    missing = _MISSING_AFTER[o.outcome]
+    return None if missing is None else o.need or missing
 
 
 def next_step(case: CaseFile, limits: Limits = Limits()) -> Step:  # noqa: B008 - frozen dataclass
@@ -109,19 +116,19 @@ def next_step(case: CaseFile, limits: Limits = Limits()) -> Step:  # noqa: B008 
             total >= limits.max_attempts_per_car
             or case.intake.attempt(car.key, "CHOICE") >= limits.max_attempts_per_item
         ):
-            return Step("REMOVE_OR_CHOOSE", car_key=car.key)
+            return Step(StepKind.REMOVE_OR_CHOOSE, car_key=car.key)
         n = case.intake.attempt(car.key, item)
         if n >= limits.max_attempts_per_item:
-            return Step("PROPOSE", car_key=car.key)
+            return Step(StepKind.PROPOSE, car_key=car.key)
         choices = tuple(car.identify.choices) if car.identify else ()
         items.append(StepItem(item, car.key, rephrase=n >= 1, choices=choices))
     if limits.full_intake and items:  # asked together with an identity question, never on its own (FR-018)
         items += _condition_and_year(case, limits)
     if items:
-        return Step("ASK", tuple(items[:MAX_ITEMS]))
+        return Step(StepKind.ASK, tuple(items[:MAX_ITEMS]))
     if not case.cars or case.intake.card_confirmed:
-        return Step("NONE")
-    return Step("CARD")
+        return Step(StepKind.NONE)
+    return Step(StepKind.CARD)
 
 
 def _condition_and_year(case: CaseFile, limits: Limits) -> list[StepItem]:

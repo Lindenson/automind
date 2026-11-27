@@ -1,7 +1,7 @@
 """The turn graph: the dialog state machine of one chat turn (plan.md "Turn graph"; research R2, R5), as tables.
 
     START → load_case → interpret (LLM) → apply_delta (code) → identify (spec 005) → assess (catalog) → policy
-    policy decides the action (chat.dialog.policy) and the graph routes on it (POLICY_ROUTES):
+    policy decides the action (chat.dialog.policy) and the graph routes on it (policy.ROUTES):
       answer      general | answer | report                                       → END
       ask         ask                                                             → END (the next message continues)
       confirm     prepare_<kind> → wait_<kind> (interrupt) → apply_<kind> → assess | interpret | …  (CONFIRMATIONS)
@@ -22,6 +22,7 @@ from langgraph.graph import END, START, StateGraph
 
 from automind.chat.dialog.confirmation import AnyNode, Confirmation, Route, add_confirmation
 from automind.chat.dialog.nodes import confirm, feasibility, identify, report, research, understand
+from automind.chat.dialog.policy import policy_targets, route_of
 from automind.chat.dialog.state import TurnState
 from automind.chat.dialog.turn.context import TurnContext
 
@@ -47,10 +48,6 @@ NODES: tuple[AnyNode, ...] = (
     report.answer_node,
     report.report_node,
 )
-
-# --- what the policy's action leads to (understand.route_policy maps Action.kind to these node ids) ----------------
-POLICY_ROUTES = ["general", "ask", "prepare_variants", "prepare_cost", "plan_research", "answer", "report",
-                 "prepare_feasibility", "prepare_intake", "select_candidates"]  # fmt: skip
 
 # --- the five confirmations (chat.dialog.confirmation) ----------------------------------------------------------
 CONFIRMATIONS: tuple[Confirmation, ...] = (
@@ -95,7 +92,7 @@ def build_graph(checkpointer: Any = None, tools: list[Any] | None = None) -> Any
     g.add_conditional_edges("apply_delta", understand.route_after_apply, {"end": END, "assess": "identify"})
     g.add_edge("identify", "assess")
     g.add_edge("assess", "policy")
-    g.add_conditional_edges("policy", understand.route_policy, POLICY_ROUTES)
+    g.add_conditional_edges("policy", _policy_route, policy_targets())
     # spec 007 US7: candidates become the case's cars and go through identification and the card
     g.add_conditional_edges("select_candidates", confirm.route_after_candidates,
                             {"identify": "identify", "general": "general"})  # fmt: skip
@@ -108,3 +105,8 @@ def build_graph(checkpointer: Any = None, tools: list[Any] | None = None) -> Any
     for terminal in TERMINALS:
         g.add_edge(terminal, END)
     return g.compile(checkpointer=checkpointer)
+
+
+def _policy_route(state: TurnState) -> str:
+    """The node the policy's action leads to (spec 015 `ROUTES`)."""
+    return route_of(state["decision"]["kind"])
