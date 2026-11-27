@@ -54,11 +54,19 @@ result to the owner first. Spec 012 (A4c onward) waits until 013 S7. New code fo
   N1 (quick fixes of the old guard) proposed in parallel with 015 PL2.
 - 2026-11-27 ~10:20 Google prepaid credits ran out (402 on every model → pre-prod down); owner topped up ~10:45.
 
+- **013 T006** (PR #153): nightly eval via host crontab (wolper, 03:30, `scripts/eval_understanding.sh`, ≈ €1.15/run,
+  usage rows in the pre-prod DB) → `eval-runs/understanding/` → app gauges `automind_understanding_eval_*`; rules
+  Stale (36 h) / Errors (> 5). `latest.json` seeded with the T005 run. Pre-prod redeployed at `fb2aa76`.
+- Mistake: `git add -A backend` committed the owner's `chat.zip` in #153 (public repo; an old copy of `chat/`
+  sources, no secrets found); removed + gitignored in #154, file restored on disk byte-identical. Still in history
+  (56d69f3): purging needs a force-push of main — owner's call. Never `git add -A` a directory with chat.zip.
+- Spec 016 merged as a draft (#151); D1–D11 still "proposed".
+
 **Next (agreed with the owner 2026-11-27)**
 1. ~~015 PL1 ∥ 014 C2~~ done. Owner to decide: add findings A (reset attempt counters when a car's model changes)
    and B (a relative generation — "newer", "older", "такой же" — is never a generation name; nothing unverified
    enters `vehicle_variants`) to spec 013 S5; delete the invented row.
-2. ~~013 T005~~ done; T006 nightly next. Owner: D1–D11 of spec 016 and whether N1 goes now.
+2. ~~013 T005, T006~~ done. Owner: D1–D11 of spec 016 and whether N1 goes now.
 3. 015 PL2 (after C2), PL3 (before S3); 013 S3 shadow; 015 PL5; then 013 S4 + 014 C3 + 015 PL4.
 
 **Working notes**
