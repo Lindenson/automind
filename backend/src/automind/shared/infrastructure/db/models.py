@@ -629,6 +629,29 @@ class PolicyConfigRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 
+class TurnUnderstandingRow(Base):
+    """One turn's understanding (spec 013 T033): input, the model's reading, what code dropped and corrected, the
+    intent, and the old interpreter's reading during the S3 shadow."""
+
+    __tablename__ = "turn_understanding"
+    turn_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    chat_id: Mapped[str] = mapped_column(String(36), index=True)
+    source: Mapped[str] = mapped_column(String(10))
+    input: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    open_question_id: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    question_repeated: Mapped[bool] = mapped_column(Boolean, default=False)
+    model: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    prompt_version: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    model_raw: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    refused: Mapped[str | None] = mapped_column(Text, nullable=True)
+    rejected: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
+    overrides: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
+    intent: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    old_reading: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, index=True)
+
+
 # --- Deterministic computations stored per turn for reproducibility (data-model §5) -----------
 
 

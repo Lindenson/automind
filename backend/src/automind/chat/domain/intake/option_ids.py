@@ -28,6 +28,11 @@ class OptionKind(StrEnum):
     NO = "no"
 
 
+# Question kinds about one car (a chip removes the car) and those that take "choose for me" (ENGINE only with options)
+CAR_KINDS = ("CAR_IDENTITY", "MAKE_LINEUP", "UNKNOWN_MODEL", "ENGINE", "USED_AGE", "TRIM", "GEARBOX", "PROPOSE",
+             "REMOVE_OR_CHOOSE", "FUEL", "POWER", "DRIVE")  # fmt: skip
+CHOOSABLE_KINDS = ("MAKE_LINEUP", "TRIM", "GEARBOX", "REMOVE_OR_CHOOSE", "FUEL", "POWER", "DRIVE")
+
 GEARBOXES: dict[str, Gearbox] = {"automatic": "automatic", "manual": "manual"}
 CONDITIONS: dict[str, Condition] = {"NEW": "NEW", "USED": "USED"}
 

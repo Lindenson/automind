@@ -4,7 +4,7 @@
 # cycles' journals), shared (used by every area).
 owners:
   chat: [chats, chat_messages, case_files, turns, turn_events, deleted_chats, intake_events, feasibility_checks,
-         report_ratings, tco_estimates, simulations, policy_decisions, policy_configs]
+         report_ratings, tco_estimates, simulations, policy_decisions, policy_configs, turn_understanding]
   acquisition: [vehicle_variants, brand_lineups, model_versions, documents, evidence, claims, spec_values,
                 research_runs, research_jobs, search_cache, learned_sources, market_facts,
                 page_relevance, used_price_ranges, site_reader_stats, maintenance_items, review_items, issues,

@@ -31,6 +31,7 @@ from automind.chat.infrastructure.persistence.repositories import (
     ModelVersionsRepo,
     TurnRepo,
 )
+from automind.chat.infrastructure.persistence.understanding import UnderstandingRepo
 from automind.chat.infrastructure.research_history import EngineResearchHistory
 from automind.observability.infrastructure.outcomes import OutcomeRepo, settings_version
 from automind.shared.contracts.config import Reference
@@ -85,6 +86,8 @@ def live_ports(events: EventBus, prompts: dict[str, str]) -> Ports:
         versions=ModelVersionsRepo(),
         outcomes=_outcomes(ref, prompts),
         decisions=DecisionRepo(),
+        understanding=UnderstandingRepo(),
+        understanding_shadow=settings().understanding_shadow,
         registry=registry,
     )
 

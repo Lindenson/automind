@@ -28,7 +28,7 @@ from automind.chat.domain.intake.names import (
     same_name,
     user_model,
 )
-from automind.chat.domain.intake.option_ids import OptionKind, option_id, pick_by_id
+from automind.chat.domain.intake.option_ids import CAR_KINDS, CHOOSABLE_KINDS, OptionKind, option_id, pick_by_id
 from automind.chat.domain.intake.pick import (
     inherit_condition,
     pick,
@@ -67,6 +67,8 @@ __all__ = [
     "other_names",
     "CardAnswer",
     "CardChoice",
+    "CAR_KINDS",
+    "CHOOSABLE_KINDS",
     "OptionKind",
     "card_answer",
     "option_id",
