@@ -11,7 +11,8 @@ lists sorted); tests whose canonical content differs even between the two base r
 e.g. which jobs a limit pause catches): listed, not gated. Exit 1 on any other difference.
 
 Runs never overlap (one test database). TEST_DATABASE_URL is taken from the environment or .env.docker like
-scripts/check.sh does.
+scripts/check.sh does. A head with a new migration leaves that database at a revision the base does not know:
+`--base-db URL` gives the base runs their own (its `automind_mig_*` twin must exist too, as for any test DB).
 """
 
 from __future__ import annotations
@@ -39,16 +40,18 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--base", default="origin/main")
     ap.add_argument("--head", default="HEAD")
     ap.add_argument("--keep", action="store_true", help="keep the worktrees and dumps for inspection")
+    ap.add_argument("--base-db", default=None, help="TEST_DATABASE_URL of the base runs (a head with a migration)")
     ap.add_argument("pytest_args", nargs="*", default=SUITES)
     a = ap.parse_args(argv)
     env = _test_env()
+    base_env = {**env, "TEST_DATABASE_URL": a.base_db} if a.base_db else env
     tmp = Path(tempfile.mkdtemp(prefix="behaviour-"))
     try:
         # base, head, base: the test database accumulates rows run after run, so an effect of that drift shows up as
         # a difference between the two base runs (unstable/racy), never as a false difference of the head
-        base1 = _run(a.base, tmp / "base", tmp / "dump-base-1", a.pytest_args, env)
+        base1 = _run(a.base, tmp / "base", tmp / "dump-base-1", a.pytest_args, base_env)
         head = _run(a.head, tmp / "head", tmp / "dump-head", a.pytest_args, env)
-        base2 = _run(a.base, tmp / "base", tmp / "dump-base-2", a.pytest_args, env, reuse=True)
+        base2 = _run(a.base, tmp / "base", tmp / "dump-base-2", a.pytest_args, base_env, reuse=True)
         return report(compare(base1, base2, head))
     finally:
         if a.keep:
