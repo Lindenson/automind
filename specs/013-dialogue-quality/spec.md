@@ -161,8 +161,8 @@ open question; quitting during a question is recorded as "abandoned at <state>" 
 
 ### D5. Observability
 
-One record per turn, `turn_understanding` (understanding spec §7: input, model_raw, rejected, overrides, intent,
-policy_trail) plus `identification_trail` per car: states traversed, candidates with scores and sources, invariant
+One record per turn, `turn_understanding` (understanding spec §7: input, model_raw, rejected, overrides, intent;
+the policy passes are spec 015's `policy_decisions`, joined by `turn_id`) plus `identification_trail` per car: states traversed, candidates with scores and sources, invariant
 that blocked a transition. Written through a port; a write error never fails the turn. Prometheus: share of turns
 with overrides (by rule), rejected, repeated questions, identification changed the person's words. A CLI
 `python -m automind.delivery.cli.turn show <turn_id>` prints the whole chain.

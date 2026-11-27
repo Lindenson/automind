@@ -121,14 +121,14 @@ g16 t3 green. Purge on pre-prod: after the owner's report (backup first).
   schema field descriptions.
 - [ ] T033 `turn_understanding` table (migration; owner's yes for a new table — additive) + port + store in
   `chat/infrastructure/`; write errors logged with chat_id/turn_id, never fail the turn. Fields as `understanding-spec.md` §7:
-  input (text or UiAction + pending id), model_raw (+ prompt version, model name), rejected, overrides, intent,
-  policy_trail.
+  input (text or UiAction + pending id), model_raw (+ prompt version, model name), rejected, overrides, intent.
+  The policy part is spec 015 `policy_decisions` (T220), read by `turn_id` (no `policy_trail` field).
 - [ ] T036 Prometheus: share of turns with overrides `{rule}`, share rejected, share of turns whose open question was
-  asked again; p95 of the understanding step (old and new, for the +20 % criterion).
+  asked again; p95 of the understanding step (old and new, for the +20 % criterion). Policy metrics are spec 015 T222 (not here).
 - [ ] T034 Shadow: the `interpret` node runs the new chain after the old one, records both; the old decides.
   Eval runner compares new vs old on the set → `specs/013-dialogue-quality/shadow.md`.
 - [ ] T035 CLI `python -m automind.delivery.cli.turn show <turn_id>` (input, model_raw, rejected, overrides, intent,
-  policy_trail).
+  and the policy passes through spec 015's `why` renderer, T223).
 
 ## S4 — Switch to Intent (PR 5; deploy checkpoint)
 
@@ -139,18 +139,21 @@ g16 t3 green. Purge on pre-prod: after the owner's report (backup first).
   for that confirmation, the router leads to its `apply_*` with the ready answer (014 T130 adds this target to
   `UnderstandOut.next()`). The pending closes only when answered or when the topic changes (rule: owner's decision
   G5). `report_saved` → `Intent(source="system")`, never a person's intent.
-- [ ] T041 Policy (`dialog/policy/`) reads `Intent`: goals without preconditions answered first;
+- [ ] T041 Policy reads `Intent` **on spec 015's `Rule`/`Situation`/`Decision`** (015 PL1–PL3 done first):
+  `Situation.intent` replaces `request` (one, not both); new rules are `Rule` classes with `RuleOutcome` reasons;
+  `AnswerOrReport` split into goal rules here (015 D3); `ANSWER_AND_REASK` added to `ActionKind` and `ROUTES` (015
+  T203 completeness test). Behaviour: goals without preconditions answered first;
   `ANSWER_AND_REASK` when a bot question is open; goal `stop` → end the open question/search, say so, case kept;
   reason names the goal and the rule; the bot's question names its reason ("Чтобы сравнить, нужен год Prado"); several
-  goals: those without preconditions first, then the first one with preconditions (staging per G6); `policy_trail`
-  written to `turn_understanding`.
+  goals: those without preconditions first, then the first one with preconditions (staging per G6). The trail is `Decision.trail`
+  in `policy_decisions` (015 T220), not a `turn_understanding` field.
 - [ ] T042 `apply_*` confirmation nodes and `research.apply_limit` take a ready `PendingAnswer` / `UiAction`; text
   always via `understand`. Word lists in `phrases.py` (`_YES/_NO/_CHOOSE/_GO`, `yes_or_no`, `choose_for_me`,
   `go_ahead`) only in the degraded mode (model down) and only on an exact whole-phrase match; no match → the soft
   "сервис перегружен" ending. Removed: the text stage `picked_option` (`interpretation/service.py`,
   `stages/picked_option.py`), the `choose_for_me` rewrite in `InterpretationService.apply`, `research.apply_limit`'s
   `yes_or_no`, the duplicate `_card_edit` in `nodes/confirm.py`.
-- [ ] T043 Readers of `request_kind` (policy rules answer/general/limits, understand.py, research.py,
+- [ ] T043 Readers of `request_kind` (policy rules via `Situation.intent` — T041 on spec 015, understand.py, research.py,
   report_writer, report_followup, tracing, metrics) moved to `Intent`; `tracing.previous_signals` from
   `intent.reaction` of the turn. `turns.request_kind` column keeps a derived value for the admin until removed.
   `Interpretation.relation` removed (replaced by `reaction`).

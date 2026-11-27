@@ -66,12 +66,12 @@ Non-goals: no change of what the policy decides; no new node; the policy stays a
 | `understanding` | `Intent` or `AskBack` (spec 013); before 013 S4: today's `interpretation` + `request_kind` | `understand` (`interpret` alias) | turn |
 | `applied` | new case version, change log, not understood car keys, picked | `apply_changes` (`apply_delta` alias) | turn |
 | `assessment` | car states, research plan, cost estimate, feasibility | `assess` | turn |
-| `decision` | Action, hops | `policy` | turn |
+| `decision` | `DecisionHistory` (spec 015 T230): this turn's passes; pass number = length; no `hops` | `policy` | turn |
 | `confirm` | payload of the question, the answer, approved / declined flags | `prepare_*` / `apply_*` of that confirmation | turn |
 | `research` | jobs, round, limits, limit extensions, research done | research nodes | turn |
 | `research_results` | results of the parallel jobs (reducer: append) | `research_job` | turn |
 | `notices` | notices (reducer: append) | any node, append only | turn |
-| `reply` | text, blocks, action, fingerprint, outcome (incl. `provider_down`) | terminal nodes | turn |
+| `reply` | text, blocks, action (the turn's outcome kind — the only `action`), fingerprint, outcome (incl. `provider_down`) | terminal nodes | turn |
 
 `provider_down` and every other key now outside `TurnState` become fields of a section. The registry of owners is
 data (`chat/dialog/contract/owners.py`), read by the decorator and the tests.
@@ -117,7 +117,8 @@ version (store: `save_version(chat_id, data, expected=version)`; a mismatch → 
 
 Nodes whose next step is their own decision return it (`Out.next()` → `Command(goto)`): interpret/understand,
 apply_changes, the confirmations' apply, select_candidates. The `route`/`done` router keys disappear. The policy stays
-a conditional edge (`POLICY_ROUTES` in `graph.py`): its choice is the centre of the graph.
+a conditional edge: its path map and router are built from `ROUTES` (spec 015 T203); `POLICY_ROUTES` is deleted. Its
+choice is the centre of the graph.
 
 ### D5. Checkpoints
 
