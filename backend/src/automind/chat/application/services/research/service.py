@@ -11,6 +11,7 @@ checkpoint, where DONE jobs are reused."""
 from __future__ import annotations
 
 import asyncio
+import logging
 from collections.abc import Sequence
 from typing import Unpack, cast
 
@@ -31,6 +32,8 @@ from automind.chat.domain.case import CaseCar, CaseFile
 from automind.chat.domain.turn import JobStatus
 from automind.shared.metering.usage import BudgetExceeded, TurnBudget
 from automind.shared.research_order import plan as rp
+
+log = logging.getLogger(__name__)
 
 Short = tuple[str, str]  # (car key, area) still below its minimum
 _SEARCHING = ("searching", "researching")  # engine stages shown as "searching" in the grid
@@ -120,6 +123,12 @@ class ResearchService:
                 self.budget.limits_reached.append("job_timeout")
             await self.ports.jobs.mark(job["job_id"], JobStatus.FAILED, error="timeout")
             return _result(job, ok=False, error="timeout", limit="time")
+        except Exception as e:  # noqa: BLE001 - the engine is this job's source: its failure is this job's result
+            log.exception("research.engine_failed job_id=%s area=%s", job["job_id"], job["area"])
+            error = f"{type(e).__name__}: {e}"[:200]
+            await grid.progress("failed")
+            await self.ports.jobs.mark(job["job_id"], JobStatus.FAILED, error=error)
+            return _result(job, ok=False, error=error)
         await grid.progress(_cell_state(res), res.accepted)
         status = JobStatus.DONE if res.ok else JobStatus.FAILED
         await self.ports.jobs.mark(job["job_id"], status, docs=res.docs, accepted=res.accepted, rejected=res.rejected,

@@ -92,8 +92,8 @@ class InterpretationService:
             i = heard_rejections(
                 case, await interpret(self.llm, self.ref.prompts["interpreter"], case, history, text), text
             )  # spec 013 T021: a rejection only with the words and the value behind it
-        except InterpretError:
-            return Reading(None, None, ask="rephrase")
+        except InterpretError:  # asked in the person's language, never the turn's reset "en" (review 2026-11-27)
+            return Reading(None, self.words.guess_language([*said, text]), ask="rephrase")
         earlier = said[:-1] if said and said[-1] == text else said
         lang = self.words.stable_language(i.language, text, earlier)
         return _reading(i if lang is None or lang == i.language else i.model_copy(update={"language": lang}))
