@@ -16,8 +16,9 @@ from dataclasses import dataclass
 from automind.chat.application.services.understanding import checks, engine
 from automind.chat.domain.case import CaseFile
 from automind.chat.domain.understanding.intent import AnswerKind, Goal, PendingAnswer, Understanding
-from automind.chat.domain.understanding.open_question import OpenQuestion, canonical_answer
+from automind.chat.domain.understanding.open_question import OpenQuestion
 from automind.chat.domain.understanding.record import Dropped
+from automind.chat.domain.understanding.yes_no import canonical_answer
 
 
 @dataclass(frozen=True)

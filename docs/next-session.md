@@ -90,8 +90,9 @@ result to the owner first. Spec 012 (A4c onward) waits until 013 S7. New code fo
   `docker compose exec app python -m automind.delivery.cli.turn show <turn_id>` (understanding + policy passes).
   Switch: `AUTOMIND_UNDERSTANDING_SHADOW=false`. Eval `uv run python -m tests.eval.understanding.shadow` (≈ €0.13,
   flash-lite) → `specs/013-dialogue-quality/shadow.md`: answer 66 → 96 %, goals 76 → 83 %, all but action 49 → 68 %,
-  p95 4.6 → 1.6 s. §E targets not yet met (answer 97, goals 92): before S4 decide with the owner whether the
-  understander runs on gemini-3.6-flash (one eval ≈ €1; latency has room). Owner: watch the shadow rows a few days
+  p95 4.6 → 1.6 s. Follow-up (PR "013-s3-understanding-fixes"): owner's goal boundaries, prompt v4, I1 rejection
+  check; flash-lite all but action 72 %, gemini-3.6-flash ≈ 77 % (goals 93 %, p95 3.3 s): the model is worth ≈ 4–5
+  points — owner decides the understander's model before S4. Owner: watch the shadow rows a few days
   (`turn show`, `automind_understanding_overrides_total`) before S4.
 - Pre-prod = main with S3 (redeployed 2026-11-27 ~14:20, backup `automind-20261127-141641.sql.gz` before 0027). Live
   replay of d170b861 (chat 9c891343, €0.024): the old path answers as before (W206 C-Class found; t2 "отменяй поиск"
@@ -101,6 +102,25 @@ result to the owner first. Spec 012 (A4c onward) waits until 013 S7. New code fo
   rejections from the intent: "you did not find X" while the case shows X is no rejection (prompt + check).
 - `diff_behaviour.py --base-db URL`: a head with a new migration leaves the test DB at a revision main does not know
   (every base test errors, "same 0, added N"); give the base its own DB (`automind_test_<tag>` + `automind_mig_<tag>`).
+
+**Teammate review 2026-11-27 (owner: "учти критику") — checked against the code, where each point lives**
+1. Understanding = one label of 14, word lists before the model, text not by id → 013 S4 (T040–T043); S3 shadow
+   measured it (all but action 49 → 72 %). Reviewer's priority #1, same as ours.
+2. Guard = heuristics (numbers against a bag of numbers, word lists for contradictions) → spec 016 N2–N5
+   (placeholders + structured claims); N1 done. Reviewer puts it #2; today it waits for 013 S7 — owner to reorder?
+3. Flat board (~35 keys, manual reset, `SkipValidation` ×89) → 014 C3 T120/T121 (sections, `begin_turn` reset;
+   T120 now also: nested values validated, no `SkipValidation`).
+4. One process (turn tasks and event subscribers in memory; restart on several replicas would resume a turn twice)
+   → in no spec. Backlog: a turn owner with a heartbeat + cross-process events, when a second worker is needed.
+5. Known bugs: "переформулируйте" in English (verified: a refused reading drops the language, the turn's is reset to
+   "en") and an engine failure in one research job failing the whole round (verified: `_acquire` catches only budget
+   and timeout) → point fixes PR "013-point-fixes" (next); "declined" = "already done" → 015 PL5 (next step,
+   `policy/contracts.py` already says so).
+6. Noise: spec/FR/chat references ≈ 1850, `# fmt: skip` 1164, `except Exception` 19 in chat (all but two carry a
+   reason; the two in `report_writer` and `turn/execution` re-raise what they do not handle) → owner's open question
+   §2a (c) (`fmt: skip`); proposal: a 012 step moving the traceability from comments to `docs/traceability.md`.
+7. Heavy dialog layer: `phrases.py` 632, `report_text.py` 590, `confirm.py` 484 → 012 S9d (confirm.py split per
+   confirmation) + new: the three-language texts into a message catalog (resources), code only looks them up.
 
 **Next (agreed with the owner 2026-11-27)**
 1. ~~015 PL1 ∥ 014 C2~~ done. Owner to decide: add findings A (reset attempt counters when a car's model changes)

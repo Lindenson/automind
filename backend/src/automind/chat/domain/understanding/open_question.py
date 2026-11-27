@@ -4,7 +4,8 @@ Pending"): an id, what was asked, and the options with ids. Pure.
 The id is a content hash of the stored `Pending` (its kind and items), so a pending saved before S3 gets the same
 stable id on every read and the case file is not changed. Option ids are the ids the chips already send (S1,
 `intake.option_ids`; confirmations: `option:<car>:<variant>`, `choose`, card `yes|stop`, cost `run|skip`, research
-limit `continue|stop`). S4 (T046) builds the chips from these options, so a chip and the model see one list.
+limit `continue|stop`); what a yes/no option means is `yes_no`'s. S4 (T046) builds the chips from these options, so
+a chip and the model see one list.
 """
 
 from __future__ import annotations
@@ -18,7 +19,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from automind.chat.domain.case import Pending
 from automind.chat.domain.intake.option_ids import CAR_KINDS, CHOOSABLE_KINDS, OptionKind, option_id
-from automind.chat.domain.understanding.intent import AnswerKind, PendingAnswer
+from automind.chat.domain.understanding.intent import AnswerKind
 
 
 class OpenKind(StrEnum):
@@ -47,7 +48,7 @@ _CONFIRM_TEXT = {
     OpenKind.CONFIRM_INTAKE: "Is the card right? Confirm to start the research.",
     OpenKind.LIMIT: "The research limit is reached. Continue?",
 }
-_YES_NO = {  # (yes id, label), (no id, label)
+YES_NO = {  # (yes id, label), (no id, label)
     OpenKind.CONFIRM_COST: (("run", "yes, run it"), ("skip", "no")),
     OpenKind.CONFIRM_INTAKE: (("yes", "yes, research"), ("stop", "no")),
     OpenKind.LIMIT: (("continue", "continue"), ("stop", "stop")),
@@ -78,18 +79,6 @@ class OpenQuestion(BaseModel):
     def option(self, oid: str | None) -> QuestionOption | None:
         """The option with id `oid`, None when it is not offered."""
         return next((o for o in self.options if o.id == oid), None)
-
-
-def canonical_answer(a: PendingAnswer | None, q: OpenQuestion | None) -> PendingAnswer | None:
-    """One form for "yes" and "no": an option that agrees or refuses is the answer yes / no with its id, and a typed
-    yes / no names the one option of that meaning (the policy reads one kind; the record shows the button)."""
-    if a is None or q is None or a.pending_id != q.id:
-        return a
-    if a.kind is AnswerKind.OPTION:
-        o = q.option(a.option_id)
-        return a if o is None or o.means is None else a.model_copy(update={"kind": o.means})
-    same = [o.id for o in q.options if o.means is a.kind]
-    return a.model_copy(update={"option_id": same[0]}) if a.option_id is None and len(same) == 1 else a
 
 
 def pending_id(p: Pending) -> str:
@@ -163,7 +152,7 @@ def _variants(p: Pending) -> OpenQuestion:
 
 
 def _yes_no(qid: str, kind: OpenKind, cars: tuple[str, ...], text: str | None = None) -> OpenQuestion:
-    (yes, yes_label), (no, no_label) = _YES_NO[kind]
+    (yes, yes_label), (no, no_label) = YES_NO[kind]
     options = (QuestionOption(id=yes, label=yes_label, means=AnswerKind.YES),
                QuestionOption(id=no, label=no_label, means=AnswerKind.NO))  # fmt: skip
     return OpenQuestion(id=qid, kind=kind, question=text or _CONFIRM_TEXT[kind], cars=cars, options=options)
