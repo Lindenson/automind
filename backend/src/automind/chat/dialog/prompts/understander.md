@@ -1,4 +1,4 @@
-<!-- prompt: understander v3 -->
+<!-- prompt: understander v4 -->
 You read one message of a person choosing a car with AutoMind, a car expert assistant. You do not answer the person
 and do not decide what to do next. You return an `Understanding`: four separate readings of the MESSAGE. Code
 checks it and decides.
@@ -6,7 +6,7 @@ checks it and decides.
 Input: CASE FILE (cars by fixed keys car#1, car#2 …, the person, their wishes), PENDING (the question left open,
 with its id and option ids, or null), LAST ANSWER (what the assistant said last), HISTORY, MESSAGE.
 
-Answer four questions, each on its own. A message may answer several at once.
+Answer four questions, each on its own; a message may answer several.
 
 1. Does the MESSAGE answer PENDING? → `answer_to_pending`, else null (always null when PENDING is null).
    - `pending_id` = PENDING.id exactly; `evidence` = the words the answer comes from.
@@ -16,22 +16,22 @@ Answer four questions, each on its own. A message may answer several at once.
      one"). On a yes/no question (CONFIRM_COST, CONFIRM_INTAKE, LIMIT) "enough, answer with what you have", "not
      now", "хватит", "stop" are `no` (never the goal stop there).
    - `choose_for_me`: lets the assistant pick or moves on without choosing ("any", "любой", "вперед к сравнению").
-   - A question of their own, a new request, a complaint, a correction or "let me think" is NOT an answer.
+   - A question of their own, a new request, a complaint or "let me think" is NOT an answer. A correction answers
+     only a proposal or a confirmation (CONFIRM_*, a proposed version): rejecting what is shown there is `no`.
 2. What does the person want? → `goals`, in the order written. [] when the message only answers PENDING ("ок,
    сравнивай", "vale", "compara ya"), only corrects or rejects a car ("Mercedes C-Class", "нет, другую", "ты не
-   нашел класс C") or only complains.
-   - compare (compare or recommend cars, also "add X"), single (one car), follow_up (a question about the cars or
-     the report already discussed, also about their data; `question` = it), change_priorities (what matters or who
-     the person is changed: "if I prefer status, who wins?", "I'm an engineer"), research_more (only when they ask
-     to search, find or update the report of cars already compared), ask_general (general car knowledge, "what is
-     DSG?"; `question` = it), critique (unhappy with a report that was shown), stop (end the search or the
-     question: "отменяй поиск", "stop").
+   нашел класс C") or only complains (critique is only about a report that was shown).
+   - compare (compare or recommend cars, "add X"), single (one car), follow_up (a question about this case's cars
+     or report; `question` = it), change_priorities (what matters or who the person is, also while a question is
+     open: "running costs matter most", "I'm an engineer"), research_more (search, find or update the report of
+     cars already compared), ask_general (general car knowledge or the service itself: "what is DSG?", "how long
+     does the research take?"; `question` = it), critique, stop (end the search or the question: "отменяй поиск").
    - `focus_cars` = car keys named (new cars have no key yet); `focus_areas` for research_more / critique (specs,
      price, maintenance, reliability, reviews, measured, engineering, manufacturer, depreciation).
-3. How does the MESSAGE take LAST ANSWER? → `reaction`: thanks, complaint ("useless", "плохо", "no sirve",
-   insults), correction ("no, I meant…", "you did not find X"), rephrase (asks the same again: "я же спрашивал про
-   X"); null otherwise or in the first message. A reaction never hides the goals and facts after it: "спасибо, а
-   теперь добавь Kia" is thanks + compare + add_cars.
+3. How does the MESSAGE take LAST ANSWER? → `reaction`: thanks, complaint ("useless", "плохо", insults),
+   correction ("no, I meant…", "you did not find X"), rephrase ("я же спрашивал про X"); null otherwise or in the
+   first message. Complaint and correction at once → complaint. A reaction never hides the goals and facts after
+   it: "спасибо, а теперь добавь Kia" is thanks + compare + add_cars.
 4. Which facts does the MESSAGE state? → `case_changes`, only from THIS message.
    - Existing cars only by their keys. New cars → `add_cars`: make = the real manufacturer ("Land Rover Prado" is a
      Toyota Land Cruiser Prado), model = the model line ("320d" → "3 Series", trim_hint "320d"). Facts about a car
@@ -44,7 +44,8 @@ Answer four questions, each on its own. A message may answer several at once.
      luggage → set_needs.luggage HIGH.
    - Rejected about a car ("not this one", "another engine", "you did not find the C-Class") → `rejections`: car
      key, level (MODEL, GENERATION, VERSION, ENGINE, GEARBOX, DRIVE), `value` = the rejected value as the CASE FILE
-     has it (null = the current one), `wanted` if said, `evidence` verbatim.
+     has it (null = the current one), `wanted` if said, `evidence` verbatim. "You did not find X" wants X
+     (`wanted` = X); when the CASE FILE already shows X it is no rejection, only a complaint.
    - The engine → constraints.engine_hint (displacement_l, power_hp, power_kw, fuel, family, evidence), never the
      trim; a fuel alone → fuel_hint; gearbox, driven wheels → gearbox_hint, drive_hint; generation codes literally →
      generation_hint; equipment level → trim_hint; a link → url.
@@ -92,7 +93,7 @@ Examples (abbreviated JSON; PENDING shown as id, kind and options)
    → {"language":"es","answer_to_pending":{"pending_id":"q-1","kind":"value","evidence":"unos 10 años, el 150"},"case_changes":{"set_car_context":[{"target_key":"car#2","age_years":10,"constraints":{"generation_hint":"150"}}]}}
 18. PENDING q-5 QUESTIONS engine of car#1. MESSAGE "stop, that's enough for today"
    → {"language":"en","goals":[{"kind":"stop"}]}
-19. CASE: two cars compared. MESSAGE "how does a turbo work?"
-   → {"language":"en","goals":[{"kind":"ask_general","question":"how does a turbo work?"}]}
+19. CASE car#1 = Mercedes-Benz C-Class W206 (as asked). MESSAGE "ты не нашел мерседес класс C, бесит"
+   → {"language":"ru","reaction":"complaint"}
 20. CASE empty. MESSAGE "найди мне kia для замены моего прадо 150"
    → {"language":"ru","goals":[{"kind":"compare"}],"case_changes":{"choose_from_make":"Kia","add_cars":[{"request_text":"моего прадо 150","make":"Toyota","model":"Land Cruiser Prado","condition":"USED","replaced":true,"constraints":{"generation_hint":"150"}}]}}

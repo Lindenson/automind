@@ -18,7 +18,7 @@ from automind.chat.domain.understanding.intent import (
     UiActionKind,
     Understanding,
 )
-from automind.chat.domain.understanding.open_question import canonical_answer
+from automind.chat.domain.understanding.yes_no import canonical_answer
 
 _ANSWER_OF = {UiActionKind.PICK_OPTION: AnswerKind.OPTION, UiActionKind.CONFIRM: AnswerKind.YES,
               UiActionKind.DECLINE: AnswerKind.NO, UiActionKind.CHOOSE_FOR_ME: AnswerKind.CHOOSE_FOR_ME}  # fmt: skip

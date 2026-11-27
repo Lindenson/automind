@@ -175,6 +175,16 @@ and answer (97 %); open for S4: try the understander on gemini-3.6-flash (latenc
 Not in the graph shadow: confirmations answered by the `apply_*` nodes before `interpret` (their words never reach
 it until S4); the eval covers them.
 
+Follow-up 2026-11-27 (PR "013-s3-understanding-fixes"): owner's decisions on the goal boundaries — a complaint
+without a shown report is only the reaction (no critique); a question about the service is ask_general; a priority
+said while a question is open is change_priorities (set case en-018 updated); complaint and correction at once →
+complaint. Prompt v4 (800 words): a correction answers only a proposal / confirmation (`no`); "you did not find X"
+wants X. `checks.heard_rejections`: a model the person asked for (their request names it) is never rejected unless
+they name another (I1; the live false rejection of the C-Class). `yes_no.meaning` / `canonical_answer`. Eval on v4:
+flash-lite answer 94 %, goals 89 %, all but action 72 %, p95 1.8 s (`shadow.md`); gemini-3.6-flash goals 93 %,
+reaction 96 %, all but action ≈ 77 % corrected, p95 3.3 s (`shadow-flash.md`). The model is worth ≈ 4–5 points; the
+rest of the gap is the prompt/schema and the definitions. Decision on the understander's model: owner, before S4.
+
 ## S4 — Switch to Intent (PR 5; deploy checkpoint)
 
 - [ ] T040 Node `understand` (alias `interpret` kept) writes `intent`; `apply_delta` → `apply_changes` (alias kept):

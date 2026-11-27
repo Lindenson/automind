@@ -2,7 +2,7 @@
  {
   "id": "ru-001",
   "error": null,
-  "cost_eur": 0.0009423099999999999,
+  "cost_eur": 0.00095703,
   "fields": {
    "language": true,
    "answer": true,
@@ -14,29 +14,30 @@
    "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 2056.356549001066
+  "latency_ms": 2241.3955179799814
  },
  {
   "id": "ru-002",
   "error": null,
-  "cost_eur": 0.00088159,
+  "cost_eur": 0.00088527,
   "fields": {
    "language": true,
-   "answer": true,
+   "answer": false,
    "goals": true,
    "action": false,
    "changes": true
   },
   "misses": {
+   "answer": "none / no",
    "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1775.2986589912325
+  "latency_ms": 1827.1656330034602
  },
  {
   "id": "ru-003",
   "error": null,
-  "cost_eur": 0.0007969499999999999,
+  "cost_eur": 0.00080477,
   "fields": {
    "language": true,
    "answer": true,
@@ -49,12 +50,12 @@
    "action": "ANSWER_AND_REASK / ANSWER_GENERAL"
   },
   "notes": [],
-  "latency_ms": 1783.3929050248116
+  "latency_ms": 1848.9624919893686
  },
  {
   "id": "ru-004",
   "error": null,
-  "cost_eur": 0.0009685300000000001,
+  "cost_eur": 0.00098279,
   "fields": {
    "language": true,
    "answer": true,
@@ -66,12 +67,12 @@
    "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 2106.900596001651
+  "latency_ms": 1983.0293790146243
  },
  {
   "id": "ru-005",
   "error": null,
-  "cost_eur": 0.00081949,
+  "cost_eur": 0.0008503100000000001,
   "fields": {
    "language": true,
    "answer": true,
@@ -83,12 +84,12 @@
    "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1529.3140829890035
+  "latency_ms": 1413.7972029857337
  },
  {
   "id": "ru-006",
   "error": null,
-  "cost_eur": 0.0008572100000000001,
+  "cost_eur": 0.0008852700000000001,
   "fields": {
    "language": true,
    "answer": true,
@@ -98,12 +99,12 @@
   },
   "misses": {},
   "notes": [],
-  "latency_ms": 1251.1185060138814
+  "latency_ms": 1182.1717610000633
  },
  {
   "id": "ru-007",
   "error": null,
-  "cost_eur": 0.0008045400000000001,
+  "cost_eur": 0.0008188000000000001,
   "fields": {
    "language": true,
    "answer": true,
@@ -115,12 +116,12 @@
    "action": "ANSWER_AND_REASK / ANSWER_GENERAL"
   },
   "notes": [],
-  "latency_ms": 1167.5383769907057
+  "latency_ms": 1359.9390999879688
  },
  {
   "id": "ru-008",
   "error": null,
-  "cost_eur": 0.00095335,
+  "cost_eur": 0.00096807,
   "fields": {
    "language": true,
    "answer": true,
@@ -130,12 +131,12 @@
   },
   "misses": {},
   "notes": [],
-  "latency_ms": 1443.7295730167534
+  "latency_ms": 1440.9100679913536
  },
  {
   "id": "ru-009",
   "error": null,
-  "cost_eur": 0.0008316800000000001,
+  "cost_eur": 0.0008556,
   "fields": {
    "language": true,
    "answer": true,
@@ -148,32 +149,31 @@
    "action": "ANSWER_AND_REASK / ANSWER_GENERAL"
   },
   "notes": [],
-  "latency_ms": 1138.435920001939
+  "latency_ms": 1430.5547980184201
  },
  {
   "id": "ru-010",
   "error": null,
-  "cost_eur": 0.00109848,
+  "cost_eur": 0.00100924,
   "fields": {
    "language": true,
    "answer": true,
-   "goals": false,
+   "goals": true,
    "action": false,
    "reaction": true,
    "rejections": true,
    "changes": true
   },
   "misses": {
-   "goals": "[] / ['compare']",
    "action": "ASK / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1674.3681699736044
+  "latency_ms": 1369.208054995397
  },
  {
   "id": "ru-011",
   "error": null,
-  "cost_eur": 0.00110515,
+  "cost_eur": 0.00099245,
   "fields": {
    "language": true,
    "answer": true,
@@ -187,52 +187,50 @@
    "action": "ANSWER_FROM_CONTEXT / ANSWER_GENERAL"
   },
   "notes": [],
-  "latency_ms": 1567.6229309756309
+  "latency_ms": 1336.8648320029024
  },
  {
   "id": "ru-012",
   "error": null,
-  "cost_eur": 0.00110101,
+  "cost_eur": 0.00098969,
   "fields": {
    "language": true,
    "answer": true,
    "goals": true,
    "action": false,
-   "reaction": false,
+   "reaction": true,
    "rejections": true,
    "changes": true
   },
   "misses": {
-   "action": "ANSWER_FROM_CONTEXT / ANSWER_GENERAL",
-   "reaction": "complaint / correction"
+   "action": "ANSWER_FROM_CONTEXT / ANSWER_GENERAL"
   },
   "notes": [],
-  "latency_ms": 1557.2323130036239
+  "latency_ms": 1438.0650660023093
  },
  {
   "id": "ru-013",
   "error": null,
-  "cost_eur": 0.00088573,
+  "cost_eur": 0.0009827899999999999,
   "fields": {
    "language": true,
    "answer": true,
    "goals": true,
    "action": false,
    "reaction": true,
-   "rejections": false,
+   "rejections": true,
    "changes": true
   },
   "misses": {
-   "action": "ANSWER_FROM_CONTEXT / ANSWER_GENERAL",
-   "rejections": "[] / [('car#1', 'MODEL')]"
+   "action": "ANSWER_FROM_CONTEXT / ANSWER_GENERAL"
   },
   "notes": [],
-  "latency_ms": 991.1522589973174
+  "latency_ms": 1286.1221260100137
  },
  {
   "id": "ru-014",
   "error": null,
-  "cost_eur": 0.0010534000000000001,
+  "cost_eur": 0.00104282,
   "fields": {
    "language": true,
    "answer": true,
@@ -246,60 +244,65 @@
    "action": "ASK / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1420.0951929960866
+  "latency_ms": 1334.9768129992299
  },
  {
   "id": "ru-015",
   "error": null,
-  "cost_eur": 0.0009066600000000001,
+  "cost_eur": 0.00089608,
   "fields": {
    "language": true,
    "answer": true,
    "goals": true,
    "action": false,
-   "changes": false
+   "changes": true
   },
   "misses": {
-   "action": "ANSWER_FROM_CONTEXT / ANSWER_GENERAL",
-   "changes": "empty: the case changed"
+   "action": "ANSWER_FROM_CONTEXT / ANSWER_GENERAL"
   },
   "notes": [],
-  "latency_ms": 1376.4440899831243
+  "latency_ms": 1266.7371370189358
  },
  {
   "id": "ru-016",
   "error": null,
-  "cost_eur": 0.0009653099999999999,
+  "cost_eur": 0.00092575,
   "fields": {
    "language": true,
    "answer": true,
    "goals": true,
-   "action": true,
-   "rejections": true
+   "action": false,
+   "rejections": false
   },
-  "misses": {},
+  "misses": {
+   "action": "ASK / CONFIRM_VARIANTS",
+   "rejections": "[('car#2', 'VERSION')] / []"
+  },
   "notes": [],
-  "latency_ms": 1305.460684990976
+  "latency_ms": 1136.2472109904047
  },
  {
   "id": "ru-017",
   "error": null,
-  "cost_eur": 0.0009959,
+  "cost_eur": 0.0008694,
   "fields": {
    "language": true,
    "answer": true,
    "goals": true,
-   "action": true,
-   "rejections": true
+   "action": false,
+   "rejections": false
   },
-  "misses": {},
+  "misses": {
+   "action": "ASK / CONFIRM_VARIANTS",
+   "rejections": "[('car#2', 'VERSION')] / []"
+  },
   "notes": [],
-  "latency_ms": 1211.355690000346
+  "latency_ms": 1349.8786989948712
  },
  {
   "id": "ru-018",
   "error": null,
-  "cost_eur": 0.00086089,
+  "cost_eur": 0.0008411100000000001,
   "fields": {
    "language": true,
    "answer": true,
@@ -311,47 +314,28 @@
    "action": "ASK / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1273.7790170067456
+  "latency_ms": 1271.8018039886374
  },
  {
   "id": "ru-019",
   "error": null,
-  "cost_eur": 0.0008926299999999999,
-  "fields": {
-   "language": true,
-   "answer": true,
-   "goals": false,
-   "action": false
-  },
-  "misses": {
-   "goals": "[] / ['compare']",
-   "action": "RESEARCH / CONFIRM_VARIANTS"
-  },
-  "notes": [],
-  "latency_ms": 1246.9474750105292
- },
- {
-  "id": "ru-020",
-  "error": null,
-  "cost_eur": 0.00084801,
+  "cost_eur": 0.0008411100000000001,
   "fields": {
    "language": true,
    "answer": true,
    "goals": true,
-   "action": true,
-   "reaction": true,
-   "changes": false
+   "action": false
   },
   "misses": {
-   "changes": "empty: the case changed"
+   "action": "RESEARCH / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1252.0079219830222
+  "latency_ms": 1180.5329179915134
  },
  {
-  "id": "ru-021",
+  "id": "ru-020",
   "error": null,
-  "cost_eur": 0.0008275400000000001,
+  "cost_eur": 0.0008001700000000001,
   "fields": {
    "language": true,
    "answer": true,
@@ -364,12 +348,30 @@
    "action": "ASK / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1075.5812679999508
+  "latency_ms": 1135.7532539987005
+ },
+ {
+  "id": "ru-021",
+  "error": null,
+  "cost_eur": 0.0008418000000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "reaction": true,
+   "changes": true
+  },
+  "misses": {
+   "action": "ASK / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1236.2281899841037
  },
  {
   "id": "ru-022",
   "error": null,
-  "cost_eur": 0.0009581800000000001,
+  "cost_eur": 0.0009296600000000001,
   "fields": {
    "language": true,
    "answer": true,
@@ -383,12 +385,12 @@
    "reaction": "correction / None"
   },
   "notes": [],
-  "latency_ms": 1530.4373659892008
+  "latency_ms": 1362.4637619941495
  },
  {
   "id": "ru-023",
   "error": null,
-  "cost_eur": 0.00104696,
+  "cost_eur": 0.00106122,
   "fields": {
    "language": true,
    "answer": true,
@@ -401,12 +403,12 @@
    "action": "ASK / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1553.984380007023
+  "latency_ms": 1540.8965410024393
  },
  {
   "id": "ru-024",
   "error": null,
-  "cost_eur": 0.0010511000000000001,
+  "cost_eur": 0.00091494,
   "fields": {
    "language": true,
    "answer": true,
@@ -416,15 +418,15 @@
   },
   "misses": {
    "action": "ASK / CONFIRM_VARIANTS",
-   "changes": "car#1.gearbox automatic / None"
+   "changes": "car#1.engine R-EV / None; car#1.gearbox automatic / None"
   },
   "notes": [],
-  "latency_ms": 1505.1148270140402
+  "latency_ms": 1392.1173749840818
  },
  {
   "id": "ru-025",
   "error": null,
-  "cost_eur": 0.00101499,
+  "cost_eur": 0.00102925,
   "fields": {
    "language": true,
    "answer": true,
@@ -436,12 +438,12 @@
    "action": "ASK / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1604.2927889793646
+  "latency_ms": 1583.3674729801714
  },
  {
   "id": "ru-026",
   "error": null,
-  "cost_eur": 0.00091747,
+  "cost_eur": 0.00085031,
   "fields": {
    "language": true,
    "answer": true,
@@ -453,12 +455,12 @@
    "action": "ASK / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1393.2397380121984
+  "latency_ms": 1330.4563669953495
  },
  {
   "id": "ru-027",
   "error": null,
-  "cost_eur": 0.00092069,
+  "cost_eur": 0.00093495,
   "fields": {
    "language": true,
    "answer": true,
@@ -470,12 +472,12 @@
    "action": "ASK / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1335.0564569991548
+  "latency_ms": 1472.622275003232
  },
  {
   "id": "ru-028",
   "error": null,
-  "cost_eur": 0.0010241900000000001,
+  "cost_eur": 0.00093909,
   "fields": {
    "language": true,
    "answer": true,
@@ -486,12 +488,12 @@
    "action": "REPORT / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1249.428411014378
+  "latency_ms": 1207.3810129950289
  },
  {
   "id": "ru-029",
   "error": null,
-  "cost_eur": 0.0008526100000000001,
+  "cost_eur": 0.00086687,
   "fields": {
    "language": true,
    "answer": true,
@@ -501,12 +503,12 @@
   },
   "misses": {},
   "notes": [],
-  "latency_ms": 1087.0536289876327
+  "latency_ms": 1818.0044589971658
  },
  {
   "id": "ru-030",
   "error": null,
-  "cost_eur": 0.0008061499999999999,
+  "cost_eur": 0.0008204099999999999,
   "fields": {
    "language": true,
    "answer": true,
@@ -515,28 +517,26 @@
   },
   "misses": {},
   "notes": [],
-  "latency_ms": 955.6264879938681
+  "latency_ms": 1702.7133819938172
  },
  {
   "id": "ru-031",
   "error": null,
-  "cost_eur": 0.0008178800000000001,
+  "cost_eur": 0.0007976400000000001,
   "fields": {
-   "language": false,
+   "language": true,
    "answer": true,
    "goals": true,
    "action": true
   },
-  "misses": {
-   "language": "ru / en"
-  },
+  "misses": {},
   "notes": [],
-  "latency_ms": 1209.4205059984233
+  "latency_ms": 1562.4349740101025
  },
  {
   "id": "ru-032",
   "error": null,
-  "cost_eur": 0.0011235499999999999,
+  "cost_eur": 0.0010798499999999998,
   "fields": {
    "language": true,
    "answer": true,
@@ -548,12 +548,12 @@
    "changes": "persona PERFORMANCE / UNKNOWN"
   },
   "notes": [],
-  "latency_ms": 1547.6600600231905
+  "latency_ms": 1729.8191399895586
  },
  {
   "id": "ru-033",
   "error": null,
-  "cost_eur": 0.0011164200000000001,
+  "cost_eur": 0.00112516,
   "fields": {
    "language": true,
    "answer": true,
@@ -565,12 +565,12 @@
    "changes": "car#1.make BYD / None"
   },
   "notes": [],
-  "latency_ms": 1410.1396620098967
+  "latency_ms": 1683.847510983469
  },
  {
   "id": "ru-034",
   "error": null,
-  "cost_eur": 0.0008326000000000001,
+  "cost_eur": 0.00083858,
   "fields": {
    "language": true,
    "answer": true,
@@ -584,28 +584,12 @@
    "changes": "car#1.make BYD / None"
   },
   "notes": [],
-  "latency_ms": 1013.3353050041478
+  "latency_ms": 1700.515547010582
  },
  {
   "id": "ru-035",
   "error": null,
-  "cost_eur": 0.0008457100000000001,
-  "fields": {
-   "language": true,
-   "answer": true,
-   "goals": true,
-   "action": true,
-   "reaction": true,
-   "changes": true
-  },
-  "misses": {},
-  "notes": [],
-  "latency_ms": 1116.4411320060026
- },
- {
-  "id": "ru-036",
-  "error": null,
-  "cost_eur": 0.0008719299999999999,
+  "cost_eur": 0.00086135,
   "fields": {
    "language": true,
    "answer": true,
@@ -615,16 +599,36 @@
    "changes": true
   },
   "misses": {
-   "goals": "['compare'] / []",
-   "action": "ASK / CONFIRM_VARIANTS"
+   "goals": "['follow_up'] / ['research_more']",
+   "action": "ANSWER_FROM_CONTEXT / REPORT"
   },
   "notes": [],
-  "latency_ms": 1014.2800989851821
+  "latency_ms": 1620.2039500058163
+ },
+ {
+  "id": "ru-036",
+  "error": null,
+  "cost_eur": 0.00084755,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": false,
+   "action": false,
+   "reaction": true,
+   "changes": false
+  },
+  "misses": {
+   "goals": "['compare'] / []",
+   "action": "ASK / ANSWER_GENERAL",
+   "changes": "add_cars ['Kia Sportage'] / []"
+  },
+  "notes": [],
+  "latency_ms": 2375.8040349930525
  },
  {
   "id": "ru-037",
   "error": null,
-  "cost_eur": 0.0008868800000000002,
+  "cost_eur": 0.0008390400000000001,
   "fields": {
    "language": true,
    "answer": true,
@@ -636,12 +640,12 @@
    "changes": "add_cars ['Toyota Land Cruiser Prado'] / []; replaced_car Toyota Land Cruiser Prado / []"
   },
   "notes": [],
-  "latency_ms": 1376.6501309874002
+  "latency_ms": 1786.082100996282
  },
  {
   "id": "ru-038",
   "error": null,
-  "cost_eur": 0.0008949299999999999,
+  "cost_eur": 0.00090919,
   "fields": {
    "language": true,
    "answer": true,
@@ -653,12 +657,12 @@
    "action": "SELECT_CANDIDATES / ANSWER_GENERAL"
   },
   "notes": [],
-  "latency_ms": 1208.6589240061585
+  "latency_ms": 2150.869173987303
  },
  {
   "id": "ru-039",
   "error": null,
-  "cost_eur": 0.00093242,
+  "cost_eur": 0.00094668,
   "fields": {
    "language": true,
    "answer": true,
@@ -670,12 +674,12 @@
    "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1062.8866929910146
+  "latency_ms": 1935.721312998794
  },
  {
   "id": "ru-040",
   "error": null,
-  "cost_eur": 0.00085859,
+  "cost_eur": 0.00087285,
   "fields": {
    "language": true,
    "answer": true,
@@ -686,12 +690,12 @@
    "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1086.7020440055057
+  "latency_ms": 1159.5093309879303
  },
  {
   "id": "ru-041",
   "error": null,
-  "cost_eur": 0.00089148,
+  "cost_eur": 0.00090574,
   "fields": {
    "language": true,
    "answer": true,
@@ -702,12 +706,12 @@
    "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 985.9719070082065
+  "latency_ms": 1334.84127902193
  },
  {
   "id": "ru-042",
   "error": null,
-  "cost_eur": 0.0009131,
+  "cost_eur": 0.00092736,
   "fields": {
    "language": true,
    "answer": true,
@@ -718,12 +722,12 @@
    "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1032.9095520137344
+  "latency_ms": 1257.343542005401
  },
  {
   "id": "ru-043",
   "error": null,
-  "cost_eur": 0.00086089,
+  "cost_eur": 0.0009096500000000001,
   "fields": {
    "language": true,
    "answer": true,
@@ -734,12 +738,12 @@
    "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1042.3749290057458
+  "latency_ms": 1254.519865004113
  },
  {
   "id": "ru-044",
   "error": null,
-  "cost_eur": 0.0009041300000000001,
+  "cost_eur": 0.00091839,
   "fields": {
    "language": true,
    "answer": true,
@@ -750,12 +754,12 @@
    "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1167.5581930030603
+  "latency_ms": 1295.4579970100895
  },
  {
   "id": "ru-045",
   "error": null,
-  "cost_eur": 0.00092943,
+  "cost_eur": 0.00094369,
   "fields": {
    "language": true,
    "answer": true,
@@ -767,12 +771,12 @@
    "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1309.6782850043382
+  "latency_ms": 1340.4092680139001
  },
  {
   "id": "ru-046",
   "error": null,
-  "cost_eur": 0.00087699,
+  "cost_eur": 0.0008919399999999999,
   "fields": {
    "language": true,
    "answer": true,
@@ -783,12 +787,12 @@
    "action": "RESEARCH / CONFIRM_COST"
   },
   "notes": [],
-  "latency_ms": 901.9950779911596
+  "latency_ms": 1133.8515839888714
  },
  {
   "id": "ru-047",
   "error": null,
-  "cost_eur": 0.00087699,
+  "cost_eur": 0.00090574,
   "fields": {
    "language": true,
    "answer": true,
@@ -799,12 +803,12 @@
    "action": "RESEARCH / CONFIRM_COST"
   },
   "notes": [],
-  "latency_ms": 961.387907009339
+  "latency_ms": 1251.331203005975
  },
  {
   "id": "ru-048",
   "error": null,
-  "cost_eur": 0.00083927,
+  "cost_eur": 0.0008887200000000001,
   "fields": {
    "language": true,
    "answer": true,
@@ -815,12 +819,12 @@
    "action": "REPORT / CONFIRM_COST"
   },
   "notes": [],
-  "latency_ms": 855.3845299757086
+  "latency_ms": 1315.3990959981456
  },
  {
   "id": "ru-049",
   "error": null,
-  "cost_eur": 0.0008714700000000001,
+  "cost_eur": 0.00088642,
   "fields": {
    "language": true,
    "answer": true,
@@ -829,12 +833,12 @@
   },
   "misses": {},
   "notes": [],
-  "latency_ms": 944.4467709981836
+  "latency_ms": 1191.1486540047918
  },
  {
   "id": "ru-050",
   "error": null,
-  "cost_eur": 0.00084019,
+  "cost_eur": 0.00086618,
   "fields": {
    "language": true,
    "answer": true,
@@ -843,12 +847,12 @@
   },
   "misses": {},
   "notes": [],
-  "latency_ms": 958.2793169829529
+  "latency_ms": 1284.5598479907494
  },
  {
   "id": "ru-051",
   "error": null,
-  "cost_eur": 0.00088435,
+  "cost_eur": 0.00087584,
   "fields": {
    "language": true,
    "answer": true,
@@ -857,12 +861,12 @@
   },
   "misses": {},
   "notes": [],
-  "latency_ms": 1064.1743070154916
+  "latency_ms": 1351.206713996362
  },
  {
   "id": "ru-052",
   "error": null,
-  "cost_eur": 0.00089746,
+  "cost_eur": 0.0008569800000000001,
   "fields": {
    "language": true,
    "answer": true,
@@ -874,12 +878,12 @@
    "action": "RESEARCH / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1140.6024799798615
+  "latency_ms": 1153.2584269880317
  },
  {
   "id": "ru-053",
   "error": null,
-  "cost_eur": 0.00086963,
+  "cost_eur": 0.00088435,
   "fields": {
    "language": true,
    "answer": true,
@@ -890,12 +894,12 @@
    "action": "ANSWER_AND_REASK / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1133.0937260063365
+  "latency_ms": 1356.6488230135292
  },
  {
   "id": "ru-054",
   "error": null,
-  "cost_eur": 0.00088274,
+  "cost_eur": 0.00085054,
   "fields": {
    "language": true,
    "answer": true,
@@ -906,12 +910,12 @@
    "action": "ANSWER_AND_REASK / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1113.417890999699
+  "latency_ms": 1119.776378996903
  },
  {
   "id": "ru-055",
   "error": null,
-  "cost_eur": 0.0010241900000000001,
+  "cost_eur": 0.00105363,
   "fields": {
    "language": true,
    "answer": true,
@@ -923,12 +927,12 @@
    "action": "ASK / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1322.9441239964217
+  "latency_ms": 1392.4760150257498
  },
  {
   "id": "es-001",
   "error": null,
-  "cost_eur": 0.00089815,
+  "cost_eur": 0.00097083,
   "fields": {
    "language": true,
    "answer": true,
@@ -940,12 +944,12 @@
    "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1296.5069430065341
+  "latency_ms": 1294.951088988455
  },
  {
   "id": "es-002",
   "error": null,
-  "cost_eur": 0.00083536,
+  "cost_eur": 0.00081098,
   "fields": {
    "language": true,
    "answer": true,
@@ -955,12 +959,12 @@
   },
   "misses": {},
   "notes": [],
-  "latency_ms": 1322.740583011182
+  "latency_ms": 1163.5915329970885
  },
  {
   "id": "es-003",
   "error": null,
-  "cost_eur": 0.00094369,
+  "cost_eur": 0.0009469099999999999,
   "fields": {
    "language": true,
    "answer": true,
@@ -973,12 +977,12 @@
    "changes": "add_cars ['Kia Sportage', 'Nissan Qashqai'] / ['Kia Sportage']"
   },
   "notes": [],
-  "latency_ms": 1306.8737809953745
+  "latency_ms": 1201.4195369847585
  },
  {
   "id": "es-004",
   "error": null,
-  "cost_eur": 0.00116449,
+  "cost_eur": 0.00113183,
   "fields": {
    "language": true,
    "answer": true,
@@ -991,32 +995,33 @@
    "changes": "region Sevilla / None"
   },
   "notes": [],
-  "latency_ms": 1478.5937009728514
+  "latency_ms": 1640.119268995477
  },
  {
   "id": "es-005",
   "error": null,
-  "cost_eur": 0.0010074,
+  "cost_eur": 0.00105478,
   "fields": {
    "language": true,
    "answer": false,
    "goals": true,
    "action": false,
    "rejections": false,
-   "changes": true
+   "changes": false
   },
   "misses": {
    "answer": "no:None / option:option:car#2:20tdi-dsg",
    "action": "ASK / CONFIRM_VARIANTS",
-   "rejections": "[('car#2', 'VERSION')] / []"
+   "rejections": "[('car#2', 'VERSION')] / []",
+   "changes": "car#2.fuel diesel / None"
   },
   "notes": [],
-  "latency_ms": 1272.5650189968292
+  "latency_ms": 1398.6503259802703
  },
  {
   "id": "es-006",
   "error": null,
-  "cost_eur": 0.00099383,
+  "cost_eur": 0.0010025700000000002,
   "fields": {
    "language": true,
    "answer": true,
@@ -1028,12 +1033,12 @@
    "action": "ASK / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1072.5339869968593
+  "latency_ms": 1220.833744009724
  },
  {
   "id": "es-007",
   "error": null,
-  "cost_eur": 0.00102442,
+  "cost_eur": 0.0009094200000000001,
   "fields": {
    "language": true,
    "answer": false,
@@ -1048,12 +1053,12 @@
    "action": "ASK / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1239.1344310017303
+  "latency_ms": 1390.3974649729207
  },
  {
   "id": "es-008",
   "error": null,
-  "cost_eur": 0.0008231699999999999,
+  "cost_eur": 0.00086779,
   "fields": {
    "language": true,
    "answer": true,
@@ -1065,12 +1070,12 @@
    "action": "ANSWER_FROM_CONTEXT / ANSWER_GENERAL"
   },
   "notes": [],
-  "latency_ms": 1017.2651679895353
+  "latency_ms": 1525.0088979955763
  },
  {
   "id": "es-009",
   "error": null,
-  "cost_eur": 0.00080293,
+  "cost_eur": 0.00081719,
   "fields": {
    "language": true,
    "answer": true,
@@ -1082,12 +1087,12 @@
    "action": "ANSWER_FROM_CONTEXT / ANSWER_GENERAL"
   },
   "notes": [],
-  "latency_ms": 1049.947156017879
+  "latency_ms": 1374.7639689827338
  },
  {
   "id": "es-010",
   "error": null,
-  "cost_eur": 0.00087837,
+  "cost_eur": 0.0008457100000000001,
   "fields": {
    "language": true,
    "answer": true,
@@ -1101,12 +1106,12 @@
    "action": "ASK / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1175.4903710098006
+  "latency_ms": 1139.3609900260344
  },
  {
   "id": "es-011",
   "error": null,
-  "cost_eur": 0.00082386,
+  "cost_eur": 0.00082708,
   "fields": {
    "language": true,
    "answer": true,
@@ -1116,12 +1121,12 @@
   },
   "misses": {},
   "notes": [],
-  "latency_ms": 1343.3097059896681
+  "latency_ms": 1285.7041160168592
  },
  {
   "id": "es-012",
   "error": null,
-  "cost_eur": 0.00089194,
+  "cost_eur": 0.0009066600000000001,
   "fields": {
    "language": true,
    "answer": true,
@@ -1133,29 +1138,28 @@
    "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1404.4068420189433
+  "latency_ms": 1351.5643989958335
  },
  {
   "id": "es-013",
   "error": null,
-  "cost_eur": 0.00084065,
+  "cost_eur": 0.00088987,
   "fields": {
    "language": true,
    "answer": true,
-   "goals": false,
+   "goals": true,
    "action": false
   },
   "misses": {
-   "goals": "['ask_general'] / ['follow_up']",
-   "action": "ANSWER_AND_REASK / CONFIRM_VARIANTS"
+   "action": "ANSWER_AND_REASK / ANSWER_GENERAL"
   },
   "notes": [],
-  "latency_ms": 1285.8331490133423
+  "latency_ms": 1028.5067209915724
  },
  {
   "id": "es-014",
   "error": null,
-  "cost_eur": 0.0008756100000000001,
+  "cost_eur": 0.00085054,
   "fields": {
    "language": true,
    "answer": true,
@@ -1166,28 +1170,29 @@
    "action": "ANSWER_AND_REASK / RESEARCH"
   },
   "notes": [],
-  "latency_ms": 1266.9394770055078
+  "latency_ms": 1197.573759010993
  },
  {
   "id": "es-015",
   "error": null,
-  "cost_eur": 0.00088642,
+  "cost_eur": 0.00090482,
   "fields": {
    "language": true,
-   "answer": true,
+   "answer": false,
    "goals": true,
    "action": false
   },
   "misses": {
+   "answer": "none / choose_for_me",
    "action": "ANSWER_AND_REASK / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 956.5106199879665
+  "latency_ms": 1234.1847869975027
  },
  {
   "id": "es-016",
   "error": null,
-  "cost_eur": 0.00098072,
+  "cost_eur": 0.00099544,
   "fields": {
    "language": true,
    "answer": true,
@@ -1199,12 +1204,12 @@
    "action": "ASK / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1488.0185300135054
+  "latency_ms": 1584.5411499904003
  },
  {
   "id": "es-017",
   "error": null,
-  "cost_eur": 0.0008659500000000001,
+  "cost_eur": 0.00081397,
   "fields": {
    "language": true,
    "answer": true,
@@ -1217,12 +1222,12 @@
    "reaction": "thanks / None"
   },
   "notes": [],
-  "latency_ms": 1120.328151009744
+  "latency_ms": 1136.4006270014215
  },
  {
   "id": "es-018",
   "error": null,
-  "cost_eur": 0.00086733,
+  "cost_eur": 0.0008475500000000001,
   "fields": {
    "language": true,
    "answer": true,
@@ -1233,12 +1238,12 @@
    "action": "RESEARCH / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 865.091048006434
+  "latency_ms": 1175.1862000091933
  },
  {
   "id": "es-019",
   "error": null,
-  "cost_eur": 0.00086733,
+  "cost_eur": 0.0008820500000000001,
   "fields": {
    "language": true,
    "answer": true,
@@ -1249,30 +1254,29 @@
    "action": "RESEARCH / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 988.4871499962173
+  "latency_ms": 1147.3468680051155
  },
  {
   "id": "es-020",
   "error": null,
-  "cost_eur": 0.0009006800000000001,
+  "cost_eur": 0.0009154,
   "fields": {
    "language": true,
-   "answer": false,
+   "answer": true,
    "goals": false,
    "action": false
   },
   "misses": {
-   "answer": "option:stop / no:None",
    "goals": "[] / ['stop']",
    "action": "REPORT / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1098.6082540184725
+  "latency_ms": 1170.8789110125508
  },
  {
   "id": "es-021",
   "error": null,
-  "cost_eur": 0.0009121800000000001,
+  "cost_eur": 0.0008864200000000001,
   "fields": {
    "language": true,
    "answer": false,
@@ -1284,12 +1288,12 @@
    "action": "RESEARCH / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1004.9481579917483
+  "latency_ms": 1199.5056659798138
  },
  {
   "id": "es-022",
   "error": null,
-  "cost_eur": 0.0009280499999999999,
+  "cost_eur": 0.00108031,
   "fields": {
    "language": true,
    "answer": true,
@@ -1300,12 +1304,12 @@
    "action": "RESEARCH / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1178.2990420178976
+  "latency_ms": 1327.3728049825877
  },
  {
   "id": "es-023",
   "error": null,
-  "cost_eur": 0.0008316800000000001,
+  "cost_eur": 0.00088113,
   "fields": {
    "language": true,
    "answer": true,
@@ -1314,12 +1318,12 @@
   },
   "misses": {},
   "notes": [],
-  "latency_ms": 873.680286022136
+  "latency_ms": 1057.0673040056136
  },
  {
   "id": "es-024",
   "error": null,
-  "cost_eur": 0.0008365099999999999,
+  "cost_eur": 0.0008625000000000001,
   "fields": {
    "language": true,
    "answer": true,
@@ -1330,29 +1334,28 @@
    "action": "REPORT / RESEARCH"
   },
   "notes": [],
-  "latency_ms": 919.1467640048359
+  "latency_ms": 1093.590539006982
  },
  {
   "id": "es-025",
   "error": null,
-  "cost_eur": 0.0008562900000000001,
+  "cost_eur": 0.00087124,
   "fields": {
    "language": true,
    "answer": true,
-   "goals": false,
+   "goals": true,
    "action": false
   },
   "misses": {
-   "goals": "['ask_general'] / ['follow_up']",
-   "action": "ANSWER_AND_REASK / RESEARCH"
+   "action": "ANSWER_AND_REASK / ANSWER_GENERAL"
   },
   "notes": [],
-  "latency_ms": 998.3158330142032
+  "latency_ms": 1232.9358580172993
  },
  {
   "id": "es-026",
   "error": null,
-  "cost_eur": 0.00085928,
+  "cost_eur": 0.00083973,
   "fields": {
    "language": true,
    "answer": true,
@@ -1361,12 +1364,12 @@
   },
   "misses": {},
   "notes": [],
-  "latency_ms": 875.7744919857942
+  "latency_ms": 1235.8960209821817
  },
  {
   "id": "es-027",
   "error": null,
-  "cost_eur": 0.00086411,
+  "cost_eur": 0.0008556,
   "fields": {
    "language": true,
    "answer": true,
@@ -1375,12 +1378,12 @@
   },
   "misses": {},
   "notes": [],
-  "latency_ms": 1111.3384470227174
+  "latency_ms": 1263.352820998989
  },
  {
   "id": "es-028",
   "error": null,
-  "cost_eur": 0.00085928,
+  "cost_eur": 0.00088803,
   "fields": {
    "language": true,
    "answer": true,
@@ -1389,12 +1392,12 @@
   },
   "misses": {},
   "notes": [],
-  "latency_ms": 975.775960017927
+  "latency_ms": 1328.729013010161
  },
  {
   "id": "es-029",
   "error": null,
-  "cost_eur": 0.0008689399999999999,
+  "cost_eur": 0.00088389,
   "fields": {
    "language": true,
    "answer": true,
@@ -1403,107 +1406,110 @@
   },
   "misses": {},
   "notes": [],
-  "latency_ms": 994.1022990096826
+  "latency_ms": 1294.1200170025695
  },
  {
   "id": "es-030",
   "error": null,
-  "cost_eur": 0.0008763000000000001,
-  "fields": {
-   "language": true,
-   "answer": true,
-   "goals": true,
-   "action": true
-  },
-  "misses": {},
-  "notes": [],
-  "latency_ms": 1025.3387419797946
- },
- {
-  "id": "es-031",
-  "error": null,
-  "cost_eur": 0.00086986,
-  "fields": {
-   "language": true,
-   "answer": true,
-   "goals": true,
-   "action": false
-  },
-  "misses": {
-   "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
-  },
-  "notes": [],
-  "latency_ms": 1054.2247710109223
- },
- {
-  "id": "es-032",
-  "error": null,
-  "cost_eur": 0.00085836,
-  "fields": {
-   "language": true,
-   "answer": true,
-   "goals": true,
-   "action": false
-  },
-  "misses": {
-   "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
-  },
-  "notes": [],
-  "latency_ms": 917.9396950057708
- },
- {
-  "id": "es-033",
-  "error": null,
-  "cost_eur": 0.0008901,
-  "fields": {
-   "language": true,
-   "answer": true,
-   "goals": true,
-   "action": false
-  },
-  "misses": {
-   "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
-  },
-  "notes": [],
-  "latency_ms": 1449.3052060133778
- },
- {
-  "id": "es-034",
-  "error": null,
-  "cost_eur": 0.00084226,
-  "fields": {
-   "language": true,
-   "answer": true,
-   "goals": true,
-   "action": false
-  },
-  "misses": {
-   "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
-  },
-  "notes": [],
-  "latency_ms": 1188.6710090038832
- },
- {
-  "id": "es-035",
-  "error": null,
-  "cost_eur": 0.0009022899999999999,
+  "cost_eur": 0.0008705500000000001,
   "fields": {
    "language": true,
    "answer": true,
    "goals": false,
+   "action": true
+  },
+  "misses": {
+   "goals": "[] / ['research_more']"
+  },
+  "notes": [],
+  "latency_ms": 1350.6093180039898
+ },
+ {
+  "id": "es-031",
+  "error": null,
+  "cost_eur": 0.0009683,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
    "action": false
   },
   "misses": {
+   "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1357.3283500154503
+ },
+ {
+  "id": "es-032",
+  "error": null,
+  "cost_eur": 0.0008726200000000002,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1164.7062829870265
+ },
+ {
+  "id": "es-033",
+  "error": null,
+  "cost_eur": 0.00090436,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1185.6717169866897
+ },
+ {
+  "id": "es-034",
+  "error": null,
+  "cost_eur": 0.00089102,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1208.673829009058
+ },
+ {
+  "id": "es-035",
+  "error": null,
+  "cost_eur": 0.0008231699999999999,
+  "fields": {
+   "language": true,
+   "answer": false,
+   "goals": false,
+   "action": false
+  },
+  "misses": {
+   "answer": "yes:None / None:None",
    "goals": "[] / ['compare']",
    "action": "RESEARCH / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1094.0253009903245
+  "latency_ms": 1137.0202669932041
  },
  {
   "id": "es-036",
   "error": null,
-  "cost_eur": 0.00116449,
+  "cost_eur": 0.0010448900000000001,
   "fields": {
    "language": true,
    "answer": true,
@@ -1518,12 +1524,12 @@
    "changes": "car#1.displacement_l 1.5 / 1.0"
   },
   "notes": [],
-  "latency_ms": 1516.1256289866287
+  "latency_ms": 1461.11139797722
  },
  {
   "id": "es-037",
   "error": null,
-  "cost_eur": 0.000828,
+  "cost_eur": 0.00090436,
   "fields": {
    "language": true,
    "answer": true,
@@ -1533,12 +1539,12 @@
   },
   "misses": {},
   "notes": [],
-  "latency_ms": 1137.5927629997022
+  "latency_ms": 1230.7307190203574
  },
  {
   "id": "es-038",
   "error": null,
-  "cost_eur": 0.00086641,
+  "cost_eur": 0.00082961,
   "fields": {
    "language": true,
    "answer": true,
@@ -1548,12 +1554,12 @@
   },
   "misses": {},
   "notes": [],
-  "latency_ms": 1143.1486050132662
+  "latency_ms": 1255.402057984611
  },
  {
   "id": "es-039",
   "error": null,
-  "cost_eur": 0.0008795200000000001,
+  "cost_eur": 0.00082616,
   "fields": {
    "language": true,
    "answer": true,
@@ -1565,12 +1571,12 @@
    "action": "ASK / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1152.467470994452
+  "latency_ms": 1270.436539023649
  },
  {
   "id": "es-040",
   "error": null,
-  "cost_eur": 0.00079902,
+  "cost_eur": 0.00081328,
   "fields": {
    "language": true,
    "answer": true,
@@ -1580,12 +1586,12 @@
   },
   "misses": {},
   "notes": [],
-  "latency_ms": 838.1994509836659
+  "latency_ms": 1155.2553859946784
  },
  {
   "id": "es-041",
   "error": null,
-  "cost_eur": 0.0009287400000000001,
+  "cost_eur": 0.000943,
   "fields": {
    "language": true,
    "answer": true,
@@ -1597,12 +1603,12 @@
    "action": "ASK / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1381.2989209836815
+  "latency_ms": 1304.6171230089385
  },
  {
   "id": "es-042",
   "error": null,
-  "cost_eur": 0.00082317,
+  "cost_eur": 0.00083743,
   "fields": {
    "language": true,
    "answer": true,
@@ -1614,30 +1620,32 @@
    "changes": "passengers 5 / None"
   },
   "notes": [],
-  "latency_ms": 1214.9214340024628
+  "latency_ms": 1139.7939729795326
  },
  {
   "id": "es-043",
   "error": null,
-  "cost_eur": 0.00094645,
+  "cost_eur": 0.00087101,
   "fields": {
    "language": true,
-   "answer": true,
-   "goals": false,
+   "answer": false,
+   "goals": true,
    "action": false,
    "changes": true
   },
   "misses": {
-   "goals": "[] / ['follow_up']",
+   "answer": "none / value",
    "action": "ASK / CONFIRM_VARIANTS"
   },
-  "notes": [],
-  "latency_ms": 1084.887000004528
+  "notes": [
+   "no_goal_with_pending: answer_to_pending"
+  ],
+  "latency_ms": 1312.5914970005397
  },
  {
   "id": "es-044",
   "error": null,
-  "cost_eur": 0.0007895900000000001,
+  "cost_eur": 0.00076935,
   "fields": {
    "language": true,
    "answer": true,
@@ -1647,12 +1655,12 @@
   },
   "misses": {},
   "notes": [],
-  "latency_ms": 948.9927150134463
+  "latency_ms": 1258.3744380099233
  },
  {
   "id": "es-045",
   "error": null,
-  "cost_eur": 0.00081466,
+  "cost_eur": 0.0008786,
   "fields": {
    "language": true,
    "answer": true,
@@ -1662,31 +1670,30 @@
   },
   "misses": {},
   "notes": [],
-  "latency_ms": 1203.8411640096456
+  "latency_ms": 1238.1105200038292
  },
  {
   "id": "es-046",
   "error": null,
-  "cost_eur": 0.00085491,
+  "cost_eur": 0.00084985,
   "fields": {
    "language": true,
    "answer": true,
-   "goals": false,
+   "goals": true,
    "action": false,
    "reaction": true,
    "changes": true
   },
   "misses": {
-   "goals": "[] / ['follow_up']",
-   "action": "ANSWER_AND_REASK / CONFIRM_VARIANTS"
+   "action": "ANSWER_AND_REASK / ANSWER_GENERAL"
   },
   "notes": [],
-  "latency_ms": 1136.8783959769644
+  "latency_ms": 1075.9869150060695
  },
  {
   "id": "en-001",
   "error": null,
-  "cost_eur": 0.00087515,
+  "cost_eur": 0.00088941,
   "fields": {
    "language": true,
    "answer": true,
@@ -1697,12 +1704,12 @@
    "action": "ANSWER_AND_REASK / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1201.3503860216588
+  "latency_ms": 1243.1106140138581
  },
  {
   "id": "en-002",
   "error": null,
-  "cost_eur": 0.0008395,
+  "cost_eur": 0.00085376,
   "fields": {
    "language": true,
    "answer": true,
@@ -1713,29 +1720,30 @@
    "action": "ANSWER_AND_REASK / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1051.295659999596
+  "latency_ms": 1157.4647410016041
  },
  {
   "id": "en-003",
   "error": null,
-  "cost_eur": 0.0010987100000000001,
+  "cost_eur": 0.0008576699999999999,
   "fields": {
    "language": true,
    "answer": true,
    "goals": true,
-   "action": true,
+   "action": false,
    "changes": false
   },
   "misses": {
-   "changes": "priorities True / ['ownership_cost', 'reliability']"
+   "action": "ASK / ANSWER_GENERAL",
+   "changes": "add_cars ['Dacia Bigster', 'Toyota Land Cruiser Prado'] / []; persona BUYER / UNKNOWN; priorities True / []"
   },
   "notes": [],
-  "latency_ms": 1462.4379590095486
+  "latency_ms": 1294.04180200072
  },
  {
   "id": "en-004",
   "error": null,
-  "cost_eur": 0.0009494400000000001,
+  "cost_eur": 0.0009637000000000001,
   "fields": {
    "language": true,
    "answer": true,
@@ -1747,80 +1755,81 @@
    "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1032.6697549899109
+  "latency_ms": 1206.953140994301
  },
  {
   "id": "en-005",
   "error": null,
-  "cost_eur": 0.0011341300000000001,
+  "cost_eur": 0.00107249,
   "fields": {
    "language": true,
    "answer": true,
-   "goals": false,
+   "goals": true,
    "action": false,
    "reaction": true,
    "changes": true
   },
   "misses": {
-   "goals": "[] / ['research_more']",
    "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1516.1221719754394
+  "latency_ms": 1434.852056991076
  },
  {
   "id": "en-006",
   "error": null,
-  "cost_eur": 0.0008625,
-  "fields": {
-   "language": true,
-   "answer": true,
-   "goals": true,
-   "action": true,
-   "changes": true
-  },
-  "misses": {},
-  "notes": [],
-  "latency_ms": 1163.6931859829929
- },
- {
-  "id": "en-007",
-  "error": null,
-  "cost_eur": 0.0009236800000000001,
-  "fields": {
-   "language": true,
-   "answer": true,
-   "goals": true,
-   "action": true,
-   "changes": true
-  },
-  "misses": {},
-  "notes": [],
-  "latency_ms": 1103.339749010047
- },
- {
-  "id": "en-008",
-  "error": null,
-  "cost_eur": 0.00106099,
+  "cost_eur": 0.0008947,
   "fields": {
    "language": true,
    "answer": true,
    "goals": false,
    "action": false,
+   "changes": true
+  },
+  "misses": {
+   "goals": "['change_priorities'] / ['compare']",
+   "action": "ANSWER_FROM_CONTEXT / REPORT"
+  },
+  "notes": [],
+  "latency_ms": 1255.4137950064614
+ },
+ {
+  "id": "en-007",
+  "error": null,
+  "cost_eur": 0.0009379400000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true,
+   "changes": true
+  },
+  "misses": {},
+  "notes": [],
+  "latency_ms": 1396.5085459931288
+ },
+ {
+  "id": "en-008",
+  "error": null,
+  "cost_eur": 0.00104351,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
    "reaction": true,
    "changes": true
   },
   "misses": {
-   "goals": "[] / ['compare']",
    "action": "CONFIRM_INTAKE / ASK"
   },
   "notes": [],
-  "latency_ms": 1374.4483129994478
+  "latency_ms": 1560.452260018792
  },
  {
   "id": "en-009",
   "error": null,
-  "cost_eur": 0.00081811,
+  "cost_eur": 0.00083237,
   "fields": {
    "language": true,
    "answer": true,
@@ -1831,12 +1840,12 @@
   },
   "misses": {},
   "notes": [],
-  "latency_ms": 893.6912420031149
+  "latency_ms": 1295.866852015024
  },
  {
   "id": "en-010",
   "error": null,
-  "cost_eur": 0.00091425,
+  "cost_eur": 0.00092851,
   "fields": {
    "language": true,
    "answer": true,
@@ -1848,29 +1857,32 @@
    "action": "ASK / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1196.5407700045034
+  "latency_ms": 1418.5975220170803
  },
  {
   "id": "en-011",
   "error": null,
-  "cost_eur": 0.0009239100000000001,
+  "cost_eur": 0.0009036700000000001,
   "fields": {
    "language": true,
    "answer": true,
    "goals": true,
-   "action": true,
+   "action": false,
    "changes": false
   },
   "misses": {
-   "changes": "add_cars ['Volkswagen Golf'] / []"
+   "action": "SELECT_CANDIDATES / ASK",
+   "changes": "add_cars ['Volkswagen Golf'] / ['Hyundai', 'Ford']; replaced_car Volkswagen Golf / []; usage True / []"
   },
-  "notes": [],
-  "latency_ms": 1179.939942987403
+  "notes": [
+   "cars_safety_net: case_changes.add_cars"
+  ],
+  "latency_ms": 1270.6851080001798
  },
  {
   "id": "en-012",
   "error": null,
-  "cost_eur": 0.00095749,
+  "cost_eur": 0.00097175,
   "fields": {
    "language": true,
    "answer": true,
@@ -1880,12 +1892,12 @@
   },
   "misses": {},
   "notes": [],
-  "latency_ms": 1202.824920997955
+  "latency_ms": 1602.100629999768
  },
  {
   "id": "en-013",
   "error": null,
-  "cost_eur": 0.00121969,
+  "cost_eur": 0.00118979,
   "fields": {
    "language": true,
    "answer": true,
@@ -1898,12 +1910,12 @@
    "changes": "region Seville / None"
   },
   "notes": [],
-  "latency_ms": 1694.0680539992172
+  "latency_ms": 2071.516326017445
  },
  {
   "id": "en-014",
   "error": null,
-  "cost_eur": 0.00103615,
+  "cost_eur": 0.0010421299999999998,
   "fields": {
    "language": true,
    "answer": true,
@@ -1916,12 +1928,12 @@
    "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1831.2903369951528
+  "latency_ms": 1564.6527389762923
  },
  {
   "id": "en-015",
   "error": null,
-  "cost_eur": 0.00083536,
+  "cost_eur": 0.0008848100000000001,
   "fields": {
    "language": true,
    "answer": true,
@@ -1932,12 +1944,12 @@
    "action": "RESEARCH / CONFIRM_COST"
   },
   "notes": [],
-  "latency_ms": 1317.0564879837912
+  "latency_ms": 1336.4391629875172
  },
  {
   "id": "en-016",
   "error": null,
-  "cost_eur": 0.00087469,
+  "cost_eur": 0.00088964,
   "fields": {
    "language": true,
    "answer": true,
@@ -1948,12 +1960,12 @@
    "action": "RESEARCH / CONFIRM_COST"
   },
   "notes": [],
-  "latency_ms": 1439.0764679992571
+  "latency_ms": 1436.2995690025855
  },
  {
   "id": "en-017",
   "error": null,
-  "cost_eur": 0.00089976,
+  "cost_eur": 0.00089125,
   "fields": {
    "language": true,
    "answer": true,
@@ -1964,29 +1976,29 @@
    "action": "REPORT / CONFIRM_COST"
   },
   "notes": [],
-  "latency_ms": 1277.9621499939822
+  "latency_ms": 1177.0751220174134
  },
  {
   "id": "en-018",
   "error": null,
-  "cost_eur": 0.00089171,
+  "cost_eur": 0.0008404199999999999,
   "fields": {
    "language": true,
    "answer": true,
-   "goals": false,
+   "goals": true,
    "action": true,
    "changes": true
   },
-  "misses": {
-   "goals": "[] / ['change_priorities']"
-  },
-  "notes": [],
-  "latency_ms": 1232.1685169881675
+  "misses": {},
+  "notes": [
+   "language_hysteresis: language"
+  ],
+  "latency_ms": 1309.8083799995948
  },
  {
   "id": "en-019",
   "error": null,
-  "cost_eur": 0.00085215,
+  "cost_eur": 0.0008326000000000001,
   "fields": {
    "language": true,
    "answer": true,
@@ -1997,12 +2009,12 @@
    "action": "RESEARCH / CONFIRM_COST"
   },
   "notes": [],
-  "latency_ms": 1301.4118910068646
+  "latency_ms": 1432.6388179906644
  },
  {
   "id": "en-020",
   "error": null,
-  "cost_eur": 0.0008461699999999999,
+  "cost_eur": 0.00086112,
   "fields": {
    "language": true,
    "answer": true,
@@ -2011,12 +2023,12 @@
   },
   "misses": {},
   "notes": [],
-  "latency_ms": 1262.0937259925995
+  "latency_ms": 1257.453225000063
  },
  {
   "id": "en-021",
   "error": null,
-  "cost_eur": 0.00081811,
+  "cost_eur": 0.00088136,
   "fields": {
    "language": true,
    "answer": true,
@@ -2024,33 +2036,27 @@
    "action": true
   },
   "misses": {},
-  "notes": [
-   "language_hysteresis: language"
-  ],
-  "latency_ms": 1042.9785610176623
+  "notes": [],
+  "latency_ms": 1270.0077500194311
  },
  {
   "id": "en-022",
   "error": null,
-  "cost_eur": 0.00082271,
+  "cost_eur": 0.00086112,
   "fields": {
    "language": true,
    "answer": true,
-   "goals": false,
+   "goals": true,
    "action": true
   },
-  "misses": {
-   "goals": "[] / ['stop']"
-  },
-  "notes": [
-   "language_hysteresis: language"
-  ],
-  "latency_ms": 978.6921210179571
+  "misses": {},
+  "notes": [],
+  "latency_ms": 1330.3301660052966
  },
  {
   "id": "en-023",
   "error": null,
-  "cost_eur": 0.0008213299999999999,
+  "cost_eur": 0.00083628,
   "fields": {
    "language": true,
    "answer": true,
@@ -2061,12 +2067,12 @@
   "notes": [
    "language_hysteresis: language"
   ],
-  "latency_ms": 914.5334099885076
+  "latency_ms": 1219.6381309768185
  },
  {
   "id": "en-024",
   "error": null,
-  "cost_eur": 0.0008457100000000001,
+  "cost_eur": 0.00088389,
   "fields": {
    "language": true,
    "answer": true,
@@ -2077,30 +2083,29 @@
    "action": "RESEARCH / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 917.2534779936541
+  "latency_ms": 1111.2919400038663
  },
  {
   "id": "en-025",
   "error": null,
-  "cost_eur": 0.00090252,
+  "cost_eur": 0.00091724,
   "fields": {
    "language": true,
-   "answer": false,
+   "answer": true,
    "goals": false,
    "action": false
   },
   "misses": {
-   "answer": "option:stop / no:None",
    "goals": "[] / ['stop']",
    "action": "REPORT / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 922.6091750024352
+  "latency_ms": 1398.7940709921531
  },
  {
   "id": "en-026",
   "error": null,
-  "cost_eur": 0.00086917,
+  "cost_eur": 0.00084939,
   "fields": {
    "language": true,
    "answer": true,
@@ -2112,12 +2117,12 @@
    "action": "ASK / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 940.5019240221009
+  "latency_ms": 1257.657050009584
  },
  {
   "id": "en-027",
   "error": null,
-  "cost_eur": 0.00088734,
+  "cost_eur": 0.0008855,
   "fields": {
    "language": true,
    "answer": true,
@@ -2128,12 +2133,12 @@
    "action": "ANSWER_AND_REASK / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 940.4477850184776
+  "latency_ms": 1109.7758740070276
  },
  {
   "id": "en-028",
   "error": null,
-  "cost_eur": 0.0009558800000000001,
+  "cost_eur": 0.0008919399999999999,
   "fields": {
    "language": true,
    "answer": true,
@@ -2144,13 +2149,15 @@
   "misses": {
    "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
   },
-  "notes": [],
-  "latency_ms": 974.2720409994945
+  "notes": [
+   "language_hysteresis: language"
+  ],
+  "latency_ms": 1216.8896300136112
  },
  {
   "id": "en-029",
   "error": null,
-  "cost_eur": 0.0008395,
+  "cost_eur": 0.00082478,
   "fields": {
    "language": true,
    "answer": true,
@@ -2162,12 +2169,12 @@
    "action": "ANSWER_AND_REASK / ANSWER_GENERAL"
   },
   "notes": [],
-  "latency_ms": 875.6796040106565
+  "latency_ms": 1184.8838680016343
  },
  {
   "id": "en-030",
   "error": null,
-  "cost_eur": 0.00089401,
+  "cost_eur": 0.0009124100000000001,
   "fields": {
    "language": true,
    "answer": true,
@@ -2178,12 +2185,12 @@
    "action": "RESEARCH / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1117.5289370003156
+  "latency_ms": 1338.6178409855347
  },
  {
   "id": "en-031",
   "error": null,
-  "cost_eur": 0.00091931,
+  "cost_eur": 0.00101775,
   "fields": {
    "language": true,
    "answer": true,
@@ -2194,29 +2201,30 @@
    "action": "RESEARCH / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1037.4288540042471
+  "latency_ms": 1370.3091130009852
  },
  {
   "id": "en-032",
   "error": null,
-  "cost_eur": 0.00100993,
+  "cost_eur": 0.00089309,
   "fields": {
    "language": true,
    "answer": true,
    "goals": true,
    "action": false,
-   "rejections": true
+   "rejections": false
   },
   "misses": {
-   "action": "ASK / CONFIRM_VARIANTS"
+   "action": "ASK / CONFIRM_VARIANTS",
+   "rejections": "[('car#1', 'VERSION')] / []"
   },
   "notes": [],
-  "latency_ms": 1043.4554970124736
+  "latency_ms": 1194.1459230147302
  },
  {
   "id": "en-033",
   "error": null,
-  "cost_eur": 0.00111711,
+  "cost_eur": 0.00106927,
   "fields": {
    "language": true,
    "answer": false,
@@ -2232,12 +2240,12 @@
    "rejections": "[('car#1', 'GENERATION')] / []"
   },
   "notes": [],
-  "latency_ms": 1245.080513996072
+  "latency_ms": 1473.0216129973996
  },
  {
   "id": "en-034",
   "error": null,
-  "cost_eur": 0.00110055,
+  "cost_eur": 0.00111343,
   "fields": {
    "language": true,
    "answer": true,
@@ -2253,12 +2261,12 @@
    "rejections": "[('car#1', 'ENGINE')] / []"
   },
   "notes": [],
-  "latency_ms": 1307.8823019750416
+  "latency_ms": 1677.4878760043066
  },
  {
   "id": "en-035",
   "error": null,
-  "cost_eur": 0.0007898199999999999,
+  "cost_eur": 0.00083444,
   "fields": {
    "language": true,
    "answer": true,
@@ -2270,12 +2278,12 @@
    "action": "ANSWER_FROM_CONTEXT / ANSWER_GENERAL"
   },
   "notes": [],
-  "latency_ms": 942.5386170041747
+  "latency_ms": 1203.9202279993333
  },
  {
   "id": "en-036",
   "error": null,
-  "cost_eur": 0.0007831500000000001,
+  "cost_eur": 0.0008263900000000001,
   "fields": {
    "language": true,
    "answer": true,
@@ -2285,49 +2293,50 @@
   },
   "misses": {},
   "notes": [],
-  "latency_ms": 855.6953199731652
+  "latency_ms": 1119.8840959987137
  },
  {
   "id": "en-037",
   "error": null,
-  "cost_eur": 0.00087423,
+  "cost_eur": 0.00084433,
   "fields": {
    "language": true,
    "answer": true,
-   "goals": false,
+   "goals": true,
    "action": false,
    "reaction": true,
    "changes": true
   },
   "misses": {
-   "goals": "[] / ['critique']",
    "action": "ASK / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1255.2777689998038
+  "latency_ms": 1165.4564040072728
  },
  {
   "id": "en-038",
   "error": null,
-  "cost_eur": 0.0009406999999999999,
+  "cost_eur": 0.0008211000000000002,
   "fields": {
    "language": true,
    "answer": true,
-   "goals": true,
+   "goals": false,
    "action": false,
    "reaction": true,
-   "changes": true
+   "changes": false
   },
   "misses": {
-   "action": "ASK / CONFIRM_VARIANTS"
+   "goals": "['compare'] / []",
+   "action": "ASK / ANSWER_GENERAL",
+   "changes": "add_cars ['Skoda Kodiaq'] / []"
   },
   "notes": [],
-  "latency_ms": 1401.6111370001454
+  "latency_ms": 1172.1929580089636
  },
  {
   "id": "en-039",
   "error": null,
-  "cost_eur": 0.0008680200000000001,
+  "cost_eur": 0.00088228,
   "fields": {
    "language": true,
    "answer": true,
@@ -2338,12 +2347,12 @@
    "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1224.8600009770598
+  "latency_ms": 1250.8613530080765
  },
  {
   "id": "en-040",
   "error": null,
-  "cost_eur": 0.0008901000000000001,
+  "cost_eur": 0.0009043600000000001,
   "fields": {
    "language": true,
    "answer": true,
@@ -2354,12 +2363,12 @@
    "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1180.871938006021
+  "latency_ms": 1292.4501209927257
  },
  {
   "id": "en-041",
   "error": null,
-  "cost_eur": 0.00086319,
+  "cost_eur": 0.00087745,
   "fields": {
    "language": true,
    "answer": true,
@@ -2370,27 +2379,29 @@
    "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 911.9297529978212
+  "latency_ms": 1122.0091750146821
  },
  {
   "id": "en-042",
   "error": null,
-  "cost_eur": 0.00095496,
+  "cost_eur": 0.00094852,
   "fields": {
    "language": true,
    "answer": true,
    "goals": true,
    "action": true,
-   "changes": true
+   "changes": false
   },
-  "misses": {},
+  "misses": {
+   "changes": "add_cars ['Toyota Land Cruiser Prado', 'Volvo XC90'] / ['Land Rover Land Rover Prado', 'Volvo XC90']"
+  },
   "notes": [],
-  "latency_ms": 1101.2964110122994
+  "latency_ms": 1388.4556390112266
  },
  {
   "id": "en-043",
   "error": null,
-  "cost_eur": 0.00104535,
+  "cost_eur": 0.00103063,
   "fields": {
    "language": true,
    "answer": true,
@@ -2402,48 +2413,47 @@
    "action": "ASK / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 1235.7260389835574
+  "latency_ms": 1474.0781589935068
  },
  {
   "id": "en-044",
   "error": null,
-  "cost_eur": 0.00090045,
+  "cost_eur": 0.00094507,
   "fields": {
    "language": true,
    "answer": true,
    "goals": false,
    "action": true,
-   "changes": false
+   "changes": true
   },
   "misses": {
-   "goals": "[] / ['compare']",
-   "changes": "prediction car#1 / None"
+   "goals": "[] / ['compare']"
   },
   "notes": [],
-  "latency_ms": 1085.8957890013698
+  "latency_ms": 1341.1621499981266
  },
  {
   "id": "en-045",
   "error": null,
-  "cost_eur": 0.0008487000000000001,
+  "cost_eur": 0.0008326000000000001,
   "fields": {
    "language": true,
-   "answer": true,
-   "goals": false,
+   "answer": false,
+   "goals": true,
    "action": false,
    "changes": true
   },
   "misses": {
-   "goals": "[] / ['follow_up']",
+   "answer": "none / value",
    "action": "ANSWER_AND_REASK / CONFIRM_VARIANTS"
   },
   "notes": [],
-  "latency_ms": 967.913474974921
+  "latency_ms": 1217.598662013188
  },
  {
   "id": "en-046",
   "error": null,
-  "cost_eur": 0.00072427,
+  "cost_eur": 0.0007385299999999999,
   "fields": {
    "language": true,
    "answer": true,
@@ -2454,12 +2464,12 @@
   },
   "misses": {},
   "notes": [],
-  "latency_ms": 807.5002529949415
+  "latency_ms": 1203.2221230037976
  },
  {
   "id": "en-047",
   "error": null,
-  "cost_eur": 0.0008399600000000001,
+  "cost_eur": 0.0009066600000000001,
   "fields": {
    "language": true,
    "answer": true,
@@ -2468,6 +2478,6 @@
   },
   "misses": {},
   "notes": [],
-  "latency_ms": 931.1440820165444
+  "latency_ms": 1281.55010699993
  }
 ]

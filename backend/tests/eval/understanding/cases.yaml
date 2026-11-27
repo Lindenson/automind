@@ -1685,9 +1685,11 @@ cases:
   words: ["YES:run"]
   expect:
     language: en
+    goals: [{kind: change_priorities}]
     changes: {priorities: [ownership_cost]}
     action: CONFIRM_COST
-  note: starts with "run" (in _YES) but is a priority; the cost is asked again for the new criteria
+  note: starts with "run" (in _YES) but is a priority (goal change_priorities, owner 2026-11-27); the cost is asked
+    again for the new criteria
 
 - id: en-019
   lang: en

@@ -56,6 +56,19 @@ def test_a_rejection_without_the_words_is_dropped_and_one_with_them_kept() -> No
     assert v.understanding.case_changes.rejections == [] and v.dropped[0].check == "heard_rejections"  # type: ignore[union-attr]
 
 
+def test_the_model_the_person_asked_for_is_never_rejected_without_another_one() -> None:
+    asked = CASE.model_copy(deep=True)
+    asked.cars[1].model, asked.cars[1].request_text = "C-Class", "мерседес Clase C"  # found as asked
+    said = "ты не нашел мерседес класс C"
+    bare = understanding(case_changes={"rejections": [{"target_key": "car#2", "level": "MODEL", "value": "C-Class",
+                                                       "evidence": said}]})  # fmt: skip
+    v = validate_understanding(bare, asked, None, said, [])
+    assert v.understanding.case_changes.rejections == [] and v.dropped[0].check == "heard_rejections"  # type: ignore[union-attr]
+    other = understanding(case_changes={"rejections": [{"target_key": "car#2", "level": "MODEL", "value": "C-Class",
+                                                        "wanted": "CLA", "evidence": said}]})  # fmt: skip
+    assert len(validate_understanding(other, asked, None, said, []).understanding.case_changes.rejections) == 1  # type: ignore[union-attr]
+
+
 def test_the_engine_is_read_from_the_words() -> None:
     u = understanding(case_changes={"set_car_context": [{"target_key": "car#1", "constraints": {"trim_hint": "1.6"}}]})
     v = validate_understanding(u, CASE, None, "мне нужен 1.6", [])

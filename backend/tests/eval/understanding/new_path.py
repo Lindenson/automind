@@ -25,7 +25,8 @@ from automind.chat.domain.decision import PolicyConfig, RequestKind
 from automind.chat.domain.understanding.intent import AnswerKind as A
 from automind.chat.domain.understanding.intent import GoalKind as G
 from automind.chat.domain.understanding.intent import Intent, Reaction
-from automind.chat.domain.understanding.open_question import OpenQuestion, QuestionOption
+from automind.chat.domain.understanding.open_question import OpenKind, OpenQuestion, QuestionOption
+from automind.chat.domain.understanding.yes_no import meaning
 from automind.shared.contracts.config import MakeNames
 from tests.eval.understanding.fixture_models import CaseFixture, PendingFixture
 from tests.eval.understanding.old_path import YEAR, Observed, _situation, case_of, history_of
@@ -49,9 +50,10 @@ class _Words:
 
 def question_of(p: PendingFixture) -> OpenQuestion:
     """The fixture's open question as the understanding step sees it."""
-    options = tuple(QuestionOption(id=o.id, label=o.label) for item in p.items for o in item.options)
-    return OpenQuestion(id=p.id, kind=p.kind.value, question=p.question, cars=tuple(sorted(p.cars())),
-                        options=options)  # fmt: skip
+    kind = OpenKind(p.kind.value)
+    options = tuple(QuestionOption(id=o.id, label=o.label, means=meaning(kind, o.id))
+                    for item in p.items for o in item.options)  # fmt: skip
+    return OpenQuestion(id=p.id, kind=kind, question=p.question, cars=tuple(sorted(p.cars())), options=options)
 
 
 async def run_case(understander: Understander, makes: MakeNames | None, case: Case, fx: CaseFixture,

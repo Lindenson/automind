@@ -10,8 +10,9 @@ from __future__ import annotations
 
 from automind.chat.domain import understanding
 from automind.chat.domain.case import CarContext, CarRef, CarRejection, CaseDelta, CaseFile, Constraints, current_value
-from automind.chat.domain.identification.rejection import same_value
+from automind.chat.domain.identification.rejection import RejectLevel, same_value
 from automind.chat.domain.understanding.record import Dropped
+from automind.shared.vehicle.model_names import match_model
 
 MIN_EVIDENCE = 3  # characters of the person's words a rejection needs
 _PROFILE = ("family", "age_band", "driving_style")
@@ -128,8 +129,9 @@ def constraints_from_message(d: CaseDelta, text: str) -> tuple[CaseDelta, list[D
 
 def heard_rejections(case: CaseFile, d: CaseDelta, text: str) -> tuple[CaseDelta, list[Dropped]]:
     """Only the rejections code can stand behind (spec 013 S2, T021): the car exists, the person's words are in the
-    message, and the value rejected is the car's current one (or left to it) and not the one they want. The delta is
-    returned as it is when every rejection stands."""
+    message, the value rejected is the car's current one (or left to it) and not the one they want, and a model is
+    never rejected when it is the one the person asked for (their request names it) unless they name another. The
+    delta is returned as it is when every rejection stands."""
     if not d.rejections:
         return d, []
     kept = [r for r in d.rejections if _stands(case, r, text)]
@@ -148,7 +150,10 @@ def _stands(case: CaseFile, r: CarRejection, text: str) -> bool:
     now = current_value(car, r.level)
     if not now or (r.value and not same_value(r.value, now)):
         return False  # nothing there to reject, or the model names a value the car does not have
-    return not same_value(r.wanted, now)  # "you did not find the C-Class" while the car is the C-Class
+    if same_value(r.wanted, now):
+        return False  # "you did not find the C-Class" while the car is the C-Class
+    # I1, the person's words win: the model they asked for is not rejected unless they name another one
+    return not (r.level is RejectLevel.MODEL and not r.wanted and match_model(car.request_text, [now]) is not None)
 
 
 def _as_new_car(x: CarContext) -> CarRef:

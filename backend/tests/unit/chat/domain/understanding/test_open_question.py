@@ -5,7 +5,8 @@ from __future__ import annotations
 
 from automind.chat.domain.case import Pending
 from automind.chat.domain.understanding.intent import AnswerKind, PendingAnswer
-from automind.chat.domain.understanding.open_question import canonical_answer, limit_question, open_question, pending_id
+from automind.chat.domain.understanding.open_question import OpenKind, limit_question, open_question, pending_id
+from automind.chat.domain.understanding.yes_no import canonical_answer, meaning
 
 
 def _ids(p: Pending) -> list[str]:
@@ -69,3 +70,14 @@ def test_yes_and_no_have_one_form_whether_typed_or_tapped() -> None:
     assert canonical_answer(typed, card) == typed.model_copy(update={"option_id": "stop"})
     other = PendingAnswer(pending_id="q-other", kind=AnswerKind.OPTION, option_id="stop", evidence="x")
     assert canonical_answer(other, card) is other and canonical_answer(None, card) is None
+
+
+def test_what_an_option_id_means() -> None:
+    assert (
+        meaning(OpenKind.LIMIT, "continue") is AnswerKind.YES
+        and meaning(OpenKind.CONFIRM_COST, "skip") is AnswerKind.NO
+    )
+    assert (
+        meaning(OpenKind.QUESTIONS, "no:car#1") is AnswerKind.NO
+        and meaning(OpenKind.QUESTIONS, "q:car#1:TRIM:0") is None
+    )

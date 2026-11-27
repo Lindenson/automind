@@ -76,6 +76,8 @@ happens once more — rare: within a run only a concurrent writer outside the tu
 - [ ] T120 `TurnState` sections (`chat`, `input`, `understanding`, `applied`, `assessment`, `decision`, `confirm`,
   `research`, `research_results`, `notices`, `reply`) as Pydantic models with a lifetime mark; owners registry by
   section. `decision` = spec 015 `DecisionHistory` (T230), no `hops`; `reply.action` is the only `action`.
+  Nested values typed and validated: no `SkipValidation` left in the node contracts (89 on 2026-11-27; review of
+  2026-11-27: the contract checks presence, not content).
 - [ ] T121 `begin_turn` (the `load_case` node id kept as alias) clears every `turn` section; `PER_TURN_RESET` deleted;
   `language` lives in `chat` (no "en" reset).
 - [ ] T122 Checkpoint adapter: flat keys of an old blob → sections (pure function, tests on blobs exported by
