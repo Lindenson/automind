@@ -6,6 +6,7 @@ asks the rules in order and the first that fires decides. Pure: no I/O, no clock
 
 from __future__ import annotations
 
+from decimal import Decimal
 from enum import StrEnum
 from typing import ClassVar, Protocol
 
@@ -68,7 +69,7 @@ class Situation(BaseModel):
     case: CaseFile
     request: RequestKind
     cars: tuple[CarFacts, ...]
-    cost_estimate_eur: float | None
+    cost_estimate_eur: Decimal | None = Field(ge=0)  # the research estimate in euros, to the cent
     last_fingerprint: str | None
     cost_approved: bool
     research_declined: bool  # declined by the person or already done this turn (spec 015 PL5 splits the two)

@@ -22,6 +22,7 @@ from automind.chat.dialog.turn.context import TurnContext
 from automind.chat.domain.case import CaseCar, CaseFile, Pending
 from automind.delivery.bootstrap import reference
 from automind.shared.infrastructure import db
+from tests.unit.chat.dialog.policy.builder import config
 
 MAKE = "S9Confirm"
 
@@ -70,7 +71,7 @@ def _runtime(store: Store, case: CaseFile, llm: LLM | None = None) -> SimpleName
     store.case = case.model_dump(mode="json")
     clock = SimpleNamespace(now=lambda: datetime(2026, 11, 1, tzinfo=UTC))
     ports = SimpleNamespace(ref=reference(load_all()), cases=store, events=store, messages=store, llm=llm or LLM(),
-                            acquisition=None, clock=clock)  # fmt: skip
+                            acquisition=None, clock=clock, policy=config())  # fmt: skip
     return SimpleNamespace(context=TurnContext(ports=ports, chat_id="chat-s9", turn_id="turn-s9", budget=None))  # type: ignore[arg-type]
 
 

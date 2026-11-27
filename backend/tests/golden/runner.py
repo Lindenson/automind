@@ -21,6 +21,7 @@ from sqlalchemy import delete, select
 
 from automind.chat.application.ports import Ports
 from automind.chat.dialog.runner import ChatRunner, TurnResult
+from automind.chat.infrastructure.adapters import policy_config
 from automind.chat.infrastructure.events import EventBus
 from automind.chat.infrastructure.persistence.computations import ComputationRepo
 from automind.chat.infrastructure.persistence.repositories import (
@@ -33,6 +34,7 @@ from automind.chat.infrastructure.persistence.repositories import (
     TurnRepo,
 )
 from automind.chat.infrastructure.research_history import EngineResearchHistory
+from automind.shared.infrastructure.config.settings import settings as _settings
 from automind.shared.infrastructure.db import models as m
 from automind.shared.infrastructure.db.session import sessionmaker
 from tests.fakes.fake_llm import FakeLLM, FixedEstimator
@@ -493,17 +495,17 @@ async def _run_dialogue(d: Dialogue, saver: Any, *, live: bool, record: bool) ->
         messages=MessageRepo(),
         computations=ComputationRepo(),
         research=EngineResearchHistory(),
+        policy=policy_config(_settings(), ref.search),
         estimator=_estimator(live),
         feasibility=FeasibilityRepo(),
         market_facts=facts,
     )
     ports = wire_identification(ports, d)
-    runner = ChatRunner(build_graph(saver), ports, budgets, messages=MessageRepo())
-    from automind.shared.infrastructure.config.settings import settings as _settings
-
     saved = {k: getattr(_settings(), k) for k in d.settings}
     for k, v in d.settings.items():
         setattr(_settings(), k, v)
+    ports.policy = policy_config(_settings(), ref.search)  # the dialogue's settings, as the app builds it at startup
+    runner = ChatRunner(build_graph(saver), ports, budgets, messages=MessageRepo())
     try:
         return await _run_turns(d, runner, chat_id, live, record, llm, ports)
     finally:

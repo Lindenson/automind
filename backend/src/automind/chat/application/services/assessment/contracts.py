@@ -37,7 +37,8 @@ class CarsAssessed:
 class PlanRequest:
     """The research to plan for the assessed case. `research_more`: the person asked to find what is missing ("find
     it", a critique), so areas below their minimum are tried again, deeper; `focus` (car keys) and `areas` narrow
-    it. `shown`: the notice texts the turn already shows (a warning is given once)."""
+    it. `shown`: the notice texts the turn already shows (a warning is given once). `checked`: the feasibility
+    checks an earlier assess of this turn ran (None: none)."""
 
     case: CaseFile
     assessments: dict[str, Assessment]
@@ -45,6 +46,7 @@ class PlanRequest:
     focus: tuple[str, ...] = ()
     areas: tuple[str, ...] = ()
     shown: frozenset[str] = frozenset()
+    checked: JsonObject | None = None
 
 
 @dataclass(frozen=True)
@@ -61,7 +63,8 @@ class PlanHistory:
 @dataclass(frozen=True)
 class Planned:
     """The assessed cars with the freshness the plan implies, the research plan, its cost in euros, whether the
-    person already declined this very plan, the feasibility checks (None: not run) and the new warnings."""
+    person already declined this very plan, the feasibility checks (None: not run), the new warnings, and whether
+    the checks (these, else the turn's earlier ones) found something the person has not acknowledged yet."""
 
     assessments: dict[str, Assessment]
     plan: ResearchPlan
@@ -70,3 +73,4 @@ class Planned:
     declined: bool
     feasibility: JsonObject | None
     warnings: list[Notice]
+    feasibility_pending: bool

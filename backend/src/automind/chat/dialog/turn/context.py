@@ -4,6 +4,8 @@ Built by the turn execution for each run of the graph (`ainvoke`: a new turn, a 
 from here (never from the runner). Events a node publishes (`status`, `progress`, any `emit`) go to the chat's event
 bus under this turn. The case file is read once per run (spec 014 D3): `case()` reads it on first use, `save_case`
 writes it with the version it was read at and keeps the cache current; nothing else writes the case during a run.
+The last report's fingerprint is read once per run too (spec 015 T211): a report ends the turn, so no policy pass
+of the same run sees a newer one.
 """
 
 from __future__ import annotations
@@ -37,9 +39,11 @@ class TurnContext:
     turn_id: str
     budget: TurnBudget
     _case: Cached[StoredCase] = field(init=False, repr=False)
+    _fingerprint: Cached[str | None] = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
         self._case = Cached(self._read_case)
+        self._fingerprint = Cached(lambda: self.ports.turns.last_report_fingerprint(self.chat_id))
 
     async def emit(self, type_: str, payload: dict[str, Any]) -> int:
         """Publish an event of this turn; returns its sequence number in the chat."""
@@ -63,6 +67,11 @@ class TurnContext:
     async def case_version(self) -> int:
         """The case version this run last read or wrote (0: no case yet)."""
         return (await self._case.get()).version
+
+    async def last_report_fingerprint(self) -> str | None:
+        """The fingerprint of the chat's last report (None: no report yet), read from the store on the run's first
+        use, then from the cache. Raises `StoreUnavailable` when the store cannot be read."""
+        return await self._fingerprint.get()
 
     async def save_case(self, case: CaseFile, changes: list[str], *, publish: bool = True) -> int:
         """Save `case` as the next version after the one this run read (`changes`: its change log) and, when

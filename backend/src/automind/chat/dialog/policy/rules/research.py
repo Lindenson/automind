@@ -3,6 +3,7 @@ threshold, else research."""
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import ClassVar
 
 from automind.chat.dialog.policy.contracts import RuleOutcome, Situation, Stage, fire, skip
@@ -22,7 +23,7 @@ class StaleData:
             return skip(self, "data fresh for every car")
         if s.research_declined:
             return skip(self, "research declined or done this turn")
-        est = s.cost_estimate_eur or 0.0
+        est = s.cost_estimate_eur or Decimal(0)
         if est >= cfg.confirm_threshold_eur and not s.cost_approved:
             return fire(
                 self, Action.confirm_cost(stale, over_cap=est > cfg.hard_cap_eur, reason=f"estimated €{est:.2f}")

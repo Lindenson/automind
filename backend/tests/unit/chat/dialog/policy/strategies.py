@@ -138,7 +138,8 @@ limits = st.builds(
 
 # the thresholds of `builder.config()` (0.30, 1.00) and their neighbours, more often than any other value
 boundaries = st.sampled_from([0.0, 0.29, 0.30, 0.30, 0.31, 0.99, 1.0, 1.0, 1.01])
-costs = st.one_of(st.none(), boundaries, boundaries, st.floats(0, 3, allow_nan=False))
+# to the cent: the policy rounds the estimate half-up to the cent (spec 015 T211), the old chain compared the float
+costs = st.one_of(st.none(), boundaries, boundaries, st.floats(0, 3, allow_nan=False).map(lambda x: round(x, 2)))
 
 
 @st.composite

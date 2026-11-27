@@ -1,4 +1,4 @@
-"""The contracts of the understanding nodes (spec 014 T102): load_case, interpret, apply_delta, assess, policy — what
+"""The contracts of the understanding nodes (spec 014 T102): load_case, interpret, apply_delta, assess — what
 each reads from the turn state and writes back, over today's flat keys. The `from_*` builders map a service result
 to the update, field for field as the services' former `to_state()` did."""
 
@@ -46,6 +46,8 @@ class LoadCaseOut(NodeOut):
     limit_hit: SkipValidation[LimitHit | None]
     limit_extensions: int
     feasibility: SkipValidation[JsonObject | None]
+    feasibility_pending: bool
+    assessed_version: int | None
     not_understood: SkipValidation[list[str]]
     picked: bool
     hops: int
@@ -125,59 +127,45 @@ class ApplyDeltaOut(NodeOut):
 
 
 class AssessIn(NodeIn):
-    """The turn's notices so far, and what decides a "find it" plan: the request, its focus, research done."""
+    """The turn's notices so far, what decides a "find it" plan (the request, its focus, research done) and the
+    turn's earlier feasibility checks."""
 
     notices: SkipValidation[list[Notice]] = []
     interpretation: SkipValidation[JsonObject | None] = None
     request_kind: RequestKind | None = None
     research_done: bool | None = None
+    feasibility: SkipValidation[JsonObject | None] = None
 
 
 class AssessOut(NodeOut):
-    """The assessed cars, the research plan and its cost; feasibility and notices only when there is something new
-    (an earlier assess of the same turn may have set them)."""
+    """The assessed cars, the case version they were assessed on, the research plan and its cost, whether a
+    feasibility finding waits for the person; the checks and notices only when there is something new (an earlier
+    assess of the same turn may have set them)."""
 
     assessments: SkipValidation[dict[str, JsonObject]]
+    assessed_version: int
     research_plan: SkipValidation[PlanState]
     cost_estimate: SkipValidation[float]  # as the estimator gave it (no int → float coercion in the checkpoint)
     research_declined: bool
+    feasibility_pending: bool
     feasibility: SkipValidation[JsonObject] = {}
     notices: SkipValidation[list[Notice]] = []
 
     @classmethod
-    def from_planned(cls, planned: Planned, notices: list[Notice]) -> AssessOut:
-        """The update of `planned`; `notices` are the turn's notices so far (the new warnings are appended)."""
+    def from_planned(cls, planned: Planned, notices: list[Notice], *, assessed_version: int) -> AssessOut:
+        """The update of `planned`, assessed on case version `assessed_version`; `notices` are the turn's notices
+        so far (the new warnings are appended)."""
         rows: list[PlanRow] = [[j.car_key, j.variant_id, j.area, j.fresh, j.escalate] for j in planned.plan.jobs]
         written: JsonObject = {
             "assessments": {k: a.model_dump(mode="json") for k, a in planned.assessments.items()},
+            "assessed_version": assessed_version,
             "research_plan": {"jobs": rows, "rounds": planned.plan.rounds, "key": planned.plan_key},
             "cost_estimate": planned.cost_eur,
             "research_declined": planned.declined,
+            "feasibility_pending": planned.feasibility_pending,
         }
         if planned.feasibility is not None:
             written["feasibility"] = planned.feasibility
         if planned.warnings:
             written["notices"] = [*notices, *planned.warnings]
         return cls.model_validate(written)
-
-
-class PolicyIn(NodeIn):
-    """What the policy decides on besides the case: the request, the assessed cars, cost, confirmations, passes."""
-
-    request_kind: RequestKind | None = None
-    assessments: SkipValidation[dict[str, JsonObject]] = {}
-    cost_estimate: float | None = None
-    cost_approved: bool | None = None
-    research_declined: bool | None = None
-    research_done: bool | None = None
-    case_changed: bool | None = True
-    feasibility: SkipValidation[JsonObject | None] = None
-    hops: int | None = None
-
-
-class PolicyOut(NodeOut):
-    """The policy's Action as plain data, its kind as the turn's action, and the pass counted."""
-
-    decision: SkipValidation[DecisionState]
-    action: str
-    hops: int

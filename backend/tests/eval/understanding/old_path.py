@@ -16,6 +16,7 @@ from __future__ import annotations
 import re
 import time
 from dataclasses import dataclass, field
+from decimal import Decimal
 
 from automind.chat.application.services.interpretation.contracts import Interpretation, Reading
 from automind.chat.application.services.interpretation.service import ApplyRequest, InterpretationService
@@ -193,7 +194,7 @@ def _situation(case: CaseFile, request: RequestKind, fx: CaseFixture, pending: P
     cost = _EUR.search(pending.question) if pending and pending.kind is PendingKind.CONFIRM_COST else None
     return Situation(
         case=case, request=request, cars=tuple(_car_facts(c, known.get(c.key), fx.report_shown) for c in case.cars),
-        cost_estimate_eur=float(cost.group(1).replace(",", ".")) if cost else None,
+        cost_estimate_eur=Decimal(cost.group(1).replace(",", ".")) if cost else None,
         last_fingerprint="eval-report" if fx.report_shown else None, cost_approved=False, research_declined=False,
         case_changed=bool(changes), feasibility_pending=False, pass_no=1,
     )  # fmt: skip

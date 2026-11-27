@@ -9,6 +9,7 @@ os.environ["DATABASE_URL"] = (
 )
 # spec 014 T107: a broken graph node contract fails the test (production only logs and counts it)
 os.environ.setdefault("AUTOMIND_CONTRACT_STRICT", "1")
+os.environ.setdefault("AUTOMIND_POLICY_STRICT", "1")
 
 import pytest  # noqa: E402
 

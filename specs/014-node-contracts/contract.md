@@ -14,8 +14,8 @@ turn state. `load_case` also resets every per-turn key (`state.PER_TURN_RESET`).
 | interpret | provider | preset, user_text, language | interpretation, language, picked, action, done, reply_text | ?__end__, ?apply_delta |
 | apply_delta | none | interpretation, preset, user_text, picked | request_kind!, not_understood, case_changed, persona_changed, action, done, reply_text | ?__end__, ?identify |
 | identify | none | not_understood, interpretation, language, notices | not_understood!, notices | assess |
-| assess | none | notices, interpretation, request_kind, research_done | assessments!, research_plan!, cost_estimate!, research_declined!, feasibility, notices | policy |
-| policy | none | request_kind, assessments, cost_estimate, cost_approved, research_declined, research_done, case_changed, feasibility, hops | decision!, action!, hops! | ?answer, ?ask, ?general, ?plan_research, ?prepare_cost, ?prepare_feasibility, ?prepare_intake, ?prepare_variants, ?report, ?select_candidates |
+| assess | none | notices, interpretation, request_kind, research_done, feasibility | assessments!, assessed_version!, research_plan!, cost_estimate!, research_declined!, feasibility_pending!, feasibility, notices | policy |
+| policy | none | request_kind, assessments, assessed_version, cost_estimate, cost_approved, research_declined, research_done, case_changed, feasibility_pending, hops | decision!, action!, hops! | ?answer, ?ask, ?general, ?plan_research, ?prepare_cost, ?prepare_feasibility, ?prepare_intake, ?prepare_variants, ?report, ?select_candidates |
 | general | provider | language, user_text | reply_text!, blocks!, action! | __end__ |
 | ask | none | decision!, assessments, notices, not_understood, user_text, language | reply_text!, blocks!, action! | __end__ |
 | select_candidates | none | — | route! | ?general, ?identify |
@@ -48,6 +48,7 @@ turn state. `load_case` also resets every per-turn key (`state.PER_TURN_RESET`).
 | key | writers | merge | one writer at |
 |---|---|---|---|
 | action | alternatives, answer, apply_delta, apply_variants, ask, general, interpret, policy, prepare_feasibility, report | replace | C3: reply section (the only action) |
+| assessed_version | assess | replace | — |
 | assessments | assess | replace | — |
 | blocks | alternatives, answer, ask, general, report | replace | C3: reply section |
 | case_changed | apply_delta | replace | — |
@@ -59,6 +60,7 @@ turn state. `load_case` also resets every per-turn key (`state.PER_TURN_RESET`).
 | decision | policy | replace | — |
 | done | apply_delta, interpret | replace | C4: Out.next() instead of a router flag |
 | feasibility | assess | replace | — |
+| feasibility_pending | assess | replace | — |
 | fingerprint | report | replace | — |
 | hops | policy | replace | — |
 | interpretation | interpret | replace | — |

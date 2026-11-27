@@ -3,7 +3,8 @@
 
 Owns: `contracts` — `Situation` (everything known in one pass), `CarFacts`, `Rule`, `RuleOutcome`, `Decision`,
   `Stage`, `PolicyInputError`, `PolicyBug`; `rules` — the rules, one module per stage; `decide` — `RULES` in order and
-  `decide(situation, config)`; `routes` — `ROUTES` (action kind → node and continuation).
+  `decide(situation, config)`; `routes` — `ROUTES` (action kind → node and continuation); `situation` —
+  `situation_from` (the facts of a pass from the turn state, checked against the invariants).
 Flow: understand → assess → Situation → decide → Decision → the graph routes on its action through `ROUTES`.
 Depends on: chat.domain. Must not depend on: chat.dialog.nodes, chat.dialog.graph, chat.application,
   chat.infrastructure, shared.infrastructure, langgraph, sqlalchemy (import contract `policy-pure`).
@@ -23,6 +24,7 @@ from automind.chat.dialog.policy.contracts import (
 from automind.chat.dialog.policy.decide import RULES, decide
 from automind.chat.dialog.policy.routes import ROUTES, Continuation, Route, policy_targets, route_of
 from automind.chat.dialog.policy.rules.general import wants_candidates
+from automind.chat.dialog.policy.situation import PolicyFacts, SituationRead, situation_from
 
 __all__ = [
     "RULES",
@@ -30,15 +32,18 @@ __all__ = [
     "CarFacts",
     "Continuation",
     "Decision",
+    "PolicyFacts",
     "PolicyBug",
     "PolicyInputError",
     "Route",
     "Rule",
     "RuleOutcome",
     "Situation",
+    "SituationRead",
     "Stage",
     "decide",
     "policy_targets",
     "route_of",
+    "situation_from",
     "wants_candidates",
 ]

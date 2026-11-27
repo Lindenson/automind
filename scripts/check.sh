@@ -61,7 +61,7 @@ uv run mypy src/automind/chat/domain src/automind/chat/dialog/policy src/automin
   src/automind/acquisition/gold src/automind/acquisition/identity_readers src/automind/delivery/cli/gold.py \
   src/automind/chat/application/services/interpretation/contracts.py src/automind/chat/application/services/interpretation/service.py src/automind/chat/application/services/interpretation/interpret.py src/automind/chat/application/services/interpretation/stages src/automind/chat/application/services/assessment src/automind/chat/infrastructure/research_history.py \
   src/automind/chat/dialog/turn src/automind/chat/dialog/runner.py src/automind/chat/dialog/retry.py src/automind/shared/contracts/provider_failure.py \
-  src/automind/chat/dialog/contract src/automind/chat/dialog/confirmation.py src/automind/chat/dialog/graph.py src/automind/chat/dialog/nodes/*_io.py
+  src/automind/chat/dialog/contract src/automind/chat/dialog/confirmation.py src/automind/chat/dialog/graph.py src/automind/chat/dialog/nodes/*_io.py src/automind/chat/dialog/nodes/policy.py
 # spec 012: mypy over all of src in report mode (the strict scope grows step by step, research R16)
 echo "mypy report (all of src): $(uv run mypy src/automind 2>/dev/null | tail -1)"
 uv run lint-imports

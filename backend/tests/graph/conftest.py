@@ -10,6 +10,7 @@ from automind.acquisition.pipeline.infrastructure.wiring import stores as pipeli
 from automind.acquisition.ports import AcqPorts
 from automind.chat.application.ports import Ports
 from automind.chat.dialog.prompts import load_all
+from automind.chat.infrastructure.adapters import policy_config
 from automind.chat.infrastructure.checkpoint import checkpointer
 from automind.chat.infrastructure.events import EventBus
 from automind.chat.infrastructure.models_on_sale import models_on_sale
@@ -25,6 +26,7 @@ from automind.chat.infrastructure.persistence.repositories import (
 )
 from automind.chat.infrastructure.research_history import EngineResearchHistory
 from automind.delivery.bootstrap import reference
+from automind.shared.infrastructure.config.settings import settings
 from automind.shared.infrastructure.db import init_db
 from automind.shared.metering.usage import Limits, Prices, TurnBudget
 from tests.fakes.fake_llm import FakeLLM, FixedEstimator
@@ -73,6 +75,7 @@ def make_ports(llm=None, search=None, events=None) -> Ports:
         messages=MessageRepo(),
         computations=ComputationRepo(),
         research=EngineResearchHistory(),
+        policy=policy_config(settings(), ref.search),
         estimator=FixedEstimator(),
         feasibility=FeasibilityRepo(),
         market_facts=facts,
