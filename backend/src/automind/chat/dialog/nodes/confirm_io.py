@@ -12,15 +12,20 @@ from automind.chat.dialog.state import DecisionState
 from automind.shared.contracts.json import JsonObject
 
 
-class AskIn(NodeIn):
-    """The questions the policy chose, the assessed cars' generations, the turn's notices and the open answers."""
+class QuestionsIn(NodeIn):
+    """The questions or cars the policy chose, the assessed cars, the turn's notices and the open answers."""
 
     decision: SkipValidation[DecisionState]
     assessments: SkipValidation[dict[str, JsonObject]] = {}
-    language: str | None = "en"
     notices: SkipValidation[list[Notice]] = []
     not_understood: SkipValidation[list[str] | None] = None
     user_text: str | None = None
+
+
+class AskIn(QuestionsIn):
+    """What ask reads; the language as the state holds it (`"en"` when the key is missing)."""
+
+    language: SkipValidation[str] = "en"
 
 
 class AskOut(NodeOut):
@@ -32,7 +37,7 @@ class AskOut(NodeOut):
     case_version: int
 
 
-class PrepareVariantsIn(AskIn):
+class PrepareVariantsIn(QuestionsIn):
     """The cars to confirm (the policy's decision) and their catalogue candidates; language as the chat's."""
 
     language: str | None = None

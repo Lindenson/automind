@@ -17,7 +17,7 @@ turn state. `load_case` also resets every per-turn key (`state.PER_TURN_RESET`).
 | assess | none | notices, interpretation, request_kind, research_done | assessments!, research_plan!, cost_estimate!, research_declined!, feasibility, notices, case_version | policy |
 | policy | none | request_kind, assessments, cost_estimate, cost_approved, research_declined, research_done, case_changed, feasibility, hops | decision!, action!, hops! | ?answer, ?ask, ?general, ?plan_research, ?prepare_cost, ?prepare_feasibility, ?prepare_intake, ?prepare_variants, ?report, ?select_candidates |
 | general | provider | language, user_text | reply_text!, blocks!, action! | __end__ |
-| ask | none | decision!, assessments, language, notices, not_understood, user_text | reply_text!, blocks!, action!, case_version! | __end__ |
+| ask | none | decision!, assessments, notices, not_understood, user_text, language | reply_text!, blocks!, action!, case_version! | __end__ |
 | select_candidates | none | — | route!, case_version | ?general, ?identify |
 | plan_research | none | decision!, research_plan | jobs!, round!, research_results! | ?after_research, ?research_job |
 | research_job | none | job_id!, car_key!, variant_id!, area!, round!, fresh!, escalate! | research_results! | collect_round |
@@ -30,7 +30,7 @@ turn state. `load_case` also resets every per-turn key (`state.PER_TURN_RESET`).
 | prepare_intake | none | decision!, cost_estimate, language, research_plan | confirm_payload! | wait_intake |
 | wait_intake | none | confirm_payload! | resume! | apply_intake |
 | apply_intake | none | resume, language, research_plan | route!, confirm_payload!, resume!, user_text, cost_approved, research_declined | ?assess, ?identify, ?interpret |
-| prepare_variants | none | decision!, assessments, language, notices, not_understood, user_text | confirm_payload!, notices!, route | ?assess, ?wait_variants |
+| prepare_variants | none | decision!, assessments, notices, not_understood, user_text, language | confirm_payload!, notices!, route | ?assess, ?wait_variants |
 | wait_variants | none | confirm_payload! | resume! | apply_variants |
 | apply_variants | none | resume, language | route!, confirm_payload, resume, user_text, case_version, action, reply_text | ?__end__, ?assess, ?interpret |
 | prepare_cost | none | decision!, cost_estimate, language, research_plan | confirm_payload! | wait_cost |

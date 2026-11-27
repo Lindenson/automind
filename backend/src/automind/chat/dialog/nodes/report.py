@@ -72,7 +72,7 @@ async def general_node(inp: GeneralIn, c: TurnContext) -> ReplyOut:
     return ReplyOut(reply_text=text, blocks=[], action="ANSWER_GENERAL")
 
 
-async def compute(c: TurnContext, case: CaseFile, notices: list[Notice], lang: str | None = "en") -> Computed:
+async def compute(c: TurnContext, case: CaseFile, notices: list[Notice], lang: str = "en") -> Computed:
     """The report's numbers and blocks for this turn (the report service, in the person's language)."""
 
     async def intake_log(kind: str, **details: object) -> None:

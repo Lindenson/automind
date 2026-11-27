@@ -5,7 +5,6 @@ from __future__ import annotations
 
 from pydantic import SkipValidation
 
-from automind.chat.application.services.interpretation.contracts import Preset
 from automind.chat.application.services.report.blocks.notice import Notice
 from automind.chat.application.services.research.contracts import JobResult
 from automind.chat.dialog.contract import NodeIn, NodeOut
@@ -18,11 +17,11 @@ class ComposeIn(NodeIn):
     """What composing a report or an answer reads: the person's words and language, the request, the policy's
     decision, a button's preset, the turn's notices, and the research of this turn (for a critique's lead)."""
 
-    language: str | None = "en"
+    language: SkipValidation[str] = "en"  # as the state holds it ("en" when the key is missing)
     user_text: str | None = ""
     request_kind: RequestKind | None = None
     decision: SkipValidation[DecisionState | None] = None
-    preset: SkipValidation[Preset | None] = None
+    preset: SkipValidation[JsonObject | None] = None  # a button's preset; a rescore's carries `changes`
     notices: SkipValidation[list[Notice]] = []
     research_results: SkipValidation[list[JobResult]] = []
     research_done: bool | None = None
@@ -57,5 +56,5 @@ class ReplyOut(NodeOut):
 class GeneralIn(NodeIn):
     """A general answer reads the person's words and language."""
 
-    language: str | None = "en"
+    language: SkipValidation[str] = "en"
     user_text: str | None = ""

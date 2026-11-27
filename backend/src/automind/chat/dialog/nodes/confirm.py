@@ -7,7 +7,7 @@ prepare (side effects, once) → wait (only `interrupt`) → apply (record the a
 from __future__ import annotations
 
 import uuid
-from typing import Any
+from typing import Any, cast
 
 from langgraph.types import interrupt
 
@@ -29,6 +29,7 @@ from automind.chat.dialog.nodes.confirm_io import (
     PlanResumeIn,
     PrepareVariantsIn,
     PrepareVariantsOut,
+    QuestionsIn,
     ResearchAnsweredOut,
     ResumeIn,
     SelectCandidatesIn,
@@ -43,6 +44,7 @@ from automind.chat.dialog.turn.context import TurnContext
 from automind.chat.domain import intake
 from automind.chat.domain.case import Choice, Pending
 from automind.chat.domain.turn import Role
+from automind.shared.contracts.json import JsonObject
 from automind.shared.infrastructure.config.settings import settings
 from automind.shared.vehicle import markets
 
@@ -91,7 +93,7 @@ async def ask_node(inp: AskIn, c: TurnContext) -> AskOut:
                 )
     replies = asking.intake_quick_replies(items, case, labels)
     notices = [n for n in inp.notices if n.get("text") not in found]  # said in the reply already
-    blocks = [*notices, *([{"type": "quick_replies", "items": replies}] if replies else [])]
+    blocks = cast(list[JsonObject], [*notices, *([{"type": "quick_replies", "items": replies}] if replies else [])])
     return AskOut(reply_text=text, blocks=blocks, action="ASK", case_version=version)
 
 
@@ -101,7 +103,7 @@ def wait_node(kind: str) -> Node[WaitIn, WaitOut]:
     return node(f"wait_{kind}", reads=WaitIn, writes=WaitOut)(wait_confirm)
 
 
-def _not_understood_lead(case: Any, inp: AskIn, lang: str | None) -> str:
+def _not_understood_lead(case: Any, inp: QuestionsIn, lang: str | None) -> str:
     """ "I did not understand <answer> for <car>." when the last message left a car question open (FR-031)."""
     keys = inp.not_understood or []
     if not keys:
