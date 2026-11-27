@@ -1,5 +1,6 @@
 """A turn's understanding as text for a person reading a complaint (spec 013 T035): what came in, what the model
-read, what code dropped and corrected, the intent, and what the old interpreter read during the shadow. Pure."""
+read, what code dropped and corrected, the intent, and what the old interpreter read during the shadow; empty fields
+are left out. Pure."""
 
 from __future__ import annotations
 
@@ -32,4 +33,15 @@ def render_understanding(rec: UnderstandingRecord | None) -> str:
 
 
 def _json(value: object) -> str:
-    return json.dumps(value, ensure_ascii=False, sort_keys=True)
+    return json.dumps(_compact(value), ensure_ascii=False, sort_keys=True)
+
+
+def _compact(value: object) -> object:
+    """`value` without its empty parts (None, "", [], {}, false at any depth): a model dump keeps every default,
+    which hides the few fields that say something."""
+    if isinstance(value, dict):
+        kept = {k: _compact(v) for k, v in value.items()}
+        return {k: v for k, v in kept.items() if v not in (None, "", [], {}, False)}
+    if isinstance(value, list):
+        return [_compact(v) for v in value]
+    return value
