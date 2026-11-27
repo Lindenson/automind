@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from automind.chat.application.ports import Ports
 from automind.chat.application.services.identification.contracts import IntakeConfig
+from automind.chat.application.services.identification.rejected import without_rejected_choices
 from automind.chat.application.services.identification.stages.settle import settle
 from automind.chat.domain.case import CaseCar, CaseFile, Choice, IdentifyOutcome, LadderMemo
 from automind.chat.domain.case.enums import DRIVES, GEARBOXES, INTAKE_ITEMS
@@ -58,9 +59,9 @@ def decide(ports: Ports, case: CaseFile, car: CaseCar, pool: list[ladder.Version
 
 
 def asked(car: CaseCar, d: ladder.Decision, events: Events) -> IdentifyOutcome:
-    """The open level asked with its options."""
+    """The open level asked with its options (never one the person rejected)."""
     step = d.step
-    choices = [choice(car, o) for o in step.options]
+    choices = without_rejected_choices(car, [choice(car, o) for o in step.options])
     return settle(car, IdentifyOutcome(outcome="CHOICES", need=INTAKE_ITEMS[ladder.ITEM[step.kind]], level=step.kind,
                                        choices=choices, missing=d.missing, events=events))  # fmt: skip
 

@@ -55,12 +55,16 @@ class Step:
 
 
 def identity_key(car: CaseCar) -> tuple[object, ...]:
+    """The facts a car is identified from (same facts, same key): make, model, generation, engine, gearbox, drive,
+    year, condition, trim, fuel, page, version, and what the person rejected (only when there is something)."""
     k = car.constraints
     e = k.engine_hint
     engine = (e.displacement_l, e.power_kw, e.fuel, (e.family or "").lower()) if e and not e.empty() else None
+    # spec 013 I3: a rejection changes the key; a car without one keeps the key it had before (stored outcomes hold)
+    rejected = (tuple((r.level, r.value.lower()) for r in car.identity_rejected),) if car.identity_rejected else ()
     return ((car.make or "").lower(), (car.model or "").lower(), (k.generation_hint or "").lower(), engine,
             k.gearbox_hint, k.drive_hint, car.year, car.age_years, car.condition, (k.trim_hint or "").lower(),
-            k.fuel_hint, k.url, (k.version_hint or "").lower())  # fmt: skip
+            k.fuel_hint, k.url, (k.version_hint or "").lower(), *rejected)  # fmt: skip
 
 
 def progress(before: CaseCar | None, after: CaseCar | None, outcome_before: str | None,

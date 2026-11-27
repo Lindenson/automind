@@ -82,20 +82,36 @@ g16 t3 green. Purge on pre-prod: after the owner's report (backup first).
 
 ## S2 — Rejection memory + verification (PR 3)
 
-- [ ] T020 Domain: `chat/domain/identification/rejection.py` — `RejectLevel` enum (MODEL, GENERATION, VERSION,
+- [x] T020 Domain: `chat/domain/identification/rejection.py` — `RejectLevel` enum (MODEL, GENERATION, VERSION,
   ENGINE, GEARBOX, DRIVE), `Rejection(level, value, wanted, evidence, turn_seq)`; `CaseCar.identity_rejected:
   list[Rejection]` (Pydantic default `[]`, old cases load). Not cleared by a replace of the same car key.
-- [ ] T021 Interpreter (old path, until S4): the prompt + schema get `rejections` (car key, level, value, wanted,
+- [x] T021 Interpreter (old path, until S4): the prompt + schema get `rejections` (car key, level, value, wanted,
   evidence); `validate`: evidence must be in the message; the value must be the car's current one or None.
-- [ ] T022 One filter `exclude_rejected(pool, rejected)` used by every strategy (SourcedVersions, CatalogueRows,
+- [x] T022 One filter `exclude_rejected(pool, rejected)` used by every strategy (SourcedVersions, CatalogueRows,
   OpenWorld, ladder options, lineup suggestions). Proposing a rejected candidate is impossible (test per strategy).
-- [ ] T023 `verify(candidate, car) -> Verdict(ok | contradiction(field, person_said, candidate_has))` in
+- [x] T023 `verify(candidate, car) -> Verdict(ok | contradiction(field, person_said, candidate_has))` in
   `chat/domain/identification/verify.py`: make, model (exact/alias/translit), engine/fuel/power, year/generation,
   URL page facts. Called before any proposal; a contradiction → CHOICES question naming it ("Вы писали C-Class, а я
   нашёл только E-Class — это не то. Уточните…"), never a proposal.
-- [ ] T024 Tactic change after a rejection: next attempt widens (make's models list from the catalogue + live
+- [x] T024 Tactic change after a rejection: next attempt widens (make's models list from the catalogue + live
   lookup, ask for a link, or say "I could not find X; I checked: …"). Never the same question (see T052).
-- [ ] T025 Remove xfail g13 turn 2 (rejection heard, C-Class kept or asked, never E-Class).
+- [x] T025 Remove xfail g13 turn 2 (rejection heard, C-Class kept or asked, never E-Class).
+
+Done 2026-11-27 (PR "S2"): `domain/identification/rejection` (`RejectLevel`, `Rejection`, `exclude_rejected` with a
+`FactsOf` adapter per candidate kind in `application/.../identification/rejected`); `CaseCar.identity_rejected`
+(default `[]`, kept by a replace; in the identity key only when non-empty, so stored outcomes of other cars hold);
+`domain/case/rejections` (`CarRejection` in `CaseDelta.rejections`, recorded first in `apply`: the rejected value
+leaves the car, a rejected model becomes the one wanted or unknown, the version is dropped); interpreter prompt v5
+(one rule + one example) and stage `heard_rejections` (words in the message, value = the car's current one or null,
+never the value wanted); the filter in SourcedVersions (versions, generation), CatalogueRows, OpenWorld (the
+resolver's answer, the engines on sale, the closest names), ladder options, the line-up (catalogue_lookup, ask_model,
+close_lineup); `domain/identification/verify` + stage `verify_proposal` (make, model by the person's-words rules,
+generation, used year, engine; an engine the ladder already said is missing is not asked twice); `domain/
+identification/tactic` + stage `change_tactic` (after a rejection a dead end or the same question widens: the make's
+other models + "not found, checked …, send a link", or "no other version than the rejected one"). Not done: URL page
+facts in `verify` — no page facts are stored on the car yet (S7 T070). g13 turn 2: the S2 checks are green and gate;
+"stopped" (S4) and the CX-60 settle (bug 8, S5 I5) stay strict known bugs under the harness's new per-turn `later:`
+blocks (a turn's message is fixed over several steps).
 
 ## S3 — Understanding in the shadow (PR 4)
 

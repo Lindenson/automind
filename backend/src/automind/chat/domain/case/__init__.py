@@ -6,6 +6,7 @@ Owns:
   `person` — profile, budget, running-cost limit, needs, rates, priorities, the person's own energy figures.
   `car` — a car in the case: request, constraints, options offered, identification outcome, ladder memo.
   `casefile` — `CaseFile`, the aggregate root, with the dialogue state it keeps (intake attempts, pending, shown).
+  `rejections` — `CarRejection` and `record_rejections`: "not this" about a car, kept on it (spec 013 I3).
   `delta` — `CaseDelta` (the interpreter's typed proposal) and `apply`, the only way a case changes (FR-003).
   `fit` — `Fit` and `Fit.from_case`: what the person needs, for ranking line-ups and candidates.
   `weights` — `set_weights`: criteria weights adjusted by hand (spec 007).
@@ -74,6 +75,10 @@ from automind.chat.domain.case.person import (
     RunningLimit,
     StatedEnergy,
 )
+from automind.chat.domain.case.rejections import (
+    CarRejection,
+    current_value,
+)
 from automind.chat.domain.case.weights import (
     set_weights,
 )
@@ -84,6 +89,7 @@ __all__ = [
     "BudgetIntent",
     "CRITERION_KEYS",
     "CarContext",
+    "CarRejection",
     "CarRef",
     "CaseCar",
     "CaseDelta",
@@ -126,5 +132,6 @@ __all__ = [
     "Usage",
     "apply",
     "apply_defaults",
+    "current_value",
     "set_weights",
 ]

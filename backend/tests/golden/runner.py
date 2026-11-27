@@ -557,12 +557,10 @@ async def _run_turns(d, runner, chat_id, live, record, llm, ports):  # noqa: ANN
             print("  reply:", (result.reply_text or (result.confirm or {}).get("text", ""))[:160].replace("\n", " "))
             print("  blocks:", [b.get("type") for b in result.blocks])
         errs = [f"{d.id} turn {i}: {e}" for e in check_turn(obs, turn.expect)]
-        if turn.known_bug is None:
-            run.failures += errs
-        elif errs:
-            run.known_bugs += [f"{e} [known bug: {turn.known_bug}]" for e in errs]
-        else:
-            run.failures.append(f"{d.id} turn {i}: passes now — remove `known_bug: {turn.known_bug}` (strict)")
+        _judge(run, f"{d.id} turn {i}", errs, turn.known_bug, "remove `known_bug`")
+        for later in turn.later:  # spec 013: a later step's checks of this turn still fail (strict)
+            errs = [f"{d.id} turn {i}: {e}" for e in check_turn(obs, later.expect)]
+            _judge(run, f"{d.id} turn {i}", errs, later.known_bug, "move its checks into `expect`")
         if not live:
             left = {r: len(q) for r, q in llm.queues.items() if q}
             if left:
@@ -573,6 +571,17 @@ async def _run_turns(d, runner, chat_id, live, record, llm, ports):  # noqa: ANN
             cassette.write_text(json.dumps(llm.turn, ensure_ascii=False, indent=2), encoding="utf-8")
             llm.turn = {}
     return run
+
+
+def _judge(run: DialogueRun, where: str, errs: list[str], known_bug: str | None, fix: str) -> None:
+    """Failures of a turn's checks: a failure now, or the expected failure of a known bug (strict: a known bug
+    that passes is a failure, so its marker is removed in the step that fixes it)."""
+    if known_bug is None:
+        run.failures += errs
+    elif errs:
+        run.known_bugs += [f"{e} [known bug: {known_bug}]" for e in errs]
+    else:
+        run.failures.append(f"{where}: passes now — {fix} (known bug: {known_bug}, strict)")
 
 
 def _clock() -> Any:

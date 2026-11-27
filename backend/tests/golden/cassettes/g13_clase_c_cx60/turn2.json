@@ -15,6 +15,15 @@
               "body_hint": "Berlina"
             }
           }
+        ],
+        "rejections": [
+          {
+            "target_key": "car#1",
+            "level": "MODEL",
+            "value": "E-Class",
+            "wanted": "C-Class",
+            "evidence": "ты не нашел мерседес класс C"
+          }
         ]
       }
     }

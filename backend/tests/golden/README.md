@@ -24,7 +24,9 @@ Scripted conversations with expected actions, case-file fields and resolved vari
 | G17 `g17_question_during_question` | Spec 013 B4: "а что такое DSG?" / "давай сравним с BMW" while a version question is open |
 
 G13–G17 start red: a turn marked `known_bug` must fail (strict — once a fix makes it pass, the marker has to be
-removed); the dialogue is reported xfail while every marked turn fails. They seed the caches the chat saw
+removed); the dialogue is reported xfail while every marked turn fails. A turn fixed over several steps keeps the
+checks of a later step in `later:` blocks (each with its own `known_bug`, strict the same way) while its `expect`
+gates now (g13 turn 2 since S2: the rejection is heard; the stop and the CX-60 settle wait for S4/S5). They seed the caches the chat saw
 (`lineups:`, `model_versions:`, catalogue rows), which wires the line-up look-up and the versions store
 (`seeding.py`); the spec 013 checks (`cars:`, `reply_kind`, `not_repeated`, `stopped`, `reply_not_contains`) live in
 `quality.py`.
