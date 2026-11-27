@@ -15,6 +15,7 @@ from automind.chat.infrastructure.checkpoint import checkpointer
 from automind.chat.infrastructure.events import EventBus
 from automind.chat.infrastructure.models_on_sale import models_on_sale
 from automind.chat.infrastructure.persistence.computations import ComputationRepo
+from automind.chat.infrastructure.persistence.decisions import DecisionRepo
 from automind.chat.infrastructure.persistence.repositories import (
     CaseRepo,
     EventRepo,
@@ -75,6 +76,7 @@ def make_ports(llm=None, search=None, events=None) -> Ports:
         messages=MessageRepo(),
         computations=ComputationRepo(),
         research=EngineResearchHistory(),
+        decisions=DecisionRepo(),
         policy=policy_config(settings(), ref.search),
         estimator=FixedEstimator(),
         feasibility=FeasibilityRepo(),

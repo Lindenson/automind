@@ -21,6 +21,7 @@ from automind.chat.domain.decision import PolicyConfig
 from automind.chat.infrastructure.events import EventBus
 from automind.chat.infrastructure.models_on_sale import models_on_sale
 from automind.chat.infrastructure.persistence.computations import ComputationRepo
+from automind.chat.infrastructure.persistence.decisions import DecisionRepo
 from automind.chat.infrastructure.persistence.repositories import (
     CaseRepo,
     FeasibilityRepo,
@@ -83,6 +84,7 @@ def live_ports(events: EventBus, prompts: dict[str, str]) -> Ports:
         models_on_sale=models_on_sale,
         versions=ModelVersionsRepo(),
         outcomes=_outcomes(ref, prompts),
+        decisions=DecisionRepo(),
         registry=registry,
     )
 

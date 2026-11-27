@@ -23,6 +23,11 @@ All detailed metrics and all alerts live in Prometheus (US9). The admin page sho
 | `automind_research_jobs_total` | counter | `area`, `status` |
 | `automind_registry_attempts_total` | counter | `area`, `outcome` |
 | `automind_registry_changes_total` | counter | `change`, `author` |
+| `automind_policy_decisions_total` (spec 015 D5) | counter | `rule`, `action` |
+| `automind_policy_pass_limit_total` (spec 015 D5) | counter | — |
+| `automind_policy_passes_per_turn` (spec 015 D5) | histogram | — |
+| `automind_policy_input_errors_total` (spec 015 D6) | counter | `field` |
+| `automind_policy_record_errors_total` (spec 015 D5) | counter | — |
 
 ## Snapshot gauges (every 60 s)
 
@@ -69,5 +74,6 @@ Cardinality: `kind` ≤ 15, `area` 12, `market` ≤ 10, `domain` ≤ ~300 (statu
 | `AutomindDown` | `up{job="automind"} == 0` | 2m | critical |
 | `AutomindUnderstandingEvalStale` (spec 013 T006) | `time() - understanding_eval_last_run_timestamp_seconds > 36h` | 30m | warning |
 | `AutomindUnderstandingEvalErrors` (spec 013 T006) | `understanding_eval_errors > 5` | 0m | warning |
+| `AutomindPolicyPassLimit` (spec 015 D5) | `increase(policy_pass_limit_total[24h]) >= 3` | 5m | warning |
 
 Each rule carries `annotations.summary` and `annotations.admin` (link to `/admin` where useful). `tests/unit/test_prom_rules.py` parses the file and checks every `automind_*` name exists in the exporter registry (FR-032). Routing is configured by the owner in Alertmanager (`deploy/prometheus/alertmanager.yml` ships a placeholder receiver).

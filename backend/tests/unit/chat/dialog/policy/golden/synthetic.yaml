@@ -1,0 +1,859 @@
+# Spec 015 T224: synthetic golden situations (made with the policy builder; `policy export <turn_id>` writes the same shape)
+- turn_id: golden-report
+  pass_no: 1
+  rules_version: 38ef5f7a4c20b1e2f6f62339e4fb11617c2aff3b98a2c3aa551e0ebf63b1be18
+  config:
+    confirm_threshold_eur: '0.30'
+    hard_cap_eur: '1.00'
+    max_passes: 8
+    intake:
+      max_attempts_per_item: 2
+      max_attempts_per_car: 4
+      full_intake: false
+    strict_inputs: true
+  situation:
+    case:
+      persona: UNKNOWN
+      persona_source: INFERRED
+      profile:
+        age: null
+        experience: null
+        family: null
+        age_band: null
+        driving_style: null
+        region: <masked>
+        region_code: null
+        climate: null
+        annual_km_min: null
+        annual_km_max: null
+        home_charging: UNKNOWN
+        evidence: {}
+      usage: []
+      budget:
+        max_eur: null
+        note: null
+        intent: UNKNOWN
+        currency: EUR
+        kind: TOTAL
+      running_cost_limit: null
+      needs:
+        passengers: null
+        luggage: MEDIUM
+        towing_kg: null
+        daily_km: null
+      feasibility_ack: null
+      annual_km: 15000
+      annual_km_stated: false
+      rates_override:
+        fuel_eur_per_l: null
+        diesel_eur_per_l: null
+        electricity_eur_per_kwh: null
+        labour_eur_per_h: null
+        home_electricity_eur_per_kwh: null
+        public_ac_eur_per_kwh: null
+        public_dc_eur_per_kwh: null
+        night_tariff: null
+      depth: STANDARD
+      priorities: []
+      weights: {}
+      weights_overridden: false
+      weight_adjustments: {}
+      weights_excluded: []
+      unmapped_wishes: []
+      cars:
+      - key: car#1
+        request_text: <masked>
+        make: Volkswagen
+        model: Golf
+        condition: NEW
+        year: null
+        age_years: null
+        mileage_km: null
+        constraints:
+          generation_hint: null
+          fuel_hint: null
+          body_hint: null
+          trim_hint: null
+          gearbox_hint: null
+          drive_hint: null
+          version_hint: null
+          url: null
+          engine_hint: null
+        variant_id: v1
+        label: null
+        resolution: CONFIRMED
+        alternatives: []
+        previous_label: null
+        identify: null
+        chosen_for_me: false
+        year_assumed: false
+        ladder: null
+        replaced: false
+        market: null
+        identity_rejected: []
+      next_car_no: 1
+      race_settings: null
+      prediction: null
+      asked: []
+      declined_plan: null
+      pending: null
+      compare_level: BASE
+      compare_level_source: DEFAULT
+      last_values: {}
+      find_tried: {}
+      wanted_body: null
+      candidates: []
+      wanted_make: null
+      last_scores: {}
+      last_weights: {}
+      shown: []
+      intake:
+        attempts: {}
+        last_questions: []
+        proposed: {}
+        card: null
+        card_confirmed: false
+      basis: {}
+      ownership_years: null
+      stated_energy: []
+    request: compare
+    cars:
+    - key: car#1
+      identity_known: true
+      in_catalog: true
+      ambiguous: false
+      plausible_generations: 1
+      data_fresh: true
+      gearbox_mixed: false
+    cost_estimate_eur: null
+    last_fingerprint: null
+    cost_approved: false
+    research_declined: false
+    case_changed: true
+    feasibility_pending: false
+    pass_no: 1
+  expected:
+    decided_by: answer_or_report
+    action:
+      kind: REPORT
+      questions: []
+      cars: []
+      nothing_new: false
+      profile: true
+      over_cap: false
+- turn_id: golden-confirm_cost
+  pass_no: 2
+  rules_version: 38ef5f7a4c20b1e2f6f62339e4fb11617c2aff3b98a2c3aa551e0ebf63b1be18
+  config:
+    confirm_threshold_eur: '0.30'
+    hard_cap_eur: '1.00'
+    max_passes: 8
+    intake:
+      max_attempts_per_item: 2
+      max_attempts_per_car: 4
+      full_intake: false
+    strict_inputs: true
+  situation:
+    case:
+      persona: UNKNOWN
+      persona_source: INFERRED
+      profile:
+        age: null
+        experience: null
+        family: null
+        age_band: null
+        driving_style: null
+        region: <masked>
+        region_code: null
+        climate: null
+        annual_km_min: null
+        annual_km_max: null
+        home_charging: UNKNOWN
+        evidence: {}
+      usage: []
+      budget:
+        max_eur: null
+        note: null
+        intent: UNKNOWN
+        currency: EUR
+        kind: TOTAL
+      running_cost_limit: null
+      needs:
+        passengers: null
+        luggage: MEDIUM
+        towing_kg: null
+        daily_km: null
+      feasibility_ack: null
+      annual_km: 15000
+      annual_km_stated: false
+      rates_override:
+        fuel_eur_per_l: null
+        diesel_eur_per_l: null
+        electricity_eur_per_kwh: null
+        labour_eur_per_h: null
+        home_electricity_eur_per_kwh: null
+        public_ac_eur_per_kwh: null
+        public_dc_eur_per_kwh: null
+        night_tariff: null
+      depth: STANDARD
+      priorities: []
+      weights: {}
+      weights_overridden: false
+      weight_adjustments: {}
+      weights_excluded: []
+      unmapped_wishes: []
+      cars:
+      - key: car#1
+        request_text: <masked>
+        make: Volkswagen
+        model: Golf
+        condition: NEW
+        year: null
+        age_years: null
+        mileage_km: null
+        constraints:
+          generation_hint: null
+          fuel_hint: null
+          body_hint: null
+          trim_hint: null
+          gearbox_hint: null
+          drive_hint: null
+          version_hint: null
+          url: null
+          engine_hint: null
+        variant_id: v1
+        label: null
+        resolution: CONFIRMED
+        alternatives: []
+        previous_label: null
+        identify: null
+        chosen_for_me: false
+        year_assumed: false
+        ladder: null
+        replaced: false
+        market: null
+        identity_rejected: []
+      next_car_no: 1
+      race_settings: null
+      prediction: null
+      asked: []
+      declined_plan: null
+      pending: null
+      compare_level: BASE
+      compare_level_source: DEFAULT
+      last_values: {}
+      find_tried: {}
+      wanted_body: null
+      candidates: []
+      wanted_make: null
+      last_scores: {}
+      last_weights: {}
+      shown: []
+      intake:
+        attempts: {}
+        last_questions: []
+        proposed: {}
+        card: null
+        card_confirmed: false
+      basis: {}
+      ownership_years: null
+      stated_energy: []
+    request: compare
+    cars:
+    - key: car#1
+      identity_known: true
+      in_catalog: true
+      ambiguous: false
+      plausible_generations: 1
+      data_fresh: false
+      gearbox_mixed: false
+    cost_estimate_eur: '0.42'
+    last_fingerprint: null
+    cost_approved: false
+    research_declined: false
+    case_changed: true
+    feasibility_pending: false
+    pass_no: 2
+  expected:
+    decided_by: stale_data
+    action:
+      kind: CONFIRM_COST
+      questions: []
+      cars:
+      - car#1
+      nothing_new: false
+      profile: false
+      over_cap: false
+- turn_id: golden-research
+  pass_no: 1
+  rules_version: 38ef5f7a4c20b1e2f6f62339e4fb11617c2aff3b98a2c3aa551e0ebf63b1be18
+  config:
+    confirm_threshold_eur: '0.30'
+    hard_cap_eur: '1.00'
+    max_passes: 8
+    intake:
+      max_attempts_per_item: 2
+      max_attempts_per_car: 4
+      full_intake: false
+    strict_inputs: true
+  situation:
+    case:
+      persona: UNKNOWN
+      persona_source: INFERRED
+      profile:
+        age: null
+        experience: null
+        family: null
+        age_band: null
+        driving_style: null
+        region: <masked>
+        region_code: null
+        climate: null
+        annual_km_min: null
+        annual_km_max: null
+        home_charging: UNKNOWN
+        evidence: {}
+      usage: []
+      budget:
+        max_eur: null
+        note: null
+        intent: UNKNOWN
+        currency: EUR
+        kind: TOTAL
+      running_cost_limit: null
+      needs:
+        passengers: null
+        luggage: MEDIUM
+        towing_kg: null
+        daily_km: null
+      feasibility_ack: null
+      annual_km: 15000
+      annual_km_stated: false
+      rates_override:
+        fuel_eur_per_l: null
+        diesel_eur_per_l: null
+        electricity_eur_per_kwh: null
+        labour_eur_per_h: null
+        home_electricity_eur_per_kwh: null
+        public_ac_eur_per_kwh: null
+        public_dc_eur_per_kwh: null
+        night_tariff: null
+      depth: STANDARD
+      priorities: []
+      weights: {}
+      weights_overridden: false
+      weight_adjustments: {}
+      weights_excluded: []
+      unmapped_wishes: []
+      cars:
+      - key: car#1
+        request_text: <masked>
+        make: Volkswagen
+        model: Golf
+        condition: NEW
+        year: null
+        age_years: null
+        mileage_km: null
+        constraints:
+          generation_hint: null
+          fuel_hint: null
+          body_hint: null
+          trim_hint: null
+          gearbox_hint: null
+          drive_hint: null
+          version_hint: null
+          url: null
+          engine_hint: null
+        variant_id: v1
+        label: null
+        resolution: CONFIRMED
+        alternatives: []
+        previous_label: null
+        identify: null
+        chosen_for_me: false
+        year_assumed: false
+        ladder: null
+        replaced: false
+        market: null
+        identity_rejected: []
+      next_car_no: 1
+      race_settings: null
+      prediction: null
+      asked: []
+      declined_plan: null
+      pending: null
+      compare_level: BASE
+      compare_level_source: DEFAULT
+      last_values: {}
+      find_tried: {}
+      wanted_body: null
+      candidates: []
+      wanted_make: null
+      last_scores: {}
+      last_weights: {}
+      shown: []
+      intake:
+        attempts: {}
+        last_questions: []
+        proposed: {}
+        card: null
+        card_confirmed: false
+      basis: {}
+      ownership_years: null
+      stated_energy: []
+    request: research_more
+    cars:
+    - key: car#1
+      identity_known: true
+      in_catalog: true
+      ambiguous: false
+      plausible_generations: 1
+      data_fresh: false
+      gearbox_mixed: false
+    cost_estimate_eur: '0.05'
+    last_fingerprint: null
+    cost_approved: false
+    research_declined: false
+    case_changed: true
+    feasibility_pending: false
+    pass_no: 1
+  expected:
+    decided_by: stale_data
+    action:
+      kind: RESEARCH
+      questions: []
+      cars:
+      - car#1
+      nothing_new: false
+      profile: false
+      over_cap: false
+- turn_id: golden-over_cap
+  pass_no: 1
+  rules_version: 38ef5f7a4c20b1e2f6f62339e4fb11617c2aff3b98a2c3aa551e0ebf63b1be18
+  config:
+    confirm_threshold_eur: '0.30'
+    hard_cap_eur: '1.00'
+    max_passes: 8
+    intake:
+      max_attempts_per_item: 2
+      max_attempts_per_car: 4
+      full_intake: false
+    strict_inputs: true
+  situation:
+    case:
+      persona: UNKNOWN
+      persona_source: INFERRED
+      profile:
+        age: null
+        experience: null
+        family: null
+        age_band: null
+        driving_style: null
+        region: <masked>
+        region_code: null
+        climate: null
+        annual_km_min: null
+        annual_km_max: null
+        home_charging: UNKNOWN
+        evidence: {}
+      usage: []
+      budget:
+        max_eur: null
+        note: null
+        intent: UNKNOWN
+        currency: EUR
+        kind: TOTAL
+      running_cost_limit: null
+      needs:
+        passengers: null
+        luggage: MEDIUM
+        towing_kg: null
+        daily_km: null
+      feasibility_ack: null
+      annual_km: 15000
+      annual_km_stated: false
+      rates_override:
+        fuel_eur_per_l: null
+        diesel_eur_per_l: null
+        electricity_eur_per_kwh: null
+        labour_eur_per_h: null
+        home_electricity_eur_per_kwh: null
+        public_ac_eur_per_kwh: null
+        public_dc_eur_per_kwh: null
+        night_tariff: null
+      depth: STANDARD
+      priorities: []
+      weights: {}
+      weights_overridden: false
+      weight_adjustments: {}
+      weights_excluded: []
+      unmapped_wishes: []
+      cars:
+      - key: car#1
+        request_text: <masked>
+        make: Volkswagen
+        model: Golf
+        condition: NEW
+        year: null
+        age_years: null
+        mileage_km: null
+        constraints:
+          generation_hint: null
+          fuel_hint: null
+          body_hint: null
+          trim_hint: null
+          gearbox_hint: null
+          drive_hint: null
+          version_hint: null
+          url: null
+          engine_hint: null
+        variant_id: v1
+        label: null
+        resolution: CONFIRMED
+        alternatives: []
+        previous_label: null
+        identify: null
+        chosen_for_me: false
+        year_assumed: false
+        ladder: null
+        replaced: false
+        market: null
+        identity_rejected: []
+      next_car_no: 1
+      race_settings: null
+      prediction: null
+      asked: []
+      declined_plan: null
+      pending: null
+      compare_level: BASE
+      compare_level_source: DEFAULT
+      last_values: {}
+      find_tried: {}
+      wanted_body: null
+      candidates: []
+      wanted_make: null
+      last_scores: {}
+      last_weights: {}
+      shown: []
+      intake:
+        attempts: {}
+        last_questions: []
+        proposed: {}
+        card: null
+        card_confirmed: false
+      basis: {}
+      ownership_years: null
+      stated_energy: []
+    request: compare
+    cars:
+    - key: car#1
+      identity_known: true
+      in_catalog: true
+      ambiguous: false
+      plausible_generations: 1
+      data_fresh: false
+      gearbox_mixed: false
+    cost_estimate_eur: '1.50'
+    last_fingerprint: null
+    cost_approved: false
+    research_declined: false
+    case_changed: true
+    feasibility_pending: false
+    pass_no: 1
+  expected:
+    decided_by: stale_data
+    action:
+      kind: CONFIRM_COST
+      questions: []
+      cars:
+      - car#1
+      nothing_new: false
+      profile: false
+      over_cap: true
+- turn_id: golden-unknown_car
+  pass_no: 1
+  rules_version: 38ef5f7a4c20b1e2f6f62339e4fb11617c2aff3b98a2c3aa551e0ebf63b1be18
+  config:
+    confirm_threshold_eur: '0.30'
+    hard_cap_eur: '1.00'
+    max_passes: 8
+    intake:
+      max_attempts_per_item: 2
+      max_attempts_per_car: 4
+      full_intake: false
+    strict_inputs: true
+  situation:
+    case:
+      persona: UNKNOWN
+      persona_source: INFERRED
+      profile:
+        age: null
+        experience: null
+        family: null
+        age_band: null
+        driving_style: null
+        region: null
+        region_code: null
+        climate: null
+        annual_km_min: null
+        annual_km_max: null
+        home_charging: UNKNOWN
+        evidence: {}
+      usage: []
+      budget:
+        max_eur: null
+        note: null
+        intent: UNKNOWN
+        currency: EUR
+        kind: TOTAL
+      running_cost_limit: null
+      needs:
+        passengers: null
+        luggage: MEDIUM
+        towing_kg: null
+        daily_km: null
+      feasibility_ack: null
+      annual_km: 15000
+      annual_km_stated: false
+      rates_override:
+        fuel_eur_per_l: null
+        diesel_eur_per_l: null
+        electricity_eur_per_kwh: null
+        labour_eur_per_h: null
+        home_electricity_eur_per_kwh: null
+        public_ac_eur_per_kwh: null
+        public_dc_eur_per_kwh: null
+        night_tariff: null
+      depth: STANDARD
+      priorities: []
+      weights: {}
+      weights_overridden: false
+      weight_adjustments: {}
+      weights_excluded: []
+      unmapped_wishes: []
+      cars:
+      - key: car#1
+        request_text: <masked>
+        make: null
+        model: null
+        condition: UNKNOWN
+        year: null
+        age_years: null
+        mileage_km: null
+        constraints:
+          generation_hint: null
+          fuel_hint: null
+          body_hint: null
+          trim_hint: null
+          gearbox_hint: null
+          drive_hint: null
+          version_hint: null
+          url: null
+          engine_hint: null
+        variant_id: null
+        label: null
+        resolution: UNRESOLVED
+        alternatives: []
+        previous_label: null
+        identify: null
+        chosen_for_me: false
+        year_assumed: false
+        ladder: null
+        replaced: false
+        market: null
+        identity_rejected: []
+      next_car_no: 1
+      race_settings: null
+      prediction: null
+      asked: []
+      declined_plan: null
+      pending: null
+      compare_level: BASE
+      compare_level_source: DEFAULT
+      last_values: {}
+      find_tried: {}
+      wanted_body: null
+      candidates: []
+      wanted_make: null
+      last_scores: {}
+      last_weights: {}
+      shown: []
+      intake:
+        attempts: {}
+        last_questions: []
+        proposed: {}
+        card: null
+        card_confirmed: false
+      basis: {}
+      ownership_years: null
+      stated_energy: []
+    request: compare
+    cars:
+    - key: car#1
+      identity_known: false
+      in_catalog: false
+      ambiguous: false
+      plausible_generations: 0
+      data_fresh: false
+      gearbox_mixed: false
+    cost_estimate_eur: null
+    last_fingerprint: null
+    cost_approved: false
+    research_declined: false
+    case_changed: true
+    feasibility_pending: false
+    pass_no: 1
+  expected:
+    decided_by: missing_essentials
+    action:
+      kind: ASK
+      questions:
+      - CAR_IDENTITY
+      - PERSONA
+      cars:
+      - car#1
+      nothing_new: false
+      profile: false
+      over_cap: false
+- turn_id: golden-pass_limit
+  pass_no: 9
+  rules_version: 38ef5f7a4c20b1e2f6f62339e4fb11617c2aff3b98a2c3aa551e0ebf63b1be18
+  config:
+    confirm_threshold_eur: '0.30'
+    hard_cap_eur: '1.00'
+    max_passes: 8
+    intake:
+      max_attempts_per_item: 2
+      max_attempts_per_car: 4
+      full_intake: false
+    strict_inputs: true
+  situation:
+    case:
+      persona: UNKNOWN
+      persona_source: INFERRED
+      profile:
+        age: null
+        experience: null
+        family: null
+        age_band: null
+        driving_style: null
+        region: <masked>
+        region_code: null
+        climate: null
+        annual_km_min: null
+        annual_km_max: null
+        home_charging: UNKNOWN
+        evidence: {}
+      usage: []
+      budget:
+        max_eur: null
+        note: null
+        intent: UNKNOWN
+        currency: EUR
+        kind: TOTAL
+      running_cost_limit: null
+      needs:
+        passengers: null
+        luggage: MEDIUM
+        towing_kg: null
+        daily_km: null
+      feasibility_ack: null
+      annual_km: 15000
+      annual_km_stated: false
+      rates_override:
+        fuel_eur_per_l: null
+        diesel_eur_per_l: null
+        electricity_eur_per_kwh: null
+        labour_eur_per_h: null
+        home_electricity_eur_per_kwh: null
+        public_ac_eur_per_kwh: null
+        public_dc_eur_per_kwh: null
+        night_tariff: null
+      depth: STANDARD
+      priorities: []
+      weights: {}
+      weights_overridden: false
+      weight_adjustments: {}
+      weights_excluded: []
+      unmapped_wishes: []
+      cars:
+      - key: car#1
+        request_text: <masked>
+        make: Volkswagen
+        model: Golf
+        condition: NEW
+        year: null
+        age_years: null
+        mileage_km: null
+        constraints:
+          generation_hint: null
+          fuel_hint: null
+          body_hint: null
+          trim_hint: null
+          gearbox_hint: null
+          drive_hint: null
+          version_hint: null
+          url: null
+          engine_hint: null
+        variant_id: v1
+        label: null
+        resolution: CONFIRMED
+        alternatives: []
+        previous_label: null
+        identify: null
+        chosen_for_me: false
+        year_assumed: false
+        ladder: null
+        replaced: false
+        market: null
+        identity_rejected: []
+      next_car_no: 1
+      race_settings: null
+      prediction: null
+      asked: []
+      declined_plan: null
+      pending: null
+      compare_level: BASE
+      compare_level_source: DEFAULT
+      last_values: {}
+      find_tried: {}
+      wanted_body: null
+      candidates: []
+      wanted_make: null
+      last_scores: {}
+      last_weights: {}
+      shown: []
+      intake:
+        attempts: {}
+        last_questions: []
+        proposed: {}
+        card: null
+        card_confirmed: false
+      basis: {}
+      ownership_years: null
+      stated_energy: []
+    request: compare
+    cars:
+    - key: car#1
+      identity_known: true
+      in_catalog: true
+      ambiguous: false
+      plausible_generations: 1
+      data_fresh: false
+      gearbox_mixed: false
+    cost_estimate_eur: '0.05'
+    last_fingerprint: null
+    cost_approved: false
+    research_declined: false
+    case_changed: true
+    feasibility_pending: false
+    pass_no: 9
+  expected:
+    decided_by: pass_limit
+    action:
+      kind: REPORT
+      questions: []
+      cars: []
+      nothing_new: false
+      profile: false
+      over_cap: false

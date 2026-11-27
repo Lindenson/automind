@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Awaitable, Callable
 from datetime import timedelta
 
 from sqlalchemy import delete, exists, select, text
@@ -89,11 +90,16 @@ async def run_retention() -> dict[str, int]:
     return counts
 
 
-async def retention_loop() -> None:
+async def retention_loop(*steps: Callable[[], Awaitable[object]]) -> None:
+    """The cache retention now and every 24 h, followed by the other areas' retention `steps` (wired by the API, e.g.
+    the chat's policy passes): the API runs one background task (constitution XIII). A failed run is logged and the
+    heartbeat "retention" says so; the next day tries again."""
     heartbeat.register("retention", EVERY.total_seconds())
     while True:
         try:
             await run_retention()
+            for step in steps:
+                await step()
             heartbeat.beat("retention", True)
         except Exception:  # noqa: BLE001 - retention must never stop the service
             log.exception("retention failed")

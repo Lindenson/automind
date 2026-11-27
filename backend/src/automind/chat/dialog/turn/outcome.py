@@ -16,6 +16,7 @@ from automind.chat.application.ports import MessageRepo, OutcomeStore, Ports
 from automind.chat.dialog import tracing
 from automind.chat.dialog.turn.context import TurnContext
 from automind.chat.domain.turn import Role, TurnStatus
+from automind.shared.infrastructure.metrics import policy as policy_metrics
 from automind.shared.infrastructure.metrics import prom
 
 log = logging.getLogger(__name__)
@@ -49,6 +50,8 @@ class OutcomeRecorder:
                 prom.inc("turns", kind=final.get("request_kind") or "unknown", status=status,
                          action=final.get("action") or "none")  # fmt: skip
                 prom.observe_turn(final.get("request_kind"), seconds)
+                if final.get("hops"):  # the turn reached the policy (spec 015 D5)
+                    policy_metrics.passes(int(final["hops"]))
         except Exception:  # noqa: BLE001 - observation must never break a turn
             log.exception("turn.outcome_failed chat=%s turn=%s", ctx.chat_id, ctx.turn_id)
 

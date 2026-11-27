@@ -46,6 +46,15 @@ groups:
           summary: 'No-data answers for "{{ $labels.area }}" rose to {{ $value | humanizePercentage }} (7d), 15 points above the 30d level'
           admin: /admin
 
+      # spec 015 D5: turns that hit the policy's pass limit (the policy looped); `policy why <turn_id>` explains one
+      - alert: AutomindPolicyPassLimit
+        expr: increase(automind_policy_pass_limit_total[24h]) >= 3
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: '{{ $value | printf "%.0f" }} turns hit the policy pass limit in 24 h (python -m automind.delivery.cli.policy why <turn_id>)'
+          admin: /admin
+
   - name: automind-sources
     rules:
       - alert: AutomindSourceWrongBurst

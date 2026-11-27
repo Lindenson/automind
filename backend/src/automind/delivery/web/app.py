@@ -29,6 +29,7 @@ from automind.chat.infrastructure.adapters import live_ports
 from automind.chat.infrastructure.checkpoint import checkpointer
 from automind.chat.infrastructure.events import EventBus
 from automind.chat.infrastructure.persistence.repositories import CaseRepo, ChatRepo, EventRepo, MessageRepo, TurnRepo
+from automind.chat.infrastructure.retention import prune_decisions
 from automind.delivery.bootstrap import configure_domain
 from automind.delivery.registry import seed_if_empty
 from automind.delivery.web import access, rest
@@ -87,7 +88,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
                 print(f"source registry seeded: {seeded}")
         except Exception:  # noqa: BLE001 - research works without the registry
             traceback.print_exc()
-        retention = asyncio.create_task(retention_loop())  # spec 003 FR-026; heartbeat "retention" (spec 010)
+        # spec 003 FR-026, heartbeat "retention" (spec 010); then the policy passes older than 90 days (spec 015 D2)
+        retention = asyncio.create_task(retention_loop(prune_decisions))
         stack.callback(retention.cancel)
         # Spec 011 (constitution XIII): the metrics snapshot, the registry review and the insight run are tasks of
         # the acquisition worker (python -m automind.cli worker), not loops of this process.

@@ -21,7 +21,7 @@ from prometheus_client.core import GaugeMetricFamily
 from prometheus_client.registry import Collector
 
 from automind.shared.infrastructure.config.settings import settings
-from automind.shared.infrastructure.metrics import understanding_eval
+from automind.shared.infrastructure.metrics import policy, understanding_eval
 
 log = logging.getLogger(__name__)
 
@@ -52,13 +52,8 @@ GRAPH_CONTRACT_VIOLATIONS = Counter(P + "graph_contract_violation_total",
                                     "Broken graph node contracts (spec 014), by node, state key and kind",
                                     ["node", "key", "kind"])  # fmt: skip
 
-POLICY_INPUT_ERRORS = Counter(
-    P + "policy_input_errors_total", "Policy situations that broke an invariant (spec 015 D6), by field", ["field"]
-)
-
 _COUNTERS: dict[str, Any] = {
     "graph_contract_violations": GRAPH_CONTRACT_VIOLATIONS,
-    "policy_input_errors": POLICY_INPUT_ERRORS,
     "turns": TURNS, "turn_failures": TURN_FAILURES, "feedback": FEEDBACK, "wrong_values": WRONG_VALUES,
     "llm_calls": LLM_CALLS, "llm_errors": LLM_ERRORS, "search_calls": SEARCH_CALLS, "fetch": FETCH,
     "research_jobs": RESEARCH_JOBS, "registry_attempts": REGISTRY_ATTEMPTS, "registry_changes": REGISTRY_CHANGES,
@@ -184,4 +179,4 @@ def metric_names() -> set[str]:
     out.add(LLM_COST._name + "_total")  # noqa: SLF001
     base = P + "turn_duration_seconds"
     out |= {base + "_bucket", base + "_sum", base + "_count"}
-    return out
+    return out | policy.metric_names()
