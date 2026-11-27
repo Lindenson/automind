@@ -133,11 +133,11 @@ async def test_a_stored_wrong_model_is_dropped_on_the_next_turn(saver):
 
     v = await rn.ports.cases.latest(chat)
     dolphin = await upsert_variant(VariantIdentity.model_validate(DOLPHIN), rn.ports.ref)
-    _, data, _ = v
+    version, data, _ = v
     data["cars"][0].update(
         {"model": "Seal U", "variant_id": dolphin.id, "label": dolphin.label, "resolution": "PROPOSED"}
     )
-    await rn.ports.cases.save_version(chat, data, "test", ["a wrong proposal from before the fix"])
+    await rn.ports.cases.save_version(chat, data, "test", ["a wrong proposal from before the fix"], expected=version)
     llm.queue("interpreter", _ru({}))
     llm.queue("resolver", SEAL_U)
     w = await rn.run_turn(chat, "BYD model Seal U")

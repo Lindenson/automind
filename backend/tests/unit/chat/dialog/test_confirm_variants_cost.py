@@ -13,6 +13,7 @@ from typing import Any
 import pytest
 from sqlalchemy import delete
 
+from automind.chat.application.ports import VersionConflict
 from automind.chat.application.services.identification import catalogue
 from automind.chat.application.services.identification.contracts import VariantIdentity
 from automind.chat.dialog.nodes import confirm
@@ -37,7 +38,10 @@ class Store:
     async def latest(self, chat_id: str) -> tuple[int, dict[str, Any] | None, str | None]:
         return len(self.versions), self.case, None
 
-    async def save_version(self, chat_id: str, data: dict[str, Any], changed_by: str, change_log: list[str]) -> int:
+    async def save_version(self, chat_id: str, data: dict[str, Any], changed_by: str, change_log: list[str], *,
+                           expected: int) -> int:  # fmt: skip
+        if expected != len(self.versions):
+            raise VersionConflict(len(self.versions))
         self.case = data
         self.versions.append(change_log)
         return len(self.versions)

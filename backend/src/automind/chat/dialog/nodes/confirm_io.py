@@ -29,12 +29,11 @@ class AskIn(QuestionsIn):
 
 
 class AskOut(NodeOut):
-    """The questions as the reply (the turn ends; the next message continues) and the case version saved."""
+    """The questions as the reply (the turn ends; the next message continues)."""
 
     reply_text: str
     blocks: SkipValidation[list[JsonObject]]
     action: str
-    case_version: int
 
 
 class PrepareVariantsIn(QuestionsIn):
@@ -90,13 +89,12 @@ class CostResumeIn(NodeIn):
 
 class VariantsAppliedOut(NodeOut):
     """Where the turn goes after the variants answer (`route`: interpret, end, assess), the question closed, typed
-    words as the new message, the case version saved, or the reply when the person skipped."""
+    words as the new message, or the reply when the person skipped."""
 
     route: str
     confirm_payload: SkipValidation[JsonObject | None] = None
     resume: SkipValidation[JsonObject | None] = None
     user_text: str = ""
-    case_version: int = 0
     action: str = ""
     reply_text: str = ""
 
@@ -127,7 +125,6 @@ class SelectCandidatesIn(NodeIn):
 
 
 class SelectCandidatesOut(NodeOut):
-    """identify when candidates (or a make's question) became the case's cars, else general; the case version."""
+    """identify when candidates (or a make's question) became the case's cars, else general."""
 
     route: str
-    case_version: int = 0

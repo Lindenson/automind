@@ -12,7 +12,6 @@ import uuid
 from typing import Any
 
 from automind.chat.application.services.feasibility import feasibility as fz_app
-from automind.chat.dialog.context import load_case, save_case
 from automind.chat.dialog.contract import node
 from automind.chat.dialog.nodes.feasibility_io import (
     AlternativesOut,
@@ -41,7 +40,7 @@ def pending(case: CaseFile, data: dict[str, Any] | None) -> bool:
 @node("prepare_feasibility", reads=FeasibilityIn, writes=PrepareFeasibilityOut)
 async def prepare_feasibility(inp: FeasibilityIn, c: TurnContext) -> PrepareFeasibilityOut:
     """The feasibility question: what does not fit, and the ways on (report anyway, look at used, alternatives)."""
-    _, case = await load_case(c)
+    case = await c.case()
     data = inp.feasibility or {}
     if c.ports.feasibility is not None:  # None: the feasibility checks are off
         await fz_app.persist(c.ports.feasibility, c.chat_id, c.turn_id, case, data)
@@ -65,7 +64,7 @@ async def prepare_feasibility(inp: FeasibilityIn, c: TurnContext) -> PrepareFeas
 @node("apply_feasibility", reads=ApplyFeasibilityIn, writes=ApplyFeasibilityOut)
 async def apply_feasibility(inp: ApplyFeasibilityIn, c: TurnContext) -> ApplyFeasibilityOut:
     """The feasibility answer: typed words go to the interpreter; "used" looks at used cars; else acknowledged."""
-    _, case = await load_case(c)
+    case = await c.case()
     answer = inp.resume or {}
     choice = str(answer.get("choice") or "")
     data = inp.feasibility or {}
@@ -82,10 +81,10 @@ async def apply_feasibility(inp: ApplyFeasibilityIn, c: TurnContext) -> ApplyFea
             if car.key in over or car.condition == "UNKNOWN":
                 car.condition = "USED"
         case.feasibility_ack = needs_ack(case)
-        await save_case(c, case, ["looking at used cars for the budget"])
+        await c.save_case(case, ["looking at used cars for the budget"])
         return ApplyFeasibilityOut(route="assess", confirm_payload=None, resume=None)
     case.feasibility_ack = data.get("fingerprint")
-    await save_case(c, case, ["feasibility answered: " + (choice or "report")], publish=False)
+    await c.save_case(case, ["feasibility answered: " + (choice or "report")], publish=False)
     if choice == "alternatives":
         return ApplyFeasibilityOut(route="alternatives", confirm_payload=None, resume=None)
     return ApplyFeasibilityOut(route="assess", confirm_payload=None, resume=None)
@@ -94,7 +93,7 @@ async def apply_feasibility(inp: ApplyFeasibilityIn, c: TurnContext) -> ApplyFea
 @node("alternatives", reads=FeasibilityIn, writes=AlternativesOut)
 async def alternatives(inp: FeasibilityIn, c: TurnContext) -> AlternativesOut:
     """Suggest kinds of cars that would fit (labelled as suggestions; no numbers without validated data)."""
-    _, case = await load_case(c)
+    case = await c.case()
     data = inp.feasibility or {}
     lang = inp.language or "en"
     user = (

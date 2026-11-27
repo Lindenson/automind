@@ -30,12 +30,12 @@ def test_a_reading_writes_its_interpretation_and_language() -> None:
 
 def test_an_applied_message_says_what_changed() -> None:
     applied = Applied(CaseFile(), "choose_for_me", changes=["persona: family"], not_understood=["car#1"], saved=True)
-    assert ApplyDeltaOut.from_applied(applied, 5).update() == {
-        "request_kind": "choose_for_me", "not_understood": ["car#1"], "case_version": 5, "case_changed": True,
+    assert ApplyDeltaOut.from_applied(applied).update() == {
+        "request_kind": "choose_for_me", "not_understood": ["car#1"], "case_changed": True,
         "persona_changed": True,
     }  # fmt: skip
     unchanged = Applied(CaseFile(), "compare")
-    assert ApplyDeltaOut.from_applied(unchanged, None).update() == {
+    assert ApplyDeltaOut.from_applied(unchanged).update() == {
         "request_kind": "compare", "not_understood": [], "case_changed": False,
     }  # fmt: skip
 
@@ -44,11 +44,11 @@ def test_an_assessment_writes_the_plan_and_only_new_notices() -> None:
     plan = ResearchPlan(jobs=[Job("a", "v1", "specs")], rounds=1)
     planned = Planned({"a": Assessment(state=CarState())}, plan, "plan-1", 0.01, False, None, [])
     earlier = [notice("earlier")]
-    out = AssessOut.from_planned(planned, earlier, None).update()
+    out = AssessOut.from_planned(planned, earlier).update()
     assert out["research_plan"] == {"jobs": [["a", "v1", "specs", False, False]], "rounds": 1, "key": "plan-1"}
     assert out["cost_estimate"] == 0.01 and out["research_declined"] is False
     assert "notices" not in out and "feasibility" not in out and "case_version" not in out
     warned = Planned({}, plan, "plan-1", 0.0, True, {"results": []}, [notice("old car", "warning")])
-    out = AssessOut.from_planned(warned, earlier, 7).update()
-    assert out["notices"] == [*earlier, notice("old car", "warning")] and out["case_version"] == 7
+    out = AssessOut.from_planned(warned, earlier).update()
+    assert out["notices"] == [*earlier, notice("old car", "warning")] and "case_version" not in out
     assert out["feasibility"] == {"results": []}

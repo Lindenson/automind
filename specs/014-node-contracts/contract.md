@@ -12,27 +12,27 @@ turn state. `load_case` also resets every per-turn key (`state.PER_TURN_RESET`).
 |---|---|---|---|---|
 | load_case | none | — | chat_id!, turn_id!, case_version!, (every per-turn key) | interpret |
 | interpret | provider | preset, user_text, language | interpretation, language, picked, action, done, reply_text | ?__end__, ?apply_delta |
-| apply_delta | none | interpretation, preset, user_text, picked | request_kind!, not_understood, case_version, case_changed, persona_changed, action, done, reply_text | ?__end__, ?identify |
-| identify | none | not_understood, interpretation, language, notices | not_understood!, case_version, notices | assess |
-| assess | none | notices, interpretation, request_kind, research_done | assessments!, research_plan!, cost_estimate!, research_declined!, feasibility, notices, case_version | policy |
+| apply_delta | none | interpretation, preset, user_text, picked | request_kind!, not_understood, case_changed, persona_changed, action, done, reply_text | ?__end__, ?identify |
+| identify | none | not_understood, interpretation, language, notices | not_understood!, notices | assess |
+| assess | none | notices, interpretation, request_kind, research_done | assessments!, research_plan!, cost_estimate!, research_declined!, feasibility, notices | policy |
 | policy | none | request_kind, assessments, cost_estimate, cost_approved, research_declined, research_done, case_changed, feasibility, hops | decision!, action!, hops! | ?answer, ?ask, ?general, ?plan_research, ?prepare_cost, ?prepare_feasibility, ?prepare_intake, ?prepare_variants, ?report, ?select_candidates |
 | general | provider | language, user_text | reply_text!, blocks!, action! | __end__ |
-| ask | none | decision!, assessments, notices, not_understood, user_text, language | reply_text!, blocks!, action!, case_version! | __end__ |
-| select_candidates | none | — | route!, case_version | ?general, ?identify |
+| ask | none | decision!, assessments, notices, not_understood, user_text, language | reply_text!, blocks!, action! | __end__ |
+| select_candidates | none | — | route! | ?general, ?identify |
 | plan_research | none | decision!, research_plan | jobs!, round!, research_results! | ?after_research, ?research_job |
 | research_job | none | job_id!, car_key!, variant_id!, area!, round!, fresh!, escalate! | research_results! | collect_round |
 | collect_round | none | research_results, jobs, research_plan, round | jobs!, limit_hit, round | ?after_research, ?next_round, ?prepare_limit |
 | next_round | none | — | — | ?after_research, ?research_job |
-| after_research | none | research_results, notices, language, request_kind | research_done!, notices!, jobs!, case_version | assess |
+| after_research | none | research_results, notices, language, request_kind | research_done!, notices!, jobs! | assess |
 | alternatives | none | feasibility, language | reply_text!, blocks!, action! | __end__ |
 | answer | provider | language, user_text, request_kind, decision!, preset, notices, research_results, research_done, persona_changed, case_changed | reply_text!, blocks!, action! | __end__ |
-| report | provider | language, user_text, request_kind, decision, preset, notices, research_results, research_done, persona_changed, case_changed | reply_text!, blocks!, action!, fingerprint!, case_version! | __end__ |
+| report | provider | language, user_text, request_kind, decision, preset, notices, research_results, research_done, persona_changed, case_changed | reply_text!, blocks!, action!, fingerprint! | __end__ |
 | prepare_intake | none | decision!, cost_estimate, language, research_plan | confirm_payload! | wait_intake |
 | wait_intake | none | confirm_payload! | resume! | apply_intake |
 | apply_intake | none | resume, language, research_plan | route!, confirm_payload!, resume!, user_text, cost_approved, research_declined | ?assess, ?identify, ?interpret |
 | prepare_variants | none | decision!, assessments, notices, not_understood, user_text, language | confirm_payload!, notices!, route | ?assess, ?wait_variants |
 | wait_variants | none | confirm_payload! | resume! | apply_variants |
-| apply_variants | none | resume, language | route!, confirm_payload, resume, user_text, case_version, action, reply_text | ?__end__, ?assess, ?interpret |
+| apply_variants | none | resume, language | route!, confirm_payload, resume, user_text, action, reply_text | ?__end__, ?assess, ?interpret |
 | prepare_cost | none | decision!, cost_estimate, language, research_plan | confirm_payload! | wait_cost |
 | wait_cost | none | confirm_payload! | resume! | apply_cost |
 | apply_cost | none | resume, research_plan | route!, confirm_payload!, resume!, user_text, cost_approved, research_declined | ?assess, ?interpret |
@@ -51,7 +51,7 @@ turn state. `load_case` also resets every per-turn key (`state.PER_TURN_RESET`).
 | assessments | assess | replace | — |
 | blocks | alternatives, answer, ask, general, report | replace | C3: reply section |
 | case_changed | apply_delta | replace | — |
-| case_version | after_research, apply_delta, apply_variants, ask, assess, identify, load_case, report, select_candidates | replace | C2: ctx.save_case |
+| case_version | load_case | replace | — |
 | chat_id | load_case, runner | replace | — |
 | confirm_payload | apply_cost, apply_feasibility, apply_intake, apply_limit, apply_variants, prepare_cost, prepare_feasibility, prepare_intake, prepare_limit, prepare_variants | replace | C3: confirm section of each confirmation |
 | cost_approved | apply_cost, apply_intake | replace | 015 PL5: ResearchStatus |

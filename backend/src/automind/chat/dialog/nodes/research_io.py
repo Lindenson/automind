@@ -116,9 +116,8 @@ class AfterResearchIn(NodeIn):
 
 
 class AfterResearchOut(NodeOut):
-    """Research done, the notices with its warnings, no jobs left; the case version when a miss was remembered."""
+    """Research done, the notices with its warnings, no jobs left."""
 
     research_done: bool
     notices: SkipValidation[list[Notice]]
     jobs: SkipValidation[list[JobState]]
-    case_version: int = 0

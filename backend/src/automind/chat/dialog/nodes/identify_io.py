@@ -19,8 +19,8 @@ class IdentifyIn(NodeIn):
 
 
 class IdentifyOut(NodeOut):
-    """The cars still not understood; the case version when it was saved; the notices with the new ones."""
+    """The cars still not understood and the notices with the new ones (the case itself is saved through the
+    context: `TurnContext.save_case`)."""
 
     not_understood: SkipValidation[list[str]]
-    case_version: int = 0
     notices: SkipValidation[list[Notice]] = []

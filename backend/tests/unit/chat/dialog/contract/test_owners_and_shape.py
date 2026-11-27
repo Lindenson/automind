@@ -12,7 +12,7 @@ from automind.chat.dialog.state import PER_TURN_RESET, TurnState
 STATE_KEYS = TurnState.__required_keys__ | TurnState.__optional_keys__
 RUNNER_INPUT = frozenset({"chat_id", "turn_id", "user_text", "preset"})  # runner.py: the new turn's state
 # today's keys with more than one writer (spec 014 B4); each is listed in owners.py with the step that ends it
-SHARED = {"action", "blocks", "case_version", "confirm_payload", "cost_approved", "done", "jobs", "limit_hit",
+SHARED = {"action", "blocks", "confirm_payload", "cost_approved", "done", "jobs", "limit_hit",
           "not_understood", "reply_text", "research_declined", "resume", "round", "route", "user_text"}  # fmt: skip
 
 
@@ -46,6 +46,12 @@ def test_the_registry_is_exactly_what_the_nodes_declare() -> None:
 
 def test_request_kind_has_one_writer_the_request_as_code_settled_it() -> None:
     assert _writers()["request_kind"] - {RESET_NODE} == {"apply_delta"}
+
+
+def test_the_case_version_is_written_by_load_case_only() -> None:
+    """C2 (T110): nodes save the case through `TurnContext.save_case`, which keeps the version; the state holds only
+    the version the turn started from."""
+    assert _writers()["case_version"] == {RESET_NODE} and OWNERS["case_version"].writers == {RESET_NODE}
 
 
 def test_keys_with_several_writers_are_the_known_ones_each_with_its_step() -> None:

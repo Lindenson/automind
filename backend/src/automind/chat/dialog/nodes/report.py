@@ -6,13 +6,14 @@ the guard (FR-031). A report records its fingerprint so an unchanged case is nev
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from typing import Any
 
 from automind.chat.application.services.report.blocks.notice import Notice
 from automind.chat.application.services.report.computations import persist_computations
 from automind.chat.application.services.report.contracts import Computed
 from automind.chat.application.services.report.service import ReportService
-from automind.chat.dialog.context import history, load_case, record_intake, save_case
+from automind.chat.dialog.context import history, record_intake
 from automind.chat.dialog.contract import Retry, node
 from automind.chat.dialog.nodes.report_io import AnswerIn, ComposeIn, GeneralIn, ReplyOut, ReportOut
 from automind.chat.dialog.report_followup import shown_answer, shown_report
@@ -24,35 +25,41 @@ from automind.chat.domain.case import CaseFile
 
 @node("report", reads=ComposeIn, writes=ReportOut, retry=Retry.PROVIDER)
 async def report_node(inp: ComposeIn, c: TurnContext) -> ReportOut:
-    """REPORT (and RESCORE): the numbers by code, the text by the reporter, its fingerprint remembered (FR-004)."""
-    _, case = await load_case(c)
+    """REPORT (and RESCORE): the numbers by code, the text by the reporter, its fingerprint remembered (FR-004).
+    Nothing is written before the reporter's text (spec 014 T112: a retried provider failure repeats no write)."""
+    case = await c.case()
     await c.status("computing", "Computing criteria scores, metrics and the drag race")
     lang = inp.language
-    comp = await compute(c, case, list(inp.notices), lang)
-    await persist(c, case, comp, mileage={x.variant_id: x.mileage_km for x in case.cars if x.variant_id},
-                  rates=case.rates_override.model_dump(exclude_none=True))  # fmt: skip
+    later = DeferredIntake()
+    comp = await compute(c, case, list(inp.notices), lang, later)
     await c.status("composing", "Writing the conclusion for you")
     text = await write_report(c, inp, case, comp)
+    await later.write(c)
+    await persist(c, case, comp, mileage={x.variant_id: x.mileage_km for x in case.cars if x.variant_id},
+                  rates=case.rates_override.model_dump(exclude_none=True))  # fmt: skip
     blocks, fp = shown_report(case, comp, lang, (c.ports.ref.profile_defaults or {}).get("probe"))
-    version = await save_case(c, case, [], publish=False)
+    await c.save_case(case, [], publish=False)
     await c.status("done", "Done")
     # a rescore is a report too: its fingerprint is what the next "nothing new" is compared against
-    return ReportOut(reply_text=text, blocks=blocks, action="REPORT", fingerprint=fp, case_version=version)
+    return ReportOut(reply_text=text, blocks=blocks, action="REPORT", fingerprint=fp)
 
 
 @node("answer", reads=AnswerIn, writes=ReplyOut, retry=Retry.PROVIDER)
 async def answer_node(inp: AnswerIn, c: TurnContext) -> ReplyOut:
     """ANSWER_FROM_CONTEXT: recompute from cached data, no research (FR-004, FR-029). A weights change shows the
-    recomputed criteria scores; "nothing new" sends no blocks."""
-    _, case = await load_case(c)
+    recomputed criteria scores; "nothing new" sends no blocks. Nothing is written before the answerer's text
+    (spec 014 T112)."""
+    case = await c.case()
     nothing_new = bool(inp.decision.get("nothing_new"))
-    comp = await compute(c, case, list(inp.notices), inp.language)
+    later = DeferredIntake()
+    comp = await compute(c, case, list(inp.notices), inp.language, later)
+    text, dropped = await write_answer(c, inp, case, comp, nothing_new)
+    await later.write(c)
     if inp.case_changed and case.race_settings is not None:  # a new race: keep it reproducible
         await persist(c, case, comp, mileage={}, rates={}, estimates=False)
-    text, dropped = await write_answer(c, inp, case, comp, nothing_new)
     blocks, remembered = shown_answer(inp, case, comp, nothing_new)
     if remembered:
-        await save_case(c, case, [], publish=False)
+        await c.save_case(case, [], publish=False)
     log_removed(c, "answer", dropped)
     await c.status("done", "Done")
     return ReplyOut(reply_text=text, blocks=blocks, action="ANSWER_FROM_CONTEXT")
@@ -72,13 +79,27 @@ async def general_node(inp: GeneralIn, c: TurnContext) -> ReplyOut:
     return ReplyOut(reply_text=text, blocks=[], action="ANSWER_GENERAL")
 
 
-async def compute(c: TurnContext, case: CaseFile, notices: list[Notice], lang: str = "en") -> Computed:
-    """The report's numbers and blocks for this turn (the report service, in the person's language)."""
+@dataclass
+class DeferredIntake:
+    """The intake events of computing a report, held until the model has written its text and then written (spec 014
+    T112): a provider failure retried by the graph then repeats no event."""
 
-    async def intake_log(kind: str, **details: object) -> None:
-        await record_intake(c, kind, None, None, **details)
+    events: list[tuple[str, str | None, str | None, dict[str, object]]] = field(default_factory=list)
 
-    return await ReportService(c.ports, WORDING, intake_log).run(case, notices, lang)
+    async def log(self, kind: str, car_key: str | None = None, item: str | None = None, **details: object) -> None:
+        """Hold one event (the report service's `IntakeLog`)."""
+        self.events.append((kind, car_key, item, details))
+
+    async def write(self, c: TurnContext) -> None:
+        """Write the held events of this turn, in order (an intake event never fails the turn)."""
+        for kind, car_key, item, details in self.events:
+            await record_intake(c, kind, car_key, item, **details)
+
+
+async def compute(c: TurnContext, case: CaseFile, notices: list[Notice], lang: str, later: DeferredIntake) -> Computed:
+    """The report's numbers and blocks for this turn (the report service, in the person's language); its intake
+    events wait in `later`."""
+    return await ReportService(c.ports, WORDING, later.log).run(case, notices, lang)
 
 
 async def persist(c: TurnContext, case: CaseFile, comp: Computed, *, mileage: dict[str, int | None],

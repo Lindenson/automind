@@ -76,18 +76,9 @@ OWNERS: Final[Mapping[str, Owner]] = {
     "route": Owner.shared(
         "C4: Out.next() instead of a router flag", "select_candidates", "prepare_variants", *APPLIES
     ),  # fmt: skip
-    "case_version": Owner.shared(
-        "C2: ctx.save_case",
-        RESET_NODE,
-        "apply_delta",
-        "identify",
-        "assess",
-        "ask",
-        "select_candidates",
-        "after_research",
-        "report",
-        "apply_variants",
-    ),  # fmt: skip
+    # C2: the case and its version live in the run's context (TurnContext.case / save_case); the key is only the
+    # version the turn started from
+    "case_version": Owner.one(RESET_NODE),
     # assessment and decision
     "assessments": Owner.one("assess"),
     "research_plan": Owner.one("assess"),

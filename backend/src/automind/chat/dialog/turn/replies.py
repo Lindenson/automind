@@ -53,7 +53,7 @@ class TurnReplies:
         await self.journal.move(
             turn, TurnStatus.DONE, action=action, fingerprint=final.get("fingerprint"), usage=usage,
             limits_reached=list(ctx.budget.limits_reached), duration_ms=int((time.monotonic() - started) * 1000),
-            case_version_after=final.get("case_version"), request_kind=final.get("request_kind"),
+            case_version_after=await ctx.case_version(), request_kind=final.get("request_kind"),
         )  # fmt: skip
         await ctx.emit("assistant_message", {
             "message_id": msg.id, "created_at": msg.created_at.isoformat(), "text": reply, "blocks": blocks,
