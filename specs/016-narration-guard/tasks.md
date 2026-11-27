@@ -8,34 +8,45 @@ PL2; N2–N5 after 013 S7, beside 012 A4c+.
 
 ## N1 — Quick fixes on the old guard (PR 1, now; independent of N2–N5)
 
-- [ ] T301 `dialog/guard.py`: `ALWAYS_OK` deleted; before the number check, metric-name phrases are cut from the
+- [x] T301 `dialog/guard.py`: `ALWAYS_OK` deleted; before the number check, metric-name phrases are cut from the
   sentence by one closed table in the module's contracts section ("0–100 км/ч", "0-100 km/h", "0–200", "400 m",
   "0-62 mph", "l/100 km", "л/100 км", "kWh/100 km"); `_NUM_RE` gets `_CHECKED_RE`'s model-code look-behind, so a label
   "2.8 D-4D" puts no 4 in the bag (`guard.py:15,17`, verify).
-- [ ] T302 Tolerance "equal at the written precision": a written number matches a fact when the fact rounded to the
+- [x] T302 Tolerance "equal at the written precision": a written number matches a fact when the fact rounded to the
   written number's step (its decimals, or its trailing zeros for integers) equals it — 205 ≠ 204, "9,8" matches 9.75,
   "42 500" matches 42 480, "3 600" matches 3 600 (`guard.py:58-62`, verify).
-- [ ] T303 One sentence splitter for `check_numbers`, `report_violations`, `drop_sentences` (`guard.py:84,157,252`,
+- [x] T303 One sentence splitter for `check_numbers`, `report_violations`, `drop_sentences` (`guard.py:84,157,252`,
   verify) that does not split after the abbreviations of one table ("л.с.", "т.д.", "т.е.", "т.к.", "г.", "e.g.",
   "approx.", "aprox.") or a decimal point; test: "Prado — 204 л.с. и 9,9 л на 100 км" is one sentence.
-- [ ] T304 Topic map: every key of `backend/config/insights.yaml` (verify) maps to a `TOPIC_WORDS` topic
+- [x] T304 Topic map: every key of `backend/config/insights.yaml` (verify) maps to a `TOPIC_WORDS` topic
   (`reliability_score` → `reliability`, `measured_0_100` → `accel_0_100`, `max_torque`, `top_speed`, `rear_legroom`,
   `euro_ncap_stars` get their words); a test asserts every insight key is mapped. `tie_winner` matches the car by
   `_aliases` (as `_subject` does), not by the full name (`guard.py:242`, verify).
-- [ ] T305 `dialog/report_writer.py`: `report_check` typed (`comp: Computed`, no `Any`); `except Exception` →
+- [x] T305 `dialog/report_writer.py`: `report_check` typed (`comp: Computed`, no `Any`); `except Exception` →
   `except ProviderUnavailable` and errors whose `classify` is in `TRANSIENT` (`shared/contracts/provider_failure.py`);
   any other exception propagates (turn FAILED via `dialog/turn/endings.py`); a test drives each path.
-- [ ] T306 `write_answer` runs the same `report_check` (all four rules, one rewrite with the `answerer` role) instead
+- [x] T306 `write_answer` runs the same `report_check` (all four rules, one rewrite with the `answerer` role) instead
   of `saving_costlier` only (`report_writer.py:62-65`, verify).
-- [ ] T307 (only if spec §H D3 = yes) a quiet removal notice in three languages (`dialog/phrases.py`), appended once
+- [x] T307 (only if spec §H D3 = yes) a quiet removal notice in three languages (`dialog/phrases.py`), appended once
   when the guard removed a sentence; `log_removed` unchanged.
-- [ ] T308 Tests: `backend/tests/unit/chat/dialog/test_guard_reproduction.py` — the §1 table and the extra probes of
+- [x] T308 Tests: `backend/tests/unit/chat/dialog/test_guard_reproduction.py` — the §1 table and the extra probes of
   `coverage-audit.md` §B as a parametrized table with the expected new result; the old results pasted in the PR
   (run on main first). Existing tests updated where a fixed behaviour changes them:
   `backend/tests/unit/chat/dialog/test_guard.py`, `test_report_check.py`, `test_review_regressions.py`,
   `backend/tests/unit/chat/domain/cost/test_report_tco.py`, `backend/tests/integration/test_analysis_db.py` (verify).
-- [ ] T309 Behaviour diff in the PR: sentences now removed that passed (205 hp, made-up percentages), sentences now
+- [x] T309 Behaviour diff in the PR: sentences now removed that passed (205 hp, made-up percentages), sentences now
   kept that were cut (abbreviation fragments), answers now rewritten.
+
+N1 done (PR `016-n1-guard-fixes`). Findings: (1) T302 as written ("trailing zeros for integers") let "10" stand
+for 6.7 and broke FR-033: trailing zeros are a precision only from 1000 up ("42 500" ≈ 42 480); below 1000 an
+integer is exact. (2) "4 %" passed not only through "D-4D": the facts' "€3.550" was also read as 3.55. A single
+3-digit group next to a euro sign now has only its thousands reading. (3) A generation code in the facts still gives
+its number ("J150" → 150), so "Prado 150" in the text stays (golden g1 lost its headline otherwise); only a hyphenated
+engine code ("D-4D") gives none. (4) A line whose sentences all go takes its list mark along (no "2." left).
+(5) The old `except Exception` hid exhausted test scripts: golden g2 turn 3 always dropped its headline silently; the
+cassettes of g2, g4, g5, g6 now carry the rewrite. (6) Torque, top speed, rear legroom, Euro NCAP, measured 0–100 and
+the reliability score have topic words; "more power and torque" with torque a tie is now rewritten (17 graph/golden
+dumps). Structure 1381 → 1379 (`regex` in `check_numbers`, `drop_sentences`).
 
 ## N2 — FactSheet, renderer, record (PR 2; behaviour: number formatting only)
 
