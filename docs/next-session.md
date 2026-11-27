@@ -114,7 +114,7 @@ result to the owner first. Spec 012 (A4c onward) waits until 013 S7. New code fo
    → in no spec. Backlog: a turn owner with a heartbeat + cross-process events, when a second worker is needed.
 5. Known bugs: "переформулируйте" in English (verified: a refused reading drops the language, the turn's is reset to
    "en") and an engine failure in one research job failing the whole round (verified: `_acquire` catches only budget
-   and timeout) → point fixes PR "013-point-fixes" (next); "declined" = "already done" → 015 PL5 (next step,
+   and timeout) → fixed in PR "013-point-fixes"; "declined" = "already done" → 015 PL5 (next step,
    `policy/contracts.py` already says so).
 6. Noise: spec/FR/chat references ≈ 1850, `# fmt: skip` 1164, `except Exception` 19 in chat (all but two carry a
    reason; the two in `report_writer` and `turn/execution` re-raise what they do not handle) → owner's open question
