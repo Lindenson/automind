@@ -8,70 +8,68 @@ from __future__ import annotations
 
 from typing import Any
 
-from langgraph.runtime import Runtime
-
 from automind.chat.application.services.report.blocks.notice import Notice
 from automind.chat.application.services.report.computations import persist_computations
 from automind.chat.application.services.report.contracts import Computed
 from automind.chat.application.services.report.service import ReportService
-from automind.chat.dialog.context import ctx, history, load_case, record_intake, save_case
+from automind.chat.dialog.context import history, load_case, record_intake, save_case
+from automind.chat.dialog.contract import Retry, node
+from automind.chat.dialog.nodes.report_io import AnswerIn, ComposeIn, GeneralIn, ReplyOut, ReportOut
 from automind.chat.dialog.report_followup import shown_answer, shown_report
 from automind.chat.dialog.report_wording import WORDING
 from automind.chat.dialog.report_writer import log_removed, write_answer, write_report
-from automind.chat.dialog.state import TurnState
 from automind.chat.dialog.turn.context import TurnContext
 from automind.chat.domain.case import CaseFile
 
 
-def make_report_node():  # noqa: ANN201
-    async def report_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
-        c = ctx(runtime)
-        _, case = await load_case(c)
-        await c.status("computing", "Computing criteria scores, metrics and the drag race")
-        lang = state.get("language", "en")
-        comp = await compute(c, case, list(state.get("notices", [])), lang)
-        await persist(c, case, comp, mileage={x.variant_id: x.mileage_km for x in case.cars if x.variant_id},
-                      rates=case.rates_override.model_dump(exclude_none=True))  # fmt: skip
-        await c.status("composing", "Writing the conclusion for you")
-        text = await write_report(c, state, case, comp)
-        blocks, fp = shown_report(case, comp, lang, (c.ports.ref.profile_defaults or {}).get("probe"))
-        version = await save_case(c, case, [], publish=False)
-        await c.status("done", "Done")
-        # a rescore is a report too: its fingerprint is what the next "nothing new" is compared against
-        return {"reply_text": text, "blocks": blocks, "action": "REPORT", "fingerprint": fp, "case_version": version}
-
-    return report_node
+@node("report", reads=ComposeIn, writes=ReportOut, retry=Retry.PROVIDER)
+async def report_node(inp: ComposeIn, c: TurnContext) -> ReportOut:
+    """REPORT (and RESCORE): the numbers by code, the text by the reporter, its fingerprint remembered (FR-004)."""
+    _, case = await load_case(c)
+    await c.status("computing", "Computing criteria scores, metrics and the drag race")
+    lang = inp.language
+    comp = await compute(c, case, list(inp.notices), lang)
+    await persist(c, case, comp, mileage={x.variant_id: x.mileage_km for x in case.cars if x.variant_id},
+                  rates=case.rates_override.model_dump(exclude_none=True))  # fmt: skip
+    await c.status("composing", "Writing the conclusion for you")
+    text = await write_report(c, inp, case, comp)
+    blocks, fp = shown_report(case, comp, lang, (c.ports.ref.profile_defaults or {}).get("probe"))
+    version = await save_case(c, case, [], publish=False)
+    await c.status("done", "Done")
+    # a rescore is a report too: its fingerprint is what the next "nothing new" is compared against
+    return ReportOut(reply_text=text, blocks=blocks, action="REPORT", fingerprint=fp, case_version=version)
 
 
-async def answer_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
+@node("answer", reads=AnswerIn, writes=ReplyOut, retry=Retry.PROVIDER)
+async def answer_node(inp: AnswerIn, c: TurnContext) -> ReplyOut:
     """ANSWER_FROM_CONTEXT: recompute from cached data, no research (FR-004, FR-029). A weights change shows the
     recomputed criteria scores; "nothing new" sends no blocks."""
-    c = ctx(runtime)
     _, case = await load_case(c)
-    nothing_new = bool(state["decision"].get("nothing_new"))
-    comp = await compute(c, case, list(state.get("notices", [])), state.get("language", "en"))
-    if state.get("case_changed") and case.race_settings is not None:  # a new race: keep it reproducible
+    nothing_new = bool(inp.decision.get("nothing_new"))
+    comp = await compute(c, case, list(inp.notices), inp.language)
+    if inp.case_changed and case.race_settings is not None:  # a new race: keep it reproducible
         await persist(c, case, comp, mileage={}, rates={}, estimates=False)
-    text, dropped = await write_answer(c, state, case, comp, nothing_new)
-    blocks, remembered = shown_answer(state, case, comp, nothing_new)
+    text, dropped = await write_answer(c, inp, case, comp, nothing_new)
+    blocks, remembered = shown_answer(inp, case, comp, nothing_new)
     if remembered:
         await save_case(c, case, [], publish=False)
     log_removed(c, "answer", dropped)
     await c.status("done", "Done")
-    return {"reply_text": text, "blocks": blocks, "action": "ANSWER_FROM_CONTEXT"}
+    return ReplyOut(reply_text=text, blocks=blocks, action="ANSWER_FROM_CONTEXT")
 
 
-async def general_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
-    c = ctx(runtime)
+@node("general", reads=GeneralIn, writes=ReplyOut, retry=Retry.PROVIDER)
+async def general_node(inp: GeneralIn, c: TurnContext) -> ReplyOut:
+    """ANSWER_GENERAL: a general question answered by the model from the last messages."""
     await c.status("composing", "Answering")
     hist = "\n".join(f"{m['role']}: {m['text'][:300]}" for m in (await history(c))[-4:])
     text = await c.ports.llm.text(
         "general",
-        c.ports.ref.prompts["general"].format(language=state.get("language", "en")),
-        f"{hist}\nuser: {state.get('user_text', '')}",
+        c.ports.ref.prompts["general"].format(language=inp.language),
+        f"{hist}\nuser: {inp.user_text}",
     )
     await c.status("done", "Done")
-    return {"reply_text": text, "blocks": [], "action": "ANSWER_GENERAL"}
+    return ReplyOut(reply_text=text, blocks=[], action="ANSWER_GENERAL")
 
 
 async def compute(c: TurnContext, case: CaseFile, notices: list[Notice], lang: str = "en") -> Computed:

@@ -9,8 +9,8 @@ from typing import Any
 
 from automind.chat.application.services.report.contracts import Computed
 from automind.chat.application.services.report.facts.car import short_name
+from automind.chat.dialog.nodes.report_io import ComposeIn
 from automind.chat.dialog.phrases import t
-from automind.chat.dialog.state import TurnState
 from automind.chat.domain.assessment import ask_value, profile_gaps
 from automind.chat.domain.case import CaseFile, Shown
 from automind.chat.domain.fingerprint import fingerprint
@@ -34,12 +34,12 @@ def shown_report(case: CaseFile, comp: Computed, lang: str | None, probes: Any) 
 
 
 def shown_answer(
-    state: TurnState, case: CaseFile, comp: Computed, nothing_new: bool
+    inp: ComposeIn, case: CaseFile, comp: Computed, nothing_new: bool
 ) -> tuple[list[dict[str, Any]], bool]:
     """The blocks an answer shows; True when the persona changed and the reordered report was remembered."""
     last = case.shown[-1].persona if case.shown else None
-    persona_changed = bool(state.get("persona_changed")) or (last is not None and last != case.persona)
-    blocks: list[dict[str, Any]] = [] if nothing_new else changed_blocks(state, comp.blocks, persona_changed)
+    persona_changed = bool(inp.persona_changed) or (last is not None and last != case.persona)
+    blocks: list[dict[str, Any]] = [] if nothing_new else changed_blocks(inp, comp.blocks, persona_changed)
     if persona_changed and not nothing_new:  # the reordered report was shown: later follow-ups are short again
         case.shown.append(Shown(turn_seq=len(case.shown) + 1, fingerprint=fingerprint(case),
                                 blocks=[b["type"] for b in blocks], persona=case.persona))  # fmt: skip
@@ -47,11 +47,11 @@ def shown_answer(
     return blocks, False
 
 
-def changed_blocks(state: TurnState, blocks: list[dict[str, Any]], persona_changed: bool) -> list[dict[str, Any]]:
+def changed_blocks(inp: ComposeIn, blocks: list[dict[str, Any]], persona_changed: bool) -> list[dict[str, Any]]:
     """For a weights change or a follow-up, show the recomputed scores (and warnings), not the whole report."""
     if persona_changed:
         return blocks  # a new persona sees the whole report in its own order (FR-030)
-    keep = {"criteria_scores"} if state.get("request_kind") == "weights_change" else {"criteria_scores", "race_chart"}
+    keep = {"criteria_scores"} if inp.request_kind == "weights_change" else {"criteria_scores", "race_chart"}
     return [b for b in blocks if b.get("type") in keep or (b.get("type") == "notice" and b.get("level") == "warning")]
 
 

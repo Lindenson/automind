@@ -12,8 +12,8 @@ from automind.chat.application.services.report.contracts import Computed
 from automind.chat.dialog import agents
 from automind.chat.dialog import tracing as outcomes
 from automind.chat.dialog.guard import check_numbers, drop_sentences, numbers_in, report_violations, violations_prompt
+from automind.chat.dialog.nodes.report_io import ComposeIn
 from automind.chat.dialog.phrases import t
-from automind.chat.dialog.state import TurnState
 from automind.chat.dialog.turn.context import TurnContext
 from automind.chat.domain.case import CaseFile
 from automind.shared.metering.usage import BudgetExceeded
@@ -21,44 +21,43 @@ from automind.shared.metering.usage import BudgetExceeded
 log = logging.getLogger(__name__)  # one logging stack: stdlib everywhere (spec 007 J, T079)
 
 
-async def write_report(c: TurnContext, state: TurnState, case: CaseFile, comp: Computed) -> str:
+async def write_report(c: TurnContext, inp: ComposeIn, case: CaseFile, comp: Computed) -> str:
     """The reporter's text for this report: checked numbers, no contradiction of the blocks, a critique's lead."""
     name = agents.prompt_name("reporter", case.persona)
     system = c.ports.ref.prompts[name].format(
-        persona=case.persona, case_summary=case_summary(case), language=state.get("language", "en")
+        persona=case.persona, case_summary=case_summary(case), language=inp.language
     )
     car_list = [x["variant"].label for x in comp.cars]
-    request = f"User message: {state.get('user_text', '')}\nCars: {json.dumps(car_list, ensure_ascii=False)}"
-    critique = state.get("request_kind") == "critique"
-    rescore = (state.get("decision") or {}).get("kind") == "RESCORE"
+    request = f"User message: {inp.user_text}\nCars: {json.dumps(car_list, ensure_ascii=False)}"
+    critique = inp.request_kind == "critique"
+    rescore = (inp.decision or {}).get("kind") == "RESCORE"
     if rescore:  # spec 007 FR-013: a panel edit; the blocks are recomputed, the text says only what changed
-        changes = "; ".join(str(x) for x in ((state.get("preset") or {}).get("changes") or [])) or "the profile"
+        changes = "; ".join(str(x) for x in ((inp.preset or {}).get("changes") or [])) or "the profile"
         request += (f"\nThe user changed in the case panel: {changes}. Do not write a full report. In 2-4 short "
                     "sentences say what this changed in the result: the weights, the scores and whether the winner "
                     "or the tie changed, and why, using only the facts.")  # fmt: skip
     if critique:  # spec 004 FR-021: rework with what the user disliked, and say what was done
-        request += (f"\nThe user criticised the previous report: \"{state.get('user_text', '')}\". Rework it: go "
+        request += (f"\nThe user criticised the previous report: \"{inp.user_text}\". Rework it: go "
                     "deeper on what they ask for, use every meaningful difference, never apologise.")  # fmt: skip
     text = await explain(c, "reporter", system, request, comp.facts)
     allowed = numbers_in(comp.facts) | numbers_in(comp.blocks) | numbers_in(case_summary(case))
     text, dropped = check_numbers(text, allowed, len(case.cars))
     text, fixed = await report_check(c, system, request, comp, text, allowed)
     log_removed(c, "report", dropped + fixed)
-    return critique_lead(state, state.get("language", "en")) + "\n\n" + text if critique else text
+    return critique_lead(inp, inp.language) + "\n\n" + text if critique else text
 
 
-async def write_answer(c: TurnContext, state: TurnState, case: CaseFile, comp: Computed,
+async def write_answer(c: TurnContext, inp: ComposeIn, case: CaseFile, comp: Computed,
                        nothing_new: bool) -> tuple[str, int]:  # fmt: skip
     """The answerer's text from the validated data (ANSWER_FROM_CONTEXT) and the sentences the checks removed."""
     facts = {"nothing_new": nothing_new, "case": case_summary(case), "variants": [x.label for x in case.cars],
              **comp.facts}  # fmt: skip
     await c.status("composing", "Answering from the validated data")
-    system = c.ports.ref.prompts["answerer"].format(language=state.get("language", "en"))
+    system = c.ports.ref.prompts["answerer"].format(language=inp.language)
     text = await c.ports.llm.text(
         "answerer",
         system,
-        f"User message: {state.get('user_text', '')}\n\nFacts JSON:\n"
-        + json.dumps(facts, ensure_ascii=False, default=str),
+        f"User message: {inp.user_text}\n\nFacts JSON:\n" + json.dumps(facts, ensure_ascii=False, default=str),
     )
     text, dropped = check_numbers(text, numbers_in(facts), len(case.cars))
     if comp.check is not None:  # chat 5821ac77: never "the costlier car saves" in a follow-up either
@@ -129,10 +128,10 @@ async def report_check(
     return (drop_sentences(again, still), dropped + len(still)) if still else (again, dropped)
 
 
-def critique_lead(state: TurnState, lang: str | None) -> str:
+def critique_lead(inp: ComposeIn, lang: str | None) -> str:
     """What was done about the critique, by code (never only an apology)."""
-    areas = sorted({str(r.get("area")) for r in state.get("research_results", []) if r.get("area")})
-    if state.get("research_done") and areas:
+    areas = sorted({str(r.get("area")) for r in inp.research_results if r.get("area")})
+    if inp.research_done and areas:
         return t("critique_researched", lang, areas=", ".join(areas))
-    what = " ".join(str(state.get("user_text") or "").split())[:80]
+    what = " ".join(str(inp.user_text or "").split())[:80]
     return t("critique_reworked", lang, what=what)

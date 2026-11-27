@@ -44,7 +44,12 @@ REGISTRY_CHANGES = Counter(P + "registry_changes_total", "Registry changes", ["c
 SNAPSHOTS = Counter(P + "snapshots_total", "Page snapshots written, by fetch status", ["status"])
 SNAPSHOT_BYTES = Counter(P + "snapshot_bytes_total", "Snapshot bytes, raw and stored (compressed)", ["kind"])
 
+GRAPH_CONTRACT_VIOLATIONS = Counter(P + "graph_contract_violation_total",
+                                    "Broken graph node contracts (spec 014), by node, state key and kind",
+                                    ["node", "key", "kind"])  # fmt: skip
+
 _COUNTERS: dict[str, Any] = {
+    "graph_contract_violations": GRAPH_CONTRACT_VIOLATIONS,
     "turns": TURNS, "turn_failures": TURN_FAILURES, "feedback": FEEDBACK, "wrong_values": WRONG_VALUES,
     "llm_calls": LLM_CALLS, "llm_errors": LLM_ERRORS, "search_calls": SEARCH_CALLS, "fetch": FETCH,
     "research_jobs": RESEARCH_JOBS, "registry_attempts": REGISTRY_ATTEMPTS, "registry_changes": REGISTRY_CHANGES,

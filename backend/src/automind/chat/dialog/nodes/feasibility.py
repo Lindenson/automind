@@ -11,10 +11,16 @@ import json
 import uuid
 from typing import Any
 
-from langgraph.runtime import Runtime
-
 from automind.chat.application.services.feasibility import feasibility as fz_app
-from automind.chat.dialog.context import ctx, load_case, save_case
+from automind.chat.dialog.context import load_case, save_case
+from automind.chat.dialog.contract import node
+from automind.chat.dialog.nodes.feasibility_io import (
+    AlternativesOut,
+    ApplyFeasibilityIn,
+    ApplyFeasibilityOut,
+    FeasibilityIn,
+    PrepareFeasibilityOut,
+)
 from automind.chat.dialog.phrases import t
 from automind.chat.dialog.state import TurnState
 from automind.chat.dialog.turn.context import TurnContext
@@ -32,13 +38,14 @@ def pending(case: CaseFile, data: dict[str, Any] | None) -> bool:
     return bool(fp) and case.feasibility_ack not in (fp, needs_ack(case))
 
 
-async def prepare_feasibility(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
-    c = ctx(runtime)
+@node("prepare_feasibility", reads=FeasibilityIn, writes=PrepareFeasibilityOut)
+async def prepare_feasibility(inp: FeasibilityIn, c: TurnContext) -> PrepareFeasibilityOut:
+    """The feasibility question: what does not fit, and the ways on (report anyway, look at used, alternatives)."""
     _, case = await load_case(c)
-    data = state.get("feasibility") or {}
+    data = inp.feasibility or {}
     if c.ports.feasibility is not None:  # None: the feasibility checks are off
         await fz_app.persist(c.ports.feasibility, c.chat_id, c.turn_id, case, data)
-    lang = state.get("language")
+    lang = inp.language
     lines = "\n".join(f"- {x}" for x in fz_app.problems(data))
     options = [{"id": "report", "label": t("feasibility_report", lang)}]
     budget_problem = any(
@@ -52,17 +59,19 @@ async def prepare_feasibility(state: TurnState, runtime: Runtime[TurnContext]) -
     await c.status("feasibility", "Checking the request against your budget and needs")
     payload = {"kind": "feasibility", "action": "FEASIBILITY", "request_id": str(uuid.uuid4()), "text": text,
                "options": options}  # fmt: skip
-    return {"confirm_payload": payload, "action": "FEASIBILITY"}
+    return PrepareFeasibilityOut(confirm_payload=payload, action="FEASIBILITY")
 
 
-async def apply_feasibility(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
-    c = ctx(runtime)
+@node("apply_feasibility", reads=ApplyFeasibilityIn, writes=ApplyFeasibilityOut)
+async def apply_feasibility(inp: ApplyFeasibilityIn, c: TurnContext) -> ApplyFeasibilityOut:
+    """The feasibility answer: typed words go to the interpreter; "used" looks at used cars; else acknowledged."""
     _, case = await load_case(c)
-    answer = state.get("resume") or {}
+    answer = inp.resume or {}
     choice = str(answer.get("choice") or "")
-    data = state.get("feasibility") or {}
+    data = inp.feasibility or {}
     if choice in ("text", "edit") or (not choice and answer.get("text")):
-        return {"user_text": answer.get("text") or "", "confirm_payload": None, "resume": None, "route": "interpret"}
+        return ApplyFeasibilityOut(user_text=answer.get("text") or "", confirm_payload=None, resume=None,
+                                   route="interpret")  # fmt: skip
     if choice == "used":
         case.budget = case.budget.model_copy(update={"intent": "USED"})
         over = {
@@ -74,20 +83,20 @@ async def apply_feasibility(state: TurnState, runtime: Runtime[TurnContext]) -> 
                 car.condition = "USED"
         case.feasibility_ack = needs_ack(case)
         await save_case(c, case, ["looking at used cars for the budget"])
-        return {"route": "assess", "confirm_payload": None, "resume": None}
+        return ApplyFeasibilityOut(route="assess", confirm_payload=None, resume=None)
     case.feasibility_ack = data.get("fingerprint")
     await save_case(c, case, ["feasibility answered: " + (choice or "report")], publish=False)
     if choice == "alternatives":
-        return {"route": "alternatives", "confirm_payload": None, "resume": None}
-    return {"route": "assess", "confirm_payload": None, "resume": None}
+        return ApplyFeasibilityOut(route="alternatives", confirm_payload=None, resume=None)
+    return ApplyFeasibilityOut(route="assess", confirm_payload=None, resume=None)
 
 
-async def alternatives(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
+@node("alternatives", reads=FeasibilityIn, writes=AlternativesOut)
+async def alternatives(inp: FeasibilityIn, c: TurnContext) -> AlternativesOut:
     """Suggest kinds of cars that would fit (labelled as suggestions; no numbers without validated data)."""
-    c = ctx(runtime)
     _, case = await load_case(c)
-    data = state.get("feasibility") or {}
-    lang = state.get("language") or "en"
+    data = inp.feasibility or {}
+    lang = inp.language or "en"
     user = (
         f"Language: {lang}\nUser's constraints: {'; '.join(fz_app.constraint_lines(case))}\n"
         f"Cars considered and why they do not fit:\n" + "\n".join(f"- {x}" for x in fz_app.problems(data)) +
@@ -96,7 +105,8 @@ async def alternatives(state: TurnState, runtime: Runtime[TurnContext]) -> dict[
     )  # fmt: skip
     system = c.ports.ref.prompts.get("general", "").format(language=lang)
     text = await c.ports.llm.text("general", system, user)
-    return {"reply_text": text.strip(), "blocks": [b for b in [fz_app.block(case, data)] if b], "action": "FEASIBILITY"}
+    return AlternativesOut(reply_text=text.strip(), blocks=[b for b in [fz_app.block(case, data)] if b],
+                           action="FEASIBILITY")  # fmt: skip
 
 
 def route_after_apply(state: TurnState) -> str:

@@ -7,6 +7,8 @@ _pg = Path(__file__).resolve().parents[2] / ".pgdata" / "pg"
 os.environ["DATABASE_URL"] = (
     os.environ.get("TEST_DATABASE_URL") or f"postgresql+asyncpg://postgres@/automind_test?host={_pg}"
 )
+# spec 014 T107: a broken graph node contract fails the test (production only logs and counts it)
+os.environ.setdefault("AUTOMIND_CONTRACT_STRICT", "1")
 
 import pytest  # noqa: E402
 

@@ -88,8 +88,7 @@ async def test_the_plan_the_person_declined_is_remembered_by_its_key() -> None:
     first = await _service(_History()).plan(PlanRequest(_case(), _assessed()))
     again = await _service(_History()).plan(PlanRequest(_case(declined_plan=first.plan_key), _assessed()))
     assert again.declined is True
-    state = again.to_state([])
-    assert state["research_plan"]["key"] == first.plan_key and "notices" not in state
+    assert again.plan_key == first.plan_key and not again.warnings
 
 
 async def test_a_research_history_that_cannot_be_read_fails_the_turn() -> None:

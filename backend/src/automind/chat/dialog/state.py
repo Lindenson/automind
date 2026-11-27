@@ -1,6 +1,7 @@
 """Graph state (data-model §6). The case file itself lives in the DB (versioned); state holds only
 workflow data and compact references. One persistent thread per chat, so per-turn keys are reset
-by `load_case` at the start of every turn."""
+by `load_case` at the start of every turn. Which node reads and writes which key: the node contracts
+(`chat.dialog.contract`, the `*_io` modules beside the nodes); who may write a key: `contract/owners.py`."""
 
 from __future__ import annotations
 
@@ -68,6 +69,7 @@ class TurnState(TypedDict, total=False):
     not_understood: list[str]  # car keys whose question the last message did not answer (spec 004 FR-031)
     picked: bool  # the message was one of the offered options, applied by code (spec 007 F)
     hops: int  # policy passes in this turn (spec 007 FR-027)
+    provider_down: bool  # the turn ended on a model-provider failure (set by the runner on the final state, spec 014)
 
 
 PER_TURN_RESET: dict[str, Any] = {

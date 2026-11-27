@@ -6,22 +6,35 @@ pr-self-check answered. Paths under `backend/src/automind/chat/dialog/` unless s
 
 ## C1 — `@node` over the flat keys (PR 1)
 
-- [ ] T101 `contract/` package: `Retry` (StrEnum PROVIDER | NONE), `ContractError`, `node(name, reads, writes, retry)`
+- [x] T101 `contract/` package: `Retry` (StrEnum PROVIDER | NONE), `ContractError`, `node(name, reads, writes, retry)`
   decorator (build In from state, call, check writes against owners, dump, trace — replaces `tracing.traced`),
   `owners.py` (key → owner node(s); reducer keys `notices`, `research_results` marked append-only).
-- [ ] T102 In/Out models for every node in `graph.NODES` and the five confirmations (prepare/wait/apply), over today's
+- [x] T102 In/Out models for every node in `graph.NODES` and the five confirmations (prepare/wait/apply), over today's
   keys; replaces `ReadState`/`AppliedState`/`AssessedState`/`PolicyState` and the 23 `dict[str, Any]` returns.
   Nodes stay ≤ 40 lines public; In/Out models live beside the node module (≤ 200 lines/module).
-- [ ] T103 Ad-hoc keys into `TurnState`: `provider_down` (turn/execution.py:114, verify) and any other the decorator
+- [x] T103 Ad-hoc keys into `TurnState`: `provider_down` (turn/execution.py:114, verify) and any other the decorator
   finds; `request_kind` gets one owner (interpret) — `apply_delta` stops writing it (verify nothing depends on the
   second write; if it does, document the case and keep it as a named field of `applied`).
-- [ ] T104 `graph.NODES` tuples → `node(...)` metadata (`retry=`); `build_graph` reads it; no bare bool.
-- [ ] T105 Tests: decorator unit tests (missing required key, foreign write, extra key); owners test (no two writers
+- [x] T104 `graph.NODES` tuples → `node(...)` metadata (`retry=`); `build_graph` reads it; no bare bool.
+- [x] T105 Tests: decorator unit tests (missing required key, foreign write, extra key); owners test (no two writers
   except reducers); shape test (every required input written on every path from START, from the types).
-- [ ] T106 `python -m automind.chat.dialog.contract` prints node · reads · writes · next; output committed as
+- [x] T106 `python -m automind.chat.dialog.contract` prints node · reads · writes · next; output committed as
   `specs/014-node-contracts/contract.md`; a test fails when it is stale.
-- [ ] T107 Production mode: violation → log (node, key, kind) + `graph_contract_violation_total`; tests: error
+- [x] T107 Production mode: violation → log (node, key, kind) + `graph_contract_violation_total`; tests: error
   (`AUTOMIND_CONTRACT_STRICT`, default on in tests).
+
+C1 done (PR `014-c1-node-contracts`). Findings: (1) T103 — the second write of `request_kind` is the one that
+counts: apply_delta settles the request in code (`choose_for_me` from the words, `compare` while an intake step is
+pending, the cars safety net), and policy, assess, after_research, the report and the turn record read the settled
+one. Nobody reads `request_kind` between interpret and apply_delta, and interpret's own request is inside its
+`interpretation`; so the one owner is **apply_delta** (it also writes it on its ask-back branch, where it equals the
+interpretation's), interpret no longer writes it — final values identical on every path. (2) Ad-hoc key:
+`provider_down` (turn/execution.py, read by turn/outcome.py) is now a `TurnState` key owned by the runner; the
+decorator found no other. (3) `case_version` is also written by load_case (not a reset key). (4) 15 keys keep several
+writers until a named step (owners.py `until`, pinned by a test): action, blocks, reply_text (C3 reply); confirm_payload,
+resume (C3 confirm); jobs, round, limit_hit (C3 research); not_understood, user_text (C3); case_version (C2); done,
+route (C4); cost_approved, research_declined (015 PL5). (5) What remains of `state.get` in `chat/dialog/nodes`: only
+the 10 router functions (`route_*`, `fan_out`, `route_policy`), deleted at C4 (T130).
 
 ## C2 — Case file once per turn (PR 2)
 

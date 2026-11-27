@@ -8,9 +8,9 @@ from automind.chat.application.services.identification.service import CarIdentif
 from automind.chat.application.services.report.blocks.notice import Notice, notice
 from automind.chat.dialog.context import record_intake
 from automind.chat.dialog.phrases import market_name, t
-from automind.chat.dialog.state import TurnState
 from automind.chat.dialog.turn.context import TurnContext
 from automind.chat.domain.case import CaseFile
+from automind.shared.contracts.json import JsonObject
 
 _RANK = {None: 0, "NEED": 1, "NOT_FOUND": 1, "CHOICES": 2, "IDENTIFIED": 3}  # how far an outcome got
 
@@ -36,16 +36,16 @@ async def car_notices(c: TurnContext, done: CarIdentified, lang: str | None) -> 
     return out
 
 
-async def still_not_understood(c: TurnContext, state: TurnState, case: CaseFile,
+async def still_not_understood(c: TurnContext, delta: JsonObject, open_keys: list[str], case: CaseFile,
                                before: dict[str, str | None]) -> list[str]:  # fmt: skip
-    """The cars whose answer is still not understood. An answer that made the identification better was understood,
-    even with the same make and model (R6); every car the answer touched is recorded as answered."""
+    """The cars whose answer is still not understood (`open_keys`: not understood before this message; `delta`: the
+    interpretation's delta). An answer that made the identification better was understood, even with the same make
+    and model (R6); every car the answer touched is recorded as answered."""
     improved = {k for k, b in before.items() if _RANK.get(case.car(k).identify.outcome if case.car(k).identify
                                                          else None, 0) > _RANK.get(b, 0)}  # fmt: skip
-    delta = (state.get("interpretation") or {}).get("delta") or {}
     touched = {x.get("target_key") for x in [*(delta.get("set_car_context") or []), *(delta.get("replace_cars") or [])]}
-    keys = [k for k in state.get("not_understood") or [] if k not in improved and k not in touched]
-    for k in sorted(touched | set(state.get("not_understood") or []) | improved):
+    keys = [k for k in open_keys if k not in improved and k not in touched]
+    for k in sorted(touched | set(open_keys) | improved):
         if k and any(x.key == k for x in case.cars):
             await record_intake(c, "ANSWERED", k, progress=k not in keys)
     return keys

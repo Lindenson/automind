@@ -2,8 +2,8 @@
 button sends instead of words (`Preset`), what reading and applying a message give back (`Reading`, `Applied`), and the
 port the service needs from the dialog — the reply words in the person's language (`ReplyWords`).
 
-`Preset` and the `*State` shapes are `TypedDict`s because they live in the graph state, which holds plain data only
-(code-shape.md "Dialog state"); `Reading` and `Applied` cross the node boundary through `to_state()`."""
+`Preset` is a `TypedDict` because it lives in the graph state, which holds plain data only (code-shape.md "Dialog
+state"); what `Reading` and `Applied` write into the turn state is the dialog's node contract (`dialog.nodes`)."""
 
 from __future__ import annotations
 
@@ -15,7 +15,6 @@ from pydantic import BaseModel, Field
 
 from automind.chat.domain.case import CaseDelta, CaseFile
 from automind.chat.domain.decision import RequestKind
-from automind.shared.contracts.json import JsonObject
 
 Relation = Literal["continues", "rephrase", "correction", "complaint", "thanks", "new_topic"]
 AskBack = Literal["rephrase", "which_car"]  # the phrase key of the question asked instead of applying the message
@@ -86,31 +85,6 @@ class Preset(TypedDict, total=False):
     option_id: str
 
 
-class ReadState(TypedDict, total=False):
-    """What reading a message writes into the turn state: the interpretation, or the question asked back (`done`)."""
-
-    interpretation: JsonObject  # `Interpretation` as JSON
-    request_kind: RequestKind
-    language: str | None
-    picked: bool
-    action: Literal["ASK"]
-    done: bool
-    reply_text: str
-
-
-class AppliedState(TypedDict, total=False):
-    """What applying a message writes into the turn state (`case_version` when the case was saved)."""
-
-    request_kind: RequestKind
-    not_understood: list[str]
-    case_version: int
-    case_changed: bool
-    persona_changed: bool
-    action: Literal["ASK"]
-    done: bool
-    reply_text: str
-
-
 @dataclass(frozen=True)
 class Reading:
     """One message read: the interpretation, or the question to ask back instead (`ask`, nothing applied).
@@ -120,21 +94,6 @@ class Reading:
     language: str | None
     picked: bool = False
     ask: AskBack | None = None
-
-    def to_state(self, reply_text: str) -> ReadState:
-        """The turn state update; `reply_text` is the question of `ask` in the person's language (unused otherwise)."""
-        if self.ask is not None:
-            asked: ReadState = {"action": "ASK", "done": True, "reply_text": reply_text}
-            if self.ask == "which_car":  # a car edit knows the chat's language; a failed reading keeps the turn's
-                asked["language"] = self.language
-            return asked
-        assert self.interpretation is not None  # a reading without a question always has its interpretation
-        i = self.interpretation
-        out: ReadState = {"interpretation": i.model_dump(mode="json"), "request_kind": i.request,
-                          "language": i.language}  # fmt: skip
-        if self.picked:
-            out["picked"] = True
-        return out
 
 
 @dataclass(frozen=True)
@@ -149,14 +108,6 @@ class Applied:
     not_understood: list[str] = field(default_factory=list)
     saved: bool = False
     ask: AskBack | None = None
-
-    def to_state(self, version: int | None) -> AppliedState:
-        """The turn state update; `version` is the case version saved (None when nothing was saved)."""
-        out: AppliedState = {"not_understood": self.not_understood, "request_kind": self.request}
-        if version is None:
-            return {**out, "case_changed": False}
-        persona = any(ch.startswith("persona:") for ch in self.changes)  # the report is recomputed for it
-        return {**out, "case_version": version, "case_changed": bool(self.changes), "persona_changed": persona}
 
 
 class ReplyWords(Protocol):

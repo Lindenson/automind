@@ -410,7 +410,6 @@ ignore|acquisition/replay/offline.py|no_network
 ignore|acquisition/snapshots/retention.py|run_snapshot_retention
 ignore|chat/application/services/interpretation/ask.py|intake_quick_replies.fresh
 ignore|chat/application/usecases/challenge.py|_signals
-ignore|chat/dialog/graph.py|build_graph
 ignore|chat/dialog/report_followup.py|profile_question
 ignore|chat/dialog/report_text.py|_trade_total
 ignore|chat/domain/assessment/ask_value.py|questions
@@ -560,7 +559,6 @@ lazy|observability/metrics/snapshot.py|_spend
 lazy|shared/infrastructure/config/loader.py|models
 lazy|shared/infrastructure/db/session.py|init_db
 lazy|shared/infrastructure/metrics/prom.py|SnapshotCollector.collect
-node|chat/dialog/nodes/confirm.py|apply_variants
 node|chat/dialog/nodes/confirm.py|ask_node
 node|chat/dialog/nodes/confirm.py|prepare_intake
 node|chat/dialog/nodes/confirm.py|prepare_variants
@@ -823,11 +821,6 @@ order|chat/dialog/nodes/research.py|prepare_limit
 order|chat/dialog/nodes/research.py|research_job
 order|chat/dialog/nodes/research.py|route_after_limit
 order|chat/dialog/nodes/research.py|route_round
-order|chat/dialog/nodes/understand.py|assess_node
-order|chat/dialog/nodes/understand.py|policy_node
-order|chat/dialog/nodes/understand.py|route_after_apply
-order|chat/dialog/nodes/understand.py|route_after_interpret
-order|chat/dialog/nodes/understand.py|route_policy
 order|chat/dialog/report_text.py|area_label
 order|chat/dialog/report_text.py|electric_lines
 order|chat/dialog/report_text.py|fmt

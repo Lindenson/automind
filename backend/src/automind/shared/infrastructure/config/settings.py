@@ -61,6 +61,9 @@ class Settings(BaseSettings):
     # Spend across all chats per day (Europe/Madrid): research pauses and asks "continue?" at it; 0 = no cap
     daily_cap_eur: float = 5.00
 
+    # spec 014 T107: a broken graph node contract raises (tests) or is logged and counted (production, for now)
+    contract_strict: bool = Field(default=False, validation_alias="AUTOMIND_CONTRACT_STRICT")
+
     frontend_dist: Path = ROOT / "frontend" / "dist"
     config_dir: Path = ROOT / "backend" / "config"
 
