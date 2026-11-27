@@ -200,6 +200,17 @@ blocks (a turn's message is fixed over several steps).
   `turn_understanding` record.
 - [ ] T055 `tests/graph/graph_shape.json` updated; checkpoint compatibility proved by `check_checkpoints.py` on prod
   blobs; g13–g15 fully green.
+- [ ] T056 I8 (finding A, chat d170b861 t5–t7): ask counters keyed by the car's identity (make, model, generation);
+  reset on a model change; the limit auto-pick and the "asked twice" note only for questions this identity was
+  asked. Unit test: car#1 Mercedes C-Class after two E-Class engine asks → the C-Class engine question is asked,
+  not auto-picked; a dialogue case in the golden set (g13 extension) for the same.
+- [ ] T057 I9 (finding B, chat d170b861 t9): relative generation words ("newer/older/такой же но новее/previous")
+  become a relation (`GenerationRelation`), resolved against the model's generations or asked ("already the
+  newest"); never `generation_hint` text. `vehicle_variants` gets only versions a source names (guard in the
+  variant store + unit test: a `LOOKED_UP` row whose key carries a relation word or an unsourced engine is
+  refused). Golden case: "такой же но более нового поколения" on a W206 → the "already the newest" answer.
+  Data repair (owner's yes 2026-11-27, backup first): remove `f28fe7f7…` with its dependents (evidence, claims,
+  spec_values, research_jobs/runs, page_relevance, review_items, …) in one transaction; chat d170b861 still opens.
 
 ## S6 — Complain / quit at every question (PR 7)
 

@@ -137,6 +137,15 @@ Invariants (each a unit test and a runtime check that blocks the transition and 
 - **I6 the person's evidence first**: a page the person sent is read first and the version must match it; LLM hints
   rank candidates, they never filter them; a contradiction asks.
 - **I7 every proposal carries its evidence** (source, which words of the person matched) — shown on the card.
+- **I8 attempts belong to the identity being asked about** (owner's chat d170b861, finding A): ask counters, the
+  "asked twice" limit and the auto-pick it triggers are keyed by the car's identity (make, model, generation), not
+  by the car slot; when the model changes (replace, correction, rejection) they start from zero, and no "asked
+  twice" note is shown for a question this identity was never asked (`ladder/steps.py` `decide(asks=…)`).
+- **I9 a relative generation is not a name** (finding B): "newer", "older", "такой же но новее", "the previous one"
+  are relations to a known generation — resolved against the model's generation list (or asked: "W206 is already
+  the newest; did you mean …?"), never stored as `generation_hint` text nor used to build a version. Nothing
+  enters `vehicle_variants` unless a source names that version (no `LOOKED_UP` row assembled from the person's
+  words plus a guess); an unverified candidate lives only in the identification trail.
 
 Strategies (sourced versions, catalogue rows, open world) remain, behind the `Fallback` protocol, but they return
 candidates to the state machine instead of a final outcome. The line-up is used only with a sanity gate (D4).
@@ -210,6 +219,10 @@ hash id on read; old clients sending button words are served as text with the op
 1. Order: S0 → S1 → S2 → … → S7, as in §F. "Делаем всё."
 2. Live eval of the golden set on the real model (≈ €1–2 per run): yes, on every prompt/schema/rule change and nightly.
 3. Line-ups with fewer than 5 models (or from a single news article) are removed, backup first; N = 5 in config.
+4. (2026-11-27) Findings A and B from the review of d170b861 join S5 as invariants I8 and I9 (T056, T057); the
+   invented row `vehicle_variants` `f28fe7f7…` ("C 200 DSG FWD", key `…|newer|c 200 dsg|mhev`) stays until T057:
+   ≈ 320 dependent rows in 12 tables (no cascade) and 4 case_files versions + 1 message of d170b861 point to it, so
+   T057 removes it with its dependents and proves the chat still opens (backup `automind-20261127-101515.sql.gz`).
 
 Execution: `tasks.md` (one phase = one PR).
 
