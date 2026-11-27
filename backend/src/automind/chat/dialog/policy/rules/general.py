@@ -1,24 +1,42 @@
-"""No car to compare yet: candidates when a need and a budget are known, else a general answer."""
+"""Stage GENERAL: no car to compare yet — candidates when a need and a budget are known, else a general answer."""
 
 from __future__ import annotations
 
-from automind.chat.dialog.policy.contracts import Situation
+from typing import ClassVar
+
+from automind.chat.dialog.policy.contracts import RuleOutcome, Situation, Stage, fire, skip
 from automind.chat.domain.case import CaseFile
-from automind.chat.domain.decision import Action
+from automind.chat.domain.decision import Action, PolicyConfig, RequestKind
+
+GENERAL_REQUESTS: frozenset[RequestKind] = frozenset({"general_question", "chitchat"})
 
 
-def candidates(s: Situation) -> Action | None:
-    """1. spec 007 US7: no car but a need and a budget → candidates, not a general text."""
-    if s.request not in ("general_question", "chitchat") and wants_candidates(s.case):
-        return Action(kind="SELECT_CANDIDATES", reason="no car named: a need and a budget")
-    return None
+class Candidates:
+    """No car but a need and a budget (or a make to choose from): propose candidates, not a general text."""
+
+    name: ClassVar[str] = "candidates"
+    stage: ClassVar[Stage] = Stage.GENERAL
+    requirement: ClassVar[str | None] = "spec 007 US7; 009 FR-022"
+
+    def check(self, s: Situation, cfg: PolicyConfig) -> RuleOutcome:
+        if s.request in GENERAL_REQUESTS:
+            return skip(self, "a general question or chitchat")
+        if not wants_candidates(s.case):
+            return skip(self, "a car named, or no need and budget")
+        return fire(self, Action.select_candidates("no car named: a need and a budget"))
 
 
-def general_answer(s: Situation) -> Action | None:
-    """1. A general question, chitchat, or a case without cars."""
-    if s.request in ("general_question", "chitchat") or not s.case.cars:
-        return Action(kind="ANSWER_GENERAL", reason="general question or no cars in the case")
-    return None
+class GeneralAnswer:
+    """A general question, chitchat, or a case without cars: a general answer."""
+
+    name: ClassVar[str] = "general_answer"
+    stage: ClassVar[Stage] = Stage.GENERAL
+    requirement: ClassVar[str | None] = "research R5 rule 1"
+
+    def check(self, s: Situation, cfg: PolicyConfig) -> RuleOutcome:
+        if s.request not in GENERAL_REQUESTS and s.case.cars:
+            return skip(self, "cars to compare")
+        return fire(self, Action.answer_general("general question or no cars in the case"))
 
 
 def wants_candidates(case: CaseFile) -> bool:

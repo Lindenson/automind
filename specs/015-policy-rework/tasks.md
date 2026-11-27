@@ -7,31 +7,43 @@ Order of merge: PL1 → PL2 → PL3 → PL5 → PL4 (spec §D7).
 
 ## PL1 — Skeleton without behaviour change (PR 1, now, beside 013 S2 / 014 C1)
 
-- [ ] T201 `dialog/policy/contracts.py`: `Stage` (StrEnum LIMITS | GENERAL | INTAKE | CONFIRM | RESEARCH | ANSWER),
+- [x] T201 `dialog/policy/contracts.py`: `Stage` (StrEnum LIMITS | GENERAL | INTAKE | CONFIRM | RESEARCH | ANSWER),
   `CarFacts` (today's `CarState` fields incl. `gearbox_mixed` + `key`), `Situation` (frozen, `extra="forbid"`, today's
   facts without defaults: request, cars, cost, last fingerprint, cost_approved, research_declined, case_changed,
   feasibility_pending, `pass_no`), `RuleOutcome`, `Decision`, `PolicyInputError`, `PolicyBug`.
   `domain/decision.py` → package `domain/decision/`; `PolicyConfig` (threshold, hard cap, `max_passes`, intake
   `Limits`; validator cap ≥ threshold) there. PL1 builds the config in the node from the same sources as today.
-- [ ] T202 Rules as classes, one module per stage (≤ 200 lines): the 10 rules of `policy/chain.py:27-38` (verify) +
+- [x] T202 Rules as classes, one module per stage (≤ 200 lines): the 10 rules of `policy/chain.py:27-38` (verify) +
   `AnswerOrReport` last, always firing, 1:1 logic; stable `name`, `stage`, `requirement`; `fire`/`skip`; `Action`
   factories; `RULES: Final` and `decide(s, cfg) -> Decision` in `dialog/policy/decide.py`; `PassLimit` fires at
   `pass_no == max_passes + 1`. Deleted: `chain.py`, `RulesInOrder`, `Policy`, the 14-argument `decide`, `MAX_HOPS`,
   `DEFAULT_*`; callers moved (`nodes/understand.py:105`, `backend/tests/graph/test_robustness.py`,
   `test_candidates.py`, `backend/tests/unit/chat/dialog/policy/*`). `word` lines of `intake_step` removed from
   `scripts/structure_baseline.txt`.
-- [ ] T203 `dialog/policy/routes.py`: `ROUTES` (ActionKind → `Route(node, Continuation)`; END / SUSPEND / LOOP as
+- [x] T203 `dialog/policy/routes.py`: `ROUTES` (ActionKind → `Route(node, Continuation)`; END / SUSPEND / LOOP as
   spec §D4); `graph.py` builds the policy router and path map from it; `route_policy` (`understand.py:132`) and
   `POLICY_ROUTES` (`graph.py:52`) deleted; test: `set(ROUTES) == set(get_args(ActionKind))`, every node exists in the
   built graph; `backend/tests/graph/graph_shape.json` unchanged.
-- [ ] T204 Tests (`backend/tests/unit/chat/dialog/policy/`): one situation builder; per rule a parametrized table
+- [x] T204 Tests (`backend/tests/unit/chat/dialog/policy/`): one situation builder; per rule a parametrized table
   (each branch fired with its action, skipped with its reason); order tests; an exception in a rule propagates;
   Hypothesis properties (no `PolicyBug`, trail ends with `decided_by`, limit pass is END); termination simulator
   (LOOP effects applied, SUSPEND/END end the turn, ≤ `max_passes + 1` passes).
-- [ ] T205 Regression: today's chain frozen as `backend/tests/unit/chat/dialog/policy/legacy_policy.py`; Hypothesis
+- [x] T205 Regression: today's chain frozen as `backend/tests/unit/chat/dialog/policy/legacy_policy.py`; Hypothesis
   compares `Action` minus `reason` on random valid situations — 10 000 in the PR run (paste the result), 500
   derandomized in `check.sh` (spec §H D10).
-- [ ] T206 import-linter contract `policy-pure` in `backend/.importlinter` (spec §D2 list); `lint-imports` green.
+- [x] T206 import-linter contract `policy-pure` in `backend/.importlinter` (spec §D2 list); `lint-imports` green.
+
+PL1 done (PR `015-pl1-policy-skeleton`). Findings: (1) `Situation` keeps `cost_estimate_eur: float` and the
+glued `research_declined` (declined or done) until PL2/PL5 — the Decimal rounding and `ResearchStatus` change
+decisions at the edges, so they wait for their steps; the node fills an unassessed car with today's empty `CarState`
+(identity known) — PL2's invariant replaces that. (2) `max_passes` comes from a new setting `policy_max_passes = 8`
+(the old code constant `MAX_HOPS`), read in the node with the thresholds; PL2 builds `PolicyConfig` once.
+(3) `Action` got one factory per kind; `CarFacts.of(key, CarState)`. (4) `word` debt: intake `StepKind` became a
+`StrEnum`, `_need` reads a table, the MODEL question compares with `tactic.NOT_FOUND` — structure 1406 → 1401.
+(5) Regression: 10 000 random situations, 0 differences (whole `Action` incl. `reason`); the generator mixes raw and
+settled cases so every branch of all 11 rules is reached; a mutation at the €0.30 threshold or the feasibility
+branch is caught by the 10 000 run and by the rule tables (the derandomized 500 of `check.sh` is a smoke run).
+(6) `DecisionState.kind` is typed `ActionKind`; the graph's policy edge is `route_of` over `ROUTES`.
 
 ## PL2 — One input and config (PR 2, after 014 C2)
 

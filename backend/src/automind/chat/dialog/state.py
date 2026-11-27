@@ -9,7 +9,7 @@ from typing import Annotated, Any, TypedDict
 
 from automind.chat.application.services.report.blocks.notice import Notice
 from automind.chat.application.services.research.contracts import JobResult, JobState, LimitHit, PlanState
-from automind.chat.domain.decision import RequestKind
+from automind.chat.domain.decision import ActionKind, RequestKind
 
 RESET = "__reset__"
 
@@ -24,7 +24,7 @@ def results(old: list[Any] | None, new: list[Any] | None) -> list[Any]:
 class DecisionState(TypedDict, total=False):
     """The policy's Action as stored in the graph state (plain data: the checkpoint never holds a class)."""
 
-    kind: str  # chat.domain.decision.ActionKind
+    kind: ActionKind
     questions: list[str]
     cars: list[str]
     nothing_new: bool

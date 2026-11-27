@@ -1,10 +1,11 @@
 """Policy additions for spec 003 US3 (T040): budget-intent question, FEASIBILITY before REPORT."""
 
-from automind.chat.dialog.policy import decide
 from automind.chat.domain.case import Budget, CaseCar, CaseDelta, CaseFile, Needs, RunningLimit, apply
 from automind.chat.domain.decision import CarState
 from automind.chat.domain.fingerprint import fingerprint
 from automind.shared.research_order.plan import CarToPlan, plan
+
+from .builder import act as decide
 
 FRESH = CarState(in_catalog=True, data_fresh=True)
 

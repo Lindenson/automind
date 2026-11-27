@@ -24,13 +24,13 @@ from automind.chat.dialog.nodes.understand_io import (
     PolicyOut,
 )
 from automind.chat.dialog.phrases import t
-from automind.chat.dialog.policy import decide
+from automind.chat.dialog.policy import CarFacts, Situation, decide
 from automind.chat.dialog.report_wording import WORDING
 from automind.chat.dialog.state import PER_TURN_RESET, DecisionState, TurnState
 from automind.chat.dialog.turn.context import TurnContext
 from automind.chat.domain import intake
 from automind.chat.domain.case import CaseFile
-from automind.chat.domain.decision import CarState
+from automind.chat.domain.decision import CarState, PolicyConfig
 from automind.shared.infrastructure.config.settings import settings
 
 
@@ -82,23 +82,9 @@ async def assess_node(inp: AssessIn, c: TurnContext) -> AssessOut:
 async def policy_node(inp: PolicyIn, c: TurnContext) -> PolicyOut:
     """The policy's decision for this pass over the case and the assessed cars (spec 007 FR-027: passes counted)."""
     _, case = await load_case(c)
-    s = settings()
     hops = int(inp.hops or 0)
-    action = decide(
-        case,
-        inp.request_kind or "compare",
-        {k: CarState.model_validate(a["state"]) for k, a in inp.assessments.items()},
-        cost_estimate_eur=inp.cost_estimate,
-        last_fingerprint=await c.ports.turns.last_report_fingerprint(c.chat_id),
-        cost_approved=bool(inp.cost_approved),
-        research_declined=bool(inp.research_declined or inp.research_done),
-        case_changed=bool(inp.case_changed),
-        feasibility_pending=fz_nodes.pending(case, inp.feasibility),
-        confirm_threshold_eur=s.cost_confirm_threshold_eur,
-        hard_cap_eur=s.cost_hard_cap_eur,
-        intake_limits=intake.Limits.from_config(c.ports.ref.search.get("intake") or {}),
-        hops=hops,
-    )
+    situation = _situation(inp, case, await c.ports.turns.last_report_fingerprint(c.chat_id), hops + 1)
+    action = decide(situation, _policy_config(c)).action
     decision = cast(DecisionState, action.model_dump(mode="json"))  # the Action as plain data, field for field
     return PolicyOut(decision=decision, action=action.kind, hops=hops + 1)
 
@@ -109,22 +95,6 @@ def route_after_interpret(state: TurnState) -> str:
 
 def route_after_apply(state: TurnState) -> str:
     return "end" if state.get("done") else "assess"
-
-
-def route_policy(state: TurnState) -> str:
-    return {
-        "ANSWER_GENERAL": "general",
-        "ASK": "ask",
-        "CONFIRM_VARIANTS": "prepare_variants",
-        "CONFIRM_COST": "prepare_cost",
-        "RESEARCH": "plan_research",
-        "ANSWER_FROM_CONTEXT": "answer",
-        "REPORT": "report",
-        "RESCORE": "report",  # spec 007: the report node recomputes and says what changed
-        "FEASIBILITY": "prepare_feasibility",
-        "CONFIRM_INTAKE": "prepare_intake",
-        "SELECT_CANDIDATES": "select_candidates",
-    }[state["decision"]["kind"]]
 
 
 def _service(c: TurnContext) -> InterpretationService:
@@ -139,3 +109,24 @@ def _plan_request(inp: AssessIn, case: CaseFile, cars: CarsAssessed) -> PlanRequ
         case, cars.assessments, research_more=more, focus=tuple(interp.get("focus_cars") or []),
         areas=tuple(interp.get("focus_areas") or []), shown=frozenset(n["text"] for n in inp.notices),
     )  # fmt: skip
+
+
+def _situation(inp: PolicyIn, case: CaseFile, last_fingerprint: str | None, pass_no: int) -> Situation:
+    """The facts of this pass as today (spec 015 PL1; PL2 moves this into `situation_from`): a car not assessed yet
+    gets the facts of an empty `CarState`, research done this turn counts as declined."""
+    facts = tuple(CarFacts.of(car.key, CarState.model_validate(inp.assessments[car.key]["state"])
+                              if car.key in inp.assessments else CarState()) for car in case.cars)  # fmt: skip
+    return Situation(
+        case=case, request=inp.request_kind or "compare", cars=facts, cost_estimate_eur=inp.cost_estimate,
+        last_fingerprint=last_fingerprint, cost_approved=bool(inp.cost_approved),
+        research_declined=bool(inp.research_declined or inp.research_done), case_changed=bool(inp.case_changed),
+        feasibility_pending=fz_nodes.pending(case, inp.feasibility), pass_no=pass_no,
+    )  # fmt: skip
+
+
+def _policy_config(c: TurnContext) -> PolicyConfig:
+    """The policy's config from the settings and `search.yaml intake` (spec 015 PL2 builds it once at startup)."""
+    s = settings()
+    return PolicyConfig(confirm_threshold_eur=s.cost_confirm_threshold_eur, hard_cap_eur=s.cost_hard_cap_eur,
+                        max_passes=s.policy_max_passes,
+                        intake=intake.Limits.from_config(c.ports.ref.search.get("intake") or {}))  # fmt: skip
