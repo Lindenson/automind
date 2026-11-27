@@ -1,6 +1,6 @@
 # Spec 015 — Action policy: one typed input, rules with outcomes, one routes table, a decision record per pass
 
-**Branch**: `015-policy-spec` · **Created**: 2026-11-27 · **Status**: Draft — awaiting owner's approval
+**Branch**: `015-policy-spec` · **Created**: 2026-11-27 · **Status**: Approved by the owner 2026-11-27 (§H, all proposals: "согласен")
 
 **Input**: the owner's policy spec "Спека: переделка политики действий (policy) — дизайн, надёжность, трассируемость"
 (2026-11-26), saved verbatim in `source-spec.md`; checked against the code on 2026-11-27 (§B, `coverage-audit.md` §A).
@@ -221,7 +221,7 @@ Acceptance:
 6. One owner of the policy trace: `policy_decisions` (this spec), if the owner agrees (§H D9); edits to 013/014 are
    listed in `coverage-audit.md` §E.
 
-## H. Decisions pending
+## H. Owner's decisions (2026-11-27 — every proposal approved as written)
 
 | # | Question | Proposal |
 |---|---|---|
