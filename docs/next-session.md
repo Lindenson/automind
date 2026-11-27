@@ -1,30 +1,45 @@
-# Next session: start here (2026-11-26: spec 013 Dialogue quality — approved, implement it step by step)
+# Next session: start here (2026-11-27: specs 013 + 014 + 015 approved, implement step by step)
 
-**First task: spec 013 — `specs/013-dialogue-quality/spec.md`, executed by `tasks.md` (one phase = one PR).**
-Owner approved it on 2026-11-26 ("да, делаем все"): order S0 → S1 → … → S7; live eval of the golden message set
-(≈ €1–2/run) on every prompt/schema/rule change and nightly; line-ups with < 5 models (or from one article) removed,
-backup first. Spec 012 (A4c onward) waits until S7 is merged. New code still follows the 012 code-shape contract.
+Three approved specs, one PR per step, merged to main without review; after each merged step that touches `src`:
+`scripts/deploy.sh up --monitoring`, replay the owner's chat live (cost ≈ €0.01–0.06; script below), show the
+result to the owner first. Spec 012 (A4c onward) waits until 013 S7. New code follows the 012 code-shape contract.
 
-**Spec 014 (node contracts, owner's critique §11) drafted 2026-11-26**: `specs/014-node-contracts/` — owner's
-approved 2026-11-26: C1–C2 now beside 013 S1–S2, C3 with 013 S4, C4 with 013 S5; VersionConflict → retry once.
+- **013 Dialogue quality** — `specs/013-dialogue-quality/` (source: `understanding-spec.md`, audit: `coverage-audit.md`).
+  Decisions G1–G11 approved (G4–G11 on 2026-11-27: understander = cheap fast model, ≤ +20 % p95; topic change =
+  goal naming other cars or stop; first goal only at S4, full at S4b; weekly misses script, owner confirms; no
+  per-chat switch; ANSWER_AND_REASK always; thresholds after baseline; 014 order kept).
+- **014 Node contracts** — `specs/014-node-contracts/` (approved 2026-11-26). C3 with 013 S4, C4 with 013 S5.
+- **015 Policy rework** — `specs/015-policy-rework/` (source: `source-spec.md`, audit: `coverage-audit.md`), approved
+  2026-11-27 with D1–D11 as proposed; cross-references E1–E10 applied to 013/014 (one owner per thing: the policy
+  trace is 015 `policy_decisions`, not 013 `policy_trail`; 013 T041 is written on 015's `Rule`/`Situation`).
 
-**Done: S1 (PR #137, 2026-11-26)** — deployed to pre-prod (`5702d35`); backup `backups/automind-20261126-210922.sql.gz`,
-purged the one bad line-up (Mercedes-Benz ES "Clase S"). Live replay of d170b861: C-Class kept (W206, asks fuel);
-still open: "отменяй поиск" not a stop (S4), CX-60 settled silently on turn 2 (S5 I5). Next: 013 S2 + 014 C1.
+**Done**
+- 013 S0a (T001–T003) g13–g17 red; **T004** (PR #145) understanding eval set, 148 cases ru 55 / es 46 / en 47
+  (`backend/tests/eval/understanding/`; stop cases expect `ANSWER_FROM_CONTEXT` until T041 names a stop action).
+- 013 S1 (PR #137), **S2** (PR #142): rejection memory on the car, verify before proposing, tactic change; g13 t2 S2
+  checks gate, its stop/settle parts stay strict `later:` known bugs.
+- **014 C1** (PR #144): `@node` + typed In/Out for all 32 nodes, owners registry, `contract.md`, differs 0.
+  `request_kind` single owner is `apply_delta` (not interpret — see tasks.md T103). Double writers pinned by test,
+  each with the step that removes it (C2/C3/C4/015 PL5).
+- Live miss 2026-11-27 (chat eb81dd90 t2): complaint read as `correction` + unchanged case → "nothing changed since
+  the last report" with no report → strict xfail `tests/unit/chat/dialog/policy/test_policy_known_bugs.py` (fix at S4).
+- Pre-prod runs main `a2677a8`+ (redeployed after C1); `check_checkpoints.py`: 0 module paths, 17 threads load.
 
-**Done: S0a (T001–T003)** — g13–g17 red (strict per-turn `known_bug`) in `backend/tests/golden/`, see tasks.md.
-**Open: T004–T006** need the understanding spec of 2026-11-26 (§4 old-label mapping, Intent/Goal/Reaction fields):
-it is not in the repo — ask the owner for it (or agree to derive it) before writing the eval set.
+**Next (agreed with the owner 2026-11-27)**
+1. **015 PL1** (rule skeleton, `ROUTES`, 10 000-case regression vs the old code) **in parallel with 014 C2**
+   (`ctx.case()`, `VersionConflict`, retry purity) — separate worktrees and test DBs.
+2. 013 T005 baseline run on the real model (≈ €1–2 — announce first), T006 nightly.
+3. 015 PL2 (after C2), PL3 (before S3); 013 S3 shadow; 015 PL5; then 013 S4 + 014 C3 + 015 PL4.
 
-Start was: S0 (T001–T006) — the owner's failed chats as red (strict xfail) dialogue scenarios in `backend/tests/golden/`
-and the understanding golden set + baseline run. Then S1 (stop the worst: no fuzzy/phonetic model jump, "нет" on the
-card never confirms, buttons send ids, line-up sanity + purge). After every merged step: redeploy pre-prod, replay
-the owner's chat live, show the result to the owner first.
-
-Key facts found 2026-11-26 (spec §B): in chat d170b861 the model understood "C-Class" both turns (case events 3, 14);
-the code (`MakeRegistry.match_model`: sound_key c-class == e-class, +5 bonus passes the `< 100` margin guard; Mercedes
-line-up = one model "Clase S") replaced it with E-Class. Typed "нет" on the intake card = `stop` = every proposed car
-CONFIRMED. No memory of rejections, no verification against the person's words, no stop intent.
+**Working notes**
+- Parallel agents: each in its own worktree AND its own test DB (`automind_test_<tag>` / `automind_mig_<tag>`, create
+  with `docker compose exec -T postgres createdb -U automind <db>`; pass `TEST_DATABASE_URL=…5433/automind_test_<tag>`).
+- Live replay script (scratchpad, recreate if gone): GET `/api/v1/chats` for the owner cookie, chat id = a new uuid4
+  (there is no POST), WebSocket `/ws/chat/<id>` with headers cookie + `origin: http://127.0.0.1:8090`, send
+  `{"type":"hello","last_seq":0}` then `{"type":"user_message","text":…}`, read until `usage`. Do not truncate the
+  text (a 900-char cut once looked like a bug). Owner's chat d170b861 messages: `chat_messages` where role='user'.
+- Still open in the owner's chat: "отменяй поиск" not a stop (S4); cars settled silently with guessed versions,
+  so a later message triggers a report with questions unanswered (bug 8, S5).
 
 The section below (§00) is the history that led to spec 013; §0 and later describe the parked refactoring.
 
