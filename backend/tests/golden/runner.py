@@ -24,6 +24,7 @@ from automind.chat.dialog.runner import ChatRunner, TurnResult
 from automind.chat.infrastructure.adapters import policy_config
 from automind.chat.infrastructure.events import EventBus
 from automind.chat.infrastructure.persistence.computations import ComputationRepo
+from automind.chat.infrastructure.persistence.decisions import DecisionRepo
 from automind.chat.infrastructure.persistence.repositories import (
     CaseRepo,
     EventRepo,
@@ -495,6 +496,7 @@ async def _run_dialogue(d: Dialogue, saver: Any, *, live: bool, record: bool) ->
         messages=MessageRepo(),
         computations=ComputationRepo(),
         research=EngineResearchHistory(),
+        decisions=DecisionRepo(),
         policy=policy_config(_settings(), ref.search),
         estimator=_estimator(live),
         feasibility=FeasibilityRepo(),

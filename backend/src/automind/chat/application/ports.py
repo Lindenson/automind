@@ -26,7 +26,7 @@ from automind.acquisition.api import (
     VersionsRead,
     WebHint,
 )
-from automind.chat.domain.decision import PolicyConfig
+from automind.chat.domain.decision import DecisionRecord, PolicyConfig
 from automind.chat.domain.identification.ladder import Generation
 from automind.chat.domain.intake import LineupModel
 from automind.chat.domain.turn import JobStatus, Role, TurnStatus
@@ -308,6 +308,25 @@ class OutcomeStore(Protocol):
         ...
 
 
+class DecisionLog(Protocol):
+    """The policy's passes (spec 015 D5; tables `policy_decisions`, `policy_configs`). Each method raises
+    `StoreUnavailable` when the store cannot be reached; the policy node logs and counts a failed write and the turn
+    goes on."""
+
+    async def record(self, rec: DecisionRecord, config: JsonObject) -> None:
+        """Store one pass, keyed by `(turn_id, pass_no)`: a pass written again replaces its row (a retried node
+        writes no duplicate). `config` (the JSON of `rec.config_hash`) is stored once per hash."""
+        ...
+
+    async def for_turn(self, turn_id: str) -> list[DecisionRecord]:
+        """The recorded passes of a turn, by pass number (empty: none)."""
+        ...
+
+    async def config(self, config_hash: str) -> JsonObject | None:
+        """The config stored under `config_hash` (None: unknown)."""
+        ...
+
+
 class AcquisitionPort(Protocol):
     """The acquisition engine bound to its ports (spec 011 contracts/acquire.md, strangler S8): the chat orders data
     and identity look-ups here and never searches, fetches or reads pages itself. Graph tests fake it. The models are
@@ -405,4 +424,5 @@ class Ports:
     models_on_sale: ModelsOnSale | None = None  # spec 007 US7: models known without a search; None: none
     versions: VersionsStore | None = None  # spec 008: versions of model generations; None: no ladder (fallback)
     outcomes: OutcomeStore | None = None  # spec 010 US1/US2; None: not recorded (test fakes)
+    decisions: DecisionLog | None = None  # spec 015 D5: the policy's passes; None: not recorded (test fakes)
     registry: SpecSources | None = None  # spec 010 US6-US8: the source registry; None: config order only

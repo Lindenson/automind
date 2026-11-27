@@ -1,4 +1,4 @@
-# Next session: start here (2026-11-27 eve: 015 PL2 merged; next 015 PL3 (owner's yes for the table), then 013 S3)
+# Next session: start here (2026-11-27 eve: 015 PL2 + PL3 merged; next 013 S3 shadow, then 015 PL5)
 
 Three approved specs, one PR per step, merged to main without review; after each merged step that touches `src`:
 `scripts/deploy.sh up --monitoring`, replay the owner's chat live (cost ≈ €0.01–0.06; script below), show the
@@ -67,15 +67,21 @@ result to the owner first. Spec 012 (A4c onward) waits until 013 S7. New code fo
   assessed_version) → log `policy.input_error` + `automind_policy_input_errors_total{field}` (strict in tests),
   fingerprint cached per run (`ctx.last_report_fingerprint()`), assess writes `feasibility_pending` +
   `assessed_version`, node `dialog/nodes/policy.py`. Regression 10 000: 0 differences; behaviour diff 0; structure
-  1390 → 1381. Watch the input-error metric on pre-prod for a week before strict (spec 015 acceptance).
+  1390 → 1381. Watch the input-error metric on pre-prod for a week before strict (spec 015 acceptance; owner agreed
+  2026-11-27: strict after a week at 0, i.e. not before 2026-12-04).
+- **015 PL3** (PR "015-pl3-decision-record"): `policy_decisions` + `policy_configs` (migration 0026, owner's yes,
+  90 days), `DecisionLog` / `DecisionRepo`, one row per pass, `policy.decided` log, `metrics/policy.py`, alert
+  `AutomindPolicyPassLimit`, retention step on the one API task, CLI
+  `docker compose exec app python -m automind.delivery.cli.policy why <turn_id> [--replay]` / `export <turn_id>`,
+  golden `tests/unit/chat/dialog/policy/golden/`. Decide `max_passes` from `automind_policy_passes_per_turn` two
+  weeks after (≈ 2026-12-11, §H D6).
 
 **Next (agreed with the owner 2026-11-27)**
 1. ~~015 PL1 ∥ 014 C2~~ done. Owner to decide: add findings A (reset attempt counters when a car's model changes)
    and B (a relative generation — "newer", "older", "такой же" — is never a generation name; nothing unverified
    enters `vehicle_variants`) to spec 013 S5; delete the invented row.
 2. ~~013 T005, T006~~ done. Owner: D1–D11 of spec 016 and whether N1 goes now.
-3. ~~015 PL2~~ done. 015 PL3 (before S3; needs the owner's yes for the `policy_decisions` table, spec §H D2);
-   013 S3 shadow; 015 PL5; then 013 S4 + 014 C3 + 015 PL4.
+3. ~~015 PL2, PL3~~ done. 013 S3 shadow; 015 PL5; then 013 S4 + 014 C3 + 015 PL4.
 
 **Working notes**
 - Parallel agents share the session scratchpad: give each its own log names (a `check.log` was overwritten once).

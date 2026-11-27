@@ -80,21 +80,33 @@ debt cleared on the way: structure 1390 → 1381. Behaviour diff vs main: differ
 
 ## PL3 — Decision record and "why" (PR 3, before 013 S3; spec §H D2 decided first)
 
-- [ ] T220 `DecisionRecord` (`domain/decision/`), port `DecisionLog` (`application/ports.py`: `record`, `for_turn`;
+- [x] T220 `DecisionRecord` (`domain/decision/`), port `DecisionLog` (`application/ports.py`: `record`, `for_turn`;
   raises `StoreUnavailable`), repository in `infrastructure/`; Alembic migration `policy_decisions` (key
   `(turn_id, pass_no)`, upsert) + `policy_configs` (by hash); both under `chat` in `scripts/table_owners.yaml`; the
   policy node writes one row per pass; a write error → ERROR log + `automind_policy_record_errors_total`, turn goes on
   (test drives it).
-- [ ] T221 `config_hash` (sha256 of the canonical JSON) and `rules_version` (hash of `RULES` names in order + package
+- [x] T221 `config_hash` (sha256 of the canonical JSON) and `rules_version` (hash of `RULES` names in order + package
   version), unit-tested for stability.
-- [ ] T222 Log line `policy.decided`; Prometheus `automind_policy_decisions_total{rule,action}`,
+- [x] T222 Log line `policy.decided`; Prometheus `automind_policy_decisions_total{rule,action}`,
   `automind_policy_passes_per_turn`, `automind_policy_pass_limit_total` (in `shared/infrastructure/metrics/prom.py`);
   alert on pass-limit growth in `deploy/prometheus/automind-rules.yml`.
-- [ ] T223 CLI `python -m automind.delivery.cli.policy why <turn_id> [--replay]` and `export <turn_id>` (YAML fixture;
+- [x] T223 CLI `python -m automind.delivery.cli.policy why <turn_id> [--replay]` and `export <turn_id>` (YAML fixture;
   user words in evidence and region masked); the renderer is a function `turn show` (013 T035) calls.
-- [ ] T224 Tests: round-trip `decide → record → read → decide` same action; repeated pass writes no duplicate;
+- [x] T224 Tests: round-trip `decide → record → read → decide` same action; repeated pass writes no duplicate;
   masking; exported fixtures load as golden situations (`backend/tests/unit/chat/dialog/policy/golden/`).
-- [ ] T225 Retention per spec §H D2 (daily delete of rows older than the agreed days).
+- [x] T225 Retention per spec §H D2 (daily delete of rows older than the agreed days).
+
+PL3 done (PR `015-pl3-decision-record`). Findings: (1) constitution XIII allows the API one background task, so the
+90-day delete is a step of the engine's `retention_loop(prune_decisions)` (chat code, chat table), not a second
+loop. (2) `prom.py` would pass 200 lines: the policy's metrics live in `shared/infrastructure/metrics/policy.py`
+(`decided`, `passes`, `input_error`, `record_error`, `metric_names`); `automind_policy_passes_per_turn` is observed
+by the turn outcome (final `hops`), not by the node. (3) `rules_version()` is a cached function (sha256 of the rule
+names in order + the package version), `config_hash` the sha256 of the canonical config JSON. (4) `export` masks
+every string under `request_text`, `evidence`, `region`, `region_code`; the masked situation decides the same
+(test). Golden: `golden/synthetic.yaml` (6 passes: report, confirm cost, research, over cap, unknown car, pass
+limit). (5) Chat deletion removes the chat's passes (`CHAT_SCOPED`); `policy_configs` stay (no user data). (6) The
+behaviour diff cannot run main on a test DB at 0026: compared against main + the migration and models only —
+differs 0.
 
 ## PL5 — Honest facts (PR 4, after 013 S3, before 013 S4)
 

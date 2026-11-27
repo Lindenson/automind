@@ -43,7 +43,10 @@ async def test_lifespan_creates_only_the_retention_task(monkeypatch: pytest.Monk
         started.append(coro.__qualname__)
         return real(coro, **kw)
 
-    async def retention_loop() -> None:
+    steps: list[Any] = []
+
+    async def retention_loop(*more: Any) -> None:
+        steps.extend(more)
         await asyncio.sleep(3600)
 
     monkeypatch.setattr(app_mod.db, "init_db", _nothing)
@@ -58,6 +61,8 @@ async def test_lifespan_creates_only_the_retention_task(monkeypatch: pytest.Monk
     monkeypatch.setattr(app_mod.asyncio, "create_task", spy)
     async with app_mod.lifespan(FastAPI()):
         assert started == ["test_lifespan_creates_only_the_retention_task.<locals>.retention_loop"]
+        await asyncio.sleep(0)
+        assert [s.__name__ for s in steps] == ["prune_decisions"]  # the chat's step rides the one task (spec 015)
 
 
 def test_the_api_no_longer_imports_the_moved_loops():

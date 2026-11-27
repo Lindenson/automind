@@ -601,6 +601,34 @@ class IntakeEvent(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
 
 
+class PolicyDecisionRow(Base):
+    """One pass of the dialog's policy (spec 015 D5): the situation without the case, the trail and the action."""
+
+    __tablename__ = "policy_decisions"
+    __table_args__ = (PrimaryKeyConstraint("turn_id", "pass_no"),)
+    turn_id: Mapped[str] = mapped_column(String(36))
+    pass_no: Mapped[int] = mapped_column(SmallInteger)
+    chat_id: Mapped[str] = mapped_column(String(36), index=True)
+    case_version: Mapped[int] = mapped_column(Integer)
+    situation: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    config_hash: Mapped[str] = mapped_column(String(64))
+    rules_version: Mapped[str] = mapped_column(String(64))
+    trail: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
+    decided_by: Mapped[str] = mapped_column(String(40))
+    action: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    next_node: Mapped[str] = mapped_column(String(40))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, index=True)
+
+
+class PolicyConfigRow(Base):
+    """A policy config by the sha256 of its canonical JSON (spec 015 D5)."""
+
+    __tablename__ = "policy_configs"
+    config_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    config: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+
+
 # --- Deterministic computations stored per turn for reproducibility (data-model §5) -----------
 
 

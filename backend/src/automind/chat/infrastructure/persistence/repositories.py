@@ -36,6 +36,7 @@ from automind.shared.infrastructure.db.models import (
     Feedback,
     IntakeEvent,
     LLMCall,
+    PolicyDecisionRow,
     ReportRating,
     ResearchJob,
     ResearchRun,
@@ -55,7 +56,7 @@ from automind.shared.infrastructure.db.session import sessionmaker
 
 class ChatRepo:
     CHAT_SCOPED = (ChatMessage, CaseFileRow, TurnEvent, ResearchJob, LLMCall, SearchCall, FeasibilityCheck,
-                   ReportRating, ValueChallenge, IntakeEvent, TurnOutcome, Feedback)  # fmt: skip
+                   ReportRating, ValueChallenge, IntakeEvent, TurnOutcome, Feedback, PolicyDecisionRow)  # fmt: skip
 
     async def is_deleted(self, chat_id: str) -> bool:
         async with sessionmaker()() as s:
