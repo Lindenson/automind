@@ -157,6 +157,23 @@ groups:
           summary: 'Background loop {{ $labels.loop }} has not succeeded for {{ $value | humanizeDuration }}'
           admin: /admin
 
+      # spec 013 T006: the nightly understanding eval (host cron, scripts/eval_understanding.sh) stopped
+      - alert: AutomindUnderstandingEvalStale
+        expr: time() - automind_understanding_eval_last_run_timestamp_seconds > 36 * 3600
+        for: 30m
+        labels: { severity: warning }
+        annotations:
+          summary: 'The nightly understanding eval has not finished for {{ $value | humanizeDuration }} (cron log: eval-runs/understanding/cron.log)'
+          admin: /admin
+
+      - alert: AutomindUnderstandingEvalErrors
+        expr: automind_understanding_eval_errors > 5
+        for: 0m
+        labels: { severity: warning }
+        annotations:
+          summary: '{{ $value }} cases of the last understanding eval failed to run (provider or budget)'
+          admin: /admin
+
       - alert: AutomindLoopFailing
         expr: automind_loop_fails_in_row >= 2
         for: 0m

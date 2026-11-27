@@ -29,6 +29,7 @@ EXPECTED = {
     "AutomindAccuracyDrop", "AutomindSearchesPerValueUp",  # spec 011 US3 (T075)
     "AutomindParserDrift",  # spec 011 US4 (T089)
     "AutomindChangeRolledBack", "AutomindAgentBudgetExhausted",  # spec 011 US5 (T110)
+    "AutomindUnderstandingEvalStale", "AutomindUnderstandingEvalErrors",  # spec 013 T006
 }  # fmt: skip
 INFO = {"AutomindChangeRolledBack", "AutomindAgentBudgetExhausted"}  # information only (spec 011 T110)
 

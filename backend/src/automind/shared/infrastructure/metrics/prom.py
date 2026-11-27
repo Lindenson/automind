@@ -13,11 +13,15 @@ import contextlib
 import logging
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from prometheus_client import REGISTRY, Counter, Histogram, disable_created_metrics
 from prometheus_client.core import GaugeMetricFamily
 from prometheus_client.registry import Collector
+
+from automind.shared.infrastructure.config.settings import settings
+from automind.shared.infrastructure.metrics import understanding_eval
 
 log = logging.getLogger(__name__)
 
@@ -122,6 +126,7 @@ GAUGES: dict[str, tuple[str, tuple[str, ...]]] = {
     "snapshot_store_bytes": ("Stored (compressed) bytes of page snapshot bodies", ()),
     "gold_values": ("Gold values by dataset", ("dataset",)),
     "claims_without_producer": ("Claims whose producer version is unknown (should be 0, SC-002)", ()),
+    **understanding_eval.GAUGES,  # spec 013 T006: the nightly eval, read from its summary file at scrape time
 }
 
 
@@ -149,6 +154,7 @@ class SnapshotCollector(Collector):
         values = dict(_LAST.values)
         for name, rows in heartbeat.samples().items():
             values[name] = rows
+        values |= understanding_eval.samples(Path(settings().understanding_eval_summary))
         for name, (help_, labels) in GAUGES.items():
             fam = GaugeMetricFamily(P + name, help_, labels=list(labels))
             for lv, v in values.get(name, []):

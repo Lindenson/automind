@@ -30,6 +30,7 @@ from automind.chat.domain.decision import PolicyConfig
 from automind.delivery.bootstrap import configure_domain, reference
 from automind.shared.infrastructure.config.settings import settings
 from automind.shared.infrastructure.llm import gateway
+from automind.shared.infrastructure.metrics.understanding_eval import EvalSummary
 from automind.shared.metering.usage import current_budget
 from tests.eval.understanding.coverage import categories
 from tests.eval.understanding.fixture_models import Fixtures, load_fixtures
@@ -188,11 +189,28 @@ def _dump(results: list[Result], path: Path) -> None:
     path.write_text(json.dumps(rows, ensure_ascii=False, indent=1), encoding="utf-8")
 
 
+def summary(results: list[Result], ceiling: list[Result], when: datetime) -> EvalSummary:
+    """The nightly summary the app exports as gauges (`shared.infrastructure.metrics.understanding_eval`)."""
+    lat = sorted(r.observed.latency_ms for r in results if r.observed and r.observed.model_called)
+    return EvalSummary(
+        finished_at=when.timestamp(), model=gateway.model_name("interpreter"), cases=len(_scores(results)),
+        errors=sum(1 for r in results if r.error), cost_eur=round(sum(r.cost_eur for r in results), 4),
+        latency_p95_ms=_pct(lat, 95), accuracy=_shares(_scores(results)), ceiling=_shares(_scores(ceiling)),
+    )  # fmt: skip
+
+
+def _shares(scores: list[Score]) -> dict[str, float]:
+    out = {f: sum(v) / len(v) for f in FIELDS if (v := [s.fields[f] for s in scores if f in s.fields])}
+    out["all"] = sum(s.ok for s in scores) / len(scores) if scores else 0.0
+    return {k: round(v, 4) for k, v in out.items()}
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--ids", default="", help="comma-separated case ids (default: all)")
     ap.add_argument("--limit", type=int, default=0)
     ap.add_argument("--out", type=Path, default=OUT)
+    ap.add_argument("--summary", type=Path, default=None, help="also write the nightly summary JSON here")
     ap.add_argument("--ceiling-only", action="store_true", help="only the free oracle run (no model call)")
     a = ap.parse_args()
     fx, cases = load_fixtures(), load_cases()
@@ -205,6 +223,8 @@ def main() -> None:
     results = ceiling if a.ceiling_only else asyncio.run(run(cases, fx, _Gateway()))
     a.out.write_text(report(results, fx, datetime.now(UTC), ceiling), encoding="utf-8")
     _dump(results, a.out.with_suffix(".json"))
+    if a.summary is not None:
+        a.summary.write_text(summary(results, ceiling, datetime.now(UTC)).model_dump_json(indent=1), encoding="utf-8")
     done = [r for r in results if r.score]
     print(
         f"cases {len(results)} scored {len(done)} all-ok {sum(r.score.ok for r in done)} "  # type: ignore[union-attr]
