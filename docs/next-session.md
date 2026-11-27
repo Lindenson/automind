@@ -1,4 +1,4 @@
-# Next session: start here (2026-11-27 eve: 015 PL2 + PL3 merged; next 013 S3 shadow, then 015 PL5)
+# Next session: start here (2026-11-27 eve: 015 PL2 + PL3, 016 N1 merged; next 013 S3 shadow, then 015 PL5)
 
 Three approved specs, one PR per step, merged to main without review; after each merged step that touches `src`:
 `scripts/deploy.sh up --monitoring`, replay the owner's chat live (cost ≈ €0.01–0.06; script below), show the
@@ -60,7 +60,15 @@ result to the owner first. Spec 012 (A4c onward) waits until 013 S7. New code fo
 - Mistake: `git add -A backend` committed the owner's `chat.zip` in #153 (public repo; an old copy of `chat/`
   sources, no secrets found); removed + gitignored in #154, file restored on disk byte-identical. Still in history
   (56d69f3): purging needs a force-push of main — owner's call. Never `git add -A` a directory with chat.zip.
-- Spec 016 merged as a draft (#151); D1–D11 still "proposed".
+- Spec 016 merged as a draft (#151); D1–D11 approved by the owner on 2026-11-27 as proposed (D3: yes).
+- **016 N1** (PR "016-n1-guard-fixes"): old guard fixed — numbers equal at the written precision, metric names cut,
+  no figures from engine codes or "€3.550", one sentence splitter (no fragments), topic words for every insight
+  attribute, tie winner by aliases, rewrite failures narrowed, answers run all four rules, a quiet removal notice.
+  §1 table: 205 hp, "400 €", "4 %", reliability "no data"/"better", "лучший выбор — Prado" now caught; the year as a
+  price, words for numbers, ratios/percentages wait for N2. N2–N5 after 013 S7.
+- chat.zip purge: owner said yes, but the repo ruleset `safe_main` (all branches: no deletion, no non-fast-forward,
+  no bypass) blocks a force-push; the owner disables it for the purge or keeps the file in history. Even after a
+  purge, GitHub keeps PR #153's refs (support request to remove cached views).
 
 - **015 PL2** (PR "015-pl2-one-input"): `Ports.policy` built once at startup (`adapters.policy_config`, Decimal money,
   `strict_inputs` = `AUTOMIND_POLICY_STRICT`), `dialog/policy/situation.py` `situation_from` with invariants (cars,

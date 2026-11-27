@@ -261,7 +261,7 @@ splitter for all three places; model codes in labels never feed the bag; the use
 5. Autonomy boundary: the judge's and the writer's models change only in `models.yaml` by a human (the engine's
    gated overrides cover engine roles only, `backend/config/agents.yaml:55-60`).
 
-## H. Owner's decisions (proposed, awaiting the owner)
+## H. Owner's decisions (2026-11-27 — every proposal approved as written; D3: yes, the quiet notice also for N1)
 
 | # | Question | Proposal |
 |---|---|---|
