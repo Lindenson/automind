@@ -163,6 +163,9 @@ blocks (a turn's message is fixed over several steps).
   reason names the goal and the rule; the bot's question names its reason ("Чтобы сравнить, нужен год Prado"); several
   goals: those without preconditions first, then the first one with preconditions (staging per G6). The trail is `Decision.trail`
   in `policy_decisions` (015 T220), not a `turn_understanding` field.
+  Also fixes the live miss of 2026-11-27 (chat eb81dd90 t2): a complaint/correction with an unchanged case and no
+  report yet answered "nothing changed since the last report" — remove the strict xfail
+  `tests/unit/chat/dialog/policy/test_policy_known_bugs.py`.
 - [ ] T042 `apply_*` confirmation nodes and `research.apply_limit` take a ready `PendingAnswer` / `UiAction`; text
   always via `understand`. Word lists in `phrases.py` (`_YES/_NO/_CHOOSE/_GO`, `yes_or_no`, `choose_for_me`,
   `go_ahead`) only in the degraded mode (model down) and only on an exact whole-phrase match; no match → the soft
