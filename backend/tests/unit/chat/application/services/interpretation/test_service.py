@@ -60,7 +60,6 @@ async def test_an_unreadable_model_answer_is_asked_back() -> None:
     service, _ = _service(answer=None)
     reading = await service.read(_case(), [], "something odd", None)
     assert reading.ask == "rephrase" and reading.interpretation is None
-    assert reading.to_state("Please rephrase") == {"action": "ASK", "done": True, "reply_text": "Please rephrase"}
 
 
 async def test_a_model_answer_naming_an_unknown_car_is_asked_back() -> None:
@@ -87,9 +86,7 @@ async def test_an_edit_of_an_unknown_car_asks_which_car_and_logs_nothing() -> No
     service, log = _service(answer=None)
     reading = await service.read(_case(), [], "", {"kind": "car_edit", "car_key": "car#7", "field": "remove",
                                                    "language": "es"})  # fmt: skip
-    assert reading.ask == "which_car" and not log.events
-    assert reading.to_state("¿Qué coche?") == {"action": "ASK", "done": True, "reply_text": "¿Qué coche?",
-                                               "language": "es"}  # fmt: skip
+    assert reading.ask == "which_car" and not log.events and reading.language == "es"
 
 
 def test_a_delta_for_an_unknown_car_applies_nothing() -> None:
@@ -104,9 +101,8 @@ def test_an_applied_message_says_what_changed() -> None:
     i = Interpretation(request="compare", language="en")
     applied = service.apply(ApplyRequest(_case(), i, "I live in the south of Spain", picked=False, year=2026))
     assert applied.saved and applied.case.profile.region_code == "SOUTH"
-    state = applied.to_state(5)
-    assert state["case_version"] == 5 and state["case_changed"] is True and state["persona_changed"] is False
-    assert applied.to_state(None) == {"not_understood": [], "request_kind": "compare", "case_changed": False}
+    assert applied.changes and not any(ch.startswith("persona:") for ch in applied.changes)
+    assert applied.request == "compare" and applied.not_understood == []
 
 
 @pytest.mark.parametrize("text", ["any", "любой", "cualquiera"])

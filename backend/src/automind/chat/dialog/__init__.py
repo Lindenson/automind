@@ -7,6 +7,7 @@ Owns:
   `policy` — which action a pass takes: an ordered chain of rules behind the `Policy` protocol;
   `confirmation` — the prepare → wait → apply pattern, defined once, configured five times;
   `state` — the turn state (plain data: TypedDicts, never classes in a checkpoint);
+  `contract` — the `@node` decorator: each node's typed input and output, the owners of each state key (spec 014);
   `nodes` — the graph nodes; `context` — what a node reads from the runtime (ports, case load/save);
   `runner` — `ChatRunner`: what a message does (start / answer / replace / busy), one task per chat, cancel, restart;
   `turn` — the turn's life apart from the dialog logic: entry table, execution, endings (exception → plain answer),
@@ -26,6 +27,7 @@ __all__ = [
     "agents",
     "confirmation",
     "context",
+    "contract",
     "graph",
     "guard",
     "nodes",

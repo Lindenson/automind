@@ -11,15 +11,30 @@ from __future__ import annotations
 
 import time
 import uuid
-from typing import Any
 
-from langgraph.runtime import Runtime
 from langgraph.types import Send
 
 from automind.chat.application.services.research import rounds
-from automind.chat.application.services.research.contracts import JobState, LimitHit
+from automind.chat.application.services.research.contracts import LimitHit
 from automind.chat.application.services.research.service import ResearchService
-from automind.chat.dialog.context import ctx, load_case, record_intake, save_case
+from automind.chat.dialog.context import load_case, record_intake, save_case
+from automind.chat.dialog.contract import node
+from automind.chat.dialog.nodes.confirm_io import ConfirmOut
+from automind.chat.dialog.nodes.research_io import (
+    AfterResearchIn,
+    AfterResearchOut,
+    ApplyLimitIn,
+    ApplyLimitOut,
+    CollectRoundIn,
+    CollectRoundOut,
+    LimitIn,
+    NothingIn,
+    NothingOut,
+    PlanResearchIn,
+    PlanResearchOut,
+    ResearchJobIn,
+    ResearchJobOut,
+)
 from automind.chat.dialog.phrases import t, yes_or_no
 from automind.chat.dialog.report_wording import WORDING
 from automind.chat.dialog.state import RESET, TurnState
@@ -30,15 +45,16 @@ def _service(c: TurnContext) -> ResearchService:
     return ResearchService(c.ports, c.budget, c, c.chat_id, c.turn_id)
 
 
-async def plan_research(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
-    c = ctx(runtime)
-    keys = set(state["decision"]["cars"])
-    plan = [j for j in rounds.plan_of(state.get("research_plan")).jobs if j.car_key in keys]
+@node("plan_research", reads=PlanResearchIn, writes=PlanResearchOut)
+async def plan_research(inp: PlanResearchIn, c: TurnContext) -> PlanResearchOut:
+    """The research jobs of the plan for the cars the policy chose, created as rows (a restart never reruns one)."""
+    keys = set(inp.decision["cars"])
+    plan = [j for j in rounds.plan_of(inp.research_plan).jobs if j.car_key in keys]
     await c.status("researching", f"Researching {len(keys)} car(s): {', '.join(sorted({j.area for j in plan}))}")
     _, case = await load_case(c)
     await record_intake(c, "RESEARCH_STARTED", all_confirmed=all(x.resolution in ("CONFIRMED", "AUTO_OK")
                                                                  for x in case.cars if x.key in keys))  # fmt: skip
-    return {"jobs": await _service(c).create(case, plan), "round": 0, "research_results": [RESET]}
+    return PlanResearchOut(jobs=await _service(c).create(case, plan), round=0, research_results=[RESET])
 
 
 def fan_out(state: TurnState) -> list[Send] | str:
@@ -46,24 +62,26 @@ def fan_out(state: TurnState) -> list[Send] | str:
     return sends or "after_research"
 
 
-async def research_job(job: JobState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
-    c = ctx(runtime)
+@node("research_job", reads=ResearchJobIn, writes=ResearchJobOut, sent=True)
+async def research_job(inp: ResearchJobIn, c: TurnContext) -> ResearchJobOut:
+    """One job (car × area) run by a parallel worker; its result is appended to the round's results."""
     _, case = await load_case(c)
-    return {"research_results": [await _service(c).run_job(job, case)]}
+    return ResearchJobOut(research_results=[await _service(c).run_job(inp.job(), case)])
 
 
-async def collect_round(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
-    c = ctx(runtime)
-    results = state.get("research_results", [])
-    hit = rounds.limit_hit(results, {j["job_id"] for j in state.get("jobs", [])})
+@node("collect_round", reads=CollectRoundIn, writes=CollectRoundOut)
+async def collect_round(inp: CollectRoundIn, c: TurnContext) -> CollectRoundOut:
+    """The round's results: a limit pauses the research; areas below their minimum get a follow-up round."""
+    results = inp.research_results
+    hit = rounds.limit_hit(results, {j["job_id"] for j in inp.jobs})
     if hit is not None:  # a limit was reached in this round: ask the user (continue or answer with what exists)
-        return {"jobs": [], "limit_hit": hit}
-    gaps = rounds.gaps(state.get("research_plan"), results, int(state.get("round", 0)))
+        return CollectRoundOut(jobs=[], limit_hit=hit)
+    gaps = rounds.gaps(inp.research_plan, results, int(inp.round))
     if not gaps:
-        return {"jobs": []}
+        return CollectRoundOut(jobs=[])
     await c.status("followup", f"Follow-up research for {len(gaps)} area(s) below their minimum")
     _, case = await load_case(c)
-    return {"jobs": await _service(c).create(case, gaps), "round": int(state.get("round", 0)) + 1}
+    return CollectRoundOut(jobs=await _service(c).create(case, gaps), round=int(inp.round) + 1)
 
 
 def route_round(state: TurnState) -> str:
@@ -72,12 +90,12 @@ def route_round(state: TurnState) -> str:
     return "next_round" if state.get("jobs") else "after_research"
 
 
-async def prepare_limit(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
+@node("prepare_limit", reads=LimitIn, writes=ConfirmOut)
+async def prepare_limit(inp: LimitIn, c: TurnContext) -> ConfirmOut:
     """Research paused at a limit: offer to continue with one more allowance, or answer now."""
-    c = ctx(runtime)
-    hit = state.get("limit_hit") or LimitHit(reasons=[], jobs=[])
+    hit = inp.limit_hit or LimitHit(reasons=[], jobs=[])
     b = c.budget
-    lang = state.get("language")
+    lang = inp.language
     reasons = ", ".join(t(f"limit_{r}", lang) for r in hit.get("reasons", []))
     minutes = (time.monotonic() - b.started) / 60
     text = t("limit_reached", lang, reasons=reasons, eur=f"{b.cost_eur:.2f}", calls=b.calls,
@@ -96,32 +114,34 @@ async def prepare_limit(state: TurnState, runtime: Runtime[TurnContext]) -> dict
         ],
     }
     await c.status("estimating", text)
-    return {"confirm_payload": payload}
+    return ConfirmOut(confirm_payload=payload)
 
 
-async def apply_limit(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
-    c = ctx(runtime)
-    answer = state.get("resume") or {}
+@node("apply_limit", reads=ApplyLimitIn, writes=ApplyLimitOut)
+async def apply_limit(inp: ApplyLimitIn, c: TurnContext) -> ApplyLimitOut:
+    """The limit answer: continue with one more allowance, stop and answer with what was collected, or (typed words
+    that are not a yes/no) stop and read them as a new message."""
+    answer = inp.resume or {}
     choice = str(answer.get("choice") or "")
-    hit = state.get("limit_hit") or LimitHit(reasons=[], jobs=[])
+    hit = inp.limit_hit or LimitHit(reasons=[], jobs=[])
     if choice in ("text", "edit", "") and answer.get("text"):
         typed = yes_or_no(answer.get("text"))  # "Continue", "да", "продолжай" … or a new request
         if typed is None:
             c.budget.allow_answer()
-            return {"jobs": [], "limit_hit": None, "confirm_payload": None, "resume": None,
-                    "user_text": answer.get("text") or "", "route": "interpret"}  # fmt: skip
+            return ApplyLimitOut(jobs=[], limit_hit=None, confirm_payload=None, resume=None,
+                                 user_text=answer.get("text") or "", route="interpret")  # fmt: skip
         choice = "continue" if typed == "yes" else "stop"
     if choice in ("continue", "run", "yes", "confirm"):
-        n = int(state.get("limit_extensions") or 0) + 1
+        n = int(inp.limit_extensions or 0) + 1
         c.budget.extend(n)
         await c.status("researching", f"Continuing: {len(hit.get('jobs', []))} research task(s) left")
         _, case = await load_case(c)
         jobs = await _service(c).create(case, rounds.jobs_of(hit))
-        return {"jobs": jobs, "limit_hit": None, "limit_extensions": n, "confirm_payload": None, "resume": None,
-                "route": None}  # fmt: skip
+        return ApplyLimitOut(jobs=jobs, limit_hit=None, limit_extensions=n, confirm_payload=None, resume=None,
+                             route=None)  # fmt: skip
     # "stop", a typed reply or anything else: answer with what was collected (nothing is lost)
     c.budget.allow_answer()
-    return {"jobs": [], "limit_hit": None, "confirm_payload": None, "resume": None, "route": None}
+    return ApplyLimitOut(jobs=[], limit_hit=None, confirm_payload=None, resume=None, route=None)
 
 
 def route_after_limit(state: TurnState) -> str:
@@ -130,22 +150,26 @@ def route_after_limit(state: TurnState) -> str:
     return "next_round" if state.get("jobs") else "after_research"
 
 
-async def next_round(state: TurnState) -> dict[str, Any]:
-    return {}
+@node("next_round", reads=NothingIn, writes=NothingOut)
+async def next_round(inp: NothingIn, c: TurnContext) -> NothingOut:
+    """A join point: the next gap round's jobs are fanned out from here (research.fan_out)."""
+    return NothingOut()
 
 
-async def after_research(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
-    c = ctx(runtime)
+@node("after_research", reads=AfterResearchIn, writes=AfterResearchOut)
+async def after_research(inp: AfterResearchIn, c: TurnContext) -> AfterResearchOut:
+    """The research done: its notices (incomplete jobs, areas short of data); a "find it" that found nothing more
+    remembers the car and area so it is not offered again."""
     _, case = await load_case(c)
-    notices, short = _service(c).conclude(case, state.get("research_results", []), list(state.get("notices", [])),
-                                          state.get("language"), WORDING)  # fmt: skip
-    out: dict[str, Any] = {"research_done": True, "notices": notices, "jobs": []}
-    if state.get("request_kind") in ("research_more", "critique") and short:
-        for k, a in short:  # "find it" found nothing more: remembered, not offered again for this car and area
-            vid = next((x.variant_id for x in case.cars if x.key == k and x.variant_id), None)
-            if vid and a not in case.find_tried.get(vid, []):
-                case.find_tried.setdefault(vid, []).append(a)
-        out["case_version"] = await save_case(
-            c, case, [f"searched deeper without the minimum: {', '.join(f'{k} {a}' for k, a in short)}"], publish=False
-        )
-    return out
+    notices, short = _service(c).conclude(case, inp.research_results, list(inp.notices), inp.language,
+                                          WORDING)  # fmt: skip
+    if not (inp.request_kind in ("research_more", "critique") and short):
+        return AfterResearchOut(research_done=True, notices=notices, jobs=[])
+    for k, a in short:  # "find it" found nothing more: remembered, not offered again for this car and area
+        vid = next((x.variant_id for x in case.cars if x.key == k and x.variant_id), None)
+        if vid and a not in case.find_tried.get(vid, []):
+            case.find_tried.setdefault(vid, []).append(a)
+    version = await save_case(
+        c, case, [f"searched deeper without the minimum: {', '.join(f'{k} {a}' for k, a in short)}"], publish=False
+    )
+    return AfterResearchOut(research_done=True, notices=notices, jobs=[], case_version=version)

@@ -1,4 +1,7 @@
 """Chat · chat.dialog.nodes: the turn graph's steps — each reads the state, calls the application, writes back.
+Each node is declared with `@node` (chat.dialog.contract); its typed input and output (`…In` / `…Out`, over the flat
+`TurnState` keys) live beside it in `<module>_io` (understand_io, identify_io, confirm_io, feasibility_io, research_io,
+report_io).
 
 Owns: `understand` — load_case, interpret, apply_delta, assess, policy; `identify` — re-identify changed cars;
   `confirm` — ASK, CONFIRM_VARIANTS, CONFIRM_COST, intake (prepare → wait/interrupt → apply);

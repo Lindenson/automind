@@ -9,7 +9,6 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from langgraph.runtime import Runtime
 from langgraph.types import interrupt
 
 from automind.chat.application.services.identification import candidates, catalogue, resolver
@@ -17,8 +16,27 @@ from automind.chat.application.services.identification.contracts import Generati
 from automind.chat.application.services.interpretation import ask as asking
 from automind.chat.application.services.report.blocks import car_view, intake_card
 from automind.chat.application.services.report.blocks.notice import Notice, notice
+from automind.chat.application.services.research.contracts import PlanState
 from automind.chat.dialog import phrases
-from automind.chat.dialog.context import ctx, current_year, load_case, record_intake, save_case
+from automind.chat.dialog.context import current_year, load_case, record_intake, save_case
+from automind.chat.dialog.contract import Node, node
+from automind.chat.dialog.nodes.confirm_io import (
+    AskIn,
+    AskOut,
+    ConfirmOut,
+    CostIn,
+    CostResumeIn,
+    PlanResumeIn,
+    PrepareVariantsIn,
+    PrepareVariantsOut,
+    ResearchAnsweredOut,
+    ResumeIn,
+    SelectCandidatesIn,
+    SelectCandidatesOut,
+    VariantsAppliedOut,
+    WaitIn,
+    WaitOut,
+)
 from automind.chat.dialog.phrases import PHRASES, t
 from automind.chat.dialog.state import TurnState
 from automind.chat.dialog.turn.context import TurnContext
@@ -29,14 +47,14 @@ from automind.shared.infrastructure.config.settings import settings
 from automind.shared.vehicle import markets
 
 
-async def ask_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
+@node("ask", reads=AskIn, writes=AskOut)
+async def ask_node(inp: AskIn, c: TurnContext) -> AskOut:
     """Questions in the conversation language with concrete options (spec 005 R6, R9): code writes them, the
     asker adds one sentence of acknowledgement; a question asked before uses other words."""
-    c = ctx(runtime)
     _, case = await load_case(c)
-    decision = state["decision"]
-    gens = {k: a.get("generations", []) for k, a in state.get("assessments", {}).items()}
-    lang = state.get("language", "en")
+    decision = inp.decision
+    gens = {k: a.get("generations", []) for k, a in inp.assessments.items()}
+    lang = inp.language
     ref = c.ports.ref
     gearboxes = {"automatic": t("gb_automatic", lang), "manual": t("gb_manual", lang)}
     items = asking.intake_questions(decision["questions"], case, ref.questions_i18n or {}, gens, decision["cars"], lang,
@@ -49,7 +67,7 @@ async def ask_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str,
         ack = ""  # FR-023: a sentence in another language is dropped; the questions are templates in `lang`
     questions = [q["text"] for q in items]
     body = questions[0] if len(questions) == 1 else "\n".join(f"{i}. {q}" for i, q in enumerate(questions, 1))
-    lead = _not_understood_lead(case, state, lang)
+    lead = _not_understood_lead(case, inp, lang)
     found = _market_lines(case, lang)
     text = "\n\n".join(x for x in (lead, ack, "\n".join(found), body) if x)
     case = asking.record(case, items)
@@ -72,17 +90,23 @@ async def ask_node(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str,
                     t(f"why_{k}", lang) for k in str(ch["reason"]).split(",") if f"why_{k}" in PHRASES
                 )
     replies = asking.intake_quick_replies(items, case, labels)
-    notices = [n for n in state.get("notices", []) if n.get("text") not in found]  # said in the reply already
+    notices = [n for n in inp.notices if n.get("text") not in found]  # said in the reply already
     blocks = [*notices, *([{"type": "quick_replies", "items": replies}] if replies else [])]
-    return {"reply_text": text, "blocks": blocks, "action": "ASK", "case_version": version}
+    return AskOut(reply_text=text, blocks=blocks, action="ASK", case_version=version)
 
 
-def _not_understood_lead(case: Any, state: TurnState, lang: str | None) -> str:
+def wait_node(kind: str) -> Node[WaitIn, WaitOut]:
+    """The wait of the confirmation `kind` (node id `wait_<kind>`): the turn pauses on the prepared question (a
+    LangGraph interrupt; re-run on resume, so nothing else happens here) and records the person's answer."""
+    return node(f"wait_{kind}", reads=WaitIn, writes=WaitOut)(wait_confirm)
+
+
+def _not_understood_lead(case: Any, inp: AskIn, lang: str | None) -> str:
     """ "I did not understand <answer> for <car>." when the last message left a car question open (FR-031)."""
-    keys = state.get("not_understood") or []
+    keys = inp.not_understood or []
     if not keys:
         return ""
-    answer = " ".join(str(state.get("user_text") or "").split())[:60]
+    answer = " ".join(str(inp.user_text or "").split())[:60]
     names = ", ".join(case.car(k).display_name for k in keys if any(x.key == k for x in case.cars))
     return t("not_understood", lang, answer=answer, car=names or "the car")
 
@@ -95,9 +119,9 @@ def _years(o: dict[str, Any]) -> str:
     return f" ({lo}–{hi or 'now'})" if lo else ""
 
 
-async def prepare_variants(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
+@node("prepare_variants", reads=PrepareVariantsIn, writes=PrepareVariantsOut)
+async def prepare_variants(inp: PrepareVariantsIn, c: TurnContext) -> PrepareVariantsOut:
     """Resolve each car to confirm (catalog first, then the resolver) and propose the best match."""
-    c = ctx(runtime)
     _, case = await load_case(c)
     year = current_year(c)
     await c.status("resolving", "Identifying the exact variants")
@@ -105,12 +129,12 @@ async def prepare_variants(state: TurnState, runtime: Runtime[TurnContext]) -> d
     notices: list[Notice] = []
     items: list[dict[str, Any]] = []
     unknown: list[str] = []
-    lang = state.get("language")
+    lang = inp.language
     # cars with a named version first: their level sets the level of the others (spec 004 FR-029)
-    keys = sorted(state["decision"]["cars"], key=lambda k: not case.car(k).constraints.trim_hint)
+    keys = sorted(inp.decision["cars"], key=lambda k: not case.car(k).constraints.trim_hint)
     for key in keys:
         car = case.car(key)
-        cands = list(state.get("assessments", {}).get(key, {}).get("candidates", []))
+        cands = list(inp.assessments.get(key, {}).get("candidates", []))
         if car.resolution == "PROPOSED" and car.variant_id and not any(o["id"] == car.variant_id for o in cands):
             v = await catalogue.get_variant(car.variant_id)  # asked again: keep the proposal, no new lookup
             if v is not None:
@@ -145,11 +169,11 @@ async def prepare_variants(state: TurnState, runtime: Runtime[TurnContext]) -> d
         await c.status("resolving", f"{car.request_text} → {best['label']}{_years(best)}", car=best["label"])
     if not items:  # every car to confirm is unknown: ask about it instead (the policy asks UNKNOWN_MODEL)
         await save_case(c, case, [f"{k}: unknown model" for k in unknown])
-        return {"route": "assess", "confirm_payload": None, "notices": [*state.get("notices", []), *notices]}
+        return PrepareVariantsOut(route="assess", confirm_payload=None, notices=[*inp.notices, *notices])
     case.pending = Pending(kind="CONFIRM_VARIANTS", items=items)
     await save_case(c, case, [f"{i['car']} proposed: {i['options'][0]['label']}" for i in items])
     lines = [f"- **{i['car']}**: {i['options'][0]['label']}" for i in items]
-    lead = _not_understood_lead(case, state, lang)
+    lead = _not_understood_lead(case, inp, lang)
     options.append({"id": "choose", "label": t("choose_for_me", lang), "detail": None, "car": None})
     text = (f"{lead}\n\n" if lead else "") + t("confirm_variants", lang) + "\n" + "\n".join(lines)
     payload = {
@@ -159,46 +183,44 @@ async def prepare_variants(state: TurnState, runtime: Runtime[TurnContext]) -> d
         "text": text,
         "options": options,
     }
-    return {"confirm_payload": payload, "notices": [*state.get("notices", []), *notices]}
+    return PrepareVariantsOut(confirm_payload=payload, notices=[*inp.notices, *notices])
 
 
-def wait_confirm(state: TurnState) -> dict[str, Any]:
-    answer = interrupt(state["confirm_payload"])
-    return {"resume": answer if isinstance(answer, dict) else {"choice": "text", "text": str(answer)}}
+async def wait_confirm(inp: WaitIn, c: TurnContext) -> WaitOut:
+    """Pause on `confirm_payload`; the answer is a button's dict, or typed words as a "text" choice."""
+    answer = interrupt(inp.confirm_payload)
+    return WaitOut(resume=answer if isinstance(answer, dict) else {"choice": "text", "text": str(answer)})
 
 
-async def apply_variants(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
+@node("apply_variants", reads=ResumeIn, writes=VariantsAppliedOut)
+async def apply_variants(inp: ResumeIn, c: TurnContext) -> VariantsAppliedOut:
     """Only a button confirms the proposal ("confirm"/"run", or a version picked); typed words and any other id are
     read by the interpreter (it may be a correction or a rejection, R2; spec 013 T012)."""
-    c = ctx(runtime)
     _, case = await load_case(c)
-    answer = intake.card_answer(state.get("resume") or {})
+    answer = intake.card_answer(inp.resume or {})
     if answer.kind in (intake.CardChoice.TEXT, intake.CardChoice.OTHER, intake.CardChoice.EDIT_FIELD):
-        return {"user_text": answer.text, "confirm_payload": None, "resume": None, "route": "interpret"}
+        return VariantsAppliedOut(user_text=answer.text, confirm_payload=None, resume=None, route="interpret")
     if answer.kind in (intake.CardChoice.SKIP, intake.CardChoice.STOP):
         for car in case.cars:
             if car.resolution == "PROPOSED":
                 car.variant_id, car.label, car.resolution = None, None, "UNRESOLVED"
         case.pending = None
         await save_case(c, case, ["variant confirmation skipped"])
-        return {
-            "route": "end",
-            "action": "CONFIRM_VARIANTS",
-            "reply_text": t("variants_skipped", state.get("language")),
-        }
+        return VariantsAppliedOut(route="end", action="CONFIRM_VARIANTS",
+                                  reply_text=t("variants_skipped", inp.language))  # fmt: skip
     if answer.kind is intake.CardChoice.REMOVE:
         case.cars = [x for x in case.cars if x.key != answer.arg]
         case.pending = None
         version = await save_case(c, case, [f"{answer.arg} removed"])
-        return {"route": "assess", "confirm_payload": None, "resume": None, "case_version": version}
+        return VariantsAppliedOut(route="assess", confirm_payload=None, resume=None, case_version=version)
     if answer.kind is intake.CardChoice.OPTION:
         await _pick_option(case, answer.arg)
     changes = _confirm_proposed(case)
     case.pending = None
     version = await save_case(c, case, changes)
     if changes:
-        await agreed(c, case, state.get("language"))
-    return {"route": "assess", "confirm_payload": None, "resume": None, "case_version": version}
+        await agreed(c, case, inp.language)
+    return VariantsAppliedOut(route="assess", confirm_payload=None, resume=None, case_version=version)
 
 
 def _confirm_proposed(case: Any) -> list[str]:
@@ -213,13 +235,14 @@ def _confirm_proposed(case: Any) -> list[str]:
 # --- cost ----------------------------------------------------------------------------------------
 
 
-async def prepare_cost(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
-    c = ctx(runtime)
+@node("prepare_cost", reads=CostIn, writes=ConfirmOut)
+async def prepare_cost(inp: CostIn, c: TurnContext) -> ConfirmOut:
+    """The research cost question for the cars the policy chose (over the cap: said)."""
     _, case = await load_case(c)
-    d = state["decision"]
-    eur = float(state.get("cost_estimate") or 0)
+    d = inp.decision
+    eur = float(inp.cost_estimate or 0)
     await c.status("estimating", f"Estimated research cost €{eur:.2f}")
-    lang = state.get("language")
+    lang = inp.language
     cap = t("over_cap", lang, cap=f"{settings().cost_hard_cap_eur:.2f}") if d.get("over_cap") else ""
     labels = [case.car(k).label or case.car(k).request_text for k in d["cars"]]
     payload = {
@@ -228,33 +251,34 @@ async def prepare_cost(state: TurnState, runtime: Runtime[TurnContext]) -> dict[
         "request_id": str(uuid.uuid4()),
         "text": t("confirm_cost", lang, cars=", ".join(labels), depth=case.depth.lower(), eur=f"{eur:.2f}", cap=cap),
         "options": [],
-        "estimate": {"eur": eur, "cars": len(d["cars"]), "areas": _areas(state), "depth": case.depth},
+        "estimate": {"eur": eur, "cars": len(d["cars"]), "areas": _areas(inp.research_plan), "depth": case.depth},
     }
     case.pending = Pending(kind="CONFIRM_COST", items=[{"eur": eur, "cars": d["cars"]}])
     await save_case(c, case, [], publish=False)
-    return {"confirm_payload": payload}
+    return ConfirmOut(confirm_payload=payload)
 
 
-async def apply_cost(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
-    c = ctx(runtime)
+@node("apply_cost", reads=CostResumeIn, writes=ResearchAnsweredOut)
+async def apply_cost(inp: CostResumeIn, c: TurnContext) -> ResearchAnsweredOut:
+    """The cost answer: typed words go to the interpreter; a button approves or declines (remembered per plan)."""
     _, case = await load_case(c)
-    answer = state.get("resume") or {}
+    answer = inp.resume or {}
     choice = str(answer.get("choice") or "")
     case.pending = None
     await save_case(c, case, [], publish=False)
     if choice in ("text", "edit") or (not choice and answer.get("text")):
-        return {"user_text": answer.get("text") or "", "confirm_payload": None, "resume": None, "route": "interpret"}
+        return ResearchAnsweredOut(user_text=answer.get("text") or "", confirm_payload=None, resume=None,
+                                   route="interpret")  # fmt: skip
     approved = choice in ("run", "yes", "confirm")
     if not approved:  # remember the refusal for this plan, so the same offer is not repeated every turn
-        case.declined_plan = (state.get("research_plan") or {}).get("key")
+        case.declined_plan = (inp.research_plan or {}).get("key")
         await save_case(c, case, ["research declined"], publish=False)
-    return {
-        "route": "assess",
-        "cost_approved": approved,
-        "research_declined": not approved,
-        "confirm_payload": None,
-        "resume": None,
-    }
+    return ResearchAnsweredOut(route="assess", cost_approved=approved, research_declined=not approved,
+                               confirm_payload=None, resume=None)  # fmt: skip
+
+
+def _areas(plan: PlanState | None) -> list[str]:
+    return sorted({j[2] for j in (plan or {}).get("jobs", [])})
 
 
 def route_after_prepare(state: TurnState) -> str:
@@ -265,26 +289,22 @@ def route_after_apply(state: TurnState) -> str:
     return str(state.get("route") or "assess")
 
 
-def _areas(state: TurnState) -> list[str]:
-    return sorted({j[2] for j in (state.get("research_plan") or {}).get("jobs", [])})
-
-
 # --- the intake card (spec 005 US5) -------------------------------------------------------------------------
 
 
-async def select_candidates(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
+@node("select_candidates", reads=SelectCandidatesIn, writes=SelectCandidatesOut)
+async def select_candidates(inp: SelectCandidatesIn, c: TurnContext) -> SelectCandidatesOut:
     """Spec 007 US7: no car named, a need and a budget → 2–3 candidates become the case's cars."""
-    c = ctx(runtime)
     _, case = await load_case(c)
     await c.status("resolving", "Choosing candidates for you")
     proposed = await candidates.propose(c.ports, case)
     if not proposed:
         if (note := candidates.ask_the_model(case)) is not None:  # 009 FR-022: a make with nothing to propose
-            return {"route": "identify", "case_version": await save_case(c, case, [note])}
-        return {"route": "general"}
+            return SelectCandidatesOut(route="identify", case_version=await save_case(c, case, [note]))
+        return SelectCandidatesOut(route="general")
     names = ", ".join(f"{x['make']} {x['model']}" for x in proposed)
     version = await save_case(c, case, [f"candidates: {names}"])
-    return {"route": "identify", "case_version": version}
+    return SelectCandidatesOut(route="identify", case_version=version)
 
 
 def route_after_candidates(state: TurnState) -> str:
@@ -324,11 +344,11 @@ def _market_line(car: Any, lang: str | None) -> str:
              market=phrases.market_name(car.market, lang))  # fmt: skip
 
 
-async def prepare_intake(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
+@node("prepare_intake", reads=CostIn, writes=ConfirmOut)
+async def prepare_intake(inp: CostIn, c: TurnContext) -> ConfirmOut:
     """One card: the cars as resolved, the person, the research cost; edited by chips, confirmed by one "yes"."""
-    c = ctx(runtime)
     _, case = await load_case(c)
-    lang = state.get("language") or "en"
+    lang = inp.language or "en"
     variants: dict[str, Any] = {}
     options: dict[str, list[str]] = {}
     for car in case.cars:
@@ -338,14 +358,14 @@ async def prepare_intake(state: TurnState, runtime: Runtime[TurnContext]) -> dic
         variants[v.id] = v
         others = await catalogue.find_variants(v.make, v.model)
         options[car.key] = [x.label for x in others if x.id != v.id][:4]
-    eur = float(state.get("cost_estimate") or 0)
-    estimate = {"eur": eur, "cars": len(case.cars), "areas": _areas(state), "depth": case.depth}
+    eur = float(inp.cost_estimate or 0)
+    estimate = {"eur": eur, "cars": len(case.cars), "areas": _areas(inp.research_plan), "depth": case.depth}
     card = intake_card.build_card(case, variants, options, estimate, lang)
     case.intake.card = {"values": card.pop("values")}
     case.pending = Pending(kind="CONFIRM_INTAKE", items=[{"car": x.key} for x in case.cars])
     await save_case(c, case, ["confirmation card shown"])
     await record_intake(c, "CARD_SHOWN")
-    over = t("over_cap", lang, cap=f"{settings().cost_hard_cap_eur:.2f}") if state["decision"].get("over_cap") else ""
+    over = t("over_cap", lang, cap=f"{settings().cost_hard_cap_eur:.2f}") if inp.decision.get("over_cap") else ""
     await c.status("estimating", f"Confirm the cars and the research (≈ €{eur:.2f})")
     payload = {
         "kind": "intake",
@@ -364,7 +384,7 @@ async def prepare_intake(state: TurnState, runtime: Runtime[TurnContext]) -> dic
         "estimate": estimate,
         "card": card,
     }
-    return {"confirm_payload": payload}
+    return ConfirmOut(confirm_payload=payload)
 
 
 async def _card_edit(c: TurnContext, case: Any, answer: dict[str, Any]) -> None:
@@ -382,36 +402,34 @@ async def _pick_option(case: Any, arg: str) -> None:
         case.car(key).variant_id, case.car(key).label = v.id, v.label
 
 
-async def apply_intake(state: TurnState, runtime: Runtime[TurnContext]) -> dict[str, Any]:
+@node("apply_intake", reads=PlanResumeIn, writes=ResearchAnsweredOut)
+async def apply_intake(inp: PlanResumeIn, c: TurnContext) -> ResearchAnsweredOut:
     """The intake card's answer: only a button confirms; typed words (even "нет") are read by the interpreter
     (spec 013 T012), never by a word list."""
-    c = ctx(runtime)
     _, case = await load_case(c)
-    answer = intake.card_answer(state.get("resume") or {})
-    done = {"confirm_payload": None, "resume": None}
+    answer = intake.card_answer(inp.resume or {})
     if answer.kind is intake.CardChoice.EDIT_FIELD:  # a chip on the card: code applies it, the car is identified again
-        resume = state.get("resume") or {}
+        resume = inp.resume or {}
         await _card_edit(c, case, resume)
         await record_intake(c, "CARD_EDITED", resume.get("car_key"), str(resume.get("field") or ""))
-        return {**done, "route": "identify"}
+        return ResearchAnsweredOut(confirm_payload=None, resume=None, route="identify")
     if answer.kind in (intake.CardChoice.TEXT, intake.CardChoice.OTHER):
         case.pending = None
         await save_case(c, case, [], publish=False)
-        return {**done, "user_text": answer.text, "route": "interpret"}
+        return ResearchAnsweredOut(confirm_payload=None, resume=None, user_text=answer.text, route="interpret")
     if answer.kind is intake.CardChoice.REMOVE:
         case.cars = [x for x in case.cars if x.key != answer.arg]
         case.pending = None
         await save_case(c, case, [f"{answer.arg} removed"])
-        return {**done, "route": "assess"}
+        return ResearchAnsweredOut(confirm_payload=None, resume=None, route="assess")
     if answer.kind is intake.CardChoice.OPTION:  # a version picked from the options (old clients): that version, yes
         await _pick_option(case, answer.arg)
     research = answer.kind in (intake.CardChoice.CONFIRM, intake.CardChoice.OPTION)  # "not now": cars kept only
-    return await _card_confirmed(c, case, state, research=research)
+    return await _card_confirmed(c, case, inp, research=research)
 
 
-async def _card_confirmed(c: TurnContext, case: Any, state: TurnState, *, research: bool) -> dict[str, Any]:
+async def _card_confirmed(c: TurnContext, case: Any, inp: PlanResumeIn, *, research: bool) -> ResearchAnsweredOut:
     """The cars of the card confirmed by a button; the research too, unless "not now" (`research` False)."""
-    done = {"confirm_payload": None, "resume": None}
     for car in case.cars:
         if car.variant_id and car.resolution in ("PROPOSED", "AUTO_OK", "UNRESOLVED"):
             car.resolution = "CONFIRMED"
@@ -420,12 +438,12 @@ async def _card_confirmed(c: TurnContext, case: Any, state: TurnState, *, resear
     await record_intake(c, "CONFIRMED")
     if research:
         await save_case(c, case, ["cars and research confirmed"])
-        await agreed(c, case, state.get("language"))
-        return {**done, "route": "assess", "cost_approved": True}
-    case.declined_plan = (state.get("research_plan") or {}).get("key")  # "not now": the cars stay, no research
+        await agreed(c, case, inp.language)
+        return ResearchAnsweredOut(confirm_payload=None, resume=None, route="assess", cost_approved=True)
+    case.declined_plan = (inp.research_plan or {}).get("key")  # "not now": the cars stay, no research
     await save_case(c, case, ["cars confirmed, research declined"])
-    await agreed(c, case, state.get("language"))
-    return {**done, "route": "assess", "research_declined": True}
+    await agreed(c, case, inp.language)
+    return ResearchAnsweredOut(confirm_payload=None, resume=None, route="assess", research_declined=True)
 
 
 # --- the "Agreed" entry (spec 010 FR-035) ---------------------------------------------------------------------

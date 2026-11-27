@@ -1,14 +1,11 @@
 """What a turn leaves for its outcome (spec 010 US1): the nodes visited and the signals noted on the way.
 
 The runner opens a per-turn record (a context variable) before the graph runs; nodes note signals with `note()`,
-the graph wrapper records each node with `visit()`. Nothing here changes a turn's behaviour.
+every node records itself with `visit()` (`chat.dialog.contract.node`). Nothing here changes a turn's behaviour.
 """
 
 from __future__ import annotations
 
-import functools
-import inspect
-from collections.abc import Callable
 from contextvars import ContextVar
 from typing import Any
 
@@ -43,26 +40,6 @@ def visit(node: str) -> None:
     rec = _TURN.get()
     if rec is not None and (not rec["path"] or rec["path"][-1] != node):
         rec["path"].append(node)
-
-
-def traced(name: str, fn: Callable[..., Any]) -> Callable[..., Any]:
-    """Wrap a graph node so its name is recorded; the signature seen by LangGraph stays the original."""
-
-    if inspect.iscoroutinefunction(fn):
-
-        @functools.wraps(fn)
-        async def anode(*args: Any, **kwargs: Any) -> Any:
-            visit(name)
-            return await fn(*args, **kwargs)
-
-        return anode
-
-    @functools.wraps(fn)
-    def node(*args: Any, **kwargs: Any) -> Any:
-        visit(name)
-        return fn(*args, **kwargs)
-
-    return node
 
 
 def nodata_items(blocks: list[dict[str, Any]]) -> list[dict[str, str]]:

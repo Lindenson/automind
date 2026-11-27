@@ -8,8 +8,10 @@
       research    plan_research → research_job × N (parallel) → collect_round ↺ next_round → after_research → assess
       candidates  select_candidates → identify | general
 
-One persistent thread per chat (thread_id = chat_id) on the Postgres checkpointer. Node ids are part of the stored
-state (a pending interrupt resumes by node id): they never change (tests/graph/test_graph_shape.py).
+Every node declares its id, what it reads, what it writes and its retry with `@node` (chat.dialog.contract; the
+table: specs/014-node-contracts/contract.md). One persistent thread per chat (thread_id = chat_id) on the Postgres
+checkpointer. Node ids are part of the stored state (a pending interrupt resumes by node id): they never change
+(tests/graph/test_graph_shape.py).
 """
 
 from __future__ import annotations
@@ -18,34 +20,32 @@ from typing import Any
 
 from langgraph.graph import END, START, StateGraph
 
-from automind.chat.dialog.confirmation import Confirmation, Route, add_confirmation
+from automind.chat.dialog.confirmation import AnyNode, Confirmation, Route, add_confirmation
 from automind.chat.dialog.nodes import confirm, feasibility, identify, report, research, understand
-from automind.chat.dialog.retry import LLM_RETRY
 from automind.chat.dialog.state import TurnState
-from automind.chat.dialog.tracing import traced
 from automind.chat.dialog.turn.context import TurnContext
 
 MCP_TOOLS: list[Any] = []  # set by the API lifespan (persistent MCP stdio session)
 
-# --- nodes outside the confirmations: (id, function, uses a model → retried) -------------------------------------
-NODES: tuple[tuple[str, Any, bool], ...] = (
-    ("load_case", understand.load_case_node, False),
-    ("interpret", understand.interpret_node, True),
-    ("apply_delta", understand.apply_delta_node, False),
-    ("identify", identify.identify_node, False),
-    ("assess", understand.assess_node, False),
-    ("policy", understand.policy_node, False),
-    ("general", report.general_node, True),
-    ("ask", confirm.ask_node, False),
-    ("select_candidates", confirm.select_candidates, False),
-    ("plan_research", research.plan_research, False),
-    ("research_job", research.research_job, False),
-    ("collect_round", research.collect_round, False),
-    ("next_round", research.next_round, False),
-    ("after_research", research.after_research, False),
-    ("alternatives", feasibility.alternatives, False),
-    ("answer", report.answer_node, True),
-    ("report", report.make_report_node(), True),
+# --- nodes outside the confirmations (each declares its id, contract and retry with @node, chat.dialog.contract) ---
+NODES: tuple[AnyNode, ...] = (
+    understand.load_case_node,
+    understand.interpret_node,
+    understand.apply_delta_node,
+    identify.identify_node,
+    understand.assess_node,
+    understand.policy_node,
+    report.general_node,
+    confirm.ask_node,
+    confirm.select_candidates,
+    research.plan_research,
+    research.research_job,
+    research.collect_round,
+    research.next_round,
+    research.after_research,
+    feasibility.alternatives,
+    report.answer_node,
+    report.report_node,
 )
 
 # --- what the policy's action leads to (understand.route_policy maps Action.kind to these node ids) ----------------
@@ -74,18 +74,19 @@ CONFIRMATIONS: tuple[Confirmation, ...] = (
 TERMINALS = ("general", "ask", "answer", "report", "alternatives")
 
 
+def contracted_nodes() -> tuple[AnyNode, ...]:
+    """Every node of the graph with its contract: NODES, then each confirmation's prepare, wait and apply."""
+    return NODES + tuple(n for c in CONFIRMATIONS for n in c.nodes(confirm.wait_node))
+
+
 def build_graph(checkpointer: Any = None, tools: list[Any] | None = None) -> Any:
+    """The compiled turn graph on `checkpointer` (None: in memory). Every node records itself in the turn's path and
+    checks its contract (`@node`); a node with `Retry.PROVIDER` retries a transient provider failure once."""
     g = StateGraph(TurnState, context_schema=TurnContext)
-    _add = g.add_node
-
-    def add_node(name: str, fn: Any, **kw: Any) -> Any:  # spec 010: record the path of each turn
-        return _add(name, traced(name, fn), **kw)
-
-    g.add_node = add_node  # type: ignore[method-assign]
-    for name, fn, uses_model in NODES:
-        g.add_node(name, fn, retry_policy=LLM_RETRY if uses_model else None)
+    for n in NODES:
+        g.add_node(n.name, n.for_graph(), retry_policy=n.retry.policy())
     for c in CONFIRMATIONS:
-        add_confirmation(g, c, confirm.wait_confirm)
+        add_confirmation(g, c, confirm.wait_node)
 
     # understand → decide
     g.add_edge(START, "load_case")
