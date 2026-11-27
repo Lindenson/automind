@@ -47,22 +47,36 @@ branch is caught by the 10 000 run and by the rule tables (the derandomized 500 
 
 ## PL2 — One input and config (PR 2, after 014 C2)
 
-- [ ] T210 `PolicyConfig` built once in the composition root (`delivery`, where `Ports` is wired — verify) from
+- [x] T210 `PolicyConfig` built once in the composition root (`delivery`, where `Ports` is wired — verify) from
   settings + `search.yaml intake`; invalid → startup fails (test); `Ports.policy: PolicyConfig`; the cap text in
   `dialog/nodes/confirm.py:223,348` (verify) reads it; no `settings()`/`ref.search` left in the policy path.
-- [ ] T211 `dialog/policy/situation.py` `situation_from(inp, *, case, last_fingerprint) -> Situation` (pure; `Decimal`
+- [x] T211 `dialog/policy/situation.py` `situation_from(inp, *, case, last_fingerprint) -> Situation` (pure; `Decimal`
   cost rounded half-up to the cent); `TurnContext.last_report_fingerprint()` cached per `ainvoke` with 014 T110's
   mechanism; the case from `ctx.case()` (014 T110).
-- [ ] T212 Feasibility fact from assess: `needs_ack`/`pending` (`dialog/nodes/feasibility.py:23-32`, verify) move into
+- [x] T212 Feasibility fact from assess: `needs_ack`/`pending` (`dialog/nodes/feasibility.py:23-32`, verify) move into
   the feasibility service; assess writes `feasibility_pending: bool` and `assessed_version` into its output;
   `prepare_feasibility`/`apply_feasibility` use the moved functions.
-- [ ] T213 Invariants in `situation_from` (spec §D6): facts for exactly the case's cars, `assessed_version ==
+- [x] T213 Invariants in `situation_from` (spec §D6): facts for exactly the case's cars, `assessed_version ==
   case.version`, `pass_no ≤ max_passes + 1`; production: log (field, turn_id) +
   `automind_policy_input_errors_total{field}`, strict by `AUTOMIND_POLICY_STRICT` (on in tests); one test per
   invariant; a strict error fails the turn via `turn/endings.py` (no new ending).
-- [ ] T214 `policy_node` → `dialog/nodes/policy.py` (≤ 30 lines; `@node("policy", retry=Retry.NONE)` from 014
+- [x] T214 `policy_node` → `dialog/nodes/policy.py` (≤ 30 lines; `@node("policy", retry=Retry.NONE)` from 014
   T101/T104); module added to the mypy strict list (`scripts/check.sh:50`, `backend/pyproject.toml`); test: policy
   store reads per turn after the first = 0.
+
+PL2 done (PR `015-pl2-one-input`). Findings: (1) the composition root is `chat/infrastructure/adapters.live_ports`
+(called from `delivery/web/app.py` at startup), so `policy_config(settings, search)` lives beside it; an invalid
+config raises there and the app does not start. The golden runner builds it after a dialogue's settings overrides
+(g7). (2) Money is `Decimal` in `PolicyConfig` and `Situation`; the estimate is rounded half-up to the cent in
+`situation_from` (assess stays float). The regression strategy draws costs to the cent, so the old float chain and
+the new Decimal policy still agree: 10 000 situations, 0 differences. (3) `situation_from` stays pure: it returns
+`SituationRead(situation, errors)`; the node raises the first error when `PolicyConfig.strict_inputs`
+(`AUTOMIND_POLICY_STRICT`, on in tests) or logs `policy.input_error` and counts
+`automind_policy_input_errors_total{field}`. Invariant `cars` covers both a case car without an assessment (the
+production fallback stays the empty `CarState`) and an assessment of a car the case does not have. (4) New state
+keys `feasibility_pending`, `assessed_version` (owner `assess`, reset per turn); `PlanRequest.checked` carries the
+turn's earlier checks, so `Planned.feasibility_pending` is computed in the service. (5) `feasibility.py` order/doc
+debt cleared on the way: structure 1390 → 1381. Behaviour diff vs main: differs 0; checkpoints: 19 threads load.
 
 ## PL3 — Decision record and "why" (PR 3, before 013 S3; spec §H D2 decided first)
 
