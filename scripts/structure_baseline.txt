@@ -1093,8 +1093,6 @@ regex|acquisition/replay/command.py|_since
 regex|chat/application/services/identification/versions.py|_power_written
 regex|chat/application/services/interpretation/ask.py|_distinct_generations
 regex|chat/application/services/interpretation/ask.py|template
-regex|chat/dialog/guard.py|check_numbers
-regex|chat/dialog/guard.py|drop_sentences
 regex|chat/dialog/guard.py|readings
 regex|chat/dialog/phrases.py|go_ahead
 regex|shared/evidence/excerpts.py|_norm

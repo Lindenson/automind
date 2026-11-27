@@ -1,10 +1,17 @@
-"""Number guard (FR-031): every number in AI-written text must exist in validated or computed data."""
+"""Number guard (FR-031): every number in AI-written text must exist in validated or computed data.
+
+A written number matches a fact when the fact, rounded to the precision the number is written with, equals it
+(spec 016 T302): "9,8" matches 9.75, "42 500" matches 42 480, "205" does not match 204, and an integer below 1000 is
+exact ("10" never stands for 6.7, FR-033). Names of metrics ("0–100
+km/h", "l/100 km") are cut before the check (T301), numbers inside model codes ("D-4D", "J250") are names on both
+sides, and every check splits sentences the same way, never after an abbreviation such as "л.с." (T303)."""
 
 from __future__ import annotations
 
 import json
 import re
 from dataclasses import dataclass
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Any
 
 from automind.chat.application.services.report.contracts import CheckInput
@@ -12,10 +19,20 @@ from automind.chat.application.services.report.contracts import CheckInput
 # A number as written in any of our languages: "25 000", "25.000", "25,000", "1.234,5", "6,58", "20k", "20 тыс".
 _NUM = r"\d{1,3}(?:[ \u00a0\u202f]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)*"
 _MULT = r"(?:\s?([kк](?![a-zа-яё])|тыс\.?|mil\b|thousand))?"
-_NUM_RE = re.compile(rf"({_NUM}){_MULT}", re.I)
-# Numbers inside model codes (J250, Mk8, F30, i30, D-4D) are names, not figures: not checked.
+# Numbers inside model codes (J250, Mk8, F30, i30, D-4D) are names, not figures: never checked in the text.
 _CHECKED_RE = re.compile(rf"(?<![A-Za-z])(?<![A-Za-z]-)(?<![\d.,])({_NUM}){_MULT}", re.I)
-ALWAYS_OK = {0.0, 100.0, 200.0, 400.0, 62.0, 60.0}  # 0-100 km/h, 0-200, 400 m, 0-62 mph
+# In the facts a generation code gives its number ("J150" → 150: the text may write "Prado 150"), an engine code
+# with a hyphen does not ("2.8 D-4D" puts no 4 in the facts, spec 016 T301).
+_FACT_RE = re.compile(rf"(?<![A-Za-z]-)(?<![\d.,])({_NUM}){_MULT}", re.I)
+
+# --- contracts: the closed tables of the guard (spec 016 T301, T303) -------------------------------------------
+# Names of metrics: their numbers are part of the name, not figures ("0–100 km/h", "l/100 km"). Cut before the check.
+METRIC_NAMES = ("0-100 km/h", "0-100 км/ч", "0-200 km/h", "0-200 км/ч", "0-100", "0-200", "0-62 mph",
+                "400 m", "400 м", "l/100 km", "л/100 км", "kWh/100 km", "кВт·ч/100 км", "kWh/100km", "/100 km",
+                "/100 км", "на 100 км", "per 100 km", "por 100 km", "a los 100 km")  # fmt: skip
+# Abbreviations after which a period does not end a sentence.
+ABBREVIATIONS = ("л.с.", "т.д.", "т.е.", "т.к.", "т.п.", "г.", "гг.", "e.g.", "i.e.", "approx.", "aprox.", "etc.",
+                 "vs.", "p.ej.")  # fmt: skip
 
 
 def readings(token: str, mult: str | None = None) -> set[float]:
@@ -45,26 +62,82 @@ def readings(token: str, mult: str | None = None) -> set[float]:
     return out
 
 
+_METRIC_RE = re.compile(r"(?<![\w.,])(?:" + "|".join(
+    re.escape(n).replace("\\-", "[-–—]").replace("\\ ", r"\s?").replace("/", r"\s?/\s?")
+    for n in sorted(METRIC_NAMES, key=len, reverse=True)) + r")(?!\w)", re.I)  # fmt: skip
+_ABBREV_RE = re.compile(r"(?:^|(?<=[\s(]))(?:" + "|".join(re.escape(a) for a in sorted(ABBREVIATIONS, key=len,
+                        reverse=True)) + r")$", re.I)  # fmt: skip
+
+
+_MONEY_AROUND = re.compile(r"(?:€|EUR)\s?$|^\s?(?:€|EUR)", re.I)
+_THOUSANDS_ONLY = re.compile(r"\d{1,3}[.,]\d{3}")
+_SEPARATOR = re.compile(r"[.,]")
+_STOP_RE = re.compile(r"[.!?]\s+")
+
+
+def sentences(line: str) -> list[str]:
+    """The sentences of one line: split after ".", "!" or "?" and a space, except after an abbreviation of
+    `ABBREVIATIONS` ("204 л.с. и 9,9 л" stays one sentence). Every check of this module splits with it."""
+    out, start = [], 0
+    for m in _STOP_RE.finditer(line):
+        if m.group(0)[0] == "." and _ABBREV_RE.search(line[start : m.start() + 1]):
+            continue
+        out.append(line[start : m.start() + 1])
+        start = m.end()
+    out.append(line[start:])
+    return [x for x in out if x]
+
+
 def numbers_in(obj: Any) -> set[float]:
+    """Every value the facts may hold. An amount of euros written "€3.550" is 3 550, never 3.55 (our formatting
+    groups thousands with a point), so a single 3-digit group next to a euro sign has its thousands reading only."""
     text = obj if isinstance(obj, str) else json.dumps(obj, ensure_ascii=False, default=str)
     out: set[float] = set()
-    for m in _NUM_RE.finditer(text):
-        out |= readings(m.group(1))
+    for m in _FACT_RE.finditer(text):
+        token = m.group(1)
+        money = _MONEY_AROUND.search(text[max(0, m.start() - 4) : m.start()]) or _MONEY_AROUND.search(
+            text[m.end() : m.end() + 4])  # fmt: skip
+        if money and _THOUSANDS_ONLY.fullmatch(token):
+            out.add(float(_SEPARATOR.sub("", token)))
+        else:
+            out |= readings(token)
         if m.group(2):
-            out |= readings(m.group(1), m.group(2))
+            out |= readings(token, m.group(2))
     return out
 
 
-def _ok(x: float, allowed: set[float]) -> bool:
-    # FR-033: no blanket pass for small integers and years: "10 л/100 км" and "7 лет" must be in the facts
-    if x in ALWAYS_OK:
-        return True
-    return any(abs(x - a) <= max(0.051, 0.005 * abs(a)) for a in allowed)
+def written(token: str, mult: str | None = None) -> set[tuple[Decimal, Decimal]]:
+    """Every (value, step) a written number can mean: the step is the precision it is written with — its decimals
+    ("9,8": 0.1), else, from 1000 up, its trailing zeros ("42 500": 100); an integer below 1000 is exact ("205",
+    "10": 1, FR-033). A thousands multiplier scales both."""
+    out: set[tuple[Decimal, Decimal]] = set()
+    for value in readings(token):
+        try:
+            v = Decimal(repr(value)).normalize()
+        except InvalidOperation:
+            continue
+        exponent = int(v.as_tuple().exponent)  # normalize(): 42500 → 4.25E+4 (step 100), 9.8 → step 0.1
+        if exponent > 0 and abs(v) < 1000:  # FR-033: "10", "200" are exact; only amounts like "42 500" are rounded
+            exponent = 0
+        step = Decimal(1).scaleb(exponent) if v else Decimal(1)
+        scale = Decimal(1000) if mult else Decimal(1)
+        out.add((v * scale, step * scale))
+    return out
+
+
+def equal_at_precision(fact: float, value: Decimal, step: Decimal) -> bool:
+    """The fact rounded (half up) to `step` equals the written `value` (FR-033: no blanket pass for small integers
+    or years: "10 л/100 км" and "7 лет" must be in the facts)."""
+    try:
+        rounded = (Decimal(repr(fact)) / step).quantize(Decimal(1), ROUND_HALF_UP) * step
+    except InvalidOperation:
+        return False
+    return rounded == value
 
 
 def _token_ok(m: re.Match[str], allowed: set[float]) -> bool:
-    vals = readings(m.group(1), m.group(2))
-    return not vals or any(_ok(x, allowed) for x in vals)
+    vals = written(m.group(1), m.group(2))
+    return not vals or any(equal_at_precision(a, v, step) for v, step in vals for a in allowed)
 
 
 _LIST_MARK = re.compile(r"^\s*(?:\d{1,2}[.)]|[-*•])\s+")
@@ -76,17 +149,14 @@ def check_numbers(text: str, allowed: set[float], cars: int = 0) -> tuple[str, i
     allowed = allowed | {float(n) for n in range(1, cars + 1)}
     kept, dropped = [], 0
     for line in text.split("\n"):
-        good = []
         mark = _LIST_MARK.match(line)
-        if mark:
-            good.append(mark.group(0).strip())
-            line = line[mark.end() :]
-        for p in re.split(r"(?<=[.!?])\s+", line):
-            if all(_token_ok(m, allowed) for m in _CHECKED_RE.finditer(p)):
-                good.append(p)
-            else:
-                dropped += 1
-        kept.append(" ".join(good))
+        body = line[mark.end() :] if mark else line
+        parts = sentences(body)
+        good = [p for p in parts if all(_token_ok(m, allowed) for m in _CHECKED_RE.finditer(_METRIC_RE.sub(" ", p)))]
+        dropped += len(parts) - len(good)
+        if parts and not good:
+            continue  # the whole line went: its list mark goes with it (no "2." left alone)
+        kept.append(" ".join(([mark.group(0).strip()] if mark else []) + good))
     return "\n".join(kept).strip(), dropped
 
 
@@ -131,6 +201,33 @@ TOPIC_WORDS: dict[str, tuple[str, ...]] = {
     "tco_per_year": ("ownership cost*", "running cost*", "стоимост*", "владени*", "coste*"),
     "tco_period": ("ownership cost*", "total cost*", "cost of ownership", "стоимост*", "владени*", "coste*"),
     "value_retention_5y": ("resale", "residual", "depreciation", "остаточн*", "потеря стоимости", "valor residual"),
+    # spec 016 T304: every attribute of config/insights.yaml has its words (a test keeps the map complete)
+    "reliability_score": ("reliability", "надёжн*", "надежн*", "fiabilidad"),
+    "measured_0_100": ("acceleration", "0-100", "0–100", "разгон*", "aceleración"),
+    "max_torque": ("torque", "крутящ*", "момент*", "par motor", "par máximo"),
+    "top_speed": (
+        "top speed",
+        "maximum speed",
+        "max speed",
+        "максимальная скорость",
+        "максимальной скорости",
+        "максимальную скорость",
+        "velocidad máxima",
+        "velocidad punta",
+    ),
+    "rear_legroom": (
+        "legroom",
+        "rear seat*",
+        "back seat*",
+        "места сзади",
+        "место для ног",
+        "места для ног",
+        "задн* ряд*",
+        "espacio para las piernas",
+        "plazas traseras",
+        "asientos traseros",
+    ),
+    "euro_ncap_stars": ("euro ncap", "ncap", "crash test*", "безопасн*", "краш-тест*", "seguridad"),
 }
 
 # Chat 5821ac77: "Sorento … (saving €3,625 a year), pays back in about 3.5 years" while its 5-year total with
@@ -153,8 +250,6 @@ _REFERENCE = re.compile(
     r"\bс|frente a|\bque|\bcon)\s+(?:the\s+|el\s+|la\s+)?$",
     re.I,
 )
-
-_SENT = re.compile(r"(?<=[.!?])\s+|\n+")
 
 
 def _words(words: tuple[str, ...]) -> re.Pattern[str]:
@@ -210,6 +305,12 @@ def _subject(sentence: str, names: tuple[str, ...]) -> str | None:
     return None
 
 
+def _names_a_car(sentence: str, names: tuple[str, ...]) -> bool:
+    """The sentence names one of the cars, as the text may write it (`_aliases`)."""
+    return any(re.search(r"(?<!\w)" + re.escape(a) + r"(?!\w)", sentence, re.I) for n in names if n
+               for a in _aliases(n))  # fmt: skip
+
+
 def saving_for_costlier(sentence: str, ci: CheckInput) -> bool:
     """A sentence that calls the car whose period total is higher a saving, cheaper or paying back (ru/en/es)."""
     if not ci.costlier or _WITHOUT_DEP_RE.search(sentence):
@@ -221,11 +322,10 @@ def saving_for_costlier(sentence: str, ci: CheckInput) -> bool:
 
 def report_violations(text: str, ci: CheckInput) -> list[Violation]:
     out: list[Violation] = []
-    for raw in _SENT.split(text):
+    for raw in (x for line in text.split("\n") for x in sentences(line)):
         s = raw.strip()
         if not s:
             continue
-        low = s.lower()
         if _ABSENCE_RE.search(s):
             topic = next((t for t in sorted(ci.has_data) if _mentions(s, t)), None)
             if topic:
@@ -239,7 +339,7 @@ def report_violations(text: str, ci: CheckInput) -> list[Violation]:
         if saving_for_costlier(s, ci):
             out.append(Violation("saving_costlier", s, "tco_period"))
             continue
-        if ci.tie and _WINNER_RE.search(s) and any(n.lower() in low for n in ci.car_names if n):
+        if ci.tie and _WINNER_RE.search(s) and _names_a_car(s, ci.car_names):
             out.append(Violation("tie_winner", s))
     return out
 
@@ -249,7 +349,7 @@ def drop_sentences(text: str, bad: list[Violation]) -> str:
     gone = {v.sentence for v in bad}
     lines = []
     for line in text.split("\n"):
-        parts = [p for p in re.split(r"(?<=[.!?])\s+", line) if p.strip() not in gone]
+        parts = [p for p in sentences(line) if p.strip() not in gone]
         lines.append(" ".join(parts))
     return "\n".join(lines).strip()
 

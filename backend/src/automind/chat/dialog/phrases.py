@@ -152,6 +152,11 @@ PHRASES: dict[str, dict[str, str]] = {
         "ru": "Я заново поискал недостающее ({areas}) и пересобрал отчёт.",
         "es": "He vuelto a buscar lo que faltaba ({areas}) y he rehecho el informe.",
     },
+    "guard_removed": {  # spec 016 D3: said once when the check removed sentences the data did not support
+        "en": "_Some sentences were removed because the data did not support them._",
+        "ru": "_Часть фраз убрана: данные их не подтверждали._",
+        "es": "_He quitado algunas frases porque los datos no las respaldaban._",
+    },
     "critique_reworked": {
         "en": "Nothing new was found in the sources, so I reworked the report around what you asked: {what}.",
         "ru": "Новых данных в источниках нет, поэтому я переработал отчёт с упором на то, что вы просили: {what}.",
