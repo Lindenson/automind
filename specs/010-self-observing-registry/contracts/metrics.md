@@ -28,6 +28,12 @@ All detailed metrics and all alerts live in Prometheus (US9). The admin page sho
 | `automind_policy_passes_per_turn` (spec 015 D5) | histogram | — |
 | `automind_policy_input_errors_total` (spec 015 D6) | counter | `field` |
 | `automind_policy_record_errors_total` (spec 015 D5) | counter | — |
+| `automind_understanding_turns_total` (spec 013 T036) | counter | `source`, `outcome` |
+| `automind_understanding_overrides_total` (spec 013 T036) | counter | `rule` |
+| `automind_understanding_dropped_total` (spec 013 T036) | counter | `check` |
+| `automind_understanding_question_repeated_total` (spec 013 T036) | counter | — |
+| `automind_understanding_seconds` (spec 013 T036; `path` old / new, the +20 % p95 of G4) | histogram | `path` |
+| `automind_understanding_record_errors_total` (spec 013 T036) | counter | — |
 
 ## Snapshot gauges (every 60 s)
 

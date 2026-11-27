@@ -124,17 +124,17 @@ blocks (a turn's message is fixed over several steps).
 
 ## S3 — Understanding in the shadow (PR 4)
 
-- [ ] T030 `chat/domain/understanding/intent.py`: `PendingAnswer`, `Goal`/`GoalKind` (+ `stop`), `Reaction`,
+- [x] T030 `chat/domain/understanding/intent.py`: `PendingAnswer`, `Goal`/`GoalKind` (+ `stop`), `Reaction`,
   `Rejection` (reuse T020), `Understanding`, `UiAction`, `Override`, `Intent` — fields and value sets exactly as
   `understanding-spec.md` §4 (`PendingAnswer.kind` option|value|yes|no|choose_for_me; `GoalKind` compare|single|follow_up|
   change_priorities|research_more|ask_general|critique, + `stop` (spec §D1); `Reaction` thanks|complaint|correction|
   rephrase; `UiAction.kind` pick_option|confirm|decline|choose_for_me|edit_car|research_more|panel_edit (+ complain|
   quit, S6); `Intent.source` text|ui|system; `Override` rule, field, before, after, why), + `rejections` (spec §D1).
-- [ ] T031 `Pending` (`chat/domain/case/casefile.py` ~l.52, verify) gets `id` and `options: list[{id, label}]`; a
+- [x] T031 `Pending` (`chat/domain/case/casefile.py` ~l.52, verify) gets `id` and `options: list[{id, label}]`; a
   validator gives old pendings a stable content-hash id. Chips are built from `Pending.options[].id` and send
   `pending_id` with the option id (S1's `option_ids.py` scheme becomes the option id), so `stale_pending` can check a
   button; the research-limit question gets a pending id too.
-- [ ] T032 `chat/application/services/understanding/`: `Understander` (port `LLM`, prompt `understander.md`
+- [x] T032 `chat/application/services/understanding/`: `Understander` (port `LLM`, prompt `understander.md`
   ≤ 800 words + 15–20 examples from the set), `validate_understanding` (moved checks of `interpret.py`: car keys,
   numbers in the text, persona evidence, engine parser; new: pending_id / option_id exist), `IntentResolver` with
   rules `stale_pending`, `option_from_ui`, `no_goal_with_pending`, `cars_safety_net`, `language_hysteresis`,
@@ -144,16 +144,36 @@ blocks (a turn's message is fixed over several steps).
   question, options) / LAST ANSWER (new: summary of the bot's last answer, for `reaction`) / HISTORY / MESSAGE; no
   spec/FR references, no "an open question makes every message an answer", CaseDelta placement rules move into the
   schema field descriptions.
-- [ ] T033 `turn_understanding` table (migration; owner's yes for a new table — additive) + port + store in
+- [x] T033 `turn_understanding` table (migration; owner's yes for a new table — additive) + port + store in
   `chat/infrastructure/`; write errors logged with chat_id/turn_id, never fail the turn. Fields as `understanding-spec.md` §7:
   input (text or UiAction + pending id), model_raw (+ prompt version, model name), rejected, overrides, intent.
   The policy part is spec 015 `policy_decisions` (T220), read by `turn_id` (no `policy_trail` field).
-- [ ] T036 Prometheus: share of turns with overrides `{rule}`, share rejected, share of turns whose open question was
+- [x] T036 Prometheus: share of turns with overrides `{rule}`, share rejected, share of turns whose open question was
   asked again; p95 of the understanding step (old and new, for the +20 % criterion). Policy metrics are spec 015 T222 (not here).
-- [ ] T034 Shadow: the `interpret` node runs the new chain after the old one, records both; the old decides.
+- [x] T034 Shadow: the `interpret` node runs the new chain after the old one, records both; the old decides.
   Eval runner compares new vs old on the set → `specs/013-dialogue-quality/shadow.md`.
-- [ ] T035 CLI `python -m automind.delivery.cli.turn show <turn_id>` (input, model_raw, rejected, overrides, intent,
+- [x] T035 CLI `python -m automind.delivery.cli.turn show <turn_id>` (input, model_raw, rejected, overrides, intent,
   and the policy passes through spec 015's `why` renderer, T223).
+
+Done 2026-11-27 (PR "013-s3-understanding-shadow"): `chat/domain/understanding/intent.py` (enums + models as §4,
+`stop`; rejections stay in `case_changes.rejections`, read as `Intent.rejections`); `open_question.py` — T031 as a
+derived view, the stored `Pending` unchanged: id = `q-` + sha256 of the pending (stable for old cases), options with
+the ids the chips already send (S1), confirmations `option:…|choose`, card `yes|stop`, cost `run|skip`, limit
+`continue|stop`; `canonical_answer`: on a yes/no question an option is the answer yes / no with its id, a typed
+yes / no names its button (the chips are built from these options in S4, T046). `services/understanding/`:
+`Understander` (role `understander` = gemini-3.1-flash-lite, G4; prompt `understander.md` v3, 757 words + 20
+examples), `checks` / `engine` (the old interpreter's checks moved out and shared, old path unchanged),
+`validate_understanding` (+ option ids), `IntentResolver` + `rules` (stale_pending, option_from_ui,
+complaint_is_not_an_answer, no_goal_with_pending — never for a complaint or a correction —, cars_safety_net,
+language_hysteresis), `UnderstandingShadow`. Node `interpret` runs it beside the old reading, concurrently
+(`dialog/understanding_shadow.py`; old decides; a failing shadow or store never breaks the turn);
+`turn_understanding` (migration 0027, owner's yes, 90 days) with `old_reading`; metrics `automind_understanding_*`;
+CLI `python -m automind.delivery.cli.turn show <turn_id>`. Live switch `AUTOMIND_UNDERSTANDING_SHADOW` (default on;
+off in test ports). Shadow eval `tests.eval.understanding.shadow` → `shadow.md` (€0.13 a run on flash-lite): answer
+66 → 96 %, goals 76 → 83 %, language 96 → 99 %, all but action 49 → 68 %, p95 4.6 → 1.6 s. Below §E: goals (92 %)
+and answer (97 %); open for S4: try the understander on gemini-3.6-flash (latency has room) before switching.
+Not in the graph shadow: confirmations answered by the `apply_*` nodes before `interpret` (their words never reach
+it until S4); the eval covers them.
 
 ## S4 — Switch to Intent (PR 5; deploy checkpoint)
 

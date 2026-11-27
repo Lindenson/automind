@@ -21,7 +21,7 @@ from prometheus_client.core import GaugeMetricFamily
 from prometheus_client.registry import Collector
 
 from automind.shared.infrastructure.config.settings import settings
-from automind.shared.infrastructure.metrics import policy, understanding_eval
+from automind.shared.infrastructure.metrics import policy, understanding, understanding_eval
 
 log = logging.getLogger(__name__)
 
@@ -179,4 +179,4 @@ def metric_names() -> set[str]:
     out.add(LLM_COST._name + "_total")  # noqa: SLF001
     base = P + "turn_duration_seconds"
     out |= {base + "_bucket", base + "_sum", base + "_count"}
-    return out | policy.metric_names()
+    return out | policy.metric_names() | understanding.metric_names()

@@ -1,0 +1,2473 @@
+[
+ {
+  "id": "ru-001",
+  "error": null,
+  "cost_eur": 0.0009423099999999999,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "changes": true
+  },
+  "misses": {
+   "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 2056.356549001066
+ },
+ {
+  "id": "ru-002",
+  "error": null,
+  "cost_eur": 0.00088159,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "changes": true
+  },
+  "misses": {
+   "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1775.2986589912325
+ },
+ {
+  "id": "ru-003",
+  "error": null,
+  "cost_eur": 0.0007969499999999999,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "reaction": true,
+   "changes": true
+  },
+  "misses": {
+   "action": "ANSWER_AND_REASK / ANSWER_GENERAL"
+  },
+  "notes": [],
+  "latency_ms": 1783.3929050248116
+ },
+ {
+  "id": "ru-004",
+  "error": null,
+  "cost_eur": 0.0009685300000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "changes": true
+  },
+  "misses": {
+   "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 2106.900596001651
+ },
+ {
+  "id": "ru-005",
+  "error": null,
+  "cost_eur": 0.00081949,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "changes": true
+  },
+  "misses": {
+   "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1529.3140829890035
+ },
+ {
+  "id": "ru-006",
+  "error": null,
+  "cost_eur": 0.0008572100000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true,
+   "changes": true
+  },
+  "misses": {},
+  "notes": [],
+  "latency_ms": 1251.1185060138814
+ },
+ {
+  "id": "ru-007",
+  "error": null,
+  "cost_eur": 0.0008045400000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "changes": true
+  },
+  "misses": {
+   "action": "ANSWER_AND_REASK / ANSWER_GENERAL"
+  },
+  "notes": [],
+  "latency_ms": 1167.5383769907057
+ },
+ {
+  "id": "ru-008",
+  "error": null,
+  "cost_eur": 0.00095335,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true,
+   "changes": true
+  },
+  "misses": {},
+  "notes": [],
+  "latency_ms": 1443.7295730167534
+ },
+ {
+  "id": "ru-009",
+  "error": null,
+  "cost_eur": 0.0008316800000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "reaction": true,
+   "changes": true
+  },
+  "misses": {
+   "action": "ANSWER_AND_REASK / ANSWER_GENERAL"
+  },
+  "notes": [],
+  "latency_ms": 1138.435920001939
+ },
+ {
+  "id": "ru-010",
+  "error": null,
+  "cost_eur": 0.00109848,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": false,
+   "action": false,
+   "reaction": true,
+   "rejections": true,
+   "changes": true
+  },
+  "misses": {
+   "goals": "[] / ['compare']",
+   "action": "ASK / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1674.3681699736044
+ },
+ {
+  "id": "ru-011",
+  "error": null,
+  "cost_eur": 0.00110515,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "reaction": true,
+   "rejections": true,
+   "changes": true
+  },
+  "misses": {
+   "action": "ANSWER_FROM_CONTEXT / ANSWER_GENERAL"
+  },
+  "notes": [],
+  "latency_ms": 1567.6229309756309
+ },
+ {
+  "id": "ru-012",
+  "error": null,
+  "cost_eur": 0.00110101,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "reaction": false,
+   "rejections": true,
+   "changes": true
+  },
+  "misses": {
+   "action": "ANSWER_FROM_CONTEXT / ANSWER_GENERAL",
+   "reaction": "complaint / correction"
+  },
+  "notes": [],
+  "latency_ms": 1557.2323130036239
+ },
+ {
+  "id": "ru-013",
+  "error": null,
+  "cost_eur": 0.00088573,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "reaction": true,
+   "rejections": false,
+   "changes": true
+  },
+  "misses": {
+   "action": "ANSWER_FROM_CONTEXT / ANSWER_GENERAL",
+   "rejections": "[] / [('car#1', 'MODEL')]"
+  },
+  "notes": [],
+  "latency_ms": 991.1522589973174
+ },
+ {
+  "id": "ru-014",
+  "error": null,
+  "cost_eur": 0.0010534000000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": false,
+   "action": false,
+   "reaction": true,
+   "changes": true
+  },
+  "misses": {
+   "goals": "[] / ['compare']",
+   "action": "ASK / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1420.0951929960866
+ },
+ {
+  "id": "ru-015",
+  "error": null,
+  "cost_eur": 0.0009066600000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "changes": false
+  },
+  "misses": {
+   "action": "ANSWER_FROM_CONTEXT / ANSWER_GENERAL",
+   "changes": "empty: the case changed"
+  },
+  "notes": [],
+  "latency_ms": 1376.4440899831243
+ },
+ {
+  "id": "ru-016",
+  "error": null,
+  "cost_eur": 0.0009653099999999999,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true,
+   "rejections": true
+  },
+  "misses": {},
+  "notes": [],
+  "latency_ms": 1305.460684990976
+ },
+ {
+  "id": "ru-017",
+  "error": null,
+  "cost_eur": 0.0009959,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true,
+   "rejections": true
+  },
+  "misses": {},
+  "notes": [],
+  "latency_ms": 1211.355690000346
+ },
+ {
+  "id": "ru-018",
+  "error": null,
+  "cost_eur": 0.00086089,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "changes": true
+  },
+  "misses": {
+   "action": "ASK / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1273.7790170067456
+ },
+ {
+  "id": "ru-019",
+  "error": null,
+  "cost_eur": 0.0008926299999999999,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": false,
+   "action": false
+  },
+  "misses": {
+   "goals": "[] / ['compare']",
+   "action": "RESEARCH / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1246.9474750105292
+ },
+ {
+  "id": "ru-020",
+  "error": null,
+  "cost_eur": 0.00084801,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true,
+   "reaction": true,
+   "changes": false
+  },
+  "misses": {
+   "changes": "empty: the case changed"
+  },
+  "notes": [],
+  "latency_ms": 1252.0079219830222
+ },
+ {
+  "id": "ru-021",
+  "error": null,
+  "cost_eur": 0.0008275400000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "reaction": true,
+   "changes": true
+  },
+  "misses": {
+   "action": "ASK / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1075.5812679999508
+ },
+ {
+  "id": "ru-022",
+  "error": null,
+  "cost_eur": 0.0009581800000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "reaction": false,
+   "changes": true
+  },
+  "misses": {
+   "action": "ASK / CONFIRM_VARIANTS",
+   "reaction": "correction / None"
+  },
+  "notes": [],
+  "latency_ms": 1530.4373659892008
+ },
+ {
+  "id": "ru-023",
+  "error": null,
+  "cost_eur": 0.00104696,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": false,
+   "action": false,
+   "changes": true
+  },
+  "misses": {
+   "goals": "[] / ['research_more']",
+   "action": "ASK / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1553.984380007023
+ },
+ {
+  "id": "ru-024",
+  "error": null,
+  "cost_eur": 0.0010511000000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "changes": false
+  },
+  "misses": {
+   "action": "ASK / CONFIRM_VARIANTS",
+   "changes": "car#1.gearbox automatic / None"
+  },
+  "notes": [],
+  "latency_ms": 1505.1148270140402
+ },
+ {
+  "id": "ru-025",
+  "error": null,
+  "cost_eur": 0.00101499,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "changes": true
+  },
+  "misses": {
+   "action": "ASK / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1604.2927889793646
+ },
+ {
+  "id": "ru-026",
+  "error": null,
+  "cost_eur": 0.00091747,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "changes": true
+  },
+  "misses": {
+   "action": "ASK / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1393.2397380121984
+ },
+ {
+  "id": "ru-027",
+  "error": null,
+  "cost_eur": 0.00092069,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "changes": true
+  },
+  "misses": {
+   "action": "ASK / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1335.0564569991548
+ },
+ {
+  "id": "ru-028",
+  "error": null,
+  "cost_eur": 0.0010241900000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "REPORT / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1249.428411014378
+ },
+ {
+  "id": "ru-029",
+  "error": null,
+  "cost_eur": 0.0008526100000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true,
+   "changes": true
+  },
+  "misses": {},
+  "notes": [],
+  "latency_ms": 1087.0536289876327
+ },
+ {
+  "id": "ru-030",
+  "error": null,
+  "cost_eur": 0.0008061499999999999,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true
+  },
+  "misses": {},
+  "notes": [],
+  "latency_ms": 955.6264879938681
+ },
+ {
+  "id": "ru-031",
+  "error": null,
+  "cost_eur": 0.0008178800000000001,
+  "fields": {
+   "language": false,
+   "answer": true,
+   "goals": true,
+   "action": true
+  },
+  "misses": {
+   "language": "ru / en"
+  },
+  "notes": [],
+  "latency_ms": 1209.4205059984233
+ },
+ {
+  "id": "ru-032",
+  "error": null,
+  "cost_eur": 0.0011235499999999999,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true,
+   "changes": false
+  },
+  "misses": {
+   "changes": "persona PERFORMANCE / UNKNOWN"
+  },
+  "notes": [],
+  "latency_ms": 1547.6600600231905
+ },
+ {
+  "id": "ru-033",
+  "error": null,
+  "cost_eur": 0.0011164200000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true,
+   "changes": false
+  },
+  "misses": {
+   "changes": "car#1.make BYD / None"
+  },
+  "notes": [],
+  "latency_ms": 1410.1396620098967
+ },
+ {
+  "id": "ru-034",
+  "error": null,
+  "cost_eur": 0.0008326000000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": false,
+   "action": false,
+   "changes": false
+  },
+  "misses": {
+   "goals": "[] / ['ask_general']",
+   "action": "ASK / ANSWER_GENERAL",
+   "changes": "car#1.make BYD / None"
+  },
+  "notes": [],
+  "latency_ms": 1013.3353050041478
+ },
+ {
+  "id": "ru-035",
+  "error": null,
+  "cost_eur": 0.0008457100000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true,
+   "reaction": true,
+   "changes": true
+  },
+  "misses": {},
+  "notes": [],
+  "latency_ms": 1116.4411320060026
+ },
+ {
+  "id": "ru-036",
+  "error": null,
+  "cost_eur": 0.0008719299999999999,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": false,
+   "action": false,
+   "reaction": true,
+   "changes": true
+  },
+  "misses": {
+   "goals": "['compare'] / []",
+   "action": "ASK / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1014.2800989851821
+ },
+ {
+  "id": "ru-037",
+  "error": null,
+  "cost_eur": 0.0008868800000000002,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true,
+   "changes": false
+  },
+  "misses": {
+   "changes": "add_cars ['Toyota Land Cruiser Prado'] / []; replaced_car Toyota Land Cruiser Prado / []"
+  },
+  "notes": [],
+  "latency_ms": 1376.6501309874002
+ },
+ {
+  "id": "ru-038",
+  "error": null,
+  "cost_eur": 0.0008949299999999999,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "changes": true
+  },
+  "misses": {
+   "action": "SELECT_CANDIDATES / ANSWER_GENERAL"
+  },
+  "notes": [],
+  "latency_ms": 1208.6589240061585
+ },
+ {
+  "id": "ru-039",
+  "error": null,
+  "cost_eur": 0.00093242,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "changes": true
+  },
+  "misses": {
+   "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1062.8866929910146
+ },
+ {
+  "id": "ru-040",
+  "error": null,
+  "cost_eur": 0.00085859,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1086.7020440055057
+ },
+ {
+  "id": "ru-041",
+  "error": null,
+  "cost_eur": 0.00089148,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 985.9719070082065
+ },
+ {
+  "id": "ru-042",
+  "error": null,
+  "cost_eur": 0.0009131,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1032.9095520137344
+ },
+ {
+  "id": "ru-043",
+  "error": null,
+  "cost_eur": 0.00086089,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1042.3749290057458
+ },
+ {
+  "id": "ru-044",
+  "error": null,
+  "cost_eur": 0.0009041300000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1167.5581930030603
+ },
+ {
+  "id": "ru-045",
+  "error": null,
+  "cost_eur": 0.00092943,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": false,
+   "action": false
+  },
+  "misses": {
+   "goals": "[] / ['compare']",
+   "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1309.6782850043382
+ },
+ {
+  "id": "ru-046",
+  "error": null,
+  "cost_eur": 0.00087699,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "RESEARCH / CONFIRM_COST"
+  },
+  "notes": [],
+  "latency_ms": 901.9950779911596
+ },
+ {
+  "id": "ru-047",
+  "error": null,
+  "cost_eur": 0.00087699,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "RESEARCH / CONFIRM_COST"
+  },
+  "notes": [],
+  "latency_ms": 961.387907009339
+ },
+ {
+  "id": "ru-048",
+  "error": null,
+  "cost_eur": 0.00083927,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "REPORT / CONFIRM_COST"
+  },
+  "notes": [],
+  "latency_ms": 855.3845299757086
+ },
+ {
+  "id": "ru-049",
+  "error": null,
+  "cost_eur": 0.0008714700000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true
+  },
+  "misses": {},
+  "notes": [],
+  "latency_ms": 944.4467709981836
+ },
+ {
+  "id": "ru-050",
+  "error": null,
+  "cost_eur": 0.00084019,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true
+  },
+  "misses": {},
+  "notes": [],
+  "latency_ms": 958.2793169829529
+ },
+ {
+  "id": "ru-051",
+  "error": null,
+  "cost_eur": 0.00088435,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true
+  },
+  "misses": {},
+  "notes": [],
+  "latency_ms": 1064.1743070154916
+ },
+ {
+  "id": "ru-052",
+  "error": null,
+  "cost_eur": 0.00089746,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": false,
+   "action": false
+  },
+  "misses": {
+   "goals": "[] / ['compare']",
+   "action": "RESEARCH / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1140.6024799798615
+ },
+ {
+  "id": "ru-053",
+  "error": null,
+  "cost_eur": 0.00086963,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "ANSWER_AND_REASK / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1133.0937260063365
+ },
+ {
+  "id": "ru-054",
+  "error": null,
+  "cost_eur": 0.00088274,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "ANSWER_AND_REASK / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1113.417890999699
+ },
+ {
+  "id": "ru-055",
+  "error": null,
+  "cost_eur": 0.0010241900000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "changes": true
+  },
+  "misses": {
+   "action": "ASK / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1322.9441239964217
+ },
+ {
+  "id": "es-001",
+  "error": null,
+  "cost_eur": 0.00089815,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "changes": true
+  },
+  "misses": {
+   "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1296.5069430065341
+ },
+ {
+  "id": "es-002",
+  "error": null,
+  "cost_eur": 0.00083536,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true,
+   "reaction": true
+  },
+  "misses": {},
+  "notes": [],
+  "latency_ms": 1322.740583011182
+ },
+ {
+  "id": "es-003",
+  "error": null,
+  "cost_eur": 0.00094369,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "changes": false
+  },
+  "misses": {
+   "action": "ASK / CONFIRM_VARIANTS",
+   "changes": "add_cars ['Kia Sportage', 'Nissan Qashqai'] / ['Kia Sportage']"
+  },
+  "notes": [],
+  "latency_ms": 1306.8737809953745
+ },
+ {
+  "id": "es-004",
+  "error": null,
+  "cost_eur": 0.00116449,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "changes": false
+  },
+  "misses": {
+   "action": "ASK / CONFIRM_VARIANTS",
+   "changes": "region Sevilla / None"
+  },
+  "notes": [],
+  "latency_ms": 1478.5937009728514
+ },
+ {
+  "id": "es-005",
+  "error": null,
+  "cost_eur": 0.0010074,
+  "fields": {
+   "language": true,
+   "answer": false,
+   "goals": true,
+   "action": false,
+   "rejections": false,
+   "changes": true
+  },
+  "misses": {
+   "answer": "no:None / option:option:car#2:20tdi-dsg",
+   "action": "ASK / CONFIRM_VARIANTS",
+   "rejections": "[('car#2', 'VERSION')] / []"
+  },
+  "notes": [],
+  "latency_ms": 1272.5650189968292
+ },
+ {
+  "id": "es-006",
+  "error": null,
+  "cost_eur": 0.00099383,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "rejections": true
+  },
+  "misses": {
+   "action": "ASK / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1072.5339869968593
+ },
+ {
+  "id": "es-007",
+  "error": null,
+  "cost_eur": 0.00102442,
+  "fields": {
+   "language": true,
+   "answer": false,
+   "goals": true,
+   "action": false,
+   "reaction": true,
+   "rejections": true,
+   "changes": true
+  },
+  "misses": {
+   "answer": "no:None / None:None",
+   "action": "ASK / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1239.1344310017303
+ },
+ {
+  "id": "es-008",
+  "error": null,
+  "cost_eur": 0.0008231699999999999,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "changes": true
+  },
+  "misses": {
+   "action": "ANSWER_FROM_CONTEXT / ANSWER_GENERAL"
+  },
+  "notes": [],
+  "latency_ms": 1017.2651679895353
+ },
+ {
+  "id": "es-009",
+  "error": null,
+  "cost_eur": 0.00080293,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "changes": true
+  },
+  "misses": {
+   "action": "ANSWER_FROM_CONTEXT / ANSWER_GENERAL"
+  },
+  "notes": [],
+  "latency_ms": 1049.947156017879
+ },
+ {
+  "id": "es-010",
+  "error": null,
+  "cost_eur": 0.00087837,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": false,
+   "action": false,
+   "reaction": true,
+   "changes": true
+  },
+  "misses": {
+   "goals": "[] / ['critique']",
+   "action": "ASK / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1175.4903710098006
+ },
+ {
+  "id": "es-011",
+  "error": null,
+  "cost_eur": 0.00082386,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true,
+   "reaction": true
+  },
+  "misses": {},
+  "notes": [],
+  "latency_ms": 1343.3097059896681
+ },
+ {
+  "id": "es-012",
+  "error": null,
+  "cost_eur": 0.00089194,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "changes": true
+  },
+  "misses": {
+   "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1404.4068420189433
+ },
+ {
+  "id": "es-013",
+  "error": null,
+  "cost_eur": 0.00084065,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": false,
+   "action": false
+  },
+  "misses": {
+   "goals": "['ask_general'] / ['follow_up']",
+   "action": "ANSWER_AND_REASK / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1285.8331490133423
+ },
+ {
+  "id": "es-014",
+  "error": null,
+  "cost_eur": 0.0008756100000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "ANSWER_AND_REASK / RESEARCH"
+  },
+  "notes": [],
+  "latency_ms": 1266.9394770055078
+ },
+ {
+  "id": "es-015",
+  "error": null,
+  "cost_eur": 0.00088642,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "ANSWER_AND_REASK / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 956.5106199879665
+ },
+ {
+  "id": "es-016",
+  "error": null,
+  "cost_eur": 0.00098072,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "changes": true
+  },
+  "misses": {
+   "action": "ASK / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1488.0185300135054
+ },
+ {
+  "id": "es-017",
+  "error": null,
+  "cost_eur": 0.0008659500000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true,
+   "reaction": false,
+   "changes": true
+  },
+  "misses": {
+   "reaction": "thanks / None"
+  },
+  "notes": [],
+  "latency_ms": 1120.328151009744
+ },
+ {
+  "id": "es-018",
+  "error": null,
+  "cost_eur": 0.00086733,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "RESEARCH / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 865.091048006434
+ },
+ {
+  "id": "es-019",
+  "error": null,
+  "cost_eur": 0.00086733,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "RESEARCH / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 988.4871499962173
+ },
+ {
+  "id": "es-020",
+  "error": null,
+  "cost_eur": 0.0009006800000000001,
+  "fields": {
+   "language": true,
+   "answer": false,
+   "goals": false,
+   "action": false
+  },
+  "misses": {
+   "answer": "option:stop / no:None",
+   "goals": "[] / ['stop']",
+   "action": "REPORT / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1098.6082540184725
+ },
+ {
+  "id": "es-021",
+  "error": null,
+  "cost_eur": 0.0009121800000000001,
+  "fields": {
+   "language": true,
+   "answer": false,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "answer": "yes:None / option:option:car#2:15tsi-dsg",
+   "action": "RESEARCH / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1004.9481579917483
+ },
+ {
+  "id": "es-022",
+  "error": null,
+  "cost_eur": 0.0009280499999999999,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "RESEARCH / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1178.2990420178976
+ },
+ {
+  "id": "es-023",
+  "error": null,
+  "cost_eur": 0.0008316800000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true
+  },
+  "misses": {},
+  "notes": [],
+  "latency_ms": 873.680286022136
+ },
+ {
+  "id": "es-024",
+  "error": null,
+  "cost_eur": 0.0008365099999999999,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "REPORT / RESEARCH"
+  },
+  "notes": [],
+  "latency_ms": 919.1467640048359
+ },
+ {
+  "id": "es-025",
+  "error": null,
+  "cost_eur": 0.0008562900000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": false,
+   "action": false
+  },
+  "misses": {
+   "goals": "['ask_general'] / ['follow_up']",
+   "action": "ANSWER_AND_REASK / RESEARCH"
+  },
+  "notes": [],
+  "latency_ms": 998.3158330142032
+ },
+ {
+  "id": "es-026",
+  "error": null,
+  "cost_eur": 0.00085928,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true
+  },
+  "misses": {},
+  "notes": [],
+  "latency_ms": 875.7744919857942
+ },
+ {
+  "id": "es-027",
+  "error": null,
+  "cost_eur": 0.00086411,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true
+  },
+  "misses": {},
+  "notes": [],
+  "latency_ms": 1111.3384470227174
+ },
+ {
+  "id": "es-028",
+  "error": null,
+  "cost_eur": 0.00085928,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true
+  },
+  "misses": {},
+  "notes": [],
+  "latency_ms": 975.775960017927
+ },
+ {
+  "id": "es-029",
+  "error": null,
+  "cost_eur": 0.0008689399999999999,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true
+  },
+  "misses": {},
+  "notes": [],
+  "latency_ms": 994.1022990096826
+ },
+ {
+  "id": "es-030",
+  "error": null,
+  "cost_eur": 0.0008763000000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true
+  },
+  "misses": {},
+  "notes": [],
+  "latency_ms": 1025.3387419797946
+ },
+ {
+  "id": "es-031",
+  "error": null,
+  "cost_eur": 0.00086986,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1054.2247710109223
+ },
+ {
+  "id": "es-032",
+  "error": null,
+  "cost_eur": 0.00085836,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 917.9396950057708
+ },
+ {
+  "id": "es-033",
+  "error": null,
+  "cost_eur": 0.0008901,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1449.3052060133778
+ },
+ {
+  "id": "es-034",
+  "error": null,
+  "cost_eur": 0.00084226,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1188.6710090038832
+ },
+ {
+  "id": "es-035",
+  "error": null,
+  "cost_eur": 0.0009022899999999999,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": false,
+   "action": false
+  },
+  "misses": {
+   "goals": "[] / ['compare']",
+   "action": "RESEARCH / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1094.0253009903245
+ },
+ {
+  "id": "es-036",
+  "error": null,
+  "cost_eur": 0.00116449,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "reaction": false,
+   "changes": false
+  },
+  "misses": {
+   "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS",
+   "reaction": "correction / None",
+   "changes": "car#1.displacement_l 1.5 / 1.0"
+  },
+  "notes": [],
+  "latency_ms": 1516.1256289866287
+ },
+ {
+  "id": "es-037",
+  "error": null,
+  "cost_eur": 0.000828,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true,
+   "changes": true
+  },
+  "misses": {},
+  "notes": [],
+  "latency_ms": 1137.5927629997022
+ },
+ {
+  "id": "es-038",
+  "error": null,
+  "cost_eur": 0.00086641,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true,
+   "changes": true
+  },
+  "misses": {},
+  "notes": [],
+  "latency_ms": 1143.1486050132662
+ },
+ {
+  "id": "es-039",
+  "error": null,
+  "cost_eur": 0.0008795200000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "changes": true
+  },
+  "misses": {
+   "action": "ASK / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1152.467470994452
+ },
+ {
+  "id": "es-040",
+  "error": null,
+  "cost_eur": 0.00079902,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true,
+   "changes": true
+  },
+  "misses": {},
+  "notes": [],
+  "latency_ms": 838.1994509836659
+ },
+ {
+  "id": "es-041",
+  "error": null,
+  "cost_eur": 0.0009287400000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "changes": true
+  },
+  "misses": {
+   "action": "ASK / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1381.2989209836815
+ },
+ {
+  "id": "es-042",
+  "error": null,
+  "cost_eur": 0.00082317,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true,
+   "changes": false
+  },
+  "misses": {
+   "changes": "passengers 5 / None"
+  },
+  "notes": [],
+  "latency_ms": 1214.9214340024628
+ },
+ {
+  "id": "es-043",
+  "error": null,
+  "cost_eur": 0.00094645,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": false,
+   "action": false,
+   "changes": true
+  },
+  "misses": {
+   "goals": "[] / ['follow_up']",
+   "action": "ASK / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1084.887000004528
+ },
+ {
+  "id": "es-044",
+  "error": null,
+  "cost_eur": 0.0007895900000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true,
+   "changes": true
+  },
+  "misses": {},
+  "notes": [],
+  "latency_ms": 948.9927150134463
+ },
+ {
+  "id": "es-045",
+  "error": null,
+  "cost_eur": 0.00081466,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true,
+   "changes": true
+  },
+  "misses": {},
+  "notes": [],
+  "latency_ms": 1203.8411640096456
+ },
+ {
+  "id": "es-046",
+  "error": null,
+  "cost_eur": 0.00085491,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": false,
+   "action": false,
+   "reaction": true,
+   "changes": true
+  },
+  "misses": {
+   "goals": "[] / ['follow_up']",
+   "action": "ANSWER_AND_REASK / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1136.8783959769644
+ },
+ {
+  "id": "en-001",
+  "error": null,
+  "cost_eur": 0.00087515,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "ANSWER_AND_REASK / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1201.3503860216588
+ },
+ {
+  "id": "en-002",
+  "error": null,
+  "cost_eur": 0.0008395,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "ANSWER_AND_REASK / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1051.295659999596
+ },
+ {
+  "id": "en-003",
+  "error": null,
+  "cost_eur": 0.0010987100000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true,
+   "changes": false
+  },
+  "misses": {
+   "changes": "priorities True / ['ownership_cost', 'reliability']"
+  },
+  "notes": [],
+  "latency_ms": 1462.4379590095486
+ },
+ {
+  "id": "en-004",
+  "error": null,
+  "cost_eur": 0.0009494400000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "changes": true
+  },
+  "misses": {
+   "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1032.6697549899109
+ },
+ {
+  "id": "en-005",
+  "error": null,
+  "cost_eur": 0.0011341300000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": false,
+   "action": false,
+   "reaction": true,
+   "changes": true
+  },
+  "misses": {
+   "goals": "[] / ['research_more']",
+   "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1516.1221719754394
+ },
+ {
+  "id": "en-006",
+  "error": null,
+  "cost_eur": 0.0008625,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true,
+   "changes": true
+  },
+  "misses": {},
+  "notes": [],
+  "latency_ms": 1163.6931859829929
+ },
+ {
+  "id": "en-007",
+  "error": null,
+  "cost_eur": 0.0009236800000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true,
+   "changes": true
+  },
+  "misses": {},
+  "notes": [],
+  "latency_ms": 1103.339749010047
+ },
+ {
+  "id": "en-008",
+  "error": null,
+  "cost_eur": 0.00106099,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": false,
+   "action": false,
+   "reaction": true,
+   "changes": true
+  },
+  "misses": {
+   "goals": "[] / ['compare']",
+   "action": "CONFIRM_INTAKE / ASK"
+  },
+  "notes": [],
+  "latency_ms": 1374.4483129994478
+ },
+ {
+  "id": "en-009",
+  "error": null,
+  "cost_eur": 0.00081811,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true,
+   "reaction": true,
+   "changes": true
+  },
+  "misses": {},
+  "notes": [],
+  "latency_ms": 893.6912420031149
+ },
+ {
+  "id": "en-010",
+  "error": null,
+  "cost_eur": 0.00091425,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "changes": true
+  },
+  "misses": {
+   "action": "ASK / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1196.5407700045034
+ },
+ {
+  "id": "en-011",
+  "error": null,
+  "cost_eur": 0.0009239100000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true,
+   "changes": false
+  },
+  "misses": {
+   "changes": "add_cars ['Volkswagen Golf'] / []"
+  },
+  "notes": [],
+  "latency_ms": 1179.939942987403
+ },
+ {
+  "id": "en-012",
+  "error": null,
+  "cost_eur": 0.00095749,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true,
+   "changes": true
+  },
+  "misses": {},
+  "notes": [],
+  "latency_ms": 1202.824920997955
+ },
+ {
+  "id": "en-013",
+  "error": null,
+  "cost_eur": 0.00121969,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "changes": false
+  },
+  "misses": {
+   "action": "ASK / CONFIRM_VARIANTS",
+   "changes": "region Seville / None"
+  },
+  "notes": [],
+  "latency_ms": 1694.0680539992172
+ },
+ {
+  "id": "en-014",
+  "error": null,
+  "cost_eur": 0.00103615,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": false,
+   "action": false,
+   "changes": true
+  },
+  "misses": {
+   "goals": "['compare'] / ['research_more']",
+   "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1831.2903369951528
+ },
+ {
+  "id": "en-015",
+  "error": null,
+  "cost_eur": 0.00083536,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "RESEARCH / CONFIRM_COST"
+  },
+  "notes": [],
+  "latency_ms": 1317.0564879837912
+ },
+ {
+  "id": "en-016",
+  "error": null,
+  "cost_eur": 0.00087469,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "RESEARCH / CONFIRM_COST"
+  },
+  "notes": [],
+  "latency_ms": 1439.0764679992571
+ },
+ {
+  "id": "en-017",
+  "error": null,
+  "cost_eur": 0.00089976,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "REPORT / CONFIRM_COST"
+  },
+  "notes": [],
+  "latency_ms": 1277.9621499939822
+ },
+ {
+  "id": "en-018",
+  "error": null,
+  "cost_eur": 0.00089171,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": false,
+   "action": true,
+   "changes": true
+  },
+  "misses": {
+   "goals": "[] / ['change_priorities']"
+  },
+  "notes": [],
+  "latency_ms": 1232.1685169881675
+ },
+ {
+  "id": "en-019",
+  "error": null,
+  "cost_eur": 0.00085215,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "RESEARCH / CONFIRM_COST"
+  },
+  "notes": [],
+  "latency_ms": 1301.4118910068646
+ },
+ {
+  "id": "en-020",
+  "error": null,
+  "cost_eur": 0.0008461699999999999,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true
+  },
+  "misses": {},
+  "notes": [],
+  "latency_ms": 1262.0937259925995
+ },
+ {
+  "id": "en-021",
+  "error": null,
+  "cost_eur": 0.00081811,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true
+  },
+  "misses": {},
+  "notes": [
+   "language_hysteresis: language"
+  ],
+  "latency_ms": 1042.9785610176623
+ },
+ {
+  "id": "en-022",
+  "error": null,
+  "cost_eur": 0.00082271,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": false,
+   "action": true
+  },
+  "misses": {
+   "goals": "[] / ['stop']"
+  },
+  "notes": [
+   "language_hysteresis: language"
+  ],
+  "latency_ms": 978.6921210179571
+ },
+ {
+  "id": "en-023",
+  "error": null,
+  "cost_eur": 0.0008213299999999999,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true
+  },
+  "misses": {},
+  "notes": [
+   "language_hysteresis: language"
+  ],
+  "latency_ms": 914.5334099885076
+ },
+ {
+  "id": "en-024",
+  "error": null,
+  "cost_eur": 0.0008457100000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "RESEARCH / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 917.2534779936541
+ },
+ {
+  "id": "en-025",
+  "error": null,
+  "cost_eur": 0.00090252,
+  "fields": {
+   "language": true,
+   "answer": false,
+   "goals": false,
+   "action": false
+  },
+  "misses": {
+   "answer": "option:stop / no:None",
+   "goals": "[] / ['stop']",
+   "action": "REPORT / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 922.6091750024352
+ },
+ {
+  "id": "en-026",
+  "error": null,
+  "cost_eur": 0.00086917,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "changes": true
+  },
+  "misses": {
+   "action": "ASK / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 940.5019240221009
+ },
+ {
+  "id": "en-027",
+  "error": null,
+  "cost_eur": 0.00088734,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "ANSWER_AND_REASK / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 940.4477850184776
+ },
+ {
+  "id": "en-028",
+  "error": null,
+  "cost_eur": 0.0009558800000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "changes": true
+  },
+  "misses": {
+   "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 974.2720409994945
+ },
+ {
+  "id": "en-029",
+  "error": null,
+  "cost_eur": 0.0008395,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "changes": true
+  },
+  "misses": {
+   "action": "ANSWER_AND_REASK / ANSWER_GENERAL"
+  },
+  "notes": [],
+  "latency_ms": 875.6796040106565
+ },
+ {
+  "id": "en-030",
+  "error": null,
+  "cost_eur": 0.00089401,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "RESEARCH / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1117.5289370003156
+ },
+ {
+  "id": "en-031",
+  "error": null,
+  "cost_eur": 0.00091931,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "RESEARCH / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1037.4288540042471
+ },
+ {
+  "id": "en-032",
+  "error": null,
+  "cost_eur": 0.00100993,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "rejections": true
+  },
+  "misses": {
+   "action": "ASK / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1043.4554970124736
+ },
+ {
+  "id": "en-033",
+  "error": null,
+  "cost_eur": 0.00111711,
+  "fields": {
+   "language": true,
+   "answer": false,
+   "goals": true,
+   "action": false,
+   "reaction": true,
+   "rejections": false,
+   "changes": true
+  },
+  "misses": {
+   "answer": "no:None / None:None",
+   "action": "ASK / CONFIRM_VARIANTS",
+   "rejections": "[('car#1', 'GENERATION')] / []"
+  },
+  "notes": [],
+  "latency_ms": 1245.080513996072
+ },
+ {
+  "id": "en-034",
+  "error": null,
+  "cost_eur": 0.00110055,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": false,
+   "action": false,
+   "reaction": true,
+   "rejections": false,
+   "changes": true
+  },
+  "misses": {
+   "goals": "[] / ['research_more']",
+   "action": "ASK / CONFIRM_VARIANTS",
+   "rejections": "[('car#1', 'ENGINE')] / []"
+  },
+  "notes": [],
+  "latency_ms": 1307.8823019750416
+ },
+ {
+  "id": "en-035",
+  "error": null,
+  "cost_eur": 0.0007898199999999999,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "changes": true
+  },
+  "misses": {
+   "action": "ANSWER_FROM_CONTEXT / ANSWER_GENERAL"
+  },
+  "notes": [],
+  "latency_ms": 942.5386170041747
+ },
+ {
+  "id": "en-036",
+  "error": null,
+  "cost_eur": 0.0007831500000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true,
+   "reaction": true
+  },
+  "misses": {},
+  "notes": [],
+  "latency_ms": 855.6953199731652
+ },
+ {
+  "id": "en-037",
+  "error": null,
+  "cost_eur": 0.00087423,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": false,
+   "action": false,
+   "reaction": true,
+   "changes": true
+  },
+  "misses": {
+   "goals": "[] / ['critique']",
+   "action": "ASK / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1255.2777689998038
+ },
+ {
+  "id": "en-038",
+  "error": null,
+  "cost_eur": 0.0009406999999999999,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "reaction": true,
+   "changes": true
+  },
+  "misses": {
+   "action": "ASK / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1401.6111370001454
+ },
+ {
+  "id": "en-039",
+  "error": null,
+  "cost_eur": 0.0008680200000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1224.8600009770598
+ },
+ {
+  "id": "en-040",
+  "error": null,
+  "cost_eur": 0.0008901000000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1180.871938006021
+ },
+ {
+  "id": "en-041",
+  "error": null,
+  "cost_eur": 0.00086319,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false
+  },
+  "misses": {
+   "action": "CONFIRM_INTAKE / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 911.9297529978212
+ },
+ {
+  "id": "en-042",
+  "error": null,
+  "cost_eur": 0.00095496,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true,
+   "changes": true
+  },
+  "misses": {},
+  "notes": [],
+  "latency_ms": 1101.2964110122994
+ },
+ {
+  "id": "en-043",
+  "error": null,
+  "cost_eur": 0.00104535,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": false,
+   "changes": true
+  },
+  "misses": {
+   "action": "ASK / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 1235.7260389835574
+ },
+ {
+  "id": "en-044",
+  "error": null,
+  "cost_eur": 0.00090045,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": false,
+   "action": true,
+   "changes": false
+  },
+  "misses": {
+   "goals": "[] / ['compare']",
+   "changes": "prediction car#1 / None"
+  },
+  "notes": [],
+  "latency_ms": 1085.8957890013698
+ },
+ {
+  "id": "en-045",
+  "error": null,
+  "cost_eur": 0.0008487000000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": false,
+   "action": false,
+   "changes": true
+  },
+  "misses": {
+   "goals": "[] / ['follow_up']",
+   "action": "ANSWER_AND_REASK / CONFIRM_VARIANTS"
+  },
+  "notes": [],
+  "latency_ms": 967.913474974921
+ },
+ {
+  "id": "en-046",
+  "error": null,
+  "cost_eur": 0.00072427,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true,
+   "reaction": true,
+   "changes": true
+  },
+  "misses": {},
+  "notes": [],
+  "latency_ms": 807.5002529949415
+ },
+ {
+  "id": "en-047",
+  "error": null,
+  "cost_eur": 0.0008399600000000001,
+  "fields": {
+   "language": true,
+   "answer": true,
+   "goals": true,
+   "action": true
+  },
+  "misses": {},
+  "notes": [],
+  "latency_ms": 931.1440820165444
+ }
+]

@@ -1,4 +1,4 @@
-# Next session: start here (2026-11-27 eve: 015 PL2 + PL3, 016 N1 merged; next 013 S3 shadow, then 015 PL5)
+# Next session: start here (2026-11-27 eve: 015 PL2 + PL3, 016 N1, 013 S3 shadow merged; next 015 PL5)
 
 Three approved specs, one PR per step, merged to main without review; after each merged step that touches `src`:
 `scripts/deploy.sh up --monitoring`, replay the owner's chat live (cost ≈ €0.01–0.06; script below), show the
@@ -84,12 +84,25 @@ result to the owner first. Spec 012 (A4c onward) waits until 013 S7. New code fo
   golden `tests/unit/chat/dialog/policy/golden/`. Decide `max_passes` from `automind_policy_passes_per_turn` two
   weeks after (≈ 2026-12-11, §H D6).
 
+- **013 S3** (PR "013-s3-understanding-shadow"): the new understanding runs in the shadow of the old interpreter on
+  every typed turn and button (concurrently, old decides), one row per turn in `turn_understanding` (migration 0027,
+  owner's yes, 90 days), metrics `automind_understanding_*`, CLI
+  `docker compose exec app python -m automind.delivery.cli.turn show <turn_id>` (understanding + policy passes).
+  Switch: `AUTOMIND_UNDERSTANDING_SHADOW=false`. Eval `uv run python -m tests.eval.understanding.shadow` (≈ €0.13,
+  flash-lite) → `specs/013-dialogue-quality/shadow.md`: answer 66 → 96 %, goals 76 → 83 %, all but action 49 → 68 %,
+  p95 4.6 → 1.6 s. §E targets not yet met (answer 97, goals 92): before S4 decide with the owner whether the
+  understander runs on gemini-3.6-flash (one eval ≈ €1; latency has room). Owner: watch the shadow rows a few days
+  (`turn show`, `automind_understanding_overrides_total`) before S4.
+- `diff_behaviour.py --base-db URL`: a head with a new migration leaves the test DB at a revision main does not know
+  (every base test errors, "same 0, added N"); give the base its own DB (`automind_test_<tag>` + `automind_mig_<tag>`).
+
 **Next (agreed with the owner 2026-11-27)**
 1. ~~015 PL1 ∥ 014 C2~~ done. Owner to decide: add findings A (reset attempt counters when a car's model changes)
    and B (a relative generation — "newer", "older", "такой же" — is never a generation name; nothing unverified
    enters `vehicle_variants`) to spec 013 S5; delete the invented row.
 2. ~~013 T005, T006~~ done. Owner: D1–D11 of spec 016 and whether N1 goes now.
-3. ~~015 PL2, PL3~~ done. 013 S3 shadow; 015 PL5; then 013 S4 + 014 C3 + 015 PL4.
+3. ~~015 PL2, PL3~~ done; ~~013 S3 shadow~~ done. 015 PL5; then 013 S4 + 014 C3 + 015 PL4 (owner first: the
+   understander's model, see 013 S3 above).
 
 **Working notes**
 - Parallel agents share the session scratchpad: give each its own log names (a `check.log` was overwritten once).

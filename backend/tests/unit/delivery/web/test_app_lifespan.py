@@ -62,7 +62,7 @@ async def test_lifespan_creates_only_the_retention_task(monkeypatch: pytest.Monk
     async with app_mod.lifespan(FastAPI()):
         assert started == ["test_lifespan_creates_only_the_retention_task.<locals>.retention_loop"]
         await asyncio.sleep(0)
-        assert [s.__name__ for s in steps] == ["prune_decisions"]  # the chat's step rides the one task (spec 015)
+        assert [s.__name__ for s in steps] == ["prune_decisions", "prune_understanding"]  # the chat's steps (015, 013)
 
 
 def test_the_api_no_longer_imports_the_moved_loops():

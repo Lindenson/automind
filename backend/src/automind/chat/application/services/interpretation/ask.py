@@ -144,8 +144,7 @@ KIND_ITEM = {"CAR_IDENTITY": "MAKE", "MAKE_LINEUP": "MODEL", "UNKNOWN_MODEL": "M
              "CONDITION": "CONDITION", "USED_AGE": "YEAR", "TRIM": "CHOICE", "GEARBOX": "GEARBOX",
              "PROPOSE": "CHOICE", "REMOVE_OR_CHOOSE": "CHOICE", "FUEL": "FUEL", "POWER": "POWER",
              "DRIVE": "DRIVE"}  # fmt: skip
-CAR_KINDS = ("CAR_IDENTITY", "MAKE_LINEUP", "UNKNOWN_MODEL", "ENGINE", "USED_AGE", "TRIM", "GEARBOX", "PROPOSE",
-             "REMOVE_OR_CHOOSE", "FUEL", "POWER", "DRIVE")  # fmt: skip
+CAR_KINDS = intake.CAR_KINDS
 LADDER_KINDS = ("FUEL", "ENGINE", "POWER", "GEARBOX", "DRIVE")  # spec 008: one level of the identification ladder
 
 
@@ -310,9 +309,7 @@ def _question_chips(q: dict[str, Any], car: Any, labels: dict[str, str]) -> tupl
         kind == "GEARBOX" and not q.get("choices")) else []  # fmt: skip
     own += [_chip(ch["label"], ch, intake.option_id(intake.OptionKind.CHOICE, key, kind, i))
             for i, ch in enumerate(q.get("choices") or [])]  # fmt: skip
-    chooses = kind in ("MAKE_LINEUP", "TRIM", "GEARBOX", "REMOVE_OR_CHOOSE", "FUEL", "POWER", "DRIVE") or (
-        kind == "ENGINE" and bool(q.get("choices"))
-    )
+    chooses = kind in intake.CHOOSABLE_KINDS or (kind == "ENGINE" and bool(q.get("choices")))
     if kind in ("ENGINE", "POWER") and labels.get("other") and _uncertain(car):
         # no sourced list: the options may miss the user's version, so typing it is offered too (chat 6e001ee0)
         own.append({"label": labels["other"], "text": labels["other"], "typing": True})

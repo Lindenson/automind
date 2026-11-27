@@ -30,6 +30,7 @@ from automind.chat.domain.decision import DecisionRecord, PolicyConfig
 from automind.chat.domain.identification.ladder import Generation
 from automind.chat.domain.intake import LineupModel
 from automind.chat.domain.turn import JobStatus, Role, TurnStatus
+from automind.chat.domain.understanding.record import UnderstandingRecord
 from automind.shared.contracts.config import Reference
 from automind.shared.contracts.json import JsonObject
 from automind.shared.contracts.llm import LLM
@@ -327,6 +328,23 @@ class DecisionLog(Protocol):
         ...
 
 
+class UnderstandingLog(Protocol):
+    """Each turn's understanding (spec 013 T033; table `turn_understanding`). Each method raises `StoreUnavailable`
+    when the store cannot be reached; the interpret node logs and counts a failed write and the turn goes on."""
+
+    async def record(self, rec: UnderstandingRecord) -> None:
+        """Store the turn's understanding, keyed by `turn_id`: a turn written again replaces its row."""
+        ...
+
+    async def for_turn(self, turn_id: str) -> UnderstandingRecord | None:
+        """The recorded understanding of a turn (None: none)."""
+        ...
+
+    async def last_question(self, chat_id: str) -> str | None:
+        """The open question id of the chat's latest recorded turn (None: no turn, or no question was open)."""
+        ...
+
+
 class AcquisitionPort(Protocol):
     """The acquisition engine bound to its ports (spec 011 contracts/acquire.md, strangler S8): the chat orders data
     and identity look-ups here and never searches, fetches or reads pages itself. Graph tests fake it. The models are
@@ -425,4 +443,6 @@ class Ports:
     versions: VersionsStore | None = None  # spec 008: versions of model generations; None: no ladder (fallback)
     outcomes: OutcomeStore | None = None  # spec 010 US1/US2; None: not recorded (test fakes)
     decisions: DecisionLog | None = None  # spec 015 D5: the policy's passes; None: not recorded (test fakes)
+    understanding: UnderstandingLog | None = None  # spec 013 T033: each turn's understanding; None: not recorded
+    understanding_shadow: bool = False  # spec 013 S3: run the new understanding beside the old one (live: settings)
     registry: SpecSources | None = None  # spec 010 US6-US8: the source registry; None: config order only

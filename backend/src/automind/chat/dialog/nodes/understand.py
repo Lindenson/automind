@@ -22,6 +22,7 @@ from automind.chat.dialog.phrases import t
 from automind.chat.dialog.report_wording import WORDING
 from automind.chat.dialog.state import PER_TURN_RESET, TurnState
 from automind.chat.dialog.turn.context import TurnContext
+from automind.chat.dialog.understanding_shadow import read_with_shadow
 from automind.chat.domain.case import CaseFile
 
 
@@ -36,9 +37,11 @@ async def load_case_node(inp: LoadCaseIn, c: TurnContext) -> LoadCaseOut:
 
 @node("interpret", reads=InterpretIn, writes=InterpretOut, retry=Retry.PROVIDER)
 async def interpret_node(inp: InterpretIn, c: TurnContext) -> InterpretOut:
-    """The message read into an interpretation (the interpretation service), or a question asked back."""
-    case = await c.case()
-    reading = await _service(c).read(case, await history(c), inp.user_text or "", inp.preset)
+    """The message read into an interpretation (the interpretation service), or a question asked back; spec 013
+    S3: the new understanding runs beside it in the shadow and is recorded (`understanding_shadow`)."""
+    case, hist, text = await c.case(), await history(c), inp.user_text or ""
+    reading = await read_with_shadow(c, case, hist, text, inp.preset,
+                                     lambda: _service(c).read(case, hist, text, inp.preset))  # fmt: skip
     return InterpretOut.from_reading(reading, t(reading.ask, reading.language or inp.language) if reading.ask else "")
 
 

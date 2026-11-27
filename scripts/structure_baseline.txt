@@ -342,7 +342,6 @@ duck|chat/application/services/identification/versions.py|_harder_queries:regist
 duck|chat/application/services/identification/versions.py|_harder_queries:sources_for
 duck|chat/application/services/identification/versions.py|dataset_versions:acquisition
 duck|chat/application/services/identification/versions.py|dataset_versions:dataset_versions
-duck|chat/application/services/interpretation/interpret.py|engine_hints:request_text
 duck|chat/application/services/report/blocks/manufacturer.py|manufacturer_block:year
 duck|chat/application/services/report/blocks/value_retention.py|value_retention_block.is_new:make
 duck|chat/application/services/report/case_facts.py|recent_make:makes
@@ -1140,7 +1139,6 @@ size|chat/application/maintenance/repair.py|>200
 size|chat/application/ports.py|>200
 size|chat/application/services/identification/versions.py|>200
 size|chat/application/services/interpretation/ask.py|>200
-size|chat/application/services/interpretation/interpret.py|>200
 size|chat/application/services/report/blocks/intake_card.py|>200
 size|chat/application/services/report/stages/verdict.py|>200
 size|chat/dialog/guard.py|>200

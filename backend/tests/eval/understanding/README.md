@@ -12,13 +12,15 @@ against it.
 | `vocab.py` / `fixture_models.py` / `schema.py` | the format (Pydantic, `extra="forbid"`: a misspelt key is an error, never silently "not checked") |
 | `coverage.py` | what the set must cover (frozen §1 messages, interpreter.md v5 rules, phrases word lists, minimum per category) and `check_set` |
 | `test_cases.py` | fast unit test, no DB and no model: `uv run pytest -q tests/eval/understanding` |
+| `new_path.py` / `shadow.py` | spec 013 S3: the set on the new chain (Understander → validate → IntentResolver), compared with `baseline.json` → `shadow.md`: `uv run python -m tests.eval.understanding.shadow` (≈ €0.13 on flash-lite) |
 
 ## What `expect` means
 
 - `language`: always checked.
 - `answer`: always checked. If it is absent, the message does not answer the open question. If present, the
   `pending_id` must match, and `kind` is one of `option | value | yes | no | choose_for_me`. `option_id` is checked
-  when given and must be one of the pending's options.
+  when given and must be one of the pending's options. An expected `option` is also met by a yes / no carrying the
+  same option id (the new chain's one form for a button that agrees or refuses, spec 013 S3).
 - `goals`: always checked, as an ordered list of kinds. Absent means no goal. `focus_cars` / `focus_areas` are checked
   only when given. `stop` is spec 013 §D1's extra kind.
 - `reaction`: `thanks | complaint | correction | rephrase`. `none` means there must be no reaction. If absent, it is
