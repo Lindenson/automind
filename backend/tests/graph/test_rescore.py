@@ -23,9 +23,9 @@ async def _reported(saver, chat_id, llm):
 
 async def _patch(chat_id, patch):
     repo = CaseRepo()
-    _, data, _ = await repo.latest(chat_id)
+    version, data, _ = await repo.latest(chat_id)
     edited, changes = apply_patch(CaseFile.model_validate(data), patch, current_year=2026)
-    await repo.save_version(chat_id, edited.model_dump(mode="json"), "user", changes)
+    await repo.save_version(chat_id, edited.model_dump(mode="json"), "user", changes, expected=version)
     return changes
 
 

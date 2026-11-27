@@ -7,7 +7,8 @@ FAILED for a limit, a loop or a provider that is down).
     TimeoutError (turn time)    run_timeout | run_timeout_saved      turn_timeout    report from saved data
     GraphRecursionError         run_loop                             graph_steps
     transient provider failure  run_provider_down                                    provider_down signal
-    anything else               — (the turn FAILS and the error is re-raised)
+    anything else               — (the turn FAILS and the error is re-raised; `user_error_text` says why:
+                                  the provider is busy, the case changed twice under one node, or a failure)
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ from dataclasses import dataclass
 
 from langgraph.errors import GraphRecursionError
 
+from automind.chat.application.ports import VersionConflict
 from automind.chat.dialog.retry import transient_provider_error
 from automind.shared.contracts.provider_failure import BUSY, classify
 from automind.shared.metering.usage import BudgetExceeded
@@ -53,9 +55,15 @@ def ending_for(error: Exception) -> Ending | None:
 _BUSY_TEXT = ("The AI service is overloaded or out of quota right now. Nothing is lost: send the message again in a "
               "minute. / Сервис ИИ сейчас перегружен или исчерпал квоту. Ничего не потеряно — отправьте сообщение ещё "
               "раз через минуту.")  # fmt: skip
+_CONFLICT_TEXT = ("The case was changed elsewhere while I worked on it, twice. Nothing is lost: send the message "
+                  "again. / Дело дважды изменили в другом месте, пока я над ним работал. Ничего не потеряно — "
+                  "отправьте сообщение ещё раз.")  # fmt: skip
 _FAILED_TEXT = "Something went wrong on my side. Please try again. / Что-то пошло не так. Попробуйте ещё раз."
 
 
 def user_error_text(error: BaseException) -> str:
-    """The plain message of a FAILED turn; technical details stay in the event's `detail` and in the logs."""
+    """The plain message of a FAILED turn; technical details stay in the event's `detail` and in the logs. A
+    second `VersionConflict` in one node (spec 014 G3) says the case moved on."""
+    if isinstance(error, VersionConflict):
+        return _CONFLICT_TEXT
     return _BUSY_TEXT if classify(error) in BUSY else _FAILED_TEXT

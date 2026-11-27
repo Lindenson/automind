@@ -47,7 +47,8 @@ class TurnBusy(RuntimeError):
 
 
 class VersionConflict(RuntimeError):
-    """The case changed since it was read (spec 007 J, T076): re-read and apply again."""
+    """The case changed since it was read (spec 007 J, T076; spec 014 T111): re-read and apply again. Not a store
+    failure: the store works, the write was based on a stale read."""
 
     def __init__(self, current: int) -> None:
         super().__init__(f"the case is at version {current}")
@@ -126,8 +127,11 @@ class CaseRepo(Protocol):
         """(version, the case as stored, who changed it); (0, None, None) for a chat without a case."""
         ...
 
-    async def save_version(self, chat_id: str, data: JsonObject, changed_by: str, change_log: list[str]) -> int:
-        """Append a version; returns its number (a concurrent writer is rejected by the store)."""
+    async def save_version(self, chat_id: str, data: JsonObject, changed_by: str, change_log: list[str], *,
+                           expected: int) -> int:  # fmt: skip
+        """Append the version after `expected` (the version the case was read at; 0: none yet) and return its number.
+        Raises `VersionConflict` (with the current version) when the case is no longer at `expected`: it moved on
+        since it was read, or a concurrent writer saved first; `StoreUnavailable` when the store fails."""
         ...
 
 

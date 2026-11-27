@@ -162,18 +162,24 @@ class CaseRepo:
             return dict(row.data) if row else None
 
     @store_errors
-    async def save_version(self, chat_id: str, data: dict[str, Any], changed_by: str, change_log: list[str]) -> int:
-        """Append a new version (optimistic: the PK (chat_id, version) rejects a concurrent writer)."""
+    async def save_version(self, chat_id: str, data: dict[str, Any], changed_by: str, change_log: list[str], *,
+                           expected: int) -> int:  # fmt: skip
+        """Append version `expected + 1` (optimistic): VersionConflict when the case is no longer at `expected`
+        (its latest version is another) or a concurrent writer took that version first (the PK rejects it)."""
         async with sessionmaker()() as s:
-            current = (
-                await s.execute(select(func.max(CaseFileRow.version)).where(CaseFileRow.chat_id == chat_id))
-            ).scalar()
-            version = int(current or 0) + 1
-            s.add(
-                CaseFileRow(chat_id=chat_id, version=version, data=data, changed_by=changed_by, change_log=change_log)
+            current = int(
+                (await s.execute(select(func.max(CaseFileRow.version)).where(CaseFileRow.chat_id == chat_id))).scalar()
+                or 0
             )
-            await s.commit()
-            return version
+            if current != expected:
+                raise VersionConflict(current)
+            s.add(CaseFileRow(chat_id=chat_id, version=expected + 1, data=data, changed_by=changed_by,
+                              change_log=change_log))  # fmt: skip
+            try:
+                await s.commit()
+            except IntegrityError as e:  # the same version saved by a concurrent writer since the read above
+                raise VersionConflict(expected + 1) from e
+            return expected + 1
 
     @store_errors
     async def save_if_idle(

@@ -38,16 +38,38 @@ the 10 router functions (`route_*`, `fan_out`, `route_policy`), deleted at C4 (T
 
 ## C2 — Case file once per turn (PR 2)
 
-- [ ] T110 `TurnContext.case()` (lazy, cached per ainvoke) and `TurnContext.save_case(case, changes, publish=)`;
+- [x] T110 `TurnContext.case()` (lazy, cached per ainvoke) and `TurnContext.save_case(case, changes, publish=)`;
   25 `load_case(c)` call sites (verify) moved; `context.load_case/save_case` removed. `save_case` updates the cache;
   spec 015 T211 adds `last_report_fingerprint()` cached the same way.
-- [ ] T111 `CaseRepo.save_version(chat_id, data, changed_by, change_log, expected: int)`; mismatch →
+- [x] T111 `CaseRepo.save_version(chat_id, data, changed_by, change_log, expected: int)`; mismatch →
   `VersionConflict` (named in the port docstring), distinct from store-unavailable; integration test with a stale
   read.
-- [ ] T112 Retry purity: `report_node`/`answer_node` persist after the model call (or split the persist into a
+- [x] T112 Retry purity: `report_node`/`answer_node` persist after the model call (or split the persist into a
   non-retried node); test fake fails on a store write before the first LLM call of a `Retry.PROVIDER` node.
-- [ ] T113 Owner's decision G3: on `VersionConflict` the node runs once more from a fresh read (cache dropped); a
+- [x] T113 Owner's decision G3: on `VersionConflict` the node runs once more from a fresh read (cache dropped); a
   second conflict fails the turn with a notice; test for both.
+
+C2 done (PR `014-c2-case-once`). Findings: (1) T110 — 25 `load_case` and 26 `save_case` call sites moved to
+`c.case()` / `c.case_version()` / `c.save_case()`; the free functions are gone from `context.py`. The cache is
+`turn/cached.py` `Cached[T]` (loaded on first `get`, a lock so parallel research jobs share one read, `put` after
+the owner's write, `forget`), held by `TurnContext`, which is built per `ainvoke` (a resume or restart reads afresh);
+T211's `last_report_fingerprint()` is one more `Cached` field. `case()` returns a new `CaseFile` on every call
+(validated from the cached JSON), so a node's unsaved changes never reach the next node — as with a read. After a
+save the cache holds the JSON in the store's key order (`jsonb`: by length, then bytes): a cached case iterates its
+dicts exactly like the read it replaces (behaviour diff 0). (2) `case_version` (owners `until` C2): nodes no longer
+write it; its one writer is `load_case` (the version the turn starts from); the turn row's `case_version_after` comes
+from the context — now also right where the last save was by a node that never wrote the key (feasibility, prepare_*,
+apply_cost/intake), and set for early endings (was None). (3) T111 — `expected` is keyword-only; the repo compares the
+latest version with it and inserts `expected + 1` in one transaction; a concurrent insert of that version (PK) is a
+`VersionConflict` too, never `StoreUnavailable`. (4) T112 — report/answer call the model first, then write: intake
+events (`DeferredIntake`: the report service's `ENERGY_REPORT` went to the DB before the reporter), computations,
+the case. Status events still precede the model (the client's progress stream, not a store). interpret and general
+wrote nothing before the model already. Graph test: a guard over the stores' write methods fails a `Retry.PROVIDER`
+node writing before its first model call (fails on the old order). (5) T113 — in `@node` (`contract/node.py` `_run`):
+`save_case` drops the cache on `VersionConflict`, the body runs once more; a second conflict propagates, the turn is
+FAILED and its `error` event says the case was changed elsewhere (`turn/endings.user_error_text`; not an `Ending`,
+which would answer as DONE). What the first run did before its save (status events, an intake event, a model call)
+happens once more — rare: within a run only a concurrent writer outside the turn lock can move the case.
 
 ## C3 — Sections and automatic reset (PR 3, with spec 013 S4)
 

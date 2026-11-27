@@ -64,11 +64,11 @@ async def test_status_wish_and_panel_edit_recompute_without_research(saver, chat
 
     # the case panel sets weights explicitly; the next message uses them (FR-009)
     repo = CaseRepo()
-    _, data, _ = await repo.latest(chat_id)
+    version, data, _ = await repo.latest(chat_id)
     edited, changes = apply_patch(
         CaseFile.model_validate(data), CasePatch(weights={"performance": 1}), current_year=2026
     )
-    await repo.save_version(chat_id, edited.model_dump(mode="json"), "user", changes)
+    await repo.save_version(chat_id, edited.model_dump(mode="json"), "user", changes, expected=version)
     llm.queue("interpreter", {"request": "follow_up_question", "language": "en", "delta": {}})
     llm.queue("answerer", "Now only performance counts.")
     r3 = await runner(saver, llm).run_turn(chat_id, "and now?")
@@ -84,9 +84,9 @@ async def test_persona_changed_in_panel_reorders_and_is_not_overwritten(saver, c
         llm.queue(role, *outs)
     await runner(saver, llm).run_turn(chat_id, "Golf GTI Mk8 vs i30 N for a race enthusiast")
     repo = CaseRepo()
-    _, data, _ = await repo.latest(chat_id)
+    version, data, _ = await repo.latest(chat_id)
     edited, changes = apply_patch(CaseFile.model_validate(data), CasePatch(persona="BUYER"), current_year=2026)
-    await repo.save_version(chat_id, edited.model_dump(mode="json"), "user", changes)
+    await repo.save_version(chat_id, edited.model_dump(mode="json"), "user", changes, expected=version)
     # the model tries to re-derive the persona from the first message; code drops it (no words in this message)
     llm.queue(
         "interpreter",
@@ -99,7 +99,7 @@ async def test_persona_changed_in_panel_reorders_and_is_not_overwritten(saver, c
     )
     llm.queue("answerer", "For a buyer: see below.")
     r = await runner(saver, llm).run_turn(chat_id, "and now?")
-    _, data, _ = await repo.latest(chat_id)
+    version, data, _ = await repo.latest(chat_id)
     assert data["persona"] == "BUYER"
     types = [b["type"] for b in r.blocks if b["type"] != "notice"]
     assert types[:5] == ["verdict", "suggestions", "case_summary", "criteria_scores", "tco"]

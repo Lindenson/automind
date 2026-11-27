@@ -36,13 +36,12 @@ class AnswerIn(ComposeIn):
 
 
 class ReportOut(NodeOut):
-    """The report: its text and blocks, the turn's action, the fingerprint shown, the case version saved."""
+    """The report: its text and blocks, the turn's action and the fingerprint shown."""
 
     reply_text: str
     blocks: SkipValidation[list[JsonObject]]
     action: str
     fingerprint: str
-    case_version: int
 
 
 class ReplyOut(NodeOut):

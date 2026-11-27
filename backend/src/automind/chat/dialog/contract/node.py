@@ -6,13 +6,14 @@ its retry, once for all nodes.
 
 At declaration the keys are checked against `TurnState` and the owners registry; on every run `Node` records the
 node in the turn's path (replaces `tracing.traced`), builds `In` from the state (a missing required key is a
-violation), calls the body with typed objects, checks the result is the node's `Out` and that append-only keys keep
-their earlier items, and returns the update. A violation raises in strict mode, else is logged and counted
-(contract/violation.py).
+violation), calls the body with typed objects (once more, from a fresh read of the case, on a `VersionConflict`),
+checks the result is the node's `Out` and that append-only keys keep their earlier items, and returns the update. A
+violation raises in strict mode, else is logged and counted (contract/violation.py).
 """
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
@@ -22,6 +23,7 @@ from langgraph.runtime import Runtime
 from langgraph.types import RetryPolicy
 from pydantic import ValidationError
 
+from automind.chat.application.ports import VersionConflict
 from automind.chat.application.services.research.contracts import JobState
 from automind.chat.dialog.context import ctx
 from automind.chat.dialog.contract import owners
@@ -32,6 +34,7 @@ from automind.chat.dialog.state import TurnState
 from automind.chat.dialog.tracing import visit
 from automind.chat.dialog.turn.context import TurnContext
 
+log = logging.getLogger(__name__)
 InT = TypeVar("InT", bound=NodeIn)
 OutT = TypeVar("OutT", bound=NodeOut)
 GraphCallable = Callable[..., Awaitable[TurnUpdate]]  # what LangGraph registers: (state | job, runtime) -> update
@@ -66,7 +69,7 @@ class Node(Generic[InT, OutT]):
         """Run the node on `state`. Raises `ContractError` on a violation in strict mode; the body's errors pass."""
         visit(self.name)
         inp = _input(self, state)
-        out = await self.body(inp, ctx(runtime))
+        out = await _run(self, inp, ctx(runtime))
         return _update(self, state, out)
 
     def for_graph(self) -> GraphCallable:
@@ -108,6 +111,17 @@ def _check_declaration(n: Node[InT, OutT]) -> None:
             violated(n.name, key, ViolationKind.UNKNOWN, "written, not in TurnState")
         elif not owners.may_write(n.name, key):
             violated(n.name, key, ViolationKind.FOREIGN, "not an owner (contract/owners.py)")
+
+
+async def _run(n: Node[InT, OutT], inp: InT, c: TurnContext) -> OutT:
+    """The body; on `VersionConflict` (the case moved on since this run read it, and `save_case` dropped the cached
+    case) it runs once more from a fresh read — the owner's decision G3 (spec 014 T113). A second conflict propagates:
+    the turn fails with a notice (`turn.endings.user_error_text`)."""
+    try:
+        return await n.body(inp, c)
+    except VersionConflict as e:
+        log.warning("graph.case_conflict node=%s chat=%s turn=%s current=%s", n.name, c.chat_id, c.turn_id, e.current)
+        return await n.body(inp, c)
 
 
 def _input(n: Node[InT, OutT], state: Mapping[str, object]) -> InT:

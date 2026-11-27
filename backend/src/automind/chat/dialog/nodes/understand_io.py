@@ -25,7 +25,8 @@ class LoadCaseIn(NodeIn):
 
 
 class LoadCaseOut(NodeOut):
-    """The start of a turn: the turn's ids, the case version, and every per-turn key reset (`state.PER_TURN_RESET`)."""
+    """The start of a turn: the turn's ids, the case version it starts from, every per-turn key reset
+    (`state.PER_TURN_RESET`)."""
 
     chat_id: str
     turn_id: str
@@ -107,7 +108,6 @@ class ApplyDeltaOut(NodeOut):
 
     request_kind: RequestKind
     not_understood: SkipValidation[list[str]] = []
-    case_version: int = 0
     case_changed: bool = False
     persona_changed: bool = False
     action: Asked = "ASK"
@@ -115,12 +115,12 @@ class ApplyDeltaOut(NodeOut):
     reply_text: str = ""
 
     @classmethod
-    def from_applied(cls, applied: Applied, version: int | None) -> ApplyDeltaOut:
-        """The update of `applied`; `version` is the case version saved (None when nothing was saved)."""
-        if version is None:
+    def from_applied(cls, applied: Applied) -> ApplyDeltaOut:
+        """The update of `applied` (the node saved its case when `applied.saved`)."""
+        if not applied.saved:
             return cls(not_understood=applied.not_understood, request_kind=applied.request, case_changed=False)
         persona = any(ch.startswith("persona:") for ch in applied.changes)  # the report is recomputed for it
-        return cls(not_understood=applied.not_understood, request_kind=applied.request, case_version=version,
+        return cls(not_understood=applied.not_understood, request_kind=applied.request,
                    case_changed=bool(applied.changes), persona_changed=persona)  # fmt: skip
 
 
@@ -135,7 +135,7 @@ class AssessIn(NodeIn):
 
 class AssessOut(NodeOut):
     """The assessed cars, the research plan and its cost; feasibility and notices only when there is something new
-    (an earlier assess of the same turn may have set them); `case_version` when the case was saved."""
+    (an earlier assess of the same turn may have set them)."""
 
     assessments: SkipValidation[dict[str, JsonObject]]
     research_plan: SkipValidation[PlanState]
@@ -143,10 +143,9 @@ class AssessOut(NodeOut):
     research_declined: bool
     feasibility: SkipValidation[JsonObject] = {}
     notices: SkipValidation[list[Notice]] = []
-    case_version: int = 0
 
     @classmethod
-    def from_planned(cls, planned: Planned, notices: list[Notice], version: int | None) -> AssessOut:
+    def from_planned(cls, planned: Planned, notices: list[Notice]) -> AssessOut:
         """The update of `planned`; `notices` are the turn's notices so far (the new warnings are appended)."""
         rows: list[PlanRow] = [[j.car_key, j.variant_id, j.area, j.fresh, j.escalate] for j in planned.plan.jobs]
         written: JsonObject = {
@@ -159,8 +158,6 @@ class AssessOut(NodeOut):
             written["feasibility"] = planned.feasibility
         if planned.warnings:
             written["notices"] = [*notices, *planned.warnings]
-        if version is not None:
-            written["case_version"] = version
         return cls.model_validate(written)
 
 

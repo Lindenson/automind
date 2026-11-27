@@ -17,7 +17,7 @@ from langgraph.types import Send
 from automind.chat.application.services.research import rounds
 from automind.chat.application.services.research.contracts import LimitHit
 from automind.chat.application.services.research.service import ResearchService
-from automind.chat.dialog.context import load_case, record_intake, save_case
+from automind.chat.dialog.context import record_intake
 from automind.chat.dialog.contract import node
 from automind.chat.dialog.nodes.confirm_io import ConfirmOut
 from automind.chat.dialog.nodes.research_io import (
@@ -41,17 +41,13 @@ from automind.chat.dialog.state import RESET, TurnState
 from automind.chat.dialog.turn.context import TurnContext
 
 
-def _service(c: TurnContext) -> ResearchService:
-    return ResearchService(c.ports, c.budget, c, c.chat_id, c.turn_id)
-
-
 @node("plan_research", reads=PlanResearchIn, writes=PlanResearchOut)
 async def plan_research(inp: PlanResearchIn, c: TurnContext) -> PlanResearchOut:
     """The research jobs of the plan for the cars the policy chose, created as rows (a restart never reruns one)."""
     keys = set(inp.decision["cars"])
     plan = [j for j in rounds.plan_of(inp.research_plan).jobs if j.car_key in keys]
     await c.status("researching", f"Researching {len(keys)} car(s): {', '.join(sorted({j.area for j in plan}))}")
-    _, case = await load_case(c)
+    case = await c.case()
     await record_intake(c, "RESEARCH_STARTED", all_confirmed=all(x.resolution in ("CONFIRMED", "AUTO_OK")
                                                                  for x in case.cars if x.key in keys))  # fmt: skip
     return PlanResearchOut(jobs=await _service(c).create(case, plan), round=0, research_results=[RESET])
@@ -65,7 +61,7 @@ def fan_out(state: TurnState) -> list[Send] | str:
 @node("research_job", reads=ResearchJobIn, writes=ResearchJobOut, sent=True)
 async def research_job(inp: ResearchJobIn, c: TurnContext) -> ResearchJobOut:
     """One job (car × area) run by a parallel worker; its result is appended to the round's results."""
-    _, case = await load_case(c)
+    case = await c.case()
     return ResearchJobOut(research_results=[await _service(c).run_job(inp.job(), case)])
 
 
@@ -80,7 +76,7 @@ async def collect_round(inp: CollectRoundIn, c: TurnContext) -> CollectRoundOut:
     if not gaps:
         return CollectRoundOut(jobs=[])
     await c.status("followup", f"Follow-up research for {len(gaps)} area(s) below their minimum")
-    _, case = await load_case(c)
+    case = await c.case()
     return CollectRoundOut(jobs=await _service(c).create(case, gaps), round=int(inp.round) + 1)
 
 
@@ -135,7 +131,7 @@ async def apply_limit(inp: ApplyLimitIn, c: TurnContext) -> ApplyLimitOut:
         n = int(inp.limit_extensions or 0) + 1
         c.budget.extend(n)
         await c.status("researching", f"Continuing: {len(hit.get('jobs', []))} research task(s) left")
-        _, case = await load_case(c)
+        case = await c.case()
         jobs = await _service(c).create(case, rounds.jobs_of(hit))
         return ApplyLimitOut(jobs=jobs, limit_hit=None, limit_extensions=n, confirm_payload=None, resume=None,
                              route=None)  # fmt: skip
@@ -160,7 +156,7 @@ async def next_round(inp: NothingIn, c: TurnContext) -> NothingOut:
 async def after_research(inp: AfterResearchIn, c: TurnContext) -> AfterResearchOut:
     """The research done: its notices (incomplete jobs, areas short of data); a "find it" that found nothing more
     remembers the car and area so it is not offered again."""
-    _, case = await load_case(c)
+    case = await c.case()
     notices, short = _service(c).conclude(case, inp.research_results, list(inp.notices), inp.language,
                                           WORDING)  # fmt: skip
     if not (inp.request_kind in ("research_more", "critique") and short):
@@ -169,7 +165,10 @@ async def after_research(inp: AfterResearchIn, c: TurnContext) -> AfterResearchO
         vid = next((x.variant_id for x in case.cars if x.key == k and x.variant_id), None)
         if vid and a not in case.find_tried.get(vid, []):
             case.find_tried.setdefault(vid, []).append(a)
-    version = await save_case(
-        c, case, [f"searched deeper without the minimum: {', '.join(f'{k} {a}' for k, a in short)}"], publish=False
-    )
-    return AfterResearchOut(research_done=True, notices=notices, jobs=[], case_version=version)
+    missed = ", ".join(f"{k} {a}" for k, a in short)
+    await c.save_case(case, [f"searched deeper without the minimum: {missed}"], publish=False)
+    return AfterResearchOut(research_done=True, notices=notices, jobs=[])
+
+
+def _service(c: TurnContext) -> ResearchService:
+    return ResearchService(c.ports, c.budget, c, c.chat_id, c.turn_id)

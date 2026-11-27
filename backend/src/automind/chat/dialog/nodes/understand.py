@@ -8,7 +8,7 @@ from typing import cast
 from automind.chat.application.services.assessment import AssessmentService, CarsAssessed, PlanRequest
 from automind.chat.application.services.interpretation.contracts import Interpretation
 from automind.chat.application.services.interpretation.service import ApplyRequest, InterpretationService
-from automind.chat.dialog.context import current_year, history, intake_log, load_case, save_case
+from automind.chat.dialog.context import current_year, history, intake_log
 from automind.chat.dialog.contract import Retry, node
 from automind.chat.dialog.nodes import feasibility as fz_nodes
 from automind.chat.dialog.nodes.understand_io import (
@@ -37,7 +37,7 @@ from automind.shared.infrastructure.config.settings import settings
 @node("load_case", reads=LoadCaseIn, writes=LoadCaseOut)
 async def load_case_node(inp: LoadCaseIn, c: TurnContext) -> LoadCaseOut:
     """The start of a turn: the turn's ids and the case version, every per-turn key reset."""
-    version, _ = await load_case(c)
+    version = await c.case_version()
     await c.status("understanding", "Understanding your message")
     return LoadCaseOut.model_validate({**PER_TURN_RESET, "chat_id": c.chat_id, "turn_id": c.turn_id,
                                        "case_version": version})  # fmt: skip
@@ -46,7 +46,7 @@ async def load_case_node(inp: LoadCaseIn, c: TurnContext) -> LoadCaseOut:
 @node("interpret", reads=InterpretIn, writes=InterpretOut, retry=Retry.PROVIDER)
 async def interpret_node(inp: InterpretIn, c: TurnContext) -> InterpretOut:
     """The message read into an interpretation (the interpretation service), or a question asked back."""
-    _, case = await load_case(c)
+    case = await c.case()
     reading = await _service(c).read(case, await history(c), inp.user_text or "", inp.preset)
     return InterpretOut.from_reading(reading, t(reading.ask, reading.language or inp.language) if reading.ask else "")
 
@@ -54,7 +54,7 @@ async def interpret_node(inp: InterpretIn, c: TurnContext) -> InterpretOut:
 @node("apply_delta", reads=ApplyDeltaIn, writes=ApplyDeltaOut)
 async def apply_delta_node(inp: ApplyDeltaIn, c: TurnContext) -> ApplyDeltaOut:
     """The interpretation applied to the case by code; the case is saved when something changed."""
-    _, case = await load_case(c)
+    case = await c.case()
     i = Interpretation.model_validate(inp.interpretation)
     edit = (inp.preset or {}).get("kind") == "car_edit"  # the edit's label is not the person's words
     text = "" if edit else inp.user_text or ""
@@ -63,25 +63,27 @@ async def apply_delta_node(inp: ApplyDeltaIn, c: TurnContext) -> ApplyDeltaOut:
     if applied.ask is not None:  # the request stays the interpretation's (applied.request is i.request here)
         return ApplyDeltaOut(action="ASK", done=True, reply_text=t(applied.ask, i.language),
                              request_kind=applied.request)  # fmt: skip
-    version = await save_case(c, applied.case, applied.changes) if applied.saved else None
-    return ApplyDeltaOut.from_applied(applied, version)
+    if applied.saved:
+        await c.save_case(applied.case, applied.changes)
+    return ApplyDeltaOut.from_applied(applied)
 
 
 @node("assess", reads=AssessIn, writes=AssessOut)
 async def assess_node(inp: AssessIn, c: TurnContext) -> AssessOut:
     """The case's cars assessed (the case saved when that changed it), then the research plan and its cost."""
-    _, case = await load_case(c)
+    case = await c.case()
     service = AssessmentService(c.ports.ref, c.ports.research, c.ports.estimator, c.ports.clock, WORDING,
                                 c.ports.market_facts, c.ports.feasibility)  # fmt: skip
     cars = await service.cars(case, current_year(c))
-    version = await save_case(c, case, cars.changes) if cars.changes else None
-    return AssessOut.from_planned(await service.plan(_plan_request(inp, case, cars)), inp.notices, version)
+    if cars.changes:
+        await c.save_case(case, cars.changes)
+    return AssessOut.from_planned(await service.plan(_plan_request(inp, case, cars)), inp.notices)
 
 
 @node("policy", reads=PolicyIn, writes=PolicyOut)
 async def policy_node(inp: PolicyIn, c: TurnContext) -> PolicyOut:
     """The policy's decision for this pass over the case and the assessed cars (spec 007 FR-027: passes counted)."""
-    _, case = await load_case(c)
+    case = await c.case()
     hops = int(inp.hops or 0)
     situation = _situation(inp, case, await c.ports.turns.last_report_fingerprint(c.chat_id), hops + 1)
     action = decide(situation, _policy_config(c)).action

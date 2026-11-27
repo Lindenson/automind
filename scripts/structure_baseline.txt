@@ -810,16 +810,6 @@ order|chat/dialog/nodes/confirm.py|route_after_candidates
 order|chat/dialog/nodes/confirm.py|route_after_prepare
 order|chat/dialog/nodes/confirm.py|select_candidates
 order|chat/dialog/nodes/confirm.py|wait_confirm
-order|chat/dialog/nodes/research.py|after_research
-order|chat/dialog/nodes/research.py|apply_limit
-order|chat/dialog/nodes/research.py|collect_round
-order|chat/dialog/nodes/research.py|fan_out
-order|chat/dialog/nodes/research.py|next_round
-order|chat/dialog/nodes/research.py|plan_research
-order|chat/dialog/nodes/research.py|prepare_limit
-order|chat/dialog/nodes/research.py|research_job
-order|chat/dialog/nodes/research.py|route_after_limit
-order|chat/dialog/nodes/research.py|route_round
 order|chat/dialog/report_text.py|area_label
 order|chat/dialog/report_text.py|electric_lines
 order|chat/dialog/report_text.py|fmt
@@ -1334,7 +1324,6 @@ word|chat/application/services/report/stages/verdict.py|limits_from:verdict
 word|chat/application/usecases/challenge.py|_signals:outcome
 word|chat/application/usecases/challenge.py|recheck:status
 word|chat/dialog/agents.py|prompt_name:role
-word|chat/dialog/context.py|history:role
 word|chat/dialog/identification_notes.py|car_notices:kind
 word|chat/dialog/nodes/confirm.py|apply_cost:choice
 word|chat/dialog/nodes/confirm.py|ask_node:kind
