@@ -24,7 +24,7 @@ outputs + cassettes; `-m live` for real models) is the base. Extend it, do not b
   `asked_level`, `reply_kind`, `not_repeated: true`, `stopped: true`.
 - [x] T003 Mark the new scenarios `xfail(strict=True)` with the reason; each step that fixes one removes its xfail
   (strict: a fix that passes by accident fails the gate).
-- [ ] T004 Golden message set `backend/tests/eval/understanding/cases.yaml`: 100–150 cases (ru/es/en evenly):
+- [x] T004 Golden message set `backend/tests/eval/understanding/cases.yaml`: 100–150 cases (ru/es/en evenly):
   case fixture ref, pending (with id + options), history, message → expected significant `Intent` fields and
   `Action.kind`. Must include every example of spec §B4, rejections ("не тот", "другую", "ты не нашел X"), stop,
   complaints, look-alike yes/no, two-intent messages, each pending kind (QUESTIONS, CONFIRM_VARIANTS, CONFIRM_COST,

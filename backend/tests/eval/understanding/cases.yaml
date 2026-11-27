@@ -1,0 +1,2077 @@
+# Spec 013 T004: the golden message set of the understanding layer. Format and checks: schema.py, coverage.py,
+# README.md. `fixture` / `pending` name entries of fixtures.yaml. `expect` holds only the significant fields:
+# `answer` absent = no answer to the open question; `goals` absent = none; `reaction` absent = not checked;
+# `rejections` / `changes` absent = not checked. `words` = phrases word lists the message carries ("LIST:word");
+# `patches` = interpreter.md v5 rules / examples the case keeps alive.
+
+cases:
+
+# ======================================================================================================== ru ====
+
+# --- understanding-spec §1 / spec §B4 / the "problem messages" table ---
+- id: ru-001
+  lang: ru
+  sources: [spec§1, problem-table]
+  fixture: sportage_card_ru
+  pending: sportage_card
+  message: да, но дизель
+  tags: [spec1, problem_table, two_intents]
+  words: ["YES:да"]
+  expect:
+    language: ru
+    answer: {pending_id: q-card-sportage, kind: "yes"}
+    changes: {cars: {car#1: {fuel: diesel}}}
+    action: CONFIRM_INTAKE
+  note: the diesel Sportage replaces the proposal, so the card is shown again
+
+- id: ru-002
+  lang: ru
+  sources: [spec§1]
+  fixture: sportage_card_ru
+  pending: sportage_card
+  message: давно хотел дизель
+  tags: [spec1, lookalike_yes]
+  words: ["YES:да"]
+  expect:
+    language: ru
+    changes: {cars: {car#1: {fuel: diesel}}}
+    action: CONFIRM_INTAKE
+
+- id: ru-003
+  lang: ru
+  sources: [spec§1]
+  fixture: sportage_card_ru
+  pending: sportage_card
+  message: дайте подумать
+  tags: [spec1, lookalike_yes]
+  words: ["YES:да"]
+  expect:
+    language: ru
+    reaction: none
+    changes: {empty: true}
+    action: ANSWER_AND_REASK
+
+- id: ru-004
+  lang: ru
+  sources: [spec§1, problem-table]
+  fixture: sportage_engine_ru
+  pending: sportage_engine
+  message: все равно хочу дизель
+  tags: [spec1, problem_table, diesel_engine_open, lookalike_choose]
+  words: ["CHOOSE:все равно"]
+  expect:
+    language: ru
+    answer: {pending_id: q-sportage-engine, kind: value}
+    changes: {cars: {car#1: {fuel: diesel}}}
+    action: CONFIRM_INTAKE
+  note: the engine question is open → `value` (the 1.6 CRDi option is the only diesel)
+
+- id: ru-005
+  lang: ru
+  sources: [problem-table]
+  fixture: sportage_report_ru
+  message: все равно хочу дизель
+  tags: [problem_table, diesel_engine_closed, lookalike_choose, no_pending]
+  words: ["CHOOSE:все равно"]
+  expect:
+    language: ru
+    changes: {cars: {car#1: {fuel: diesel}}, add_cars: []}
+    action: CONFIRM_INTAKE
+  note: no question open → only case_changes; the diesel version is proposed on the card
+
+- id: ru-006
+  lang: ru
+  sources: [spec§1, problem-table, golden]
+  ref: g17 t3
+  fixture: cx60_i10_ru
+  pending: cx60_i10_engines
+  message: давай сравним с BMW
+  tags: [spec1, problem_table, question_during_question, lookalike_choose]
+  words: ["YES:давай", "GO:давай"]
+  expect:
+    language: ru
+    goals: [{kind: compare}]
+    changes: {add_cars: [BMW]}
+    action: ASK
+
+- id: ru-007
+  lang: ru
+  sources: [spec§1, problem-table]
+  fixture: i10_ru
+  pending: i10_gearbox
+  message: а что такое DSG?
+  tags: [spec1, problem_table, question_during_question]
+  expect:
+    language: ru
+    goals: [{kind: ask_general}]
+    changes: {empty: true}
+    action: ANSWER_AND_REASK
+
+- id: ru-008
+  lang: ru
+  sources: [spec§1, problem-table]
+  fixture: sportage_card_ru
+  pending: sportage_card
+  message: да, и добавь Hyundai
+  tags: [spec1, problem_table, two_intents]
+  words: ["YES:да"]
+  expect:
+    language: ru
+    answer: {pending_id: q-card-sportage, kind: "yes"}
+    goals: [{kind: compare}]
+    changes: {add_cars: [Hyundai]}
+    action: ASK
+
+- id: ru-009
+  lang: ru
+  sources: [spec§1]
+  fixture: sportage_tucson_ru
+  pending: sportage_tucson_engines
+  history: "1. Какой двигатель у Kia Sportage: 1.6 CRDi MHEV 136 CV, 1.6 HEV 210 CV? 2. Какой у Hyundai Tucson?"
+  message: переформулируйте
+  tags: [spec1, language_hysteresis]
+  expect:
+    language: ru
+    reaction: rephrase
+    changes: {empty: true}
+    action: ANSWER_AND_REASK
+  note: the question is asked again in other words, in Russian (old path fell back to "en")
+
+# --- rejections, stop, complaints (pre-prod d170b861 / eb81dd90 / 4bb83866, golden g13–g15) ---
+- id: ru-010
+  lang: ru
+  sources: [interpreter.md]
+  ref: ex10b
+  fixture: eclass_cx60_ru
+  pending: eclass_engine
+  message: ты не нашел мерседес класс C
+  tags: [rejection]
+  patches: [ex10b, rejections, correction_replace, relation_correction]
+  expect:
+    language: ru
+    reaction: correction
+    rejections: [{car: car#1, level: MODEL, value: E-Class, wanted: C-Class}]
+    changes: {cars: {car#1: {model: C-Class}}, add_cars: []}
+    action: ASK
+
+- id: ru-011
+  lang: ru
+  sources: [preprod-miss]
+  ref: chat d170b861 2026-11-26 19:16 (feedback correction)
+  fixture: eclass_cx60_ru
+  pending: eclass_engine
+  message: ты полный кретин. ты не нашел  мерседес класс C. отменяй поиск . пошел в жопу
+  tags: [rejection, stop, complaint, two_intents]
+  expect:
+    language: ru
+    goals: [{kind: stop}]
+    reaction: complaint
+    rejections: [{car: car#1, level: MODEL, value: E-Class, wanted: C-Class}]
+    changes: {cars: {car#1: {model: C-Class}}, add_cars: []}
+    action: ANSWER_FROM_CONTEXT
+  note: >-
+    old: correction, the same E-Class engine question repeated, "stop" ignored. Action for goal `stop` is provisional
+    (T041 defines it; today the closest kind that ends the turn with a message from the case is ANSWER_FROM_CONTEXT).
+
+- id: ru-012
+  lang: ru
+  sources: [golden]
+  ref: g13 t2
+  fixture: eclass_cx60_ru
+  pending: eclass_engine
+  message: ты не нашел мерседес класс C. отменяй поиск. пошел в жопу
+  tags: [rejection, stop, complaint, two_intents]
+  expect:
+    language: ru
+    goals: [{kind: stop}]
+    reaction: complaint
+    rejections: [{car: car#1, level: MODEL, value: E-Class, wanted: C-Class}]
+    changes: {cars: {car#1: {model: C-Class}}, add_cars: []}
+    action: ANSWER_FROM_CONTEXT
+
+- id: ru-013
+  lang: ru
+  sources: [preprod-miss]
+  ref: chat eb81dd90 2026-11-27 08:00 (turn_outcomes not_understood)
+  fixture: cclass_cx60_ru
+  pending: cclass_fuel
+  message: ты полный кретин. ты не нашел мерседес класс C. отменяй поиск . пошел в жопу
+  tags: [stop, complaint]
+  expect:
+    language: ru
+    goals: [{kind: stop}]
+    reaction: complaint
+    rejections: []
+    changes: {add_cars: []}
+    action: ANSWER_FROM_CONTEXT
+  note: the case already holds the C-Class, nothing to reject; old answered "nothing changed since the last report"
+
+- id: ru-014
+  lang: ru
+  sources: [preprod-miss]
+  ref: chat d170b861 2026-11-26 20:09 (feedback correction)
+  fixture: eclass_cx60_ru
+  pending: eclass_drive
+  message: Mercedes C-Class
+  tags: [rejection, language_hysteresis]
+  expect:
+    language: ru
+    reaction: correction
+    changes: {cars: {car#1: {model: C-Class}}, add_cars: []}
+    action: ASK
+  note: not an answer to the drive question of the E-Class; old asked the same drive question again
+
+- id: ru-015
+  lang: ru
+  sources: [t004]
+  ref: spec 013 §D1 example
+  fixture: eclass_cx60_ru
+  pending: eclass_engine
+  message: отменяй поиск
+  tags: [stop]
+  expect:
+    language: ru
+    goals: [{kind: stop}]
+    changes: {empty: true}
+    action: ANSWER_FROM_CONTEXT
+
+- id: ru-016
+  lang: ru
+  sources: [t004]
+  ref: spec 013 §C2 "not this"
+  fixture: bigster_prado_card_ru
+  pending: prado_variants_ru
+  message: не тот
+  tags: [rejection]
+  expect:
+    language: ru
+    answer: {pending_id: q-var-prado, kind: "no"}
+    rejections: [{car: car#2, level: VERSION}]
+    action: ASK
+
+- id: ru-017
+  lang: ru
+  sources: [t004, phrases]
+  ref: spec 013 T012 test phrase
+  fixture: bigster_prado_card_ru
+  pending: prado_variants_ru
+  message: нет, другую
+  tags: [rejection]
+  words: ["NO:нет"]
+  expect:
+    language: ru
+    answer: {pending_id: q-var-prado, kind: "no"}
+    rejections: [{car: car#2, level: VERSION}]
+    action: ASK
+
+- id: ru-018
+  lang: ru
+  sources: [golden, phrases]
+  ref: g16 t3 (the card in a Russian chat)
+  fixture: bigster_prado_card_ru
+  pending: prado_card_ru
+  message: нет
+  tags: [plain_no]
+  words: ["NO:нет"]
+  expect:
+    language: ru
+    answer: {pending_id: q-card-prado, kind: "no"}
+    changes: {empty: true}
+    action: ASK
+  note: '"no" never confirms the proposed Prado; which one instead is asked'
+
+- id: ru-019
+  lang: ru
+  sources: [phrases]
+  fixture: bigster_prado_card_ru
+  pending: prado_card_ru
+  message: да
+  tags: [plain_yes]
+  words: ["YES:да"]
+  expect:
+    language: ru
+    answer: {pending_id: q-card-prado, kind: "yes"}
+    action: RESEARCH
+
+- id: ru-020
+  lang: ru
+  sources: [golden]
+  ref: g15 t2
+  fixture: i10_ru
+  pending: i10_gearbox
+  message: Очень плохо! Ты ничего не нашел
+  tags: [complaint]
+  expect:
+    language: ru
+    reaction: complaint
+    changes: {empty: true}
+    action: ASK
+  note: a complaint is never an answer; the tactic changes, the same question is not repeated
+
+- id: ru-021
+  lang: ru
+  sources: [preprod-miss, golden]
+  ref: chat 4bb83866 2026-11-08 19:44 (feedback complaint); g14 t2
+  fixture: mx30_bev_i10_ru
+  pending: mx30_engine
+  message: Очень плохо! Ты ничего не нашел
+  tags: [complaint]
+  expect:
+    language: ru
+    reaction: complaint
+    changes: {empty: true}
+    action: ASK
+  note: old read it as an answer to the engine question ("Я не понял ответ …")
+
+- id: ru-022
+  lang: ru
+  sources: [preprod-miss]
+  ref: chat 4bb83866 2026-11-08 19:34 (feedback correction)
+  fixture: mx30_i10_ru
+  pending: i10_engine_condition
+  message: Это роторная мазда mx-30 r-ev
+  tags: []
+  expect:
+    language: ru
+    reaction: correction
+    changes: {cars: {car#1: {engine: R-EV}}, add_cars: []}
+    action: ASK
+  note: about car#1, not an answer to the i10 engine / new-or-used question
+
+- id: ru-023
+  lang: ru
+  sources: [preprod-miss]
+  ref: chat 4bb83866 2026-11-08 19:36
+  fixture: mx30_i10_ru
+  pending: i10_engine_condition
+  message: Найди Мазда mx-30 r-ev вот https://www.mazda.es/promociones/promociones-actuales/mazdamx30/flexiopcion-mx-30-r-ev/
+  tags: []
+  patches: [url, pending_cars_existing_keys]
+  expect:
+    language: ru
+    changes:
+      add_cars: []
+      cars: {car#1: {engine: R-EV, url: "https://www.mazda.es/promociones/promociones-actuales/mazdamx30/flexiopcion-mx-30-r-ev/"}}
+    action: ASK
+
+- id: ru-024
+  lang: ru
+  sources: [preprod-miss]
+  ref: chat 4bb83866 2026-11-08 19:38 (turn_outcomes not_understood)
+  fixture: mx30_bev_i10_ru
+  pending: mx30_i10_gearbox
+  message: MAZDA MX-30 E-SKYACTIV R-EV 125 KW (170 CV) AT 2WD
+  tags: [language_hysteresis]
+  patches: [language, engine_hint]
+  expect:
+    language: ru
+    changes: {cars: {car#1: {engine: R-EV, power_kw: 125, power_hp: 170, gearbox: automatic}}, add_cars: []}
+    action: ASK
+  note: old took it as an answer for the i10 gearbox and replied in English
+
+# --- golden dialogues and pre-prod first messages ---
+- id: ru-025
+  lang: ru
+  sources: [golden]
+  ref: g14 t1
+  fixture: empty_ru
+  message: >-
+    А вот если я хочу мазду mx-30 r-ev как альтернативу hyundai i10. Вот страница:
+    https://www.mazda.es/promociones/promociones-actuales/mazdamx30/flexiopcion-mx-30-r-ev/
+  tags: [no_pending]
+  expect:
+    language: ru
+    goals: [{kind: compare}]
+    changes: {add_cars: [Mazda MX-30, Hyundai i10]}
+    action: ASK
+
+- id: ru-026
+  lang: ru
+  sources: [golden, preprod]
+  ref: g13 t1; chat d170b861 2026-11-26 19:14
+  fixture: empty_ru
+  message: я выбираю между Clase C Berlina мерседесом и Маздой CX-60
+  tags: [no_pending]
+  expect:
+    language: ru
+    goals: [{kind: compare}]
+    changes: {add_cars: [Mercedes-Benz C-Class, Mazda CX-60]}
+    action: ASK
+
+- id: ru-027
+  lang: ru
+  sources: [preprod]
+  ref: chat c41e34b0 2026-11-08 12:13
+  fixture: sandero_mg_ru
+  pending: mg_lineup
+  message: MG ZS (suv, petrol, hybrid)
+  tags: [button_text, language_hysteresis]
+  expect:
+    language: ru
+    answer: {pending_id: q-mg-model, kind: option, option_id: "q:car#2:MAKE_LINEUP:2"}
+    changes: {add_cars: []}
+    action: ASK
+
+- id: ru-028
+  lang: ru
+  sources: [preprod]
+  ref: chat c41e34b0 2026-11-08 12:14
+  fixture: sandero_zs_ru
+  pending: sandero_engine
+  message: hybrid 155
+  tags: [language_hysteresis]
+  expect:
+    language: ru
+    answer: {pending_id: q-sandero-engine, kind: option, option_id: "q:car#1:ENGINE:2"}
+    action: REPORT
+  note: as observed — both cars settled, the report followed in the same turn (no card at that estimate)
+
+- id: ru-029
+  lang: ru
+  sources: [preprod, interpreter.md]
+  ref: chat c41e34b0 2026-11-08 12:24
+  fixture: sandero_zs_report_ru
+  message: Почему Dacia Sandero Stepway впереди?
+  tags: [no_pending]
+  patches: [follow_up]
+  expect:
+    language: ru
+    goals: [{kind: follow_up, focus_cars: [car#1]}]
+    changes: {empty: true}
+    action: ANSWER_FROM_CONTEXT
+
+- id: ru-030
+  lang: ru
+  sources: [preprod, interpreter.md]
+  ref: chat fcf5b3b8 2026-11-05 14:24
+  fixture: sorento_prado_report_ru
+  message: обнови отчет
+  tags: [no_pending]
+  patches: [research_more]
+  expect:
+    language: ru
+    goals: [{kind: research_more}]
+    action: REPORT
+
+- id: ru-031
+  lang: ru
+  sources: [preprod]
+  ref: chat 2f8b0018 2026-11-05 13:15 (preset button text)
+  fixture: sorento_prado_report_ru
+  message: "Find the missing data: all"
+  tags: [no_pending, button_text, language_hysteresis]
+  expect:
+    language: ru
+    goals: [{kind: research_more}]
+    action: REPORT
+  note: an English preset text in a Russian chat — the reply stays Russian
+
+# --- interpreter.md v5 examples and rules ---
+- id: ru-032
+  lang: ru
+  sources: [interpreter.md, golden]
+  ref: ex5; g2 t1
+  fixture: empty_ru
+  message: Мне 20, могу купить б/у BMW 320d M Sport или Golf R-Line 4Motion — сравни на драг-рейсинг, город и горы
+  tags: [no_pending]
+  patches: [ex5, model_line, age_usage, persona]
+  expect:
+    language: ru
+    goals: [{kind: compare}]
+    changes: {add_cars: [BMW 3 Series, Volkswagen Golf], persona: PERFORMANCE, age: 20, usage: [CITY, MOUNTAINS]}
+    action: ASK
+
+- id: ru-033
+  lang: ru
+  sources: [interpreter.md]
+  ref: ex7
+  fixture: byd_ateca_ru
+  pending: byd_model
+  message: ну дак сравни byd seal u с сеатом атека 1.5 двигателя
+  tags: [two_intents]
+  patches: [ex7, pending_cars_existing_keys, engine_hint]
+  expect:
+    language: ru
+    answer: {pending_id: q-byd-model, kind: option, option_id: "q:car#1:MAKE_LINEUP:0"}
+    goals: [{kind: compare, focus_cars: [car#1, car#2]}]
+    changes: {add_cars: [], cars: {car#1: {make: BYD, model: Seal U}, car#2: {displacement_l: 1.5}}}
+    action: ASK
+
+- id: ru-034
+  lang: ru
+  sources: [interpreter.md]
+  ref: ex8
+  fixture: byd_ateca_ru
+  pending: byd_model
+  message: BYD это компания Build your dream китайская представленная в европе
+  tags: []
+  patches: [ex8, brand_explained]
+  expect:
+    language: ru
+    changes: {add_cars: [], cars: {car#1: {make: BYD}}}
+    action: ASK
+  note: the make is explained, the model question stays open
+
+- id: ru-035
+  lang: ru
+  sources: [interpreter.md]
+  ref: ex9
+  fixture: sorento_prado_report_ru
+  history: ответ про разгон и динамику Sorento и Prado
+  message: я же спрашивал про расходы на обслуживание, а не про разгон
+  tags: [no_pending]
+  patches: [ex9, relation_rephrase]
+  expect:
+    language: ru
+    goals: [{kind: follow_up}]
+    reaction: rephrase
+    changes: {empty: true}
+    action: ANSWER_FROM_CONTEXT
+
+- id: ru-036
+  lang: ru
+  sources: [interpreter.md]
+  ref: ex12
+  fixture: sandero_zs_report_ru
+  message: спасибо, а теперь добавь Kia Sportage
+  tags: [two_intents, no_pending]
+  patches: [ex12, relation_thanks]
+  expect:
+    language: ru
+    goals: [{kind: compare}]
+    reaction: thanks
+    changes: {add_cars: [Kia Sportage]}
+    action: ASK
+
+- id: ru-037
+  lang: ru
+  sources: [interpreter.md]
+  ref: ex15
+  fixture: empty_ru
+  message: найди мне подходящую kia для замены моего ленд круер прадо 150 возрастом 15 лет
+  tags: [no_pending]
+  patches: [ex15, choose_from_make, replaced_car]
+  expect:
+    language: ru
+    goals: [{kind: compare}]
+    changes:
+      choose_from_make: Kia
+      add_cars: [Toyota Land Cruiser Prado]
+      replaced_car: Toyota Land Cruiser Prado
+    action: SELECT_CANDIDATES
+
+- id: ru-038
+  lang: ru
+  sources: [interpreter.md]
+  ref: rule "an answer to the new-or-used question → set_budget with only intent"
+  fixture: need_budget_ru
+  pending: budget_intent
+  message: б/у
+  tags: []
+  patches: [budget_intent_answer]
+  expect:
+    language: ru
+    answer: {pending_id: q-budget-intent, kind: option, option_id: "q:-:BUDGET_INTENT:1"}
+    changes: {budget_intent: USED}
+    action: SELECT_CANDIDATES
+
+- id: ru-039
+  lang: ru
+  sources: [spec§1, interpreter.md]
+  ref: understanding-spec §4 PENDING example (q-17); rule gearbox / drive hints
+  fixture: sorento_ru
+  pending: sorento_gearbox
+  message: автомат
+  tags: []
+  patches: [gearbox_drive]
+  expect:
+    language: ru
+    answer: {pending_id: q-17, kind: option, option_id: "gb:car#1:automatic"}
+    changes: {cars: {car#1: {gearbox: automatic}}}
+    action: CONFIRM_INTAKE
+
+# --- phrases word lists: choose for me / yes / go / no (each word a case before the lists leave the main path) ---
+- id: ru-040
+  lang: ru
+  sources: [phrases]
+  fixture: i10_ru
+  pending: i10_gearbox
+  message: выбери сам, любой
+  tags: [choose_for_me]
+  words: ["CHOOSE:выбери сам", "CHOOSE:любой"]
+  patches: [pending_choose]
+  expect:
+    language: ru
+    answer: {pending_id: q-i10-gearbox, kind: choose_for_me}
+    action: CONFIRM_INTAKE
+
+- id: ru-041
+  lang: ru
+  sources: [phrases]
+  fixture: sportage_engine_ru
+  pending: sportage_engine
+  message: любая версия, мне всё равно
+  tags: [choose_for_me]
+  words: ["CHOOSE:любая", "CHOOSE:всё равно"]
+  expect:
+    language: ru
+    answer: {pending_id: q-sportage-engine, kind: choose_for_me}
+    action: CONFIRM_INTAKE
+
+- id: ru-042
+  lang: ru
+  sources: [phrases]
+  fixture: cx60_i10_ru
+  pending: cx60_i10_engines
+  message: возьми любую, на твой выбор
+  tags: [choose_for_me]
+  words: ["CHOOSE:любую", "CHOOSE:на твой выбор"]
+  expect:
+    language: ru
+    answer: {pending_id: q-cx60-i10-engines, kind: choose_for_me}
+    action: CONFIRM_INTAKE
+
+- id: ru-043
+  lang: ru
+  sources: [phrases]
+  fixture: mx30_bev_i10_ru
+  pending: mx30_i10_gearbox
+  message: любое исполнение — на ваш выбор, неважно
+  tags: [choose_for_me]
+  words: ["CHOOSE:любое", "CHOOSE:на ваш выбор", "CHOOSE:неважно"]
+  expect:
+    language: ru
+    answer: {pending_id: q-i10-gearbox-2, kind: choose_for_me}
+    action: CONFIRM_INTAKE
+
+- id: ru-044
+  lang: ru
+  sources: [phrases]
+  fixture: sportage_tucson_ru
+  pending: sportage_tucson_engines
+  message: выбери ты, не важно какой
+  tags: [choose_for_me]
+  words: ["CHOOSE:выбери ты", "CHOOSE:не важно"]
+  expect:
+    language: ru
+    answer: {pending_id: q-st-engines, kind: choose_for_me}
+    action: CONFIRM_INTAKE
+
+- id: ru-045
+  lang: ru
+  sources: [phrases]
+  ref: chat 9b5c0b0c (phrases.go_ahead docstring)
+  fixture: sportage_tucson_ru
+  pending: sportage_tucson_engines
+  message: вперед к сравнению
+  tags: [choose_for_me]
+  words: ["GO:вперед", "GO:к сравнению"]
+  expect:
+    language: ru
+    answer: {pending_id: q-st-engines, kind: choose_for_me}
+    action: CONFIRM_INTAKE
+
+- id: ru-046
+  lang: ru
+  sources: [phrases]
+  fixture: sorento_prado_research_ru
+  pending: sorento_cost
+  message: поехали, вперёд
+  tags: [plain_yes]
+  words: ["YES:поехали", "GO:вперёд"]
+  expect:
+    language: ru
+    answer: {pending_id: q-cost-sorento, kind: "yes"}
+    action: RESEARCH
+
+- id: ru-047
+  lang: ru
+  sources: [phrases]
+  fixture: sorento_prado_research_ru
+  pending: sorento_cost
+  message: давай, запускай
+  tags: [plain_yes]
+  words: ["YES:давай", "YES:запуск"]
+  expect:
+    language: ru
+    answer: {pending_id: q-cost-sorento, kind: "yes"}
+    action: RESEARCH
+
+- id: ru-048
+  lang: ru
+  sources: [phrases]
+  fixture: sorento_prado_research_ru
+  pending: sorento_cost
+  message: нет, дорого
+  tags: [plain_no]
+  words: ["NO:нет"]
+  expect:
+    language: ru
+    answer: {pending_id: q-cost-sorento, kind: "no"}
+    action: REPORT
+
+- id: ru-049
+  lang: ru
+  sources: [phrases]
+  fixture: sorento_prado_research_ru
+  pending: sorento_prado_limit
+  message: продолжай дальше
+  tags: [plain_yes]
+  words: ["YES:продолж", "GO:продолжай", "YES:дальше", "GO:дальше"]
+  expect:
+    language: ru
+    answer: {pending_id: q-limit-sorento, kind: "yes"}
+    action: RESEARCH
+
+- id: ru-050
+  lang: ru
+  sources: [phrases]
+  fixture: sorento_prado_research_ru
+  pending: sorento_prado_limit
+  message: хватит, отвечай
+  tags: [plain_no]
+  words: ["NO:хватит", "NO:отвечай"]
+  expect:
+    language: ru
+    answer: {pending_id: q-limit-sorento, kind: "no"}
+    action: REPORT
+  note: on the limit question "хватит" answers it (stop researching, answer); compare ru-015 (a stop goal)
+
+- id: ru-051
+  lang: ru
+  sources: [phrases]
+  fixture: sorento_prado_research_ru
+  pending: sorento_prado_limit
+  message: достаточно, ответь по тому, что уже собрано
+  tags: [plain_no]
+  words: ["NO:достаточно", "NO:ответь"]
+  expect:
+    language: ru
+    answer: {pending_id: q-limit-sorento, kind: "no"}
+    action: REPORT
+
+- id: ru-052
+  lang: ru
+  sources: [phrases]
+  fixture: bigster_prado_card_ru
+  pending: prado_card_ru
+  message: ок, сравнивай
+  tags: [plain_yes]
+  words: ["YES:ок", "GO:сравнивай"]
+  expect:
+    language: ru
+    answer: {pending_id: q-card-prado, kind: "yes"}
+    action: RESEARCH
+
+- id: ru-053
+  lang: ru
+  sources: [phrases]
+  fixture: bigster_prado_card_ru
+  pending: prado_card_ru
+  message: стоп, а у Prado какой расход?
+  tags: [lookalike_no, question_during_question]
+  words: ["NO:стоп"]
+  expect:
+    language: ru
+    goals: [{kind: follow_up, focus_cars: [car#2]}]
+    action: ANSWER_AND_REASK
+
+- id: ru-054
+  lang: ru
+  sources: [t004, phrases]
+  fixture: sportage_card_ru
+  pending: sportage_card
+  message: да ладно, а сколько стоит обслуживание Sportage?
+  tags: [lookalike_yes, question_during_question]
+  words: ["YES:да"]
+  expect:
+    language: ru
+    goals: [{kind: follow_up, focus_cars: [car#1]}]
+    action: ANSWER_AND_REASK
+
+- id: ru-055
+  lang: ru
+  sources: [t004]
+  fixture: sportage_engine_ru
+  pending: sportage_engine
+  message: 1.6 гибрид, и добавь ещё Toyota RAV4
+  tags: [two_intents]
+  expect:
+    language: ru
+    answer: {pending_id: q-sportage-engine, kind: option, option_id: "q:car#1:ENGINE:0"}
+    goals: [{kind: compare}]
+    changes: {add_cars: [Toyota RAV4]}
+    action: ASK
+
+# ======================================================================================================== es ====
+
+- id: es-001
+  lang: es
+  sources: [spec§1, phrases]
+  fixture: seal_ateca_card_es
+  pending: seal_ateca_card
+  message: para mi familia
+  tags: [spec1, lookalike_no]
+  words: ["NO:para"]
+  expect:
+    language: es
+    changes: {usage: [FAMILY]}
+    action: CONFIRM_INTAKE
+  note: a fact about the person, not "no"; the card is shown again with it
+
+- id: es-002
+  lang: es
+  sources: [interpreter.md]
+  ref: ex11
+  fixture: seal_ateca_report_es
+  message: esto no sirve, faltan los datos de mantenimiento
+  tags: [complaint, no_pending]
+  patches: [ex11, critique, relation_complaint]
+  expect:
+    language: es
+    goals: [{kind: critique, focus_areas: [maintenance]}]
+    reaction: complaint
+    action: REPORT
+
+- id: es-003
+  lang: es
+  sources: [interpreter.md]
+  ref: ex17
+  fixture: empty_es
+  message: busco un Kia Sportage para sustituir mi Qashqai de 2012
+  tags: [no_pending]
+  patches: [ex17, replaced_car]
+  expect:
+    language: es
+    goals: [{kind: compare}]
+    changes: {add_cars: [Kia Sportage, Nissan Qashqai], replaced_car: Nissan Qashqai}
+    action: ASK
+
+- id: es-004
+  lang: es
+  sources: [t004, interpreter.md]
+  ref: g8 in Spanish; rules region / annual km / engine / gearbox
+  fixture: empty_es
+  message: Vivimos en Sevilla y hacemos unos 18.000 km al año. ¿BYD Seal U DM-i o SEAT Ateca 1.5 TSI DSG?
+  tags: [no_pending]
+  patches: [region, annual_km, engine_hint, gearbox_drive, numbers_evidence]
+  expect:
+    language: es
+    goals: [{kind: compare}]
+    changes: {add_cars: [BYD Seal U, SEAT Ateca], region: Sevilla, annual_km: 18000}
+    action: ASK
+
+- id: es-005
+  lang: es
+  sources: [t004, phrases]
+  fixture: seal_ateca_card_es
+  pending: ateca_variants_es
+  message: no es ese, quiero el diésel
+  tags: [rejection, two_intents]
+  words: ["NO:no"]
+  expect:
+    language: es
+    answer: {pending_id: q-var-ateca, kind: "no"}
+    rejections: [{car: car#2, level: VERSION}]
+    changes: {cars: {car#2: {fuel: diesel}}}
+    action: ASK
+
+- id: es-006
+  lang: es
+  sources: [t004]
+  ref: spec 013 §C2 "another one"
+  fixture: seal_ateca_card_es
+  pending: ateca_variants_es
+  message: otro, ese no
+  tags: [rejection]
+  expect:
+    language: es
+    answer: {pending_id: q-var-ateca, kind: "no"}
+    rejections: [{car: car#2, level: VERSION}]
+    action: ASK
+
+- id: es-007
+  lang: es
+  sources: [t004]
+  ref: d170b861 in Spanish
+  fixture: eclass_cx60_es
+  pending: eclass_card_es
+  message: no encontraste el Clase C, me has puesto el Clase E
+  tags: [rejection]
+  expect:
+    language: es
+    answer: {pending_id: q-card-eclass, kind: "no"}
+    reaction: correction
+    rejections: [{car: car#1, level: MODEL, value: E-Class, wanted: C-Class}]
+    changes: {cars: {car#1: {model: C-Class}}, add_cars: []}
+    action: ASK
+
+- id: es-008
+  lang: es
+  sources: [t004, phrases]
+  fixture: seal_ateca_es
+  pending: ateca_engine_es
+  message: para, cancela la búsqueda
+  tags: [stop]
+  words: ["NO:para"]
+  expect:
+    language: es
+    goals: [{kind: stop}]
+    changes: {empty: true}
+    action: ANSWER_FROM_CONTEXT
+
+- id: es-009
+  lang: es
+  sources: [t004]
+  fixture: corolla_qashqai_es
+  pending: condition_es
+  message: olvídalo, cancela todo
+  tags: [stop]
+  expect:
+    language: es
+    goals: [{kind: stop}]
+    changes: {empty: true}
+    action: ANSWER_FROM_CONTEXT
+
+- id: es-010
+  lang: es
+  sources: [t004]
+  ref: g15 t2 in Spanish
+  fixture: seal_ateca_es
+  pending: ateca_engine_es
+  message: fatal, no has encontrado nada
+  tags: [complaint]
+  expect:
+    language: es
+    reaction: complaint
+    changes: {empty: true}
+    action: ASK
+
+- id: es-011
+  lang: es
+  sources: [interpreter.md]
+  ref: rule critique ("malo")
+  fixture: seal_ateca_report_es
+  message: el informe es malo, no me sirve
+  tags: [complaint, no_pending]
+  patches: [critique]
+  expect:
+    language: es
+    goals: [{kind: critique}]
+    reaction: complaint
+    action: REPORT
+
+- id: es-012
+  lang: es
+  sources: [phrases]
+  fixture: seal_ateca_card_es
+  pending: seal_ateca_card
+  message: si es diésel mejor
+  tags: [lookalike_yes]
+  words: ["YES:si"]
+  expect:
+    language: es
+    changes: {cars: {car#2: {fuel: diesel}}}
+    action: CONFIRM_INTAKE
+
+- id: es-013
+  lang: es
+  sources: [phrases]
+  fixture: seal_ateca_card_es
+  pending: seal_ateca_card
+  message: ¿vale la pena un híbrido enchufable si no puedo cargar en casa?
+  tags: [lookalike_yes, question_during_question]
+  words: ["YES:vale"]
+  expect:
+    language: es
+    goals: [{kind: ask_general}]
+    action: ANSWER_AND_REASK
+
+- id: es-014
+  lang: es
+  sources: [phrases]
+  fixture: seal_ateca_research_es
+  pending: seal_ateca_limit
+  message: ¿sigue siendo fiable el motor 1.5 TSI?
+  tags: [lookalike_yes, question_during_question]
+  words: ["YES:sigue"]
+  expect:
+    language: es
+    goals: [{kind: follow_up, focus_cars: [car#2]}]
+    action: ANSWER_AND_REASK
+
+- id: es-015
+  lang: es
+  sources: [phrases]
+  fixture: seal_ateca_es
+  pending: ateca_engine_es
+  message: no sé cuál, ¿cuál gasta menos?
+  tags: [lookalike_no, question_during_question]
+  words: ["NO:no"]
+  expect:
+    language: es
+    goals: [{kind: follow_up, focus_cars: [car#2]}]
+    action: ANSWER_AND_REASK
+
+- id: es-016
+  lang: es
+  sources: [t004, phrases]
+  fixture: seal_ateca_card_es
+  pending: seal_ateca_card
+  message: sí, y añade un Toyota RAV4
+  tags: [two_intents]
+  words: ["YES:sí"]
+  expect:
+    language: es
+    answer: {pending_id: q-card-ateca, kind: "yes"}
+    goals: [{kind: compare}]
+    changes: {add_cars: [Toyota RAV4]}
+    action: ASK
+
+- id: es-017
+  lang: es
+  sources: [t004, interpreter.md]
+  ref: rules relation thanks / priorities
+  fixture: seal_ateca_report_es
+  message: gracias, ¿y si priorizo el consumo?
+  tags: [two_intents, no_pending]
+  patches: [relation_thanks, priorities]
+  expect:
+    language: es
+    goals: [{kind: change_priorities}]
+    reaction: thanks
+    changes: {priorities: [efficiency]}
+    action: ANSWER_FROM_CONTEXT
+
+- id: es-018
+  lang: es
+  sources: [phrases]
+  fixture: seal_ateca_card_es
+  pending: seal_ateca_card
+  message: sí
+  tags: [plain_yes]
+  words: ["YES:sí"]
+  patches: [pending_confirm]
+  expect:
+    language: es
+    answer: {pending_id: q-card-ateca, kind: "yes"}
+    action: RESEARCH
+
+- id: es-019
+  lang: es
+  sources: [phrases]
+  fixture: seal_ateca_card_es
+  pending: seal_ateca_card
+  message: vale
+  tags: [plain_yes]
+  words: ["YES:vale"]
+  expect:
+    language: es
+    answer: {pending_id: q-card-ateca, kind: "yes"}
+    action: RESEARCH
+
+- id: es-020
+  lang: es
+  sources: [t004]
+  fixture: seal_ateca_card_es
+  pending: seal_ateca_card
+  message: Ahora no
+  tags: [button_text]
+  expect:
+    language: es
+    answer: {pending_id: q-card-ateca, kind: option, option_id: stop}
+    action: REPORT
+
+- id: es-021
+  lang: es
+  sources: [phrases]
+  fixture: seal_ateca_card_es
+  pending: ateca_variants_es
+  message: si, ese
+  tags: [plain_yes]
+  words: ["YES:si"]
+  expect:
+    language: es
+    answer: {pending_id: q-var-ateca, kind: "yes"}
+    action: RESEARCH
+
+- id: es-022
+  lang: es
+  sources: [t004]
+  fixture: seal_ateca_card_es
+  pending: ateca_variants_es
+  message: el del diésel, el 2.0 TDI
+  tags: []
+  expect:
+    language: es
+    answer: {pending_id: q-var-ateca, kind: option, option_id: "option:car#2:20tdi-dsg"}
+    action: RESEARCH
+
+- id: es-023
+  lang: es
+  sources: [phrases]
+  fixture: seal_ateca_research_es
+  pending: seal_ateca_cost
+  message: adelante
+  tags: [plain_yes]
+  words: ["YES:adelante", "GO:adelante"]
+  expect:
+    language: es
+    answer: {pending_id: q-cost-ateca, kind: "yes"}
+    action: RESEARCH
+
+- id: es-024
+  lang: es
+  sources: [phrases]
+  fixture: seal_ateca_research_es
+  pending: seal_ateca_cost
+  message: no, es demasiado caro
+  tags: [plain_no]
+  words: ["NO:no"]
+  expect:
+    language: es
+    answer: {pending_id: q-cost-ateca, kind: "no"}
+    action: REPORT
+
+- id: es-025
+  lang: es
+  sources: [t004]
+  fixture: seal_ateca_research_es
+  pending: seal_ateca_cost
+  message: ¿cuánto tarda la investigación?
+  tags: [question_during_question]
+  expect:
+    language: es
+    goals: [{kind: ask_general}]
+    action: ANSWER_AND_REASK
+
+- id: es-026
+  lang: es
+  sources: [phrases]
+  fixture: seal_ateca_research_es
+  pending: seal_ateca_limit
+  message: sigue
+  tags: [plain_yes]
+  words: ["YES:sigue", "GO:sigue"]
+  expect:
+    language: es
+    answer: {pending_id: q-limit-ateca, kind: "yes"}
+    action: RESEARCH
+
+- id: es-027
+  lang: es
+  sources: [phrases]
+  fixture: seal_ateca_research_es
+  pending: seal_ateca_limit
+  message: continúa, por favor
+  tags: [plain_yes]
+  words: ["YES:continúa", "GO:continúa"]
+  expect:
+    language: es
+    answer: {pending_id: q-limit-ateca, kind: "yes"}
+    action: RESEARCH
+
+- id: es-028
+  lang: es
+  sources: [phrases]
+  fixture: seal_ateca_research_es
+  pending: seal_ateca_limit
+  message: continua
+  tags: [plain_yes]
+  words: ["YES:continua", "GO:continua"]
+  expect:
+    language: es
+    answer: {pending_id: q-limit-ateca, kind: "yes"}
+    action: RESEARCH
+
+- id: es-029
+  lang: es
+  sources: [phrases]
+  fixture: seal_ateca_research_es
+  pending: seal_ateca_limit
+  message: basta, responde con lo que tengas
+  tags: [plain_no]
+  words: ["NO:basta", "NO:responde"]
+  expect:
+    language: es
+    answer: {pending_id: q-limit-ateca, kind: "no"}
+    action: REPORT
+
+- id: es-030
+  lang: es
+  sources: [t004]
+  fixture: seal_ateca_research_es
+  pending: seal_ateca_limit
+  message: Seguir investigando
+  tags: [button_text]
+  expect:
+    language: es
+    answer: {pending_id: q-limit-ateca, kind: option, option_id: continue}
+    action: RESEARCH
+
+- id: es-031
+  lang: es
+  sources: [t004]
+  fixture: i10_es
+  pending: i10_gearbox_es
+  message: Automático
+  tags: [button_text]
+  expect:
+    language: es
+    answer: {pending_id: q-i10-gearbox-es, kind: option, option_id: "gb:car#1:automatic"}
+    action: CONFIRM_INTAKE
+
+- id: es-032
+  lang: es
+  sources: [phrases]
+  fixture: i10_es
+  pending: i10_gearbox_es
+  message: me da igual, elige tu
+  tags: [choose_for_me]
+  words: ["CHOOSE:me da igual", "CHOOSE:da igual", "CHOOSE:elige tu"]
+  expect:
+    language: es
+    answer: {pending_id: q-i10-gearbox-es, kind: choose_for_me}
+    action: CONFIRM_INTAKE
+
+- id: es-033
+  lang: es
+  sources: [phrases]
+  fixture: seal_ateca_es
+  pending: ateca_engine_es
+  message: cualquiera vale
+  tags: [choose_for_me]
+  words: ["CHOOSE:cualquiera", "YES:vale"]
+  expect:
+    language: es
+    answer: {pending_id: q-ateca-engine, kind: choose_for_me}
+    action: CONFIRM_INTAKE
+
+- id: es-034
+  lang: es
+  sources: [phrases]
+  fixture: golf_engine_es
+  pending: golf_engine_es
+  message: elige tú el motor
+  tags: [choose_for_me]
+  words: ["CHOOSE:elige tú"]
+  expect:
+    language: es
+    answer: {pending_id: q-golf-engine-es, kind: choose_for_me}
+    action: CONFIRM_INTAKE
+
+- id: es-035
+  lang: es
+  sources: [phrases]
+  fixture: seal_ateca_card_es
+  pending: seal_ateca_card
+  message: compara ya
+  tags: [plain_yes]
+  words: ["GO:compara"]
+  expect:
+    language: es
+    answer: {pending_id: q-card-ateca, kind: "yes"}
+    action: RESEARCH
+
+- id: es-036
+  lang: es
+  sources: [interpreter.md]
+  ref: rule engine correction ("1.5, not 1.0")
+  fixture: golf_engine_es
+  pending: golf_engine_es
+  message: es el 1.5, no el 1.0
+  tags: []
+  patches: [engine_correction]
+  expect:
+    language: es
+    answer: {pending_id: q-golf-engine-es, kind: option, option_id: "q:car#1:ENGINE:1"}
+    reaction: correction
+    changes: {cars: {car#1: {displacement_l: 1.5}}}
+    action: CONFIRM_INTAKE
+
+- id: es-037
+  lang: es
+  sources: [interpreter.md]
+  ref: rule new or used for every car ("de segunda mano")
+  fixture: corolla_qashqai_es
+  pending: condition_es
+  message: de segunda mano
+  tags: [button_text]
+  patches: [new_used_all]
+  expect:
+    language: es
+    answer: {pending_id: q-condition-es, kind: option, option_id: "condition:USED"}
+    changes: {cars: {car#1: {condition: USED}, car#2: {condition: USED}}}
+    action: ASK
+  note: used cars → their age is asked next
+
+- id: es-038
+  lang: es
+  sources: [interpreter.md]
+  ref: rule who the user is ("two kids and a dog")
+  fixture: seal_ateca_report_es
+  message: tengo dos hijos y un perro
+  tags: [no_pending]
+  patches: [profile_family]
+  expect:
+    language: es
+    changes: {family: FAMILY}
+    action: REPORT
+
+- id: es-039
+  lang: es
+  sources: [interpreter.md]
+  ref: rule budget
+  fixture: seal_ateca_es
+  message: mi presupuesto es de 30.000 €, nuevo
+  tags: [no_pending]
+  patches: [budget, numbers_evidence]
+  expect:
+    language: es
+    changes: {budget_max_eur: 30000, budget_intent: NEW}
+    action: ASK
+  note: the Ateca is still to identify
+
+- id: es-040
+  lang: es
+  sources: [interpreter.md]
+  ref: rule ownership years ("para 10 años")
+  fixture: seal_ateca_report_es
+  message: lo quiero para unos 10 años
+  tags: [no_pending]
+  patches: [ownership_years]
+  expect:
+    language: es
+    changes: {ownership_years: 10}
+    action: REPORT
+
+- id: es-041
+  lang: es
+  sources: [interpreter.md]
+  ref: rule unmapped wishes ("nice colour")
+  fixture: empty_es
+  message: Toyota Corolla o Nissan Qashqai, y que tenga un color bonito
+  tags: [no_pending]
+  patches: [unmapped_wishes]
+  expect:
+    language: es
+    goals: [{kind: compare}]
+    changes: {add_cars: [Toyota Corolla, Nissan Qashqai], unmapped_wishes: true}
+    action: ASK
+
+- id: es-042
+  lang: es
+  sources: [interpreter.md]
+  ref: rule needs (passengers, luggage)
+  fixture: seal_ateca_report_es
+  message: somos cinco y llevamos mucho equipaje en vacaciones
+  tags: [no_pending]
+  patches: [needs]
+  expect:
+    language: es
+    changes: {passengers: 5, luggage_high: true}
+    action: REPORT
+
+- id: es-043
+  lang: es
+  sources: [interpreter.md]
+  ref: rule version / trim ("GT Line")
+  fixture: golf_engine_es
+  pending: golf_engine_es
+  message: quiero el acabado R-Line
+  tags: []
+  patches: [trim_version]
+  expect:
+    language: es
+    changes: {cars: {car#1: {trim: R-Line}}}
+    action: ASK
+  note: a fact not about the engine — the engine question stays open
+
+- id: es-044
+  lang: es
+  sources: [interpreter.md]
+  ref: rule general question
+  fixture: empty_es
+  message: ¿qué es un híbrido enchufable?
+  tags: [no_pending]
+  patches: [general_question]
+  expect:
+    language: es
+    goals: [{kind: ask_general}]
+    changes: {empty: true}
+    action: ANSWER_GENERAL
+
+- id: es-045
+  lang: es
+  sources: [interpreter.md]
+  ref: rule a distance per month → annual km
+  fixture: seal_ateca_report_es
+  message: unos 1.500 km al mes
+  tags: [no_pending]
+  patches: [distance_range]
+  expect:
+    language: es
+    changes: {annual_km: 18000}
+    action: REPORT
+
+- id: es-046
+  lang: es
+  sources: [t004]
+  ref: spec1 "переформулируйте" in Spanish
+  fixture: seal_ateca_es
+  pending: ateca_engine_es
+  message: ¿puedes reformularlo? no lo entiendo
+  tags: []
+  expect:
+    language: es
+    reaction: rephrase
+    changes: {empty: true}
+    action: ANSWER_AND_REASK
+
+# ======================================================================================================== en ====
+
+- id: en-001
+  lang: en
+  sources: [spec§1, phrases]
+  fixture: rav4_sportage_en
+  pending: sportage_engine_en
+  message: answer me about fuel
+  tags: [spec1, lookalike_no, question_during_question]
+  words: ["NO:answer"]
+  expect:
+    language: en
+    goals: [{kind: follow_up}]
+    action: ANSWER_AND_REASK
+
+- id: en-002
+  lang: en
+  sources: [spec§1, phrases]
+  fixture: golf_engine_en
+  pending: golf_engine_en
+  message: do you have any...
+  tags: [spec1, lookalike_choose, question_during_question]
+  words: ["CHOOSE:any"]
+  expect:
+    language: en
+    goals: [{kind: follow_up}]
+    action: ANSWER_AND_REASK
+  note: a (cut) question about the options, not "choose for me"
+
+- id: en-003
+  lang: en
+  sources: [interpreter.md, golden]
+  ref: ex1; g1 t1
+  fixture: empty_en
+  message: I don't want to spend too much, but I don't want rubbish either. A brand-new Dacia Bigster or a used Land Cruiser Prado?
+  tags: [no_pending]
+  patches: [ex1, persona, priorities, condition, real_manufacturer]
+  expect:
+    language: en
+    goals: [{kind: compare}]
+    changes:
+      add_cars: [Dacia Bigster, Toyota Land Cruiser Prado]
+      persona: BUYER
+      priorities: [ownership_cost, purchase_price, reliability]
+    action: ASK
+
+- id: en-004
+  lang: en
+  sources: [interpreter.md, golden]
+  ref: ex2; g1 t2 / g16 t2
+  fixture: bigster_prado_age_en
+  pending: prado_age
+  message: about 10 years old, the 150
+  tags: []
+  patches: [ex2, set_car_context, copy_hints]
+  expect:
+    language: en
+    answer: {pending_id: q-prado-age, kind: value}
+    changes: {cars: {car#2: {age_years: 10, generation: "150"}}, add_cars: []}
+    action: CONFIRM_INTAKE
+
+- id: en-005
+  lang: en
+  sources: [interpreter.md]
+  ref: ex3
+  fixture: bigster_prado_report_en
+  message: but i asked about used 10 yrs old LC prado 150 not new
+  tags: [no_pending]
+  patches: [ex3, correction_replace]
+  expect:
+    language: en
+    reaction: correction
+    changes: {cars: {car#2: {replace: true, condition: USED, age_years: 10, generation: "150"}}, add_cars: []}
+    action: CONFIRM_INTAKE
+
+- id: en-006
+  lang: en
+  sources: [interpreter.md, golden]
+  ref: ex4; g1 t3
+  fixture: bigster_prado_report_en
+  message: if I prefer status, who wins?
+  tags: [no_pending]
+  patches: [ex4, priorities]
+  expect:
+    language: en
+    goals: [{kind: change_priorities}]
+    changes: {priorities: [status]}
+    action: ANSWER_FROM_CONTEXT
+
+- id: en-007
+  lang: en
+  sources: [interpreter.md, golden]
+  ref: ex6; g3 t2
+  fixture: bigster_prado_report_en
+  message: the same, but I'm a car engineer
+  tags: [no_pending]
+  patches: [ex6, persona]
+  expect:
+    language: en
+    goals: [{kind: change_priorities}]
+    changes: {persona: EXPERT}
+    action: ANSWER_FROM_CONTEXT
+
+- id: en-008
+  lang: en
+  sources: [interpreter.md, phrases]
+  ref: ex10
+  fixture: bigster_prado_report_en
+  message: no, I meant the old one, the 150
+  tags: [no_pending, lookalike_no]
+  words: ["NO:no"]
+  patches: [ex10, correction_replace, relation_correction]
+  expect:
+    language: en
+    reaction: correction
+    changes: {cars: {car#2: {replace: true, condition: USED, generation: "150"}}, add_cars: []}
+    action: CONFIRM_INTAKE
+
+- id: en-009
+  lang: en
+  sources: [interpreter.md]
+  ref: ex13
+  fixture: golf_i30_report_en
+  message: how does a turbo work?
+  tags: [no_pending]
+  patches: [ex13, general_question, relation_new_topic]
+  expect:
+    language: en
+    goals: [{kind: ask_general}]
+    reaction: none
+    changes: {empty: true}
+    action: ANSWER_GENERAL
+
+- id: en-010
+  lang: en
+  sources: [interpreter.md]
+  ref: ex14
+  fixture: civic_en
+  pending: condition_en
+  history: New or used?
+  message: used, about 5 years
+  tags: []
+  patches: [ex14, relation_continues]
+  expect:
+    language: en
+    answer: {pending_id: q-condition-en, kind: option, option_id: "condition:USED"}
+    changes: {cars: {car#1: {condition: USED, age_years: 5}}}
+    action: ASK
+
+- id: en-011
+  lang: en
+  sources: [interpreter.md]
+  ref: ex16
+  fixture: empty_en
+  message: I want a Hyundai instead of my 2014 Golf, something for the family
+  tags: [no_pending]
+  patches: [ex16, choose_from_make, replaced_car, profile_basis]
+  expect:
+    language: en
+    goals: [{kind: compare}]
+    changes:
+      choose_from_make: Hyundai
+      add_cars: [Volkswagen Golf]
+      replaced_car: Volkswagen Golf
+      usage: [FAMILY]
+    action: SELECT_CANDIDATES
+
+- id: en-012
+  lang: en
+  sources: [golden, interpreter.md]
+  ref: g4 t2; rule "and for a smart buyer?"
+  fixture: golf_i30_report_en
+  message: and for a smart buyer?
+  tags: [no_pending]
+  patches: [smart_buyer]
+  expect:
+    language: en
+    goals: [{kind: change_priorities}]
+    changes: {persona: BUYER}
+    action: ANSWER_FROM_CONTEXT
+
+- id: en-013
+  lang: en
+  sources: [golden, interpreter.md]
+  ref: g8 t1
+  fixture: empty_en
+  message: We are a family in Seville, about 18,000 km a year. BYD Seal U DM-i or SEAT Ateca 1.5 TSI DSG?
+  tags: [no_pending]
+  patches: [region, annual_km, profile_basis]
+  expect:
+    language: en
+    goals: [{kind: compare}]
+    changes: {add_cars: [BYD Seal U, SEAT Ateca], region: Seville, annual_km: 18000}
+    action: ASK
+
+- id: en-014
+  lang: en
+  sources: [golden]
+  ref: g7 t1
+  fixture: empty_en
+  message: "Deep research please: Skoda Octavia RS, Cupra Leon VZ and Peugeot 308"
+  tags: [no_pending]
+  expect:
+    language: en
+    goals: [{kind: compare}]
+    changes: {add_cars: [Skoda Octavia, Cupra Leon, Peugeot 308]}
+    action: CONFIRM_INTAKE
+
+- id: en-015
+  lang: en
+  sources: [phrases]
+  fixture: octavia_leon_308_en
+  pending: octavia_cost
+  message: proceed
+  tags: [plain_yes]
+  words: ["YES:proceed", "GO:proceed"]
+  expect:
+    language: en
+    answer: {pending_id: q-cost-octavia, kind: "yes"}
+    action: RESEARCH
+
+- id: en-016
+  lang: en
+  sources: [phrases]
+  fixture: octavia_leon_308_en
+  pending: octavia_cost
+  message: sure, run it
+  tags: [plain_yes]
+  words: ["YES:sure", "YES:run"]
+  expect:
+    language: en
+    answer: {pending_id: q-cost-octavia, kind: "yes"}
+    action: RESEARCH
+
+- id: en-017
+  lang: en
+  sources: [golden]
+  ref: g7 t2 (typed instead of the skip button)
+  fixture: octavia_leon_308_en
+  pending: octavia_cost
+  message: too expensive, skip it
+  tags: [plain_no]
+  expect:
+    language: en
+    answer: {pending_id: q-cost-octavia, kind: "no"}
+    action: REPORT
+
+- id: en-018
+  lang: en
+  sources: [phrases]
+  fixture: rav4_sportage_research_en
+  pending: rav4_sportage_cost
+  message: running costs matter most to me
+  tags: [lookalike_yes]
+  words: ["YES:run"]
+  expect:
+    language: en
+    changes: {priorities: [ownership_cost]}
+    action: CONFIRM_COST
+  note: starts with "run" (in _YES) but is a priority; the cost is asked again for the new criteria
+
+- id: en-019
+  lang: en
+  sources: [phrases]
+  fixture: rav4_sportage_research_en
+  pending: rav4_sportage_cost
+  message: go ahead
+  tags: [plain_yes]
+  words: ["YES:go ahead", "GO:go ahead"]
+  expect:
+    language: en
+    answer: {pending_id: q-cost-rav4, kind: "yes"}
+    action: RESEARCH
+
+- id: en-020
+  lang: en
+  sources: [phrases]
+  fixture: rav4_sportage_research_en
+  pending: rav4_sportage_limit
+  message: continue
+  tags: [plain_yes]
+  words: ["YES:continue", "GO:continue"]
+  expect:
+    language: en
+    answer: {pending_id: q-limit-rav4, kind: "yes"}
+    action: RESEARCH
+
+- id: en-021
+  lang: en
+  sources: [phrases]
+  fixture: rav4_sportage_research_en
+  pending: rav4_sportage_limit
+  message: go on, keep going
+  tags: [plain_yes]
+  words: ["YES:go on", "GO:go on", "YES:keep going"]
+  expect:
+    language: en
+    answer: {pending_id: q-limit-rav4, kind: "yes"}
+    action: RESEARCH
+
+- id: en-022
+  lang: en
+  sources: [phrases]
+  fixture: rav4_sportage_research_en
+  pending: rav4_sportage_limit
+  message: stop
+  tags: [plain_no]
+  words: ["NO:stop"]
+  expect:
+    language: en
+    answer: {pending_id: q-limit-rav4, kind: "no"}
+    action: REPORT
+  note: on the limit question "stop" answers it (answer with what you have); compare en-035 (a stop goal)
+
+- id: en-023
+  lang: en
+  sources: [phrases]
+  fixture: rav4_sportage_research_en
+  pending: rav4_sportage_limit
+  message: enough, answer with what you have
+  tags: [plain_no]
+  words: ["NO:enough", "NO:answer"]
+  expect:
+    language: en
+    answer: {pending_id: q-limit-rav4, kind: "no"}
+    action: REPORT
+
+- id: en-024
+  lang: en
+  sources: [phrases]
+  fixture: rav4_sportage_card_en
+  pending: rav4_sportage_card
+  message: "yes"
+  tags: [plain_yes]
+  words: ["YES:yes"]
+  expect:
+    language: en
+    answer: {pending_id: q-card-rav4, kind: "yes"}
+    action: RESEARCH
+
+- id: en-025
+  lang: en
+  sources: [t004]
+  fixture: rav4_sportage_card_en
+  pending: rav4_sportage_card
+  message: Not now
+  tags: [button_text]
+  expect:
+    language: en
+    answer: {pending_id: q-card-rav4, kind: option, option_id: stop}
+    action: REPORT
+
+- id: en-026
+  lang: en
+  sources: [phrases]
+  fixture: rav4_sportage_card_en
+  pending: rav4_sportage_card
+  message: "no"
+  tags: [plain_no]
+  words: ["NO:no"]
+  expect:
+    language: en
+    answer: {pending_id: q-card-rav4, kind: "no"}
+    changes: {empty: true}
+    action: ASK
+
+- id: en-027
+  lang: en
+  sources: [phrases]
+  fixture: rav4_sportage_card_en
+  pending: rav4_sportage_card
+  message: ok so how much is the plug-in to run per month?
+  tags: [lookalike_yes, question_during_question]
+  words: ["YES:ok"]
+  expect:
+    language: en
+    goals: [{kind: follow_up, focus_cars: [car#2]}]
+    action: ANSWER_AND_REASK
+
+- id: en-028
+  lang: en
+  sources: [t004, phrases]
+  fixture: rav4_sportage_card_en
+  pending: rav4_sportage_card
+  message: yes, but make it AWD
+  tags: [two_intents]
+  words: ["YES:yes"]
+  expect:
+    language: en
+    answer: {pending_id: q-card-rav4, kind: "yes"}
+    changes: {cars: {car#2: {drive: AWD}}}
+    action: CONFIRM_INTAKE
+
+- id: en-029
+  lang: en
+  sources: [phrases]
+  fixture: golf_engine_en
+  pending: golf_engine_en
+  message: no idea what DSG means
+  tags: [lookalike_no, question_during_question]
+  words: ["NO:no"]
+  expect:
+    language: en
+    goals: [{kind: ask_general}]
+    changes: {empty: true}
+    action: ANSWER_AND_REASK
+
+- id: en-030
+  lang: en
+  sources: [phrases]
+  fixture: golf_used_en
+  pending: golf_variants_en
+  message: okay, that's the one
+  tags: [plain_yes]
+  words: ["YES:okay"]
+  expect:
+    language: en
+    answer: {pending_id: q-var-golf, kind: "yes"}
+    action: RESEARCH
+
+- id: en-031
+  lang: en
+  sources: [t004]
+  fixture: golf_used_en
+  pending: golf_variants_en
+  message: the second one
+  tags: []
+  expect:
+    language: en
+    answer: {pending_id: q-var-golf, kind: option, option_id: "option:car#1:mk75-20tdi"}
+    action: RESEARCH
+
+- id: en-032
+  lang: en
+  sources: [phrases]
+  fixture: golf_used_en
+  pending: golf_variants_en
+  message: nein nein, not that one
+  tags: [rejection]
+  words: ["NO:nein"]
+  expect:
+    language: en
+    answer: {pending_id: q-var-golf, kind: "no"}
+    rejections: [{car: car#1, level: VERSION}]
+    action: ASK
+
+- id: en-033
+  lang: en
+  sources: [t004]
+  ref: spec 013 §C2 "wrong"
+  fixture: golf_used_en
+  pending: golf_variants_en
+  message: wrong generation, it's a Golf 7 from 2015, not a 7.5
+  tags: [rejection]
+  expect:
+    language: en
+    answer: {pending_id: q-var-golf, kind: "no"}
+    reaction: correction
+    rejections: [{car: car#1, level: GENERATION}]
+    changes: {cars: {car#1: {year: 2015}}, add_cars: []}
+    action: ASK
+
+- id: en-034
+  lang: en
+  sources: [t004]
+  ref: 4bb83866 in English
+  fixture: mx30_bev_report_en
+  message: you didn't find the R-EV, that's the electric one
+  tags: [rejection, no_pending]
+  expect:
+    language: en
+    reaction: correction
+    rejections: [{car: car#1, level: ENGINE, wanted: R-EV}]
+    changes: {cars: {car#1: {engine: R-EV}}, add_cars: []}
+    action: ASK
+
+- id: en-035
+  lang: en
+  sources: [t004, phrases]
+  fixture: golf_engine_en
+  pending: golf_engine_en
+  message: stop, cancel the search
+  tags: [stop]
+  words: ["NO:stop"]
+  expect:
+    language: en
+    goals: [{kind: stop}]
+    changes: {empty: true}
+    action: ANSWER_FROM_CONTEXT
+
+- id: en-036
+  lang: en
+  sources: [t004]
+  fixture: golf_i30_report_en
+  message: this report is useless
+  tags: [complaint, no_pending]
+  expect:
+    language: en
+    goals: [{kind: critique}]
+    reaction: complaint
+    action: REPORT
+
+- id: en-037
+  lang: en
+  sources: [t004]
+  ref: g15 t2 in English
+  fixture: rav4_sportage_en
+  pending: sportage_engine_en
+  message: terrible, you found nothing
+  tags: [complaint]
+  expect:
+    language: en
+    reaction: complaint
+    changes: {empty: true}
+    action: ASK
+
+- id: en-038
+  lang: en
+  sources: [t004]
+  fixture: golf_i30_report_en
+  message: thanks! now compare it with a Skoda Kodiaq
+  tags: [two_intents, no_pending]
+  expect:
+    language: en
+    goals: [{kind: compare}]
+    reaction: thanks
+    changes: {add_cars: [Skoda Kodiaq]}
+    action: ASK
+
+- id: en-039
+  lang: en
+  sources: [phrases]
+  fixture: golf_engine_en
+  pending: golf_engine_en
+  message: whatever, doesn't matter, you choose
+  tags: [choose_for_me]
+  words: ["CHOOSE:whatever", "CHOOSE:doesn't matter", "CHOOSE:you choose"]
+  expect:
+    language: en
+    answer: {pending_id: q-golf-engine-en, kind: choose_for_me}
+    action: CONFIRM_INTAKE
+
+- id: en-040
+  lang: en
+  sources: [phrases]
+  fixture: rav4_sportage_en
+  pending: sportage_engine_en
+  message: I don't care, choose for me
+  tags: [choose_for_me]
+  words: ["CHOOSE:don't care", "CHOOSE:choose for me"]
+  expect:
+    language: en
+    answer: {pending_id: q-sportage-engine-en, kind: choose_for_me}
+    action: CONFIRM_INTAKE
+
+- id: en-041
+  lang: en
+  sources: [phrases]
+  fixture: golf_engine_en
+  pending: golf_engine_en
+  message: any is fine, dont care
+  tags: [choose_for_me]
+  words: ["CHOOSE:any", "CHOOSE:dont care"]
+  expect:
+    language: en
+    answer: {pending_id: q-golf-engine-en, kind: choose_for_me}
+    action: CONFIRM_INTAKE
+
+- id: en-042
+  lang: en
+  sources: [interpreter.md]
+  ref: rule real manufacturer ("Land Rover Prado")
+  fixture: empty_en
+  message: used Land Rover Prado vs Volvo XC90
+  tags: [no_pending]
+  patches: [real_manufacturer, condition]
+  expect:
+    language: en
+    goals: [{kind: compare}]
+    changes: {add_cars: [Toyota Land Cruiser Prado, Volvo XC90]}
+    action: ASK
+
+- id: en-043
+  lang: en
+  sources: [interpreter.md]
+  ref: rule running-cost limit
+  fixture: empty_en
+  message: Tesla Model 3 or BMW 320d, no more than €150 a month to run it
+  tags: [no_pending]
+  patches: [running_cost_limit, numbers_evidence, model_line]
+  expect:
+    language: en
+    goals: [{kind: compare}]
+    changes: {add_cars: [Tesla Model 3, BMW 3 Series], running_cost_eur: 150}
+    action: ASK
+
+- id: en-044
+  lang: en
+  sources: [interpreter.md]
+  ref: rule race requests
+  fixture: golf_i30_report_en
+  message: who wins a drag race in the wet with two passengers? I bet the Golf
+  tags: [no_pending]
+  patches: [race]
+  expect:
+    language: en
+    changes: {race: true, prediction: car#1}
+    action: REPORT
+
+- id: en-045
+  lang: en
+  sources: [interpreter.md]
+  ref: rule an answer that does not answer (nonsense) → empty delta
+  fixture: golf_engine_en
+  pending: golf_engine_en
+  message: the purple one
+  tags: []
+  patches: [pending_nonsense]
+  expect:
+    language: en
+    changes: {empty: true}
+    action: ANSWER_AND_REASK
+
+- id: en-046
+  lang: en
+  sources: [t004]
+  fixture: empty_en
+  message: hi there
+  tags: [no_pending]
+  expect:
+    language: en
+    reaction: none
+    changes: {empty: true}
+    action: ANSWER_GENERAL
+
+- id: en-047
+  lang: en
+  sources: [interpreter.md]
+  ref: rule research_more ("why is there no data for the Mazda? find it and update the report")
+  fixture: mx30_bev_report_en
+  message: why is there no data for the i10? find it and update the report
+  tags: [no_pending]
+  patches: [research_more]
+  expect:
+    language: en
+    goals: [{kind: research_more, focus_cars: [car#2]}]
+    action: REPORT
