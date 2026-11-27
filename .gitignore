@@ -27,3 +27,6 @@ backups/
 deploy/prometheus/metrics_token
 automind-bundle-*.tar.gz*
 eval-runs/
+
+# the owner's local archive, never committed
+backend/src/automind/chat.zip
