@@ -1,6 +1,7 @@
 """The interpretation service (spec 012 S9c): one message of the person, read and applied to the case.
 
-`read` turns the message into an `Interpretation` — from a button (a preset or a car edit, no model call), from a
+`read` turns the message into an `Interpretation` — from a button (a preset or a car edit; no model call except the
+words of "not this car", read like a typed car), from a
 tapped option (code), or from the model (`interpret`, checked by code). `apply` applies it to the case through named
 pure stages: the delta, the make to choose from, the condition inherited, the persona's words and defaults, the
 request settled, the safety net for named cars, the person's facts and figures from their words, and the pending
@@ -34,9 +35,14 @@ from automind.chat.application.services.interpretation.stages.person_facts impor
 from automind.chat.application.services.interpretation.stages.picked_option import picked_option
 from automind.chat.application.services.interpretation.stages.stated_energy import energy_from_text
 from automind.chat.application.services.interpretation.stages.understood import not_understood, pending_answered
-from automind.chat.application.services.report.blocks.car_view import edit_delta
+from automind.chat.application.services.report.blocks.car_view import (
+    MakeMatcher,
+    another_car,
+    edit_delta,
+    named_text,
+)
 from automind.chat.domain import intake
-from automind.chat.domain.case import CaseFile, apply, apply_defaults
+from automind.chat.domain.case import CaseCar, CaseDelta, CaseFile, apply, apply_defaults
 from automind.chat.domain.decision import RequestKind
 from automind.chat.domain.turn import PresetKind, preset_kind
 from automind.shared.contracts.config import Reference
@@ -132,16 +138,33 @@ class InterpretationService:
 
     async def _car_edit(self, case: CaseFile, said: list[str], preset: Preset) -> Reading:
         """ "Change" on a car (engine, gearbox, trim, generation, not this car, remove): the delta is built by code and
-        goes the normal way (apply → identify → assess → policy); the model is never called."""
+        goes the normal way (apply → identify → assess → policy); the model reads only the words of "not this car"."""
         lang = preset.get("language") or self.words.guess_language(said)
         key, field = str(preset.get("car_key") or ""), str(preset.get("field") or "")
         match_make = self.ref.makes.match_make if self.ref.makes is not None else None
+        value = str(preset.get("value") or "")
         try:
-            delta = edit_delta(case, key, field, str(preset.get("value") or ""), match_make)
+            if field == "not_this_car" and value.strip():
+                delta = await self._another_car(case.car(key), value, match_make)
+            else:
+                delta = edit_delta(case, key, field, value, match_make)
         except (ValueError, KeyError):
             return Reading(None, lang, ask="which_car")
         await self.log("CARD_EDITED", key, field, source="car_edit")
         return _reading(Interpretation(request="correction", language=lang, relation="correction", delta=delta))
+
+    async def _another_car(self, car: CaseCar, value: str, match_make: MakeMatcher | None) -> CaseDelta:
+        """ "Not this car: <words>" read like a typed car (spec 017 C1): the interpreter names the model line and
+        the engine ("320 d" on a BMW → 3 Series, engine 320d, diesel), code keeps the purchase (`another_car`).
+        A reading that fails or names no car falls back to the words split by code. Raises KeyError for an
+        unknown car."""
+        text = named_text(car, value, match_make)
+        try:
+            i = await interpret(self.llm, self.ref.prompts["interpreter"], CaseFile(), [], text)
+        except InterpretError:
+            i = None
+        read = i.delta.add_cars[0] if i is not None and len(i.delta.add_cars) == 1 else None
+        return CaseDelta(replace_cars=[another_car(car, value, read, match_make)])
 
 
 def _reading(i: Interpretation) -> Reading:

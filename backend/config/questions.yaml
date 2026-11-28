@@ -100,9 +100,9 @@ ENGINE:
     ru: "Какой двигатель у {car} (объём, мощность или топливо)?"
     es: "¿Qué motor del {car} (cilindrada, potencia o combustible)?"
   missing:
-    en: "The {car} has no «{missing}» version. There is: {options}. Which one?"
-    ru: "У {car} нет версии «{missing}». Есть: {options}. Какую берём?"
-    es: "El {car} no tiene la versión «{missing}». Hay: {options}. ¿Cuál?"
+    en: "I found no «{missing}» version of the {car} in the sources. Found: {options}. Which one?"
+    ru: "Версию «{missing}» у {car} в источниках не нашёл. Нашёл: {options}. Какую берём?"
+    es: "No encontré la versión «{missing}» del {car} en las fuentes. Encontré: {options}. ¿Cuál?"
   rephrase:
     en: "There is no such engine for the {car}. On sale: {options}. Which one?"
     ru: "Такого двигателя у {car} нет. В продаже: {options}. Какой из них?"
@@ -116,9 +116,9 @@ TRIM:
   ru: "Какая версия {car} ({options})?"
   es: "¿Qué versión del {car} ({options})?"
   missing:
-    en: "The {car} has no «{missing}» version. There is: {options}. Which one?"
-    ru: "У {car} нет версии «{missing}». Есть: {options}. Какую берём?"
-    es: "El {car} no tiene la versión «{missing}». Hay: {options}. ¿Cuál?"
+    en: "I found no «{missing}» version of the {car} in the sources. Found: {options}. Which one?"
+    ru: "Версию «{missing}» у {car} в источниках не нашёл. Нашёл: {options}. Какую берём?"
+    es: "No encontré la versión «{missing}» del {car} en las fuentes. Encontré: {options}. ¿Cuál?"
   rephrase:
     en: "Pick the version of the {car}, or say «choose for me»: {options}."
     ru: "Выберите версию {car} или скажите «выбери сам»: {options}."
@@ -132,9 +132,9 @@ GEARBOX:
     ru: "Автомат или механика для {car} ({options})? Или скажите «выбери сам»."
     es: "¿Automático o manual para el {car} ({options})? O di «elige tú»."
   missing:
-    en: "The {car} has no «{missing}». There is: {options}. Which one?"
-    ru: "У {car} нет «{missing}». Есть: {options}. Какую берём?"
-    es: "El {car} no tiene «{missing}». Hay: {options}. ¿Cuál?"
+    en: "I found no «{missing}» for the {car} in the sources. Found: {options}. Which one?"
+    ru: "«{missing}» у {car} в источниках не нашёл. Нашёл: {options}. Какую берём?"
+    es: "No encontré «{missing}» para el {car} en las fuentes. Encontré: {options}. ¿Cuál?"
 FUEL:
   en: "Which fuel for the {car}: {options}?"
   ru: "Какое топливо у {car}: {options}?"
@@ -144,9 +144,9 @@ FUEL:
     ru: "{car} бывает: {options}. Какой — или «выбери сам»?"
     es: "El {car} existe en {options}. ¿Cuál, o «elige tú»?"
   missing:
-    en: "The {car} has no «{missing}» version. There is: {options}. Which one?"
-    ru: "У {car} нет версии «{missing}». Есть: {options}. Какую берём?"
-    es: "El {car} no tiene versión «{missing}». Hay: {options}. ¿Cuál?"
+    en: "I found no «{missing}» version of the {car} in the sources. Found: {options}. Which one?"
+    ru: "Версию «{missing}» у {car} в источниках не нашёл. Нашёл: {options}. Какую берём?"
+    es: "No encontré la versión «{missing}» del {car} en las fuentes. Encontré: {options}. ¿Cuál?"
 POWER:
   en: "Which power of the {car}: {options}?"
   ru: "Какая мощность у {car}: {options}?"
@@ -156,9 +156,9 @@ POWER:
     ru: "{car} продаётся в версиях {options}. Какая мощность — или «выбери сам»?"
     es: "El {car} se vende con {options}. ¿Qué potencia, o «elige tú»?"
   missing:
-    en: "The {car} has no «{missing}». There is: {options}. Which one?"
-    ru: "У {car} нет «{missing}». Есть: {options}. Какую берём?"
-    es: "El {car} no tiene «{missing}». Hay: {options}. ¿Cuál?"
+    en: "I found no «{missing}» for the {car} in the sources. Found: {options}. Which one?"
+    ru: "«{missing}» у {car} в источниках не нашёл. Нашёл: {options}. Какую берём?"
+    es: "No encontré «{missing}» para el {car} en las fuentes. Encontré: {options}. ¿Cuál?"
 DRIVE:
   en: "Front or all-wheel drive for the {car}: {options}?"
   ru: "Какой привод у {car}: {options}?"
@@ -168,9 +168,9 @@ DRIVE:
     ru: "Привод {car}: {options} — или «выбери сам»?"
     es: "Tracción del {car}: {options}, ¿o «elige tú»?"
   missing:
-    en: "The {car} has no «{missing}». There is: {options}. Which one?"
-    ru: "У {car} нет «{missing}». Есть: {options}. Какой берём?"
-    es: "El {car} no tiene «{missing}». Hay: {options}. ¿Cuál?"
+    en: "I found no «{missing}» for the {car} in the sources. Found: {options}. Which one?"
+    ru: "«{missing}» у {car} в источниках не нашёл. Нашёл: {options}. Какой берём?"
+    es: "No encontré «{missing}» para el {car} en las fuentes. Encontré: {options}. ¿Cuál?"
 PROPOSE:
   en: "I'll take {car} — OK?"
   ru: "Беру {car} — подходит?"

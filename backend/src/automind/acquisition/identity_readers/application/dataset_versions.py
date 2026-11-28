@@ -2,12 +2,12 @@
 
 `DatasetVersions.run` reads offline first: the EEA CO2 groups stored with the gold of the model's catalogue
 variants, then the dataset rows cached for the make. Only when neither has the model, one bounded live query of the
-make, cached for the dataset's refresh period (an empty or failed answer for a day). The groups become versions by
-`domain.registered.group`.
+make, cached for the dataset's refresh period (an empty answer for a day, a failed one for an hour). The groups
+become versions by `domain.registered.group`.
 
 Errors: never raises. `IdentityStoreUnavailable` and any failure of the live query are logged and give an empty list
-(the question is asked without these options); a failed live query is cached as empty, so it is not waited for again
-until tomorrow.
+(the question is asked without these options); a failed live query is cached as empty for an hour, so it is not
+waited for again on every turn.
 """
 
 from __future__ import annotations
@@ -26,7 +26,8 @@ from automind.acquisition.identity_readers.domain.registered import (
 )
 
 log = logging.getLogger(__name__)
-EMPTY_DAYS = 1.0  # an empty or failed answer is retried the next day
+EMPTY_DAYS = 1.0  # an empty answer is retried the next day
+FAILED_DAYS = 1 / 24  # a failed query (a 502 of the dataset's server) is retried after an hour (chat 725e7437)
 
 
 class DatasetVersions:
@@ -64,7 +65,7 @@ class DatasetVersions:
                 rows = [id_row(r) for r in await self._live(make)]
         except Exception:  # noqa: BLE001 - the datasets only add options; any failure of the query is "no rows"
             log.warning("dataset_versions.live_failed make=%s", make, exc_info=True)
-            await self._book.cache(make, [], EMPTY_DAYS)
+            await self._book.cache(make, [], FAILED_DAYS)
             return []
         await self._book.cache(make, rows, self._refresh_days if rows else EMPTY_DAYS)
         return rows
