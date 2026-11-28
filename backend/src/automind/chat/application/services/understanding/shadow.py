@@ -8,6 +8,7 @@ IntentResolver — run on the turn's input beside the old interpreter, which sti
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
@@ -15,8 +16,14 @@ from dataclasses import dataclass
 from automind.chat.application.ports import StoreUnavailable, UnderstandingLog
 from automind.chat.application.services.understanding.resolver import IntentResolver, system_intent
 from automind.chat.application.services.understanding.rules import Context, LanguageWords
-from automind.chat.application.services.understanding.understander import History, Message, Understander
+from automind.chat.application.services.understanding.understander import (
+    History,
+    Message,
+    ModelReading,
+    Understander,
+)
 from automind.chat.application.services.understanding.validate import validate_understanding
+from automind.chat.domain import understanding
 from automind.chat.domain.case import CaseDelta, CaseFile
 from automind.chat.domain.turn import PresetKind, Role, preset_kind
 from automind.chat.domain.understanding.intent import Intent, IntentSource, UiAction, UiActionKind, Understanding
@@ -82,7 +89,7 @@ class UnderstandingShadow:
                      ctx: Context) -> tuple[UnderstandingRecord, Understanding | None]:  # fmt: skip
         inp: JsonObject = {"text": t.text}
         try:
-            reading = await self.understander.read(Message(t.case, ctx.question, t.history, t.text))
+            reading = await self._read(Message(t.case, ctx.question, t.history, t.text))
         except Exception as e:  # noqa: BLE001 - the shadow never breaks a turn: provider, budget, schema → refused
             return _record(base, inp, ctx.question, None, refused=f"{type(e).__name__}: {e}"[:300]), None
         u = reading.understanding
@@ -95,6 +102,30 @@ class UnderstandingShadow:
             return refused, None
         intent = self.resolver.from_text(checked.understanding, ctx)
         return _record({**base, **call, "rejected": rejected}, inp, ctx.question, intent), checked.understanding
+
+    async def _read(self, m: Message) -> ModelReading:
+        """The model's reading; read once more, told what it missed, when the words name makes that neither the
+        case nor the reading has (spec 013 S4: one reading in five dropped both named cars). The second reading is
+        kept when it misses fewer."""
+        first = await self.understander.read(m)
+        missed = self._missed(m, first.understanding)
+        if not missed:
+            return first
+        note = (
+            f"the MESSAGE names {', '.join(missed)} but your reading has no car of "
+            f"{'this make' if len(missed) == 1 else 'these makes'}; add every car the MESSAGE names "
+            "(case_changes.add_cars, with its model, year and engine words) unless it is already in the CASE FILE"
+        )
+        log.info("understanding.reread missed=%s", missed)
+        second = await self.understander.read(dataclasses.replace(m, note=note))
+        return second if len(self._missed(m, second.understanding)) < len(missed) else first
+
+    def _missed(self, m: Message, u: Understanding) -> list[str]:
+        if self.makes is None:
+            return []
+        d = u.case_changes
+        have = [*(c.make for c in m.case.cars), *(c.make for c in d.add_cars), *(c.make for c in d.replace_cars)]
+        return understanding.makes_missed(m.text, have, self.makes.match_make)
 
     def _button(self, base: JsonObject, kind: PresetKind, t: ShadowTurn, ctx: Context) -> UnderstandingRecord:
         p = t.preset or {}

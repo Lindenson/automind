@@ -119,3 +119,51 @@ async def test_record_writes_through_the_log() -> None:
     assert [r.turn_id for r in log.rows] == ["turn-1"]
     with pytest.raises(StoreUnavailable):
         await _shadow(FakeLLM(understanding()), Log(down=True)).record(log.rows[0])
+
+
+class _Seq:
+    """The understander's readings in order; the prompts it was given."""
+
+    def __init__(self, *outs: object) -> None:
+        self.outs, self.prompts = list(outs), []  # type: list[object], list[str]
+
+    async def structured(self, role: str, schema: type, system: str, user: str) -> object:
+        self.prompts.append(user)
+        return self.outs.pop(0)
+
+
+class _AnyMakes:
+    def match_make(self, text: str) -> str | None:
+        low = text.lower()
+        return "BMW" if "bmw" in low else "Kia" if "kia" in low else None
+
+
+_BOTH = understanding(goals=[{"kind": "compare"}], case_changes={"add_cars": [
+    {"request_text": "Kia Sportage 2022", "make": "Kia", "model": "Sportage", "year": 2022},
+    {"request_text": "BMW 320d 2024", "make": "BMW", "model": "3 Series", "year": 2024}]})  # fmt: skip
+
+
+def _seq_shadow(llm: _Seq) -> UnderstandingShadow:
+    return UnderstandingShadow(Understander(llm, "system", (6, 600)), Words(), _AnyMakes(), None, _edit)  # type: ignore[arg-type]
+
+
+async def test_a_reading_that_missed_the_named_cars_is_read_again_with_what_it_missed() -> None:
+    """Spec 013 S4 (chat 8ff3ae80): one reading in five dropped both cars; the second reading is told so."""
+    llm = _Seq(understanding(goals=[{"kind": "compare"}]), _BOTH)
+    rec, understood = await _seq_shadow(llm).understand_words(
+        _turn("сравни Kia Sportage 2022 и BMW 320d 2024", case=CaseFile())
+    )
+    assert understood is not None and [c.year for c in understood.case_changes.add_cars] == [2022, 2024]
+    assert len(llm.prompts) == 2 and "CHECK OF YOUR FIRST READING" in llm.prompts[1] and "Kia, BMW" in llm.prompts[1]
+    assert "CHECK" not in llm.prompts[0] and rec.intent is not None
+
+
+async def test_a_complete_reading_is_not_read_again_and_a_worse_second_one_is_not_kept() -> None:
+    llm = _Seq(_BOTH)
+    await _seq_shadow(llm).understand_words(_turn("сравни Kia Sportage 2022 и BMW 320d 2024", case=CaseFile()))
+    assert len(llm.prompts) == 1
+    one = understanding(goals=[{"kind": "compare"}], case_changes={"add_cars": [
+        {"request_text": "Kia Sportage", "make": "Kia", "model": "Sportage"}]})  # fmt: skip
+    llm = _Seq(one, understanding(goals=[{"kind": "compare"}]))
+    _, understood = await _seq_shadow(llm).understand_words(_turn("Kia Sportage или BMW 320d", case=CaseFile()))
+    assert understood is not None and [c.make for c in understood.case_changes.add_cars] == ["Kia"]
