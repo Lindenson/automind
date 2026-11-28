@@ -1,4 +1,4 @@
-# Next session: start here (2026-11-28 eve: spec 017 approved; 013 S4a live (#165–#167); next S4b = T041)
+# Next session: start here (2026-11-28 night: S4a + MHEV + engine codes live (#165–#170); next S4b = T041)
 
 Three approved specs, one PR per step, merged to main without review; after each merged step that touches `src`:
 `scripts/deploy.sh up --monitoring`, replay the owner's chat live (cost ≈ €0.01–0.06; script below), show the
@@ -133,6 +133,19 @@ result to the owner first. Spec 012 (A4c onward) waits until 013 S7. New code fo
   RDW forbids naming RDW; VehiclesDB only via GitHub releases API; EEA bulk hosts unverified (timeout/502).
 - Next: **S4b = T041** (policy on `Intent`: stop, ANSWER_AND_REASK, goals), then S4c (T042/T043/T046), then spec 017
   IC1 → IC2 (incl. engine code in `trim_hint` = engine family; "rephrase" template wording) → SP1–SP4.
+
+- **Owner's chat fbdb4c8e (2026-11-28)** → PR #169: MHEV raced on engine power only → boost added (data
+  `mhev_boost`, new specs attribute; else Mercedes 15 / BMW 8 / other 10 kW, an assumption), "MHEV" in the version
+  line, `rephrase` template "not found in the sources", `car_edit.py` split from `car_view.py` (structure 1376).
+  PR #170: engine code said as a trim word ("C 200 d", "320d", "220д") = engine family (`ladder.engine_code`).
+  Live (`38c41c2`, chat in scratchpad, €0.16): one message → card C 200 d + G20 LCI 320d, report: version lines say
+  MHEV, sim 0–100 Mercedes 10.26 → 9.29 s, BMW 8.68 → 8.33 s.
+- Still open from that chat: (1) the report text never says "мягкий гибрид" nor the boost (the race assumption is
+  in the data, the reporter ignores it); (2) "2021 рестайлинг" — G20 LCI is 2022+: the contradiction is not named
+  (LCI picked with year 2021); (3) the simulator stays ~20 % slower than the claimed 0–100 (9.3 vs 7.7 s) →
+  calibrate; (4) "320d" twice in the version line (trim = engine code); (5) a 13-min turn after "C 200 d" (chat
+  fbdb4c8e t3) — not investigated; (6) garbled summaries ("Mercedes-Benz C-Class 320"); (7) a diesel MHEV counts
+  as petrol in `acquisition/domain/physics.py` (rpm check); (8) flaky `test_catalog_merge` (racy_tests.txt).
 
 **Teammate review 2026-11-27 (owner: "учти критику") — checked against the code, where each point lives**
 1. Understanding = one label of 14, word lists before the model, text not by id → 013 S4 (T040–T043); S3 shadow
