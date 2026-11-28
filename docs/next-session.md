@@ -1,4 +1,4 @@
-# Next session: start here (2026-11-27 eve: 015 PL2 + PL3, 016 N1, 013 S3 shadow merged; next 015 PL5)
+# Next session: start here (2026-11-28: PR #163 point fixes merged, spec 017 drafted — owner decides §H, then IC1)
 
 Three approved specs, one PR per step, merged to main without review; after each merged step that touches `src`:
 `scripts/deploy.sh up --monitoring`, replay the owner's chat live (cost ≈ €0.01–0.06; script below), show the
@@ -112,6 +112,17 @@ result to the owner first. Spec 012 (A4c onward) waits until 013 S7. New code fo
   320d row in the live call (7/7 re-runs kept it); bmw.es data pages fetch ERROR since 11-27. Removed the bad
   `model_versions` row (backup `automind-20261128-171624.sql.gz`). Owner: spec 017 = contracts + e2e tests for every
   user interaction, and a source pyramid (registries/maker/big spec DBs first, dealers last).
+
+- Pre-prod = main `a0e30f8` (PR #163, redeployed 2026-11-28 ~17:35). Live replay (chat 6e032fe4, €0.065): "not this
+  car → 320 d" → BMW 3 Series G20 diesel 320d ✓; after "BMW 320d 2024 б/у, автомат" the list offers 318d / 320d ✓
+  (the 320d is found), chip 320d → "2.0 320d 190 CV", drive → card: C 200 d auto NEW + 320d G20 2024 USED auto
+  (research ≈ €0.18 not run). Still wrong: (1) t1 the **old interpreter returned no cars** (only set_depth), the word
+  safety net added them without years/models — the shadow understander read both right → 013 S4; (2) "320d" in
+  `trim_hint` is not the engine family → asked "318d or 320d?" again; (3) template `rephrase` still says "There is no
+  such engine"; (4) gearbox chips offered "manual" for a G20 320d. All in spec 017 IC2 / 013 S4.
+- **Spec 017 drafted** (`specs/017-interaction-contracts/`, PR "017-spec"): interaction contracts (table in code,
+  socket e2e per row) + source pyramid (tiers 0–3, EEA/DGT/RDW bulk first, dealers never form a list). Owner
+  decisions §H1–H6 pending (S4 now with gemini-3.6-flash? order; DGT; VehiclesDB; commercial; purge dealer lists).
 
 **Teammate review 2026-11-27 (owner: "учти критику") — checked against the code, where each point lives**
 1. Understanding = one label of 14, word lists before the model, text not by id → 013 S4 (T040–T043); S3 shadow
