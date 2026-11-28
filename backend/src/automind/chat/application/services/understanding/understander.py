@@ -66,6 +66,7 @@ class Message:
     question: OpenQuestion | None
     history: History
     text: str
+    note: str | None = None  # what code found missing in a first reading (spec 013 S4: makes named, no car read)
 
 
 class Understander:
@@ -101,7 +102,7 @@ class Understander:
             f"LAST ANSWER: {_last_answer(m.history)}\n\n"
             f"HISTORY:\n{hist}\n\n"
             f"CRITERIA KEYS:\n{criteria}\n\n"
-            f"MESSAGE:\n{m.text}"
+            f"MESSAGE:\n{m.text}" + (f"\n\nCHECK OF YOUR FIRST READING: {m.note}" if m.note else "")
         )
 
 

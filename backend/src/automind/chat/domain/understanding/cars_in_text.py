@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 
 _CAR_SPLIT = re.compile(r"\s+(?:и|или|vs\.?|versus|против|or|o|contra|against|y|and)\s+|[,;?!()¿¡]|\.(?:\s|$)", re.I)
 
@@ -25,3 +25,11 @@ def cars_in_text(text: str | None, match_make: Callable[[str], str | None]) -> l
                 break
         out.append((" ".join(words[start:]), make))
     return out
+
+
+def makes_missed(text: str | None, have: Iterable[str | None], match_make: Callable[[str], str | None]) -> list[str]:
+    """The makes the words name that are neither among `have` (the case's cars and the cars a reading added or
+    replaced) — what a reading missed (spec 013 S4, chat 8ff3ae80: one reading in five dropped both cars of "мерседес
+    c 200дизель 2026 и БМВ 220д 2024"). In the order written."""
+    known = {m.lower() for m in have if m}
+    return [make for _, make in cars_in_text(text, match_make) if make.lower() not in known]

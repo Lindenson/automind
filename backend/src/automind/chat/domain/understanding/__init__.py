@@ -15,6 +15,7 @@ from automind.chat.domain.understanding.amounts import (
 )
 from automind.chat.domain.understanding.cars_in_text import (
     cars_in_text,
+    makes_missed,
 )
 from automind.chat.domain.understanding.charging import (
     MAX_EUR_PER_KWH,
@@ -52,6 +53,7 @@ __all__ = [
     "amounts_in",
     "any_match",
     "cars_in_text",
+    "makes_missed",
     "charging_of",
     "condition_of",
     "electricity_price_of",
