@@ -21,9 +21,10 @@ from tests.unit.chat.application.services.understanding.test_shadow import Log
 OLD = Reading(Interpretation(request="compare", language="ru"), "ru")
 
 
-def _context(log: Log | None, *, on: bool = True, llm: Any = None) -> TurnContext:
+def _context(log: Log | None, *, on: bool = True, llm: Any = None, decides: bool = False) -> TurnContext:
     ref = SimpleNamespace(prompts={"understander": "system"}, makes=None)
-    ports = SimpleNamespace(llm=llm or FakeLLM(understanding()), ref=ref, understanding=log, understanding_shadow=on)
+    ports = SimpleNamespace(llm=llm or FakeLLM(understanding()), ref=ref, understanding=log, understanding_shadow=on,
+                            understanding_decides=decides)  # fmt: skip
     return TurnContext(ports=ports, chat_id="chat-1", turn_id="turn-1", budget=None)  # type: ignore[arg-type]
 
 
@@ -77,3 +78,68 @@ async def test_a_store_down_or_a_bug_of_the_shadow_never_breaks_the_turn(monkeyp
     monkeypatch.setattr(UnderstandingShadow, "understand", bug)
     assert await _read(_context(Log())) is OLD
     assert _errors() == before + 2
+
+
+# spec 013 S4 (T040): the new understanding decides typed words; the old interpreter is its fallback only
+
+_TWO_CARS = understanding(
+    goals=[{"kind": "compare"}],
+    case_changes={
+        "add_cars": [
+            {
+                "request_text": "мерседес c 200дизель 2026 года",
+                "make": "Mercedes-Benz",
+                "model": "C-Class",
+                "year": 2026,
+                "constraints": {"fuel_hint": "diesel"},
+            },
+            {
+                "request_text": "БМВ 220д 2024 года",
+                "make": "BMW",
+                "model": "2 Series",
+                "year": 2024,
+                "constraints": {"fuel_hint": "diesel", "trim_hint": "220d"},
+            },
+        ]
+    },
+)  # chat 6e032fe4 t1: the old interpreter returned no car, the understanding both
+
+
+async def test_deciding_the_understanding_is_applied_and_the_old_never_runs() -> None:
+    log = Log()
+
+    async def never() -> Reading:
+        raise AssertionError("the old interpreter is only the fallback")
+
+    reading = await read_with_shadow(_context(log, llm=FakeLLM(_TWO_CARS), decides=True), CASE, [],
+                                     "сравни мерседес c 200дизель 2026 и БМВ 220д 2024", None, never)  # fmt: skip
+    i = reading.interpretation
+    assert i is not None and i.request == "compare" and i.language == "ru"
+    assert [(c.model, c.year) for c in i.delta.add_cars] == [("C-Class", 2026), ("2 Series", 2024)]
+    (rec,) = log.rows
+    assert rec.intent is not None and rec.old_reading is None
+
+
+async def test_deciding_a_refused_understanding_falls_back_to_the_old_reading_and_records_both() -> None:
+    log = Log()
+    reading = await _read(_context(log, llm=FakeLLM(RuntimeError("model down")), decides=True))
+    assert reading is OLD
+    (rec,) = log.rows
+    assert rec.refused and rec.old_reading["interpretation"]["request"] == "compare"  # type: ignore[index]
+
+
+async def test_deciding_a_bug_of_the_new_chain_falls_back_and_is_counted(monkeypatch: pytest.MonkeyPatch) -> None:
+    before = _errors()
+
+    async def bug(self: UnderstandingShadow, turn: object) -> None:
+        raise KeyError("a bug")
+
+    monkeypatch.setattr(UnderstandingShadow, "understand_words", bug)
+    assert await _read(_context(Log(), decides=True)) is OLD
+    assert _errors() == before + 1
+
+
+async def test_deciding_buttons_keep_the_old_reading() -> None:
+    log = Log()
+    reading = await read_with_shadow(_context(log, decides=True), CASE, [], "", {"kind": "research_more"}, _old)
+    assert reading is OLD and log.rows[0].old_reading is not None

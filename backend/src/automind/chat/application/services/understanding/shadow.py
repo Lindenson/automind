@@ -19,7 +19,7 @@ from automind.chat.application.services.understanding.understander import Histor
 from automind.chat.application.services.understanding.validate import validate_understanding
 from automind.chat.domain.case import CaseDelta, CaseFile
 from automind.chat.domain.turn import PresetKind, Role, preset_kind
-from automind.chat.domain.understanding.intent import Intent, IntentSource, UiAction, UiActionKind
+from automind.chat.domain.understanding.intent import Intent, IntentSource, UiAction, UiActionKind, Understanding
 from automind.chat.domain.understanding.open_question import OpenQuestion, open_question
 from automind.chat.domain.understanding.record import UnderstandingRecord
 from automind.shared.contracts.config import MakeNames
@@ -54,6 +54,11 @@ class UnderstandingShadow:
 
     async def understand(self, t: ShadowTurn) -> UnderstandingRecord:
         """The turn's understanding as a record (see the module docstring); `old_reading` is left for the caller."""
+        return (await self.understand_words(t))[0]
+
+    async def understand_words(self, t: ShadowTurn) -> tuple[UnderstandingRecord, Understanding | None]:
+        """The record, and for typed words that were understood the checked `Understanding` the record's intent
+        was resolved from (spec 013 S4: the turn applies it); None for a button, the system or a refusal."""
         question = open_question(t.case.pending)
         base: JsonObject = {"chat_id": t.chat_id, "turn_id": t.turn_id,
                             "open_question_id": question.id if question else None,
@@ -63,9 +68,9 @@ class UnderstandingShadow:
         kind = preset_kind(t.preset)
         if kind is PresetKind.REPORT_SAVED:
             language = _str((t.preset or {}).get("language")) or self.words.guess_language(earlier)
-            return _record(base, {"system": "report_saved"}, question, system_intent(language))
+            return _record(base, {"system": "report_saved"}, question, system_intent(language)), None
         if kind is not None:
-            return self._button(base, kind, t, ctx)
+            return self._button(base, kind, t, ctx), None
         return await self._words(base, t, ctx)
 
     async def record(self, rec: UnderstandingRecord) -> None:
@@ -73,21 +78,23 @@ class UnderstandingShadow:
         if self.log is not None:
             await self.log.record(rec)
 
-    async def _words(self, base: JsonObject, t: ShadowTurn, ctx: Context) -> UnderstandingRecord:
+    async def _words(self, base: JsonObject, t: ShadowTurn,
+                     ctx: Context) -> tuple[UnderstandingRecord, Understanding | None]:  # fmt: skip
         inp: JsonObject = {"text": t.text}
         try:
             reading = await self.understander.read(Message(t.case, ctx.question, t.history, t.text))
         except Exception as e:  # noqa: BLE001 - the shadow never breaks a turn: provider, budget, schema → refused
-            return _record(base, inp, ctx.question, None, refused=f"{type(e).__name__}: {e}"[:300])
+            return _record(base, inp, ctx.question, None, refused=f"{type(e).__name__}: {e}"[:300]), None
         u = reading.understanding
         call: JsonObject = {"model": reading.model, "prompt_version": reading.prompt_version,
                             "latency_ms": reading.latency_ms, "model_raw": u.model_dump(mode="json")}  # fmt: skip
         checked = validate_understanding(u, t.case, ctx.question, t.text, ctx.earlier)
         rejected = [x.model_dump() for x in checked.dropped]
         if checked.understanding is None:
-            return _record({**base, **call, "rejected": rejected}, inp, ctx.question, None, refused=checked.refused)
+            refused = _record({**base, **call, "rejected": rejected}, inp, ctx.question, None, refused=checked.refused)
+            return refused, None
         intent = self.resolver.from_text(checked.understanding, ctx)
-        return _record({**base, **call, "rejected": rejected}, inp, ctx.question, intent)
+        return _record({**base, **call, "rejected": rejected}, inp, ctx.question, intent), checked.understanding
 
     def _button(self, base: JsonObject, kind: PresetKind, t: ShadowTurn, ctx: Context) -> UnderstandingRecord:
         p = t.preset or {}

@@ -88,6 +88,7 @@ def live_ports(events: EventBus, prompts: dict[str, str]) -> Ports:
         decisions=DecisionRepo(),
         understanding=UnderstandingRepo(),
         understanding_shadow=settings().understanding_shadow,
+        understanding_decides=settings().understanding_decides,
         registry=registry,
     )
 

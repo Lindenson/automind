@@ -194,3 +194,21 @@ async def test_not_this_car_with_a_stated_year_takes_the_new_year() -> None:
     assert reading.interpretation is not None
     ctx = reading.interpretation.delta.replace_cars[0]
     assert (ctx.make, ctx.model, ctx.year, ctx.mileage_km) == ("Audi", "A4", 2019, 30000)
+
+
+def test_an_option_the_understanding_found_is_applied_by_its_id_with_the_facts_said_beside_it() -> None:
+    """Spec 013 S4: typed "the second one, 20 000 km a year" → the option by its id, and the mileage too."""
+    service, _ = _service()
+    i = Interpretation(request="compare", language="ru", option_id="q:car#1:ENGINE:1",
+                       delta=CaseDelta(set_annual_km=20000))  # fmt: skip
+    applied = service.apply(ApplyRequest(_asked_case(), i, "второй, 20 000 км в год", False, 2026))
+    assert applied.case.car("car#1").constraints.version_hint == "2.0 TDI"
+    assert applied.case.annual_km == 20000
+
+
+def test_an_option_id_that_no_longer_fits_applies_the_facts_alone() -> None:
+    service, _ = _service()
+    i = Interpretation(request="compare", language="ru", option_id="q:car#7:ENGINE:0",
+                       delta=CaseDelta(set_annual_km=20000))  # fmt: skip
+    applied = service.apply(ApplyRequest(_case(), i, "", False, 2026))
+    assert applied.case.annual_km == 20000

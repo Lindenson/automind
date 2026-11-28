@@ -445,4 +445,5 @@ class Ports:
     decisions: DecisionLog | None = None  # spec 015 D5: the policy's passes; None: not recorded (test fakes)
     understanding: UnderstandingLog | None = None  # spec 013 T033: each turn's understanding; None: not recorded
     understanding_shadow: bool = False  # spec 013 S3: run the new understanding beside the old one (live: settings)
+    understanding_decides: bool = False  # spec 013 S4: the new understanding decides typed words (live: settings)
     registry: SpecSources | None = None  # spec 010 US6-US8: the source registry; None: config order only

@@ -74,3 +74,24 @@ Plug-in points for a tier: `evidence.tier_of` beside `classify_source` + `config
 | ADEME Car Labelling (FR) | unverified | unverified | updated 2026-07-28 | later |
 | UK VCA car fuel data | Crown copyright | — | availability unverified | later |
 | Hacienda price tables (ES, Orden HAC/1501/2025) | official | make/model/cc/kW → tax-basis price | yearly PDF | prices, later |
+
+## Terms and robots (checked 2026-11-28 on each source's own pages)
+
+| Source | Automated download | Commercial reuse | Conditions | Limits |
+|---|---|---|---|---|
+| EEA CO2 cars | www.eea.europa.eu: `/en/datahub/` allowed (only `/api` and search/RSS blocked); `sdi.eea.europa.eu` (bulk files) timed out and `discodata.eea.europa.eu` returned 502 — **their robots.txt and API terms not verified** | yes | dataset metadata: CC BY 4.0, copyright DG CLIMA; EEA legal notice: acknowledge the EEA as the source, do not distort the meaning; CC BY: indicate modifications, link the licence; no EEA logo | none published |
+| DGT MATRABA | www.dgt.es: `/microdatos/salida/` allowed for `*` | yes (datos.gob.es aviso legal, Ley 37/2007 / RD 1495/2011 — not CC BY) | cite the source, give the date of the last update, do not distort, do not imply DGT takes part in or endorses the service | none stated |
+| RDW (NL) | opendata.rdw.nl: `/resource/*.json` (SODA) allowed, `Crawl-delay: 1`, OData paths blocked | yes (CC0) | **do not state that the data come from the RDW, do not use its logo or style** (Bijsluiter); fair use | app token needed to avoid IP throttling (429) |
+| VehiclesDB | GitHub releases / jsDelivr only — vehiclesdb.com/legal forbids automated scraping or bulk download from the site; github.com robots.txt blocks `/*/*/download/*` → use the REST release-asset endpoint, monthly | yes (CC BY 4.0) | visible link "Vehicle data by VehiclesDB" + the upstream notices in ATTRIBUTION.md | GitHub AUP: no excessive bulk activity |
+
+Attribution to show (a "Data sources" page; SP2 task):
+
+- Vehicle data by VehiclesDB (CC BY 4.0), built from official public registers — source notices (ATTRIBUTION.md).
+- CO2 data: © European Union, European Environment Agency (EEA) / DG Climate Action — "Monitoring of CO2 emissions
+  from passenger cars", <version>, CC BY 4.0. Aggregated and modified by AutoMind; not endorsed by the EEA or the
+  European Commission.
+- Origen de los datos: Dirección General de Tráfico (DGT), Microdatos de Matriculaciones de Vehículos (Ley 37/2007,
+  RD 1495/2011). Última actualización: <date>. La DGT no participa, patrocina ni apoya este servicio.
+- Contains public data from the Dutch vehicle register (CC0). (RDW not named, as its terms require.)
+
+Before SP2 goes live: verify robots.txt / terms of `sdi.eea.europa.eu` and `discodata.eea.europa.eu` when they answer.

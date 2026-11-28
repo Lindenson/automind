@@ -1,7 +1,7 @@
 # Spec 017 — Every interaction has a contract; sources are searched as a pyramid
 
-**Branch**: `017-spec-interaction-contracts` · **Created**: 2026-11-28 · **Status**: Draft, awaiting the owner's
-approval (§H)
+**Branch**: `017-spec-interaction-contracts` · **Created**: 2026-11-28 · **Status**: Approved 2026-11-28 (§H: yes to
+all six; S4 first)
 
 **Input**: the owner, 2026-11-28, after chat 725e7437 (BMW 320d "not found"): "все взаимодействия с пользователем
 покрыть контрактами и улучшить до контрактов и оттестировать. должно работать как часы. и по моделям и по поиску" +
@@ -168,7 +168,7 @@ page); no commercial source without the owner's decision (§H).
 - SP4 Maker data entries per make (R6), the owner approves each source.
 - 013 S4 (switch to the understander) is not in this spec but is the largest single fix for §A.4 — see §H1.
 
-## H. Owner's decisions needed
+## H. Owner's decisions (2026-11-28: "да на все, начинай с S4" — every proposal below approved as written)
 
 1. **013 S4 now?** The replay shows the old interpreter losing both cars; the shadow understander read them right.
    Proposal: S4 next, with gemini-3.6-flash as the understander (goals 93 %, p95 3.3 s), before IC2.
