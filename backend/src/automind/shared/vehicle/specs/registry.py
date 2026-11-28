@@ -32,6 +32,17 @@ ATTRS: dict[str, Attr] = {
     a.key: a
     for a in [
         Attr("max_power", "Max power", "kW", "number", "specs", 0.02, convert=units.power_to_kw, plausible=(30, 1500)),
+        # owner 2026-11-28: a mild hybrid's 48 V starter-generator boost ("EQ Boost 15 kW", "+20 CV"), not in max_power
+        Attr(
+            "mhev_boost",
+            "Mild-hybrid boost (48 V starter-generator, EQ Boost)",
+            "kW",
+            "number",
+            "specs",
+            0.05,
+            convert=units.power_to_kw,
+            plausible=(3, 40),
+        ),  # fmt: skip
         Attr(
             "max_torque", "Max torque", "N·m", "number", "specs", 0.02, convert=units.torque_to_nm, plausible=(60, 2500)
         ),

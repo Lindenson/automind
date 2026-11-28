@@ -35,7 +35,7 @@ from automind.chat.application.services.interpretation.stages.person_facts impor
 from automind.chat.application.services.interpretation.stages.picked_option import picked_option
 from automind.chat.application.services.interpretation.stages.stated_energy import energy_from_text
 from automind.chat.application.services.interpretation.stages.understood import not_understood, pending_answered
-from automind.chat.application.services.report.blocks.car_view import (
+from automind.chat.application.services.report.blocks.car_edit import (
     MakeMatcher,
     another_car,
     edit_delta,

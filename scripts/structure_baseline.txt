@@ -777,7 +777,6 @@ order|chat/application/services/interpretation/ask.py|status_line
 order|chat/application/services/interpretation/ask.py|template
 order|chat/application/services/interpretation/ask.py|understood_summary
 order|chat/application/services/report/blocks/car_view.py|case_payload
-order|chat/application/services/report/blocks/car_view.py|edit_delta
 order|chat/application/services/report/blocks/car_view.py|options
 order|chat/application/services/report/blocks/electric.py|build
 order|chat/application/services/report/blocks/intake_card.py|apply_edit

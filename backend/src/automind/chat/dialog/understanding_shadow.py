@@ -20,7 +20,7 @@ from collections.abc import Awaitable, Callable
 from automind.chat.application.ports import StoreUnavailable
 from automind.chat.application.services.interpretation import interpret
 from automind.chat.application.services.interpretation.contracts import History, Preset, Reading
-from automind.chat.application.services.report.blocks.car_view import edit_delta
+from automind.chat.application.services.report.blocks.car_edit import edit_delta
 from automind.chat.application.services.understanding.as_interpretation import as_interpretation
 from automind.chat.application.services.understanding.shadow import ShadowTurn, UnderstandingShadow
 from automind.chat.application.services.understanding.understander import Understander
