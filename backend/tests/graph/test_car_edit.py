@@ -6,7 +6,7 @@ import uuid
 
 from sqlalchemy import select
 
-from automind.chat.application.services.report.blocks import car_view
+from automind.chat.application.services.report.blocks import car_edit, car_view
 from automind.chat.dialog.graph import build_graph
 from automind.chat.dialog.runner import ChatRunner
 from automind.chat.domain.case import CaseCar, CaseFile
@@ -93,14 +93,14 @@ async def test_change_engine_is_applied_by_code_and_marks_the_previous_turn(save
 async def test_remove_and_not_this_car_build_the_delta_by_code(saver):
     case = CaseFile(cars=[CaseCar(key="car#1", request_text="SEAT Ateca", make="SEAT", model="Ateca"),
                           CaseCar(key="car#2", request_text="VW Golf", make="Volkswagen", model="Golf")])  # fmt: skip
-    assert car_view.edit_delta(case, "car#2", "remove", "").remove_cars == ["car#2"]
-    d = car_view.edit_delta(case, "car#1", "not_this_car", "SEAT Arona")
+    assert car_edit.edit_delta(case, "car#2", "remove", "").remove_cars == ["car#2"]
+    d = car_edit.edit_delta(case, "car#1", "not_this_car", "SEAT Arona")
     assert d.replace_cars[0].make == "SEAT" and d.replace_cars[0].model == "Arona"
-    g = car_view.edit_delta(case, "car#1", "gearbox", "DSG")
+    g = car_edit.edit_delta(case, "car#1", "gearbox", "DSG")
     assert g.replace_cars[0].constraints is not None and g.replace_cars[0].constraints.gearbox_hint == "dct"
     for bad in (("car#9", "trim", "FR"), ("car#1", "colour", "red"), ("car#1", "engine", "")):
         try:
-            car_view.edit_delta(case, *bad)
+            car_edit.edit_delta(case, *bad)
         except (ValueError, KeyError):
             continue
         raise AssertionError(bad)

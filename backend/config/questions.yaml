@@ -104,9 +104,9 @@ ENGINE:
     ru: "Версию «{missing}» у {car} в источниках не нашёл. Нашёл: {options}. Какую берём?"
     es: "No encontré la versión «{missing}» del {car} en las fuentes. Encontré: {options}. ¿Cuál?"
   rephrase:
-    en: "There is no such engine for the {car}. On sale: {options}. Which one?"
-    ru: "Такого двигателя у {car} нет. В продаже: {options}. Какой из них?"
-    es: "El {car} no tiene ese motor. A la venta: {options}. ¿Cuál?"
+    en: "I did not find that engine for the {car} in the sources. Found: {options}. Which one?"
+    ru: "Такой двигатель у {car} в источниках не нашёл. Нашёл: {options}. Какой из них?"
+    es: "No encontré ese motor del {car} en las fuentes. Encontré: {options}. ¿Cuál?"
   rephrase_bare:
     en: "For the {car}, the displacement or the power is enough, for example «1.5» or «150 CV»."
     ru: "Для {car} достаточно объёма или мощности, например «1.5» или «150 л.с.»."

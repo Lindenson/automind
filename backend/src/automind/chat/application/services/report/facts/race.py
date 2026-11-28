@@ -23,6 +23,8 @@ def race_inputs(car: LoadedCar) -> dragrace.CarInput:
         top_speed_kmh=num(car, "top_speed"),
         body_class=v.body_class,
         claimed_0_100=num(car, "claimed_0_100"),
+        make=v.make,
+        mhev_boost_kw=num(car, "mhev_boost"),
     )
 
 

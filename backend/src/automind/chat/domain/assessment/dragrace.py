@@ -51,6 +51,15 @@ class CarInput:
     cd: float | None = None
     frontal_area_m2: float | None = None
     claimed_0_100: float | None = None
+    make: str | None = None  # the typical mild-hybrid boost of the make when the data has none
+    mhev_boost_kw: float | None = None  # a mild hybrid's starter-generator boost, from the data
+
+
+# A 48 V starter-generator adds power while accelerating (owner 2026-11-28: the C 200 d's boost was missing). Used
+# only when the data has no `mhev_boost`, always written as an assumption: Mercedes ISG 15 kW / 200 N·m (W206, W214
+# press kits), BMW 48 V 8 kW (11 PS, G20 LCI / G42), other makes a typical 10 kW.
+MHEV_BOOST_KW: dict[str, float] = {"mercedes-benz": 15.0, "bmw": 8.0}
+MHEV_BOOST_DEFAULT_KW = 10.0
 
 
 @dataclass
@@ -130,7 +139,7 @@ def _assumptions(car: CarInput, st: RaceSettings, res: CarResult) -> _Params:
     ev = car.powertrain == "BEV"
     eta = _assume(a, "drivetrain_efficiency", 0.90 if ev else 0.85, None, "BEV" if ev else "ICE/hybrid")
     rot = _assume(a, "rotational_inertia_factor", 0.05 if ev else 0.08, None, "BEV" if ev else "ICE/hybrid")
-    p_w = car.power_kw * 1000  # type: ignore[operator]
+    p_w = (car.power_kw + _boost_kw(car, a)) * 1000  # type: ignore[operator]
     m = car.mass_kg + st.extra_load_kg  # type: ignore[operator]
     vmax = (car.top_speed_kmh or 250.0) / 3.6
     if not car.top_speed_kmh:
@@ -154,6 +163,18 @@ def _assumptions(car: CarInput, st: RaceSettings, res: CarResult) -> _Params:
     if car.powertrain in ("HEV", "PHEV"):
         res.notes.append("combined system power simplification")
     return _replace(base, k=k)
+
+
+def _boost_kw(car: CarInput, a: list[dict[str, Any]]) -> float:
+    """A mild hybrid's boost added to the engine's power (the data's, else the make's typical one, assumed)."""
+    if car.powertrain != "MHEV":
+        return 0.0
+    if car.mhev_boost_kw:
+        return car.mhev_boost_kw
+    make = (car.make or "").lower()
+    kw = MHEV_BOOST_KW.get(make, MHEV_BOOST_DEFAULT_KW)
+    why = f"typical {car.make} 48 V starter-generator" if make in MHEV_BOOST_KW else "typical 48 V starter-generator"
+    return float(_assume(a, "mhev_boost", kw, "kW", why))
 
 
 def _forces(p: _Params, v: float) -> float:

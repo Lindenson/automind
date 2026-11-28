@@ -321,6 +321,7 @@ turns:
     reply_not_contains:
     - Я не понял ответ
     - Такого двигателя
+    - Такой двигатель у
     cars:
       car#1:
         asked_level: ENGINE
