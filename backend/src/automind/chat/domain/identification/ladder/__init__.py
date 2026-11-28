@@ -8,6 +8,7 @@ Depends on: chat.domain.case, shared.vehicle. Must not depend on: sqlalchemy, th
 Public API: the names below (`from automind.chat.domain.identification import ladder; ladder.decide(...)`).
 """
 
+from automind.chat.domain.identification.ladder.engine_code import engine_code
 from automind.chat.domain.identification.ladder.labels import (
     Reconciled,
     reconcile,
@@ -84,6 +85,7 @@ __all__ = [
     "family_word",
     "levels_of",
     "line_of",
+    "engine_code",
     "narrow",
     "next_step",
     "on_sale",

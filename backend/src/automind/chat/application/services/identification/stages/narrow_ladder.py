@@ -77,7 +77,11 @@ def wanted(car: CaseCar) -> ladder.Wanted:
     """What the car's facts say about the version (the year only of a used car)."""
     k = car.constraints
     words = " ".join(x for x in (car.model or "", car.request_text or "", k.trim_hint or "") if x)
-    return ladder.wanted_of(k.engine_hint, engine=k.version_hint, gearbox=k.gearbox_hint, drive=k.drive_hint,
+    hint = k.engine_hint
+    code = ladder.engine_code(k.trim_hint)  # "C 200 d" / "320d" said as a trim word is the engine family
+    if code and (hint is None or not hint.family):
+        hint = (hint or EngineHint()).model_copy(update={"family": code})
+    return ladder.wanted_of(hint, engine=k.version_hint, gearbox=k.gearbox_hint, drive=k.drive_hint,
                             year=car.year if car.condition == "USED" else None, words=words)  # fmt: skip
 
 

@@ -4,3 +4,4 @@
 tests_graph_test_limit_pause.py_test_limit_asks_and_continue_finishes_the_research.json
 tests_graph_test_limit_pause.py_test_limit_stop_answers_with_what_exists.json
 tests_graph_test_limit_pause.py_test_typed_continue_continues_and_reconnect_resends_the_question.json
+backend/tests/integration/test_catalog_merge.py::test_dry_run_changes_nothing_and_apply_folds_the_duplicate  # 2026-11-28: failed once in a full run (fold id order), 4/4 alone
