@@ -187,6 +187,11 @@ rest of the gap is the prompt/schema and the definitions. Decision on the unders
 
 ## S4 — Switch to Intent (PR 5; deploy checkpoint)
 
+Owner 2026-11-28: S4 now, understander on gemini-3.6-flash (`config/models.yaml`). Split into PRs: **S4a** (T040
+first step: the understanding decides typed words, its `Intent` applied through `as_interpretation`, the old
+interpreter only as the fallback when it refuses; buttons keep the S3 shadow; switch `AUTOMIND_UNDERSTANDING_DECIDES`,
+default on) → S4b (T041 policy on `Intent`, stop, ANSWER_AND_REASK) → S4c (T042, T043, T046) → T044/T045.
+
 - [ ] T040 Node `understand` (alias `interpret` kept) writes `intent`; `apply_delta` → `apply_changes` (alias kept):
   only applies `case_changes` + the pending answer, never rewrites intent. `intent` reset per turn (with 014 C3 the
   reset is `begin_turn`'s, `PER_TURN_RESET` deleted — one release, no double mechanism); language from the previous

@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import Literal, Protocol, TypedDict
 
 from pydantic import BaseModel, Field
+from pydantic.json_schema import SkipJsonSchema
 
 from automind.chat.domain.case import CaseDelta, CaseFile
 from automind.chat.domain.decision import RequestKind
@@ -68,6 +69,9 @@ class Interpretation(BaseModel):
         description="Verbatim words from the LATEST message that contain the numbers set in set_budget, "
         "set_running_cost_limit or set_needs",
     )
+    # spec 013 S4: the offered option the understanding found the words answer (applied by its id, like a tapped
+    # chip); set by code, never by the model (not in the model's schema)
+    option_id: SkipJsonSchema[str | None] = None
 
 
 class Preset(TypedDict, total=False):

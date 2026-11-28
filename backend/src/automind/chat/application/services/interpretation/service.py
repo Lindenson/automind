@@ -131,10 +131,20 @@ class InterpretationService:
         return Applied(new, request, changes, unclear, saved=bool(changes) or new != before)
 
     def _delta_applied(self, req: ApplyRequest) -> tuple[CaseFile, list[str]]:
-        """The offered option the words pick, else the interpretation's delta. Raises ValueError for an unknown car."""
+        """The offered option the words pick, else the interpretation's delta; an option the understanding found
+        (spec 013 S4, `Interpretation.option_id`) is applied by its id first, then the facts the words also state.
+        Raises ValueError for an unknown car."""
         by_id = intake.pick_by_id(req.case, req.option_id) if req.picked and req.option_id else None
         picked = by_id or (picked_option(req.case, req.text, self.words) if req.picked else None)
-        return picked if picked is not None else apply(req.case, req.interpretation.delta, current_year=req.year)
+        if picked is not None:
+            return picked
+        i = req.interpretation
+        chosen = intake.pick_by_id(req.case, i.option_id) if i.option_id else None
+        if chosen is None:
+            return apply(req.case, i.delta, current_year=req.year)
+        case, log = chosen
+        new, more = apply(case, i.delta, current_year=req.year)
+        return new, [*log, *more]
 
     async def _car_edit(self, case: CaseFile, said: list[str], preset: Preset) -> Reading:
         """ "Change" on a car (engine, gearbox, trim, generation, not this car, remove): the delta is built by code and

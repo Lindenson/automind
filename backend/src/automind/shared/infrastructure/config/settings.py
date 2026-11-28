@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     policy_strict: bool = Field(default=False, validation_alias="AUTOMIND_POLICY_STRICT")
     # spec 013 S3: the new understanding runs beside the old interpreter and is recorded; false reverts globally (G8)
     understanding_shadow: bool = Field(default=True, validation_alias="AUTOMIND_UNDERSTANDING_SHADOW")
+    # spec 013 S4: the new understanding decides typed words (the old interpreter only when it refuses); false = S3
+    understanding_decides: bool = Field(default=True, validation_alias="AUTOMIND_UNDERSTANDING_DECIDES")
     max_concurrency: int = 4
     job_timeout_s: float = 180.0  # one car × area; a slow source no longer cuts a job short
     turn_timeout_s: float = 900.0  # research pauses (and asks) at 85% of it; 300 s paused 3-car research
