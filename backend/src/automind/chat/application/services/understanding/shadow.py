@@ -8,6 +8,7 @@ IntentResolver — run on the turn's input beside the old interpreter, which sti
 
 from __future__ import annotations
 
+import asyncio
 import dataclasses
 import logging
 from collections.abc import Callable, Mapping
@@ -33,6 +34,7 @@ from automind.shared.contracts.config import MakeNames
 from automind.shared.contracts.json import JsonObject
 
 log = logging.getLogger(__name__)
+READ_TIMEOUT_S = 25.0  # one understanding call (p95 3.3 s on gemini-3.6-flash); a stalled call is tried again
 
 CarEdit = Callable[[CaseFile, str, str, str], CaseDelta]  # (case, car key, field, value) → delta; ValueError/KeyError
 _UI = {PresetKind.PICK: UiActionKind.PICK_OPTION, PresetKind.RESEARCH_MORE: UiActionKind.RESEARCH_MORE,
@@ -106,26 +108,46 @@ class UnderstandingShadow:
     async def _read(self, m: Message) -> ModelReading:
         """The model's reading; read once more, told what it missed, when the words name makes that neither the
         case nor the reading has (spec 013 S4: one reading in five dropped both named cars). The second reading is
-        kept when it misses fewer."""
-        first = await self.understander.read(m)
+        kept when it misses fewer makes, or as many with more cars read."""
+        first = await self._timed(m)
         missed = self._missed(m, first.understanding)
         if not missed:
             return first
         note = (
             f"the MESSAGE names {', '.join(missed)} but your reading has no car of "
             f"{'this make' if len(missed) == 1 else 'these makes'}; add every car the MESSAGE names "
-            "(case_changes.add_cars, with its model, year and engine words) unless it is already in the CASE FILE"
+            "(case_changes.add_cars, each with its make, model, year and engine words) unless it is already in the "
+            "CASE FILE"
         )
-        log.info("understanding.reread missed=%s", missed)
-        second = await self.understander.read(dataclasses.replace(m, note=note))
-        return second if len(self._missed(m, second.understanding)) < len(missed) else first
+        second = await self._timed(dataclasses.replace(m, note=note))
+        still = self._missed(m, second.understanding)
+        log.info("understanding.reread missed=%s still=%s cars=%d", missed, still,
+                 len(second.understanding.case_changes.add_cars))  # fmt: skip
+        more = len(second.understanding.case_changes.add_cars) > len(first.understanding.case_changes.add_cars)
+        return second if len(still) < len(missed) or (len(still) == len(missed) and more) else first
+
+    async def _timed(self, m: Message) -> ModelReading:
+        """One reading within `READ_TIMEOUT_S`; a stalled call (live: 123 s) is tried once more, then raises
+        TimeoutError (the old interpreter reads the turn then)."""
+        for attempt in range(2):
+            try:
+                async with asyncio.timeout(READ_TIMEOUT_S):
+                    return await self.understander.read(m)
+            except TimeoutError:
+                log.warning("understanding.read_timeout attempt=%d", attempt + 1)
+        raise TimeoutError(f"the understander gave no reading in {READ_TIMEOUT_S} s, twice")
 
     def _missed(self, m: Message, u: Understanding) -> list[str]:
+        """The makes the words name that the case and the reading lack; a car read without a make counts by the
+        make its words name."""
         if self.makes is None:
             return []
+        match = self.makes.match_make
         d = u.case_changes
-        have = [*(c.make for c in m.case.cars), *(c.make for c in d.add_cars), *(c.make for c in d.replace_cars)]
-        return understanding.makes_missed(m.text, have, self.makes.match_make)
+        added = [c.make or match(c.request_text) for c in d.add_cars]
+        replaced = [c.make or match(c.request_text or "") for c in d.replace_cars]
+        have = [*(c.make for c in m.case.cars), *added, *replaced]
+        return understanding.makes_missed(m.text, have, match)
 
     def _button(self, base: JsonObject, kind: PresetKind, t: ShadowTurn, ctx: Context) -> UnderstandingRecord:
         p = t.preset or {}

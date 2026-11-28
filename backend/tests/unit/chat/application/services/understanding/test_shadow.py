@@ -4,6 +4,7 @@ a failing model — and "the same question again"."""
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass, field
 
 import pytest
@@ -167,3 +168,47 @@ async def test_a_complete_reading_is_not_read_again_and_a_worse_second_one_is_no
     llm = _Seq(one, understanding(goals=[{"kind": "compare"}]))
     _, understood = await _seq_shadow(llm).understand_words(_turn("Kia Sportage или BMW 320d", case=CaseFile()))
     assert understood is not None and [c.make for c in understood.case_changes.add_cars] == ["Kia"]
+
+
+async def test_a_second_reading_with_cars_without_a_make_counts_by_their_words() -> None:
+    no_make = understanding(goals=[{"kind": "compare"}], case_changes={"add_cars": [
+        {"request_text": "Kia Sportage 2022", "model": "Sportage", "year": 2022},
+        {"request_text": "BMW 320d 2024", "model": "3 Series", "year": 2024}]})  # fmt: skip
+    llm = _Seq(understanding(goals=[{"kind": "compare"}]), no_make)
+    _, understood = await _seq_shadow(llm).understand_words(
+        _turn("сравни Kia Sportage 2022 и BMW 320d 2024", case=CaseFile())
+    )
+    assert understood is not None and [c.year for c in understood.case_changes.add_cars] == [2022, 2024]
+
+
+async def test_a_stalled_reading_is_tried_once_more(monkeypatch: pytest.MonkeyPatch) -> None:
+    from automind.chat.application.services.understanding import shadow as module
+
+    monkeypatch.setattr(module, "READ_TIMEOUT_S", 0.05)
+
+    class _Stall(_Seq):
+        async def structured(self, role: str, schema: type, system: str, user: str) -> object:
+            if not self.prompts:
+                self.prompts.append(user)
+                await asyncio.sleep(1)
+            return await super().structured(role, schema, system, user)
+
+    llm = _Stall(_BOTH)
+    _, understood = await _seq_shadow(llm).understand_words(
+        _turn("сравни Kia Sportage 2022 и BMW 320d 2024", case=CaseFile())
+    )
+    assert understood is not None and len(understood.case_changes.add_cars) == 2
+
+
+async def test_two_stalled_readings_are_a_refusal(monkeypatch: pytest.MonkeyPatch) -> None:
+    from automind.chat.application.services.understanding import shadow as module
+
+    monkeypatch.setattr(module, "READ_TIMEOUT_S", 0.01)
+
+    class _Never(_Seq):
+        async def structured(self, role: str, schema: type, system: str, user: str) -> object:
+            await asyncio.sleep(1)
+            return _BOTH
+
+    rec, understood = await _seq_shadow(_Never()).understand_words(_turn("Kia или BMW", case=CaseFile()))
+    assert understood is None and rec.refused and "TimeoutError" in rec.refused
