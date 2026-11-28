@@ -1,4 +1,4 @@
-# Next session: start here (2026-11-28: PR #163 point fixes merged, spec 017 drafted — owner decides §H, then IC1)
+# Next session: start here (2026-11-28 eve: spec 017 approved; 013 S4a live (#165–#167); next S4b = T041)
 
 Three approved specs, one PR per step, merged to main without review; after each merged step that touches `src`:
 `scripts/deploy.sh up --monitoring`, replay the owner's chat live (cost ≈ €0.01–0.06; script below), show the
@@ -123,6 +123,16 @@ result to the owner first. Spec 012 (A4c onward) waits until 013 S7. New code fo
 - **Spec 017 drafted** (`specs/017-interaction-contracts/`, PR "017-spec"): interaction contracts (table in code,
   socket e2e per row) + source pyramid (tiers 0–3, EEA/DGT/RDW bulk first, dealers never form a list). Owner
   decisions §H1–H6 pending (S4 now with gemini-3.6-flash? order; DGT; VehiclesDB; commercial; purge dealer lists).
+
+- **Owner 2026-11-28: "да на все, начинай с S4"** — spec 017 §H all approved; understander = gemini-3.6-flash.
+  **013 S4a** merged and live (`359c1ae`): typed words decided by the new understanding (`as_interpretation`; old
+  interpreter only as fallback; buttons still on the old path; switch `AUTOMIND_UNDERSTANDING_DECIDES`) (#165); a
+  reading that misses named makes is re-read with a CHECK note (#166); 25 s per understander call, one retry, cars
+  without make counted by their words (#167). Live: the owner's first message 5/5 → C-Class 2026 + BMW 2 Series 2024
+  (before: 1 in 5 readings lost both cars, one call stalled 123 s). Source terms checked (`audit-sources.md` §Terms):
+  RDW forbids naming RDW; VehiclesDB only via GitHub releases API; EEA bulk hosts unverified (timeout/502).
+- Next: **S4b = T041** (policy on `Intent`: stop, ANSWER_AND_REASK, goals), then S4c (T042/T043/T046), then spec 017
+  IC1 → IC2 (incl. engine code in `trim_hint` = engine family; "rephrase" template wording) → SP1–SP4.
 
 **Teammate review 2026-11-27 (owner: "учти критику") — checked against the code, where each point lives**
 1. Understanding = one label of 14, word lists before the model, text not by id → 013 S4 (T040–T043); S3 shadow
