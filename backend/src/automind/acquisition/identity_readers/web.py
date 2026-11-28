@@ -138,19 +138,21 @@ async def generation_hints(ports: AcqPorts, query: str, *, lineup_url: str | Non
     return docs
 
 
-def _richest(read: dict[str, tuple[str, str]], n: int) -> dict[str, tuple[str, str]]:
-    """The pages that list the most different powers (a range table, not an article about one version)."""
+def _richest(read: dict[str, tuple[str, str]], n: int, min_powers: int = 2) -> dict[str, tuple[str, str]]:
+    """The pages that list the most different powers (a range table, not an article about one version); a search
+    for one named version (`min_powers` 1) keeps a page about that version too."""
 
     def powers(text: str) -> int:
         return len(set(_POWER.findall(text[:7000])))
 
     ranked = sorted(read.items(), key=lambda kv: -powers(kv[1][1]))
-    return {u: d for u, d in ranked[:n] if powers(d[1]) >= 2}
+    return {u: d for u, d in ranked[:n] if powers(d[1]) >= min_powers}
 
 
-def _rank(url: str, make: str) -> int:
+def _rank(url: str, make: str, one_version: bool = False) -> int:
     """Pages that list the whole range first: the maker's own site, editorial range pages; one-version pages last
-    (live check 2026-11-04: an A4 B9 "list" of one version from one km77 data page)."""
+    (live check 2026-11-04: an A4 B9 "list" of one version from one km77 data page) — unless one named version is
+    looked for (`one_version`), when its own data page is what is wanted."""
     score = 0
     if evidence.is_official(url) or make.lower().replace(" ", "") in url.lower().split("/")[2]:
         score += 3
@@ -159,7 +161,7 @@ def _rank(url: str, make: str) -> int:
     if _RANGE.search(url):
         score += 1
     if _ONE_VERSION.search(url):
-        score -= 4
+        score += 1 if one_version else -4
     return score
 
 
@@ -176,7 +178,8 @@ async def _read(ports: AcqPorts, make: str, queries: list[str], lim: dict[str, A
             for h in await search_hits(ports, q, market=market, area="specs"):
                 if h.url not in urls and h.url not in done and not evidence.is_denied(h.url):
                     urls.append(h.url)
-        urls.sort(key=lambda u: -_rank(u, make))  # stable: the search order within a rank
+        one = bool(lim.get("versions_one_version"))  # a search for one named version (spec 017 V2)
+        urls.sort(key=lambda u: -_rank(u, make, one))  # stable: the search order within a rank
         read: dict[str, tuple[str, str]] = {}
         for url in urls[:12]:
             if len(read) >= int(lim.get("versions_read_pages", 6)):
@@ -185,7 +188,7 @@ async def _read(ports: AcqPorts, make: str, queries: list[str], lim: dict[str, A
             page = await ports.page_store.get(url, area="specs")
             if page and page.text:
                 read[page.url] = (page.title or "", page.text[:14000])
-        docs = _richest(read, int(lim.get("versions_max_pages", 3)))
+        docs = _richest(read, int(lim.get("versions_max_pages", 3)), 1 if one else 2)
     finally:
         if budget is not None:  # identification, not research: counted apart (the turn's research needs consent)
             budget.identify_search_calls += budget.search_calls - before

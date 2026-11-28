@@ -143,3 +143,54 @@ async def test_a_stale_chip_id_is_read_as_words() -> None:
     service, _ = _service({"request": "compare", "language": "en", "delta": {}})
     reading = await service.read(_case(), [], "1.5 TSI", {"kind": "pick", "option_id": "q:car#1:ENGINE:1"})
     assert not reading.picked and reading.interpretation is not None
+
+
+def _bmw() -> CaseFile:
+    car = CaseCar(key="car#2", request_text="БМВ 220д 2024 года", make="BMW", model="2 Series", condition="USED",
+                  year=2024, mileage_km=30000)  # fmt: skip
+    return CaseFile(cars=[car], next_car_no=3)
+
+
+_NOT_THIS = {"kind": "car_edit", "car_key": "car#2", "field": "not_this_car", "value": "320 d"}
+
+
+async def test_not_this_car_is_read_like_a_typed_car_and_keeps_the_purchase() -> None:
+    """Spec 017 C1 (chat 725e7437): "320 d" on a BMW is the 3 Series with the 320d engine; year, mileage and
+    condition the person gave stay; the words read are the make's ("BMW 320 d")."""
+    said: list[str] = []
+    bmw = {"request_text": "BMW 320 d", "make": "BMW", "model": "3 Series",
+           "constraints": {"trim_hint": "320d", "fuel_hint": "diesel"}}  # fmt: skip
+    service, log = _service({"request": "compare", "language": "ru", "delta": {"add_cars": [bmw]}})
+    inner = service.llm.structured
+
+    async def spy(role: str, schema: type[T], system: str, user: str) -> T:
+        said.append(user)
+        return await inner(role, schema, system, user)
+
+    service.llm.structured = spy  # type: ignore[method-assign]
+    reading = await service.read(_bmw(), [], "", _NOT_THIS)
+    assert reading.interpretation is not None
+    ctx = reading.interpretation.delta.replace_cars[0]
+    assert (ctx.make, ctx.model, ctx.year, ctx.mileage_km, ctx.condition) == ("BMW", "3 Series", 2024, 30000, "USED")
+    assert ctx.constraints is not None and ctx.constraints.fuel_hint == "diesel"
+    assert any("BMW 320 d" in u for u in said) and log.events == [("CARD_EDITED", "car#2", "not_this_car")]
+    applied = service.apply(ApplyRequest(_bmw(), reading.interpretation, "", picked=False, year=2026))
+    car = applied.case.car("car#2")
+    assert (car.model, car.year, car.mileage_km) == ("3 Series", 2024, 30000)
+
+
+async def test_not_this_car_falls_back_to_the_words_when_the_reading_fails() -> None:
+    service, _ = _service(answer=None)
+    reading = await service.read(_bmw(), [], "", {**_NOT_THIS, "value": "BMW X3 2019"})
+    assert reading.interpretation is not None
+    ctx = reading.interpretation.delta.replace_cars[0]
+    assert (ctx.make, ctx.model, ctx.year) == ("BMW", "X3 2019", 2024)  # code split: the words as the model
+
+
+async def test_not_this_car_with_a_stated_year_takes_the_new_year() -> None:
+    other = {"request_text": "Audi A4 2019", "make": "Audi", "model": "A4", "year": 2019, "condition": "USED"}
+    service, _ = _service({"request": "compare", "language": "ru", "delta": {"add_cars": [other]}})
+    reading = await service.read(_bmw(), [], "", {**_NOT_THIS, "value": "Audi A4 2019"})
+    assert reading.interpretation is not None
+    ctx = reading.interpretation.delta.replace_cars[0]
+    assert (ctx.make, ctx.model, ctx.year, ctx.mileage_km) == ("Audi", "A4", 2019, 30000)

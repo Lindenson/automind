@@ -103,6 +103,16 @@ result to the owner first. Spec 012 (A4c onward) waits until 013 S7. New code fo
 - `diff_behaviour.py --base-db URL`: a head with a new migration leaves the test DB at a revision main does not know
   (every base test errors, "same 0, added N"); give the base its own DB (`automind_test_<tag>` + `automind_mig_<tag>`).
 
+- **Chat 725e7437 (2026-11-28, BMW 320d "not found")** → PR "017-point-fixes-identity": card "not this car" read by
+  the interpreter ("320 d" on a BMW → 3 Series, 320d, diesel) and keeps year/mileage/condition; a named version the
+  sourced list lacks is searched on its own (`identification/named_version.py`, once per generation, memo
+  `looked_for`) before any "not found"; question texts say "not found in the sources", never "has no"; EEA failure
+  cached 1 h (empty answer 1 day); `versions.dropped` / `versions.read` log lines. Root causes: model "320 d" from the
+  card's word split; versions list = the `versions` reader's 11 rows of one dealer page (caetano.es) that dropped the
+  320d row in the live call (7/7 re-runs kept it); bmw.es data pages fetch ERROR since 11-27. Removed the bad
+  `model_versions` row (backup `automind-20261128-171624.sql.gz`). Owner: spec 017 = contracts + e2e tests for every
+  user interaction, and a source pyramid (registries/maker/big spec DBs first, dealers last).
+
 **Teammate review 2026-11-27 (owner: "учти критику") — checked against the code, where each point lives**
 1. Understanding = one label of 14, word lists before the model, text not by id → 013 S4 (T040–T043); S3 shadow
    measured it (all but action 49 → 72 %). Reviewer's priority #1, same as ours.

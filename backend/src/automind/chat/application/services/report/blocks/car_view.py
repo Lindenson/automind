@@ -7,7 +7,7 @@ from collections.abc import Callable, Sequence
 
 from automind.acquisition.api import CatalogueVariant
 from automind.chat.application.services.identification import catalogue
-from automind.chat.domain.case import CarContext, CaseCar, CaseDelta, CaseFile, Constraints
+from automind.chat.domain.case import CarContext, CarRef, CaseCar, CaseDelta, CaseFile, Constraints
 from automind.chat.domain.case.enums import GEARBOXES, Gearbox
 from automind.shared.contracts.json import JsonObject
 from automind.shared.vehicle.identity import parse_engine
@@ -81,6 +81,37 @@ async def view(case: CaseFile) -> dict[str, JsonObject]:
     return out
 
 
+def named_text(car: CaseCar, value: str, match_make: MakeMatcher | None) -> str:
+    """The words of "not this car" as a car description: the old car's make put in front when the words name no make
+    ("320 d" on a BMW is "BMW 320 d")."""
+    v = value.strip()[:120]
+    named = match_make(v) if match_make is not None and v else None
+    return v if named or not car.make else f"{car.make} {v}"
+
+
+def another_car(car: CaseCar, value: str, read: CarRef | None, match_make: MakeMatcher | None = None) -> CarContext:
+    """ "Not this car" (FR-037, spec 017 C1): the car the words name replaces `car`; the purchase the person
+    described stays — condition, year and mileage are kept unless the words state them (chat 725e7437: "320 d"
+    lost the year 2024 and became the model "320 d"). `read` is the interpreter's reading of `named_text`
+    (model line, engine, fuel); without it the words are split by code (make, then the rest as the model)."""
+    v = value.strip()[:120]
+    if read is None:
+        make = (match_make(v) if match_make is not None and v else None) or car.make
+        read = CarRef(request_text=v or make or car.request_text, make=make, model=_model_words(v, make) or None)
+    stated_year = read.year is not None or read.age_years is not None
+    return CarContext(
+        target_key=car.key,
+        request_text=v or read.request_text,
+        make=read.make or car.make,
+        model=read.model,
+        condition=read.condition if read.condition != "UNKNOWN" else car.condition,
+        year=read.year if stated_year else car.year,
+        age_years=read.age_years if stated_year else (None if car.year else car.age_years),
+        mileage_km=read.mileage_km if read.mileage_km is not None else car.mileage_km,
+        constraints=read.constraints.model_copy(deep=True),
+    )
+
+
 def _distinct(values: Sequence[str | None], current: str | None) -> list[str]:
     seen: list[str] = []
     for x in values:
@@ -118,11 +149,7 @@ def edit_delta(
     if field == "remove":
         return CaseDelta(remove_cars=[car.key])
     if field == "not_this_car":
-        make = (match_make(v) if match_make is not None and v else None) or car.make
-        model = _model_words(v, make) if v else None
-        ctx = CarContext(target_key=car.key, request_text=v or (make or car.request_text), make=make,
-                         model=model or None, condition=car.condition, constraints=Constraints())  # fmt: skip
-        return CaseDelta(replace_cars=[ctx])
+        return CaseDelta(replace_cars=[another_car(car, v, None, match_make)])
     if not v:
         raise ValueError(f"{field}: a value is needed")
     k = _constraints(car.constraints.model_copy(deep=True), field, v)

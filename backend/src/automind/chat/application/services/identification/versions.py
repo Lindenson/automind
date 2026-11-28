@@ -18,6 +18,7 @@ versions are the options of the "which version?" question when no list is found 
 
 from __future__ import annotations
 
+import logging
 import re
 from typing import Any
 
@@ -27,6 +28,8 @@ from automind.chat.domain.identification.ladder import Generation, Version, sold
 from automind.shared import evidence
 from automind.shared.research_order import search_plan
 from automind.shared.vehicle import identity, markets
+
+log = logging.getLogger(__name__)
 
 
 def _power_written(v: VersionEntry, text: str) -> bool:
@@ -41,17 +44,28 @@ def _overlaps(v: VersionEntry, lo: int | None, hi: int | None) -> bool:
     return (b or 0) >= lo - 1 and (hi is None or (a or 0) <= hi + 1)
 
 
+def _dropped(v: VersionEntry, why: str) -> None:
+    log.info("versions.dropped engine=%r why=%s excerpt=%r url=%s", v.engine, why, v.excerpt[:120], v.source_url)
+
+
 def validate(out: VersionsOut, docs: dict[str, tuple[str, str]]) -> list[Version]:
-    """The versions their documents support, one per engine and power, in the source's order (base first)."""
+    """The versions their documents support, one per engine and power, in the source's order (base first). Each
+    version dropped is logged with the reason (`versions.dropped`: chat 725e7437 lost the 320d without a trace)."""
     kept: list[Version] = []
     seen: set[tuple[Any, ...]] = set()
     for v in out.versions:
         doc = docs.get(v.source_url)
         if doc is None or not v.engine.strip():
+            _dropped(v, "no_document")
             continue
-        if not _power_written(v, v.excerpt) or not evidence.occurs(v.excerpt, f"{doc[0]}\n{doc[1]}"):
+        if not _power_written(v, v.excerpt):
+            _dropped(v, "power_not_in_excerpt")
             continue  # a power not written in its document is never kept
+        if not evidence.occurs(v.excerpt, f"{doc[0]}\n{doc[1]}"):
+            _dropped(v, "excerpt_not_in_document")
+            continue
         if not _overlaps(v, out.generation_years_from, out.generation_years_to):
+            _dropped(v, "other_generation")
             continue  # a version of another generation
         kw = v.power_kw or (round(v.power_cv * 0.7355) if v.power_cv else None)
         cc = round(v.displacement_l * 1000) if v.displacement_l else None
@@ -62,6 +76,7 @@ def validate(out: VersionsOut, docs: dict[str, tuple[str, str]]) -> list[Version
                       years_from=v.years_from, years_to=v.years_to, source_url=v.source_url,
                       excerpt=v.excerpt[:240])  # fmt: skip
         if ver.engine_key in seen:
+            _dropped(v, "duplicate")
             continue
         seen.add(ver.engine_key)
         kept.append(ver)
@@ -157,6 +172,8 @@ async def _from_docs(store: Any, hit: Generation | None, make: str, model: str, 
     few."""
     out, docs = got.out, got.docs
     kept = validate(out, docs)
+    log.info("versions.read make=%s model=%s pages=%s listed=%d kept=%d", make, model, list(docs), len(out.versions),
+             len(kept))  # fmt: skip
     if hit is not None:  # the cached list did not cover the car's year: the versions found for it are added
         return await _merge(store, hit, kept, docs, year, int(lim["versions_min"]))
     gen = generation or out.generation

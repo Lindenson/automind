@@ -43,7 +43,10 @@ def test_missing_and_status_line_in_the_question() -> None:
     text = items[0]["text"]
     first, second = text.split("\n")
     assert first == "Audi A4 · B9 (2023) · motor: ?"  # "2.5" does not exist: not shown as settled
-    assert second == "El Audi A4 2023 no tiene la versión «2.5». Hay: 2.0 TFSI 150 CV, 2.0 TDI 163 CV. ¿Cuál?"
+    assert second == (
+        "No encontré la versión «2.5» del Audi A4 2023 en las fuentes. "
+        "Encontré: 2.0 TFSI 150 CV, 2.0 TDI 163 CV. ¿Cuál?"
+    )
 
 
 def test_ladder_chips_options_choose_and_remove() -> None:

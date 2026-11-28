@@ -9,7 +9,7 @@ import re
 
 from automind.acquisition.api import CatalogueVariant
 from automind.chat.application.ports import Ports
-from automind.chat.application.services.identification import versions
+from automind.chat.application.services.identification import named_version, versions
 from automind.chat.application.services.identification.catalogue import upsert_variant
 from automind.chat.application.services.identification.contracts import Placed, VariantIdentity
 from automind.chat.application.services.identification.rejected import generation_rejected, version_facts
@@ -19,6 +19,7 @@ from automind.chat.application.services.identification.stages.narrow_ladder impo
     generation_of,
     others,
     reconcile,
+    wanted,
 )
 from automind.chat.application.services.identification.stages.settle import proposed, settle
 from automind.chat.domain.case import CaseCar, IdentifyOutcome, LadderMemo
@@ -51,6 +52,7 @@ class SourcedVersions:
         if g is None or not g.versions or generation_rejected(car, g.generation):
             return None  # no sourced list, or the person rejected this generation (spec 013 I3)
         memo = car.ladder or LadderMemo()
+        g = await self._named_version(car, g, memo, None if new else car.year)
         memo.certainty, memo.generation = "SOURCED", g.generation
         memo.generation_from, memo.generation_to = g.years_from, g.years_to
         car.ladder = memo
@@ -69,6 +71,22 @@ class SourcedVersions:
         if d.missing and not d.auto:  # the user named something this generation has not: said, the one there is
             events.append({"kind": "ladder_missing", "missing": ", ".join(d.missing), "label": v.label})
         return settle(car, IdentifyOutcome(outcome="IDENTIFIED", missing=d.missing, events=events))
+
+    async def _named_version(self, car: CaseCar, g: ladder.Generation, memo: LadderMemo,
+                             year: int | None) -> ladder.Generation:  # fmt: skip
+        """The list with the version the person named, searched for on its own once per generation when the list
+        lacks it (spec 017 V2); the list unchanged when it has it, it was searched before, or the search fails."""
+        named = named_version.named_engine(wanted(car))
+        if named is None or not named_version.lacks(g, named):
+            return g
+        key = f"{g.generation}|{named_version.named_query(g, named, None)}".lower()
+        if key in memo.looked_for:
+            return g
+        memo.looked_for.append(key)
+        try:
+            return await named_version.find_named(self.ports, g, named, year)
+        except Exception:  # noqa: BLE001 - the search only adds a version; without it the list is asked as is
+            return g
 
     async def _store(self, car: CaseCar, g: ladder.Generation, step: ladder.Step) -> CatalogueVariant:
         """The catalogue row of the settled version (an existing one is reused, FR-019)."""

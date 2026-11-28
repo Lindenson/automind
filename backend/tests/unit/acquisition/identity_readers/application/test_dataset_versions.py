@@ -72,13 +72,15 @@ async def test_one_live_query_is_cached_for_the_refresh_period_and_noise_dropped
     assert calls == ["Kia"]  # the cache answered
 
 
-async def test_a_slow_query_is_cached_empty_for_a_day_and_a_store_down_is_an_empty_list() -> None:
+async def test_a_slow_query_is_cached_empty_for_an_hour_and_a_store_down_is_an_empty_list() -> None:
+    """A failed query (timeout, a 502: chat 725e7437) is retried after an hour, not tomorrow."""
+
     async def slow(make: str) -> list[DatasetRow]:
         await asyncio.sleep(1)
         return []
 
     book = Book()
     assert await _reader(book, slow).run("Kia", "Sorento") == []
-    assert book.kept == [("Kia", 0, 1.0)]
+    assert book.kept == [("Kia", 0, 1 / 24)]
     assert await _reader(Book(down=True), slow).run("Kia", "Sorento") == []
     assert await _reader(Book(), None).run("Kia", "Sorento") == []  # no live port: stored and cached only

@@ -84,6 +84,7 @@ class LadderMemo(BaseModel):
     source_url: str | None = None  # the document that lists the settled version
     source_name: str | None = None  # the list's source when not a web page ("EU registrations (EEA CO2 / RDW)")
     others: list[str] = Field(default_factory=list)  # other versions of this generation and year (card chips)
+    looked_for: list[str] = Field(default_factory=list)  # named versions searched for on their own (spec 017 V2)
 
 
 class CaseCar(BaseModel):
